@@ -1,0 +1,18 @@
+[
+	["client_1", "client_2", "client_3"],
+	["rs_A", "rs_B", "rs_C"],
+	{
+		"client_1" : {
+			"rs_A" : ["r_temp", "rw_config"],
+			"rs_B" : ["r_light"]
+		},
+		"client_2" : {
+			"rs_A" : ["r_temp"],
+			"rs_B" : ["r_light", "r_config"],
+			"rs_C" : ["rw_valve", "r_pressure"]
+		},
+		"client_3" : {
+			"rs_C" : ["r_valve", "r_pressure"]
+		}
+	}
+]

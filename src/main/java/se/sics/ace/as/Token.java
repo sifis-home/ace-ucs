@@ -34,6 +34,8 @@ public class Token implements Endpoint {
 		CBORObject payload = CBORObject.FromObject(msg.getRawPayload());
 		
 		//1. Check if this client can request tokens
+		msg.getSenderId();
+		
 		//2. Check if this client can request this type of token
 		//2.1 check aud & scope
 		//3. Check if this client and the RS support a common profile
