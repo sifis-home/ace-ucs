@@ -2,7 +2,7 @@
 
 This is a Mavenized Java project. You should be able to compile an run this
 classes if you manage to figure out how Maven works (and boy do the Maven
-fanboys they make that hard with their crappy manuals).
+fanboys make that hard with their crappy manuals).
 
 ### What is this repository for? ###
 
