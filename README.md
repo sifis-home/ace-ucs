@@ -15,7 +15,7 @@ fanboys make that hard with their crappy manuals).
 
 ### How do I get set up? ###
 
-* Just clone the repo, do the Mavne fu and you are good to go
+* Just clone the repo, do the Maven fu and you are good to go
 * Configuration: None needed to test. To run in production you need to
   configure like everything, starting with your resource servers (out of scope
   here), the access control policies for the authorization server (KissPDP has
