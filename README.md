@@ -7,7 +7,7 @@ fanboys make that hard with their crappy manuals).
 ### What is this repository for? ###
 
 * This is a Java library for the functions necessary to run a client, resource
-  server, and authorization server as specified in draft-ietf-ace-oauth-authz. 
+  server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://tools.ietf.org/html/draft-ietf-ace-oauth-authz-02). 
   It currently does not include network functionality, since it tries to be
   protocol agnostic. However as this work progesses at least support for CoAP
   will be added.
