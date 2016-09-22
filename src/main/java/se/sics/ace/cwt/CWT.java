@@ -21,6 +21,7 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
+import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
 
 import COSE.AlgorithmID;
@@ -48,7 +49,7 @@ import com.upokecenter.cbor.CBORType;
  * @author Ludwig Seitz
  *
  */
-public class CWT {
+public class CWT implements AccessToken {
 
 	private Map<String, CBORObject> claims;	
 	
@@ -223,6 +224,7 @@ public class CWT {
 	 * 
 	 * @return  the claims as CBOR Map.
 	 */
+	@Override
 	public CBORObject encode() {
 		CBORObject map = CBORObject.NewMap();
 		for (String key : this.claims.keySet()) {
@@ -338,6 +340,7 @@ public class CWT {
 	 * @param now  the current time in ms since January 1, 1970, 00:00:00 GMT
 	 * @return  true if the CWT is valid, false if not
 	 */
+	@Override
 	public boolean isValid(long now) {
 		//Check nbf and exp for the found match
 		CBORObject nbfO = this.claims.get("nbf");
@@ -359,6 +362,7 @@ public class CWT {
 	 * @param now  the current time in ms since January 1, 1970, 00:00:00 GMT
 	 * @return  true if the CWT is expired false if it is still valid or has no expiration date
 	 */
+	@Override
 	public boolean expired(long now) {
 		CBORObject expO = this.claims.get("exp");
 		if (expO != null && expO.AsInt64() < now) {

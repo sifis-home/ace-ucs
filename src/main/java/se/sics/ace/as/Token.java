@@ -29,15 +29,23 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  */
 public class Token implements Endpoint {
 
+	/**
+	 * The PDP this endpoint uses to make access control decisions.
+	 */
+	private PDP pdp;
+	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) {
 		CBORObject payload = CBORObject.FromObject(msg.getRawPayload());
 		
 		//1. Check if this client can request tokens
-		msg.getSenderId();
+		if (!this.pdp.canAccessToken(msg.getSenderId())) {
+			//FIXME: Make failure message
+		}
 		
 		//2. Check if this client can request this type of token
-		//2.1 check aud & scope
+		
+		
 		//3. Check if this client and the RS support a common profile
 		//4. Create token
 		
