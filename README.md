@@ -1,27 +1,38 @@
 # README #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This is a Mavenized Java project. You should be able to compile an run this
+classes if you manage to figure out how Maven works (and boy do the Maven
+fanboys they make that hard with their crappy manuals).
 
 ### What is this repository for? ###
 
-* This is a Java library for the functions necessary to run a client, resource server or authorization server as specified in draft-ietf-ace-oauth-authz.
-* early_alpha
+* This is a Java library for the functions necessary to run a client, resource
+  server, and authorization server as specified in draft-ietf-ace-oauth-authz. 
+  It currently does not include network functionality, since it tries to be
+  protocol agnostic. However as this work progesses at least support for CoAP
+  will be added.
+* Version: early_alpha
 
 
 ### How do I get set up? ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+* Just clone the repo, do the Mavne fu and you are good to go
+* Configuration: None needed to test. To run in production you need to
+  configure like everything, starting with your resource servers (out of scope
+  here), the access control policies for the authorization server (KissPDP has
+  a demo format in JSON, check the test resources), the discovery of AS (out of
+  scope again). If you don't know where to start you probably shouldn't use
+  this in production settings.
+* Dependencies: Lots, check the .pom file
+* Database configuration:  TBD
+* How to run tests: Run the class files in the src/test folders
+* Deployment instructions: Depends ... TBD
 
 ### Contribution guidelines ###
 
-* Writing tests
-* Code review
-* Other guidelines
+* Writing tests: Yes please!
+* Code review: Yes please!
+* Other guidelines: Follow the java coding style guidelines, don't add new depenencies.
 
 ### Who do I talk to? ###
 
