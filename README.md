@@ -1,6 +1,6 @@
 # README #
 
-This is a Mavenized Java project. You should be able to compile and run these
+This is a mavenized Java project. You should be able to compile and run these
 classes if you manage to figure out how Maven works (and boy do the Maven
 fanboys make that hard with their crappy manuals).
 
