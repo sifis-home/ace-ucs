@@ -33,10 +33,10 @@ public class TestKissPDP {
     public void testParseConfig() throws Exception {
     	KissPDP pdp = KissPDP.getInstance("src/test/resources/acl.json");
     	assert(pdp.canAccessToken("client_1"));
-    	assert(pdp.canAccess("client_1", "rs_B", "r_light"));
-    	assert(!pdp.canAccess("client_3", "rs_A", "r_temp"));
-    	assert(pdp.canAccess("client_1", "rs_A", "r_temp"));
-    	assert(!pdp.canAccess("client_2", "rs_A", "r_config"));
+    	assert(pdp.canAccess("client_1", "rs_B", "r_light").equals("r_light"));
+    	assert(pdp.canAccess("client_3", "rs_A", "r_temp")==null);
+    	assert(pdp.canAccess("client_1", "rs_A", "r_temp").equals("r_temp"));
+    	assert(pdp.canAccess("client_2", "rs_A", "r_config")==null);
     	assert(pdp.canAccessIntrospect("rs_A"));
     	assert(!pdp.canAccessToken("client_4"));
     	assert(!pdp.canAccessIntrospect("rs_D"));

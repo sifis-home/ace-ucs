@@ -54,7 +54,7 @@ public class GetTokenProtocol implements Protocol {
 		params.Add(Constants.SCOPE, scope);
 		params.Add(Constants.CLIENT_SECRET, clientSecret);
 		
-		//FIXME:
+		//FIXME: return something meaningful
 		return params;
 	}
 	

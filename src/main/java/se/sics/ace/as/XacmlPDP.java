@@ -14,6 +14,7 @@ import org.wso2.balana.ctx.AbstractResult;
 import org.wso2.balana.ctx.Attribute;
 import org.wso2.balana.ctx.ResponseCtx;
 import org.wso2.balana.ctx.xacml3.RequestCtx;
+import org.wso2.balana.ctx.xacml3.Result;
 import org.wso2.balana.finder.PolicyFinder;
 import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 import org.wso2.balana.xacml3.Attributes;
@@ -27,38 +28,38 @@ import org.wso2.balana.xacml3.Attributes;
 public class XacmlPDP implements PDP {
 
 	private org.wso2.balana.PDP pdp;
-	
+
 	/**
 	 * The standard URI for listing a subject's id
 	 */
 	private static URI SUBJECT_ID =
-		URI.create("urn:oasis:names:tc:xacml:1.0:subject:subject-id");
-	
+			URI.create("urn:oasis:names:tc:xacml:1.0:subject:subject-id");
+
 	/**
-     * The standard URI for listing a resource's id
-     */
-    private static final URI RESOURCE_ID =
-        URI.create("urn:oasis:names:tc:xacml:1.0:resource:resource-id");
-    
+	 * The standard URI for listing a resource's id
+	 */
+	private static final URI RESOURCE_ID =
+			URI.create("urn:oasis:names:tc:xacml:1.0:resource:resource-id");
+
 	/**
 	 * The standard URI for the subject category
 	 */
 	private static URI SUBJECT_CAT =
-		URI.create("urn:oasis:names:tc:xacml:1.0:subject-category:"
-				+ "access-subject");
+			URI.create("urn:oasis:names:tc:xacml:1.0:subject-category:"
+					+ "access-subject");
 
 	/**
-     * The standard URI for the resource category
-     */
-    private static final URI RESOURCE_CAT =
-        URI.create("urn:oasis:names:tc:xacml:3.0:attribute-category:resource");
-    
+	 * The standard URI for the resource category
+	 */
+	private static final URI RESOURCE_CAT =
+			URI.create("urn:oasis:names:tc:xacml:3.0:attribute-category:resource");
+
 	/**
-     * The standard URI for the action category
-     */
-    private static final URI ACTION_CAT =
-        URI.create("urn:oasis:names:tc:xacml:3.0:attribute-category:action");
-    
+	 * The standard URI for the action category
+	 */
+	private static final URI ACTION_CAT =
+			URI.create("urn:oasis:names:tc:xacml:3.0:attribute-category:action");
+
     /**
      * The resource identifier for the token endpoint
      */
@@ -91,11 +92,20 @@ public class XacmlPDP implements PDP {
 		= new Attributes(RESOURCE_CAT, Collections.singleton(introspect));
 	
 
+	private String defaultAud;
+	
+	private String defaultScope;
+	
 	/**
+	 * Constructor, load policy files from a directory.
 	 * 
+	 * @param defaultAud  The defaultAudience, can be null.
+	 * @param defaultScope  The default Scope, can be null.
 	 * @param policyDirectory 
 	 */
-	public XacmlPDP(String policyDirectory) {
+	public XacmlPDP(String policyDirectory, String defaultAud, String defaultScope) {
+		this.defaultAud = defaultAud == null ? "" : defaultAud;
+		this.defaultScope = defaultScope == null ? "" : defaultScope;
 		Set<String> fileNames 
 			= getFilesInFolder(policyDirectory, ".xml");
 		PolicyFinder pf = new PolicyFinder();
@@ -149,31 +159,85 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	public boolean canAccess(String clientId, String aud, String scope) {
+	public String canAccess(String clientId, String aud, String scopes) 
+			throws PDPException {
 		Set<Attributes> attributes = new HashSet<>();
 		StringAttribute subjectAV = new StringAttribute(clientId);
-		Attribute subject = new Attribute(SUBJECT_ID, null, null, subjectAV, 0);
+		Attribute subject 
+			= new Attribute(SUBJECT_ID, null, null, subjectAV, false, 0);
 		Attributes subjectCat = new Attributes(
 				SUBJECT_CAT, Collections.singleton(subject));
 		attributes.add(subjectCat);
-		StringAttribute audAV = new StringAttribute(aud);
-		Attribute audA = new Attribute(URI.create("oauth2:audience"), null, null, audAV, 0);
-		Attributes resourceCat = new Attributes(RESOURCE_CAT, Collections.singleton(audA));
+		
+		String audStr = aud;
+		if (aud == null || aud.isEmpty()) {
+			if (this.defaultAud.isEmpty()) {
+				return null;
+			}
+			audStr = this.defaultAud;
+		}
+		StringAttribute audAV = new StringAttribute(audStr);
+		Attribute audA = new Attribute(URI.create("oauth2:audience"), 
+				null, null, audAV, false, 0);
+		Attributes resourceCat = new Attributes(
+				RESOURCE_CAT, Collections.singleton(audA));
 		attributes.add(resourceCat);
-		StringAttribute scopeAV = new StringAttribute(scope);
-		Attribute scopeA = new Attribute(URI.create("oauth2:audience"), null, null, scopeAV, 0);
-		Attributes actionCat = new Attributes(ACTION_CAT, Collections.singleton(scopeA));
-		attributes.add(actionCat);
+		
+		String scopeStr = scopes;
+		if (scopes == null || scopes.isEmpty()) {
+			if (this.defaultScope.isEmpty()) {
+				return null;
+			}
+			scopeStr = this.defaultScope;
+		}
+		
+		
+		String[] scopeArray = scopeStr.split(" ");
+		for (int i=0; i<scopeArray.length; i++) {
+			String scope = scopeArray[i];			
+			StringAttribute scopeAV = new StringAttribute(scope);
+			Attribute scopeA = new Attribute(
+					URI.create("oauth2:scope"), null, null, scopeAV, 
+					true, 0);
+			Attributes actionCat = new Attributes(
+					ACTION_CAT, Collections.singleton(scopeA));
+			attributes.add(actionCat);
+		}
+		
 		RequestCtx req = new RequestCtx(attributes, null);
 		ResponseCtx res = this.pdp.evaluate(req);
 		Iterator<AbstractResult> results = res.getResults().iterator();
+	
+		String allowedScopes = "";
         while (results.hasNext()) {
-        	AbstractResult result = results.next();
+        	AbstractResult aResult = results.next();
+        	if (!(aResult instanceof Result)) {
+        		throw new PDPException(
+        				"Received XAML 2 Result when expecting XACML 3");		
+        	}
+        	Result result = (Result)aResult;
+        	
         	if (result.getDecision() != AbstractResult.DECISION_PERMIT) {
-        		return false;
+        		for (Attributes as : result.getAttributes()) {
+        			//Only interested in the action category
+        			if (as.getCategory().equals(ACTION_CAT)) {
+        				for (Attribute a : as.getAttributes()) {
+        					//Only interested in the scope
+        					if (a.getId().equals(URI.create("oauth2:scope"))) {
+        						if (!allowedScopes.isEmpty()) {
+        							allowedScopes += " "; //Add delimiter
+        						}
+        						allowedScopes += a.getValue().encode();
+        					}
+        				}
+        			}
+        		}
         	}
         }
-        return true;
+        if (allowedScopes.isEmpty()) {
+        	return null;
+        }
+        return allowedScopes;
 	}
 
 	/**

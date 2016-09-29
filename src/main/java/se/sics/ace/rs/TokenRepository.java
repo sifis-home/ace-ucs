@@ -35,6 +35,8 @@ import se.sics.ace.cwt.CWT;
  * Note that this class assumes that every token has a 'scope', 'sub', and 
  * 'aud' and in addition every CWT has a 'cti'.  Tokens that don't have these
  * will lead to exceptions.
+ * 
+ * FIXME: Need to implement persistence for this data. Maybe som DB layer?
  *  
  * @author Ludwig Seitz
  *

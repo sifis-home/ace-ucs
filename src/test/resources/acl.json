@@ -1,4 +1,8 @@
 [
+	{
+		"defaultAud" : "",
+		"defaultScope" : ""
+	},
 	["client_1", "client_2", "client_3"],
 	["rs_A", "rs_B", "rs_C"],
 	{

@@ -15,8 +15,6 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import com.upokecenter.cbor.CBORObject;
-
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -34,23 +32,41 @@ public class Token implements Endpoint {
 	 */
 	private PDP pdp;
 	
+	/**
+	 * The RS registeration information this endpoint uses.
+	 */
+	private RSregistrar rsInfo;
+	
 	@Override
-	public Message processMessage(Message msg, CwtCryptoCtx ctx) {
-		CBORObject payload = CBORObject.FromObject(msg.getRawPayload());
-		
+	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
+				throws TokenException, PDPException {
 		//1. Check if this client can request tokens
 		if (!this.pdp.canAccessToken(msg.getSenderId())) {
-			//FIXME: Make failure message
+			return msg.failReply(Message.FAIL_UNAUTHORIZED, null);
 		}
 		
 		//2. Check if this client can request this type of token
+		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), 
+				msg.getParameter("aud"), msg.getParameter("scope"));
 		
+		if (allowedScopes == null) {		
+			return msg.failReply(Message.FAIL_FORBIDDEN, null);
+		}
 		
 		//3. Check if this client and the RS support a common profile
+		String profile = msg.getParameter("profile");
+		if (profile != null) {
+				if (!this.rsInfo.isProfileSupported(
+						msg.getParameter("aud"), profile)) {
+					return msg.failReply(Message.FAIL_NOT_ACCEPTABLE, null);
+				}
+			
+		}
+		
 		//4. Create token
+		//FIXME: Include scope in response parameters if different from the requested.
 		
-		
-		return null; //FIXME
+		return null; //FIXME: return something meaningful
 	}
 
 }

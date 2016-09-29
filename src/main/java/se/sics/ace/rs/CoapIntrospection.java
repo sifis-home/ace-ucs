@@ -35,7 +35,7 @@ public class CoapIntrospection implements IntrospectionHandler {
 		
 		//FIXME: Retrieve CoAP response
 		
-		//FIXME
+		//FIXME: Return something meaningful
 		return null;
 	}
 

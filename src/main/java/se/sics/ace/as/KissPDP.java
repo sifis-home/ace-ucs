@@ -21,6 +21,16 @@ import org.json.JSONTokener;
 public class KissPDP implements PDP {
 
 	/**
+	 * Default audience if the AS serves just very few RSs
+	 */
+	private String defaultAud;
+	
+	/**
+	 * Default scope if the RSs served by this AS support only one
+	 */
+	private String defaultScope;
+	
+	/**
 	 * @param configurationFile  the file containing the PDP configuration in 
 	 * JSON format.
 	 * @return  the PDP
@@ -33,12 +43,21 @@ public class KissPDP implements PDP {
 		JSONTokener parser = new JSONTokener(fs);
 		JSONArray config = new JSONArray(parser);
 		
-		//Parse the clients allowed to access this AS
-		if (!(config.get(0) instanceof JSONArray)) {
+		//Parse the default values, empty Strings if there aren't any
+		if (!(config.get(0) instanceof JSONObject)) {
 			fs.close();
 			throw new PDPException("Invalid PDP configuration");
 		}
-		JSONArray clientsJ = (JSONArray)config.get(0);
+		JSONObject defaults = (JSONObject)config.get(0);
+		String defaultScope = defaults.getString("defaultScope");
+		String defaultAud = defaults.getString("defaultAud");
+		
+		//Parse the clients allowed to access this AS
+		if (!(config.get(1) instanceof JSONArray)) {
+			fs.close();
+			throw new PDPException("Invalid PDP configuration");
+		}		
+		JSONArray clientsJ = (JSONArray)config.get(1);
 		Set<String> clients = new HashSet<>();
 		Iterator<Object> it = clientsJ.iterator();
 		while (it.hasNext()) {
@@ -52,11 +71,11 @@ public class KissPDP implements PDP {
 		}
 		
 		//Parse the RS allowed to access this AS
-		if (!(config.get(1) instanceof JSONArray)) {
+		if (!(config.get(2) instanceof JSONArray)) {
 			fs.close();
 			throw new PDPException("Invalid PDP configuration");
 		}
-		JSONArray rsJ = (JSONArray)config.get(1);
+		JSONArray rsJ = (JSONArray)config.get(2);
 		Set<String> rs = new HashSet<>();
 		it = rsJ.iterator();
 		while (it.hasNext()) {
@@ -70,11 +89,11 @@ public class KissPDP implements PDP {
 		}
 		
 		//Read the acl
-		if (!(config.get(2) instanceof JSONObject)) {
+		if (!(config.get(3) instanceof JSONObject)) {
 			fs.close();
 			throw new PDPException("Invalid PDP configuration");
 		}
-		JSONObject aclJ = (JSONObject)config.get(2);
+		JSONObject aclJ = (JSONObject)config.get(3);
 		Map<String, Map<String, Set<String>>> acl = new HashMap<>();
 		Iterator<String> clientACL = aclJ.keys();
 		//Iterate through the client_ids
@@ -111,7 +130,7 @@ public class KissPDP implements PDP {
 			acl.put(client, audM);
 		}
 		fs.close();
-		return new KissPDP(clients, rs, acl);
+		return new KissPDP(defaultAud, defaultScope, clients, rs, acl);
 	}
 	
 	/**
@@ -137,6 +156,8 @@ public class KissPDP implements PDP {
 	/**
 	 * Constructor.
 	 * 
+	 * @param defaultAud  the default Audience or empty String if there is none
+	 * @param defaultScope  the default Scope or empty String if there is none
 	 * @param clients  the clients authorized to make requests to /token
 	 * @param rs  the RSs authorized to make requests to /introspect
 	 * @param acl   the access tokens clients can request. This maps
@@ -145,8 +166,8 @@ public class KissPDP implements PDP {
 	 * r_emailaddress rw_groups w_messages" would become four scopes 
 	 * "r_basicprofile", "r_emailaddress", "rw_groups" and "w_messages".
 	 */
-	public KissPDP(Set<String> clients, Set<String> rs, 
-			Map<String, Map<String,Set<String>>> acl) {
+	public KissPDP(String defaultAud, String defaultScope, Set<String> clients,
+			Set<String> rs,	Map<String, Map<String,Set<String>>> acl) {
 		this.clients = new HashSet<>();
 		this.clients.addAll(clients);
 		this.rs = new HashSet<>();
@@ -166,23 +187,49 @@ public class KissPDP implements PDP {
 	}
 
 	@Override
-	public boolean canAccess(String clientId, String aud, String scope) {
+	public String canAccess(String clientId, String aud, String scope) 
+				throws PDPException {
 		Map<String,Set<String>> clientACL = this.acl.get(clientId);
 		if (clientACL == null || clientACL.isEmpty()) {
-			return false;
+			return null;
 		}
-		Set<String> scopes = clientACL.get(aud);
+		
+		String audStr = aud;
+		if (aud == null || aud.isEmpty()) {
+			if (this.defaultAud.isEmpty()) {
+				return null;
+			}
+			audStr = this.defaultAud;
+		}
+		
+		Set<String> scopes = clientACL.get(audStr);
 		if (scopes == null || scopes.isEmpty()) {
-			return false;
+			return null;
 		}
-		String[] requestedScopes = scope.split(" ");
+		
+		String scopeStr = scope;
+		if (scope == null || scope.isEmpty()) {
+			if (this.defaultScope.isEmpty()) {
+				return null;
+			}
+			scopeStr = this.defaultScope;
+		}
+		
+		String[] requestedScopes = scopeStr.split(" ");
+		String grantedScopes = "";
 		for (int i=0; i<requestedScopes.length; i++) {
-			if (!scopes.contains(requestedScopes[i])) {
-				return false;
+			if (scopes.contains(requestedScopes[i])) {
+				if (!grantedScopes.isEmpty()) {
+					grantedScopes += " ";
+				}
+				grantedScopes += requestedScopes[i];
 			}
 		}
 		//all scopes found
-		return true;
+		if (grantedScopes.isEmpty()) {
+			return null;
+		}
+		return grantedScopes;
 	}
 
 }

@@ -48,11 +48,13 @@ public interface PDP {
 	 * @param clientId  the identifier of the client
 	 * @param aud  the audience requested for the access token, if present, 
 	 * 			   or null
-	 * @param scope  the scope requested for the access token, if present, 
-	 * 	           or null
+	 * @param scopes  the scope(s) requested for the access token, if present, 
+	 * 	           or null. Note that the scopes must be separated by spaces if
+	 * 			   there are several
 	 * 
-	 * @return  true if the access token should be granted, false if not
+	 * @return  The scopes that can be granted or null if access id denied
+	 * @throws PDPException 
 	 */
-	public abstract boolean canAccess(String clientId, String aud, 
-				String scope);
+	public abstract String canAccess(String clientId, String aud, 
+				String scopes) throws PDPException;
 }
