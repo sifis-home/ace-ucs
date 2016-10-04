@@ -35,7 +35,7 @@ public class Token implements Endpoint {
 	/**
 	 * The RS registeration information this endpoint uses.
 	 */
-	private RSregistrar rsInfo;
+	private Registrar rsInfo;
 	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) 

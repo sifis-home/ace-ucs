@@ -1,0 +1,33 @@
+[
+	{
+		"rs1" : ["coap_dtls", "coap_oscoap"],
+		"rs2" : ["coap_dtls"],
+		"rs3" : ["coap_oscoap"]
+		"clientA" : ["coap_dtls"],
+		"clientB" : ["coap_oscoap"]
+	},
+	{
+		"rs1" : ["PSK", "RPK"],
+		"rs2" : ["RPK"],
+		"rs3" : ["PSK"]
+		"clientA" : ["RPK"],
+		"clientB" : ["PSK"]
+	},
+	{
+		"rs1" : ["temp", "co2"],
+		"rs2" : [],
+		"rs3" : ["co2"]
+	},
+	{
+		"rs1" : ["sensors", "actuators"],
+		"rs2" : ["sensors"],
+		"rs3" : ["actuators"]
+	},
+	{
+		"clientA" : "",
+		"clientB" : "sensors"
+	},
+	{
+		"clientB" : "co2"
+	}
+]
