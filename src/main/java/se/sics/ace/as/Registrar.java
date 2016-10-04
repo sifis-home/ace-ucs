@@ -144,32 +144,63 @@ public class Registrar {
 		this.supportedProfiles.remove(id);
 		this.supportedScopes.remove(id);
 		Set<String> auds = this.rs2aud.remove(id);
-		for (String aud : auds) {
-			Set<String> rss = this.aud2rs.get(aud);
-			if (rss != null) {
-				rss.remove(id);
-				this.aud2rs.put(aud, rss);
+		if (auds != null) {
+			for (String aud : auds) {
+				Set<String> rss = this.aud2rs.get(aud);
+				if (rss != null) {
+					rss.remove(id);
+					this.aud2rs.put(aud, rss);
+				}
 			}
 		}
 		this.supportedKeyTypes.remove(id);
+		this.defaultAud.remove(id);
+		this.defaultScope.remove(id);
 		persist();
 	}
 	
 	
 	/**
-	 * Checks if the given device supports the given profile.
+	 * Returns a common profile, or null if there isn't any
 	 * 
-	 * @param id  the device identifier
-	 * @param profile  the profile identifier
+	 * FIXME: Need to handle aud <-> rs-id
 	 * 
-	 * @return  true if the device supports the profile, false otherwise
+	 * @param client  the id of the client
+	 * @param rs  the id of the RS
+	 * 
+	 * @return  a profile both support or null
 	 */
-	public boolean isProfileSupported(String id, String profile) {
-		Set<String> profiles = this.supportedProfiles.get(id);
-		if (profiles == null || !profiles.contains(profile)) {
-			return false;
+	public String getSupportedProfile(String client, String aud) {
+		Set<String> rss = this.aud2rs.get(aud);
+		Set<String> clientP = this.supportedProfiles.get(client);
+		for (String rs : rss) {
+			Set<String> rsP = this.supportedProfiles.get("rs");
+			for (String profile : clientP) {
+				if (rsP.contains(profile)) {
+					return profile;
+				}
+			}
 		}
-		return true;
+		return null;
+	}
+	
+	/**
+	 * Returns a common key type, or null if there isn't any
+	 * 
+	 * @param client  the id of the client
+	 * @param rs  the id of the RS
+	 * 
+	 * @return  a profile both support or null
+	 */
+	public String getSupportedKeyType(String client, String rs) {
+		Set<String> clientK = this.supportedKeyTypes.get(client);
+		Set<String> rsK = this.supportedKeyTypes.get(rs);
+		for (String keyType : clientK) {
+			if (rsK.contains(keyType)) {
+				return keyType;
+			}
+		}
+		return null;
 	}
 	
 	/**
@@ -187,22 +218,7 @@ public class Registrar {
 		}
 		return true;
 	}
-	
-	/**
-	 *  Checks if the given device supports the given key type.
-	 *  
-	 * @param id  the device identifier
-	 * @param keyType  the key type
-	 * @return  true if the device supports the key type, false otherwise
-	 */
-	public boolean isKeyTypeSupported(String id, String keyType) {
-		Set<String> keyTypes = this.supportedKeyTypes.get(id);
-		if (keyTypes == null || !keyTypes.contains(keyType)) {
-			return false;
-		}
-		return true;
-	}
-	
+
 	/**
 	 * Returns the default scope for this client, if any. Null otherwise.
 	 * 
@@ -267,7 +283,7 @@ public class Registrar {
 		config.put(defaultScope);
 		
 		FileOutputStream fos=new FileOutputStream(this.configfile, false);
-		fos.write(config.toString().getBytes());
+		fos.write(config.toString(4).getBytes());
 		fos.close();
 	}
 	

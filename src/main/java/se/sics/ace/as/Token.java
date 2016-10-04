@@ -15,6 +15,8 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import com.upokecenter.cbor.CBORObject;
+
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -35,32 +37,38 @@ public class Token implements Endpoint {
 	/**
 	 * The RS registeration information this endpoint uses.
 	 */
-	private Registrar rsInfo;
+	private Registrar registrar;
 	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
 				throws TokenException, PDPException {
 		//1. Check if this client can request tokens
-		if (!this.pdp.canAccessToken(msg.getSenderId())) {
+		String id = msg.getSenderId();
+		if (!this.pdp.canAccessToken(id)) {
 			return msg.failReply(Message.FAIL_UNAUTHORIZED, null);
 		}
 		
 		//2. Check if this client can request this type of token
-		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), 
-				msg.getParameter("aud"), msg.getParameter("scope"));
+		String scope = msg.getParameter("scope");
+		if (scope == null) {
+			scope = registrar.getDefaultScope(id);
+			if (scope == null) {
+				return msg.failReply(Message.FAIL_BAD_REQUEST, 
+						CBORObject.FromObject("request lacks scope"));
+			}
+		}
+		String aud = msg.getParameter("aud");
+		if (aud == null) {
+			aud = registrar.getDefaultAud(id);
+			if (aud == null) {
+				return msg.failReply(Message.FAIL_BAD_REQUEST,
+						CBORObject.FromObject("request lacks audience"));
+			}
+		}
+		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
 		
 		if (allowedScopes == null) {		
 			return msg.failReply(Message.FAIL_FORBIDDEN, null);
-		}
-		
-		//3. Check if this client and the RS support a common profile
-		String profile = msg.getParameter("profile");
-		if (profile != null) {
-				if (!this.rsInfo.isProfileSupported(
-						msg.getParameter("aud"), profile)) {
-					return msg.failReply(Message.FAIL_NOT_ACCEPTABLE, null);
-				}
-			
 		}
 		
 		//4. Create token
