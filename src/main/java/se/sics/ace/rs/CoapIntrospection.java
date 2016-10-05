@@ -24,7 +24,7 @@ public class CoapIntrospection implements IntrospectionHandler {
 	
 	
 	@Override
-	public Map<String, CBORObject> getParams(String tokenReference) throws RSException {
+	public Map<String, CBORObject> getParams(String tokenReference) {
 		CBORObject requestParams = CBORObject.NewMap();
 		requestParams.Add(CBORObject.FromObject("token"), 
 				CBORObject.FromObject(tokenReference));

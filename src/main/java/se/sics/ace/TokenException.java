@@ -1,4 +1,4 @@
-package se.sics.ace.as;
+package se.sics.ace;
 
 /**
  * Exceptions related to the /token endpoint of the AS.

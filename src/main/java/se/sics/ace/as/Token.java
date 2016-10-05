@@ -19,6 +19,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
+import se.sics.ace.TokenException;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -72,7 +73,7 @@ public class Token implements Endpoint {
 		}
 		
 		//4. Create token
-		//FIXME: Include scope in response parameters if different from the requested.
+		
 		
 		return null; //FIXME: return something meaningful
 	}

@@ -16,8 +16,9 @@ public interface AccessToken {
 	 * @param now  the time for which the expiry should be checked
 	 * 
 	 * @return  true if the token is expired, false if it is still valid
+	 * @throws TokenException 
 	 */
-	public boolean expired(long now);
+	public boolean expired(long now) throws TokenException;
 	
 	/**
 	 * Checks if the token is still valid (including expiration).
@@ -27,7 +28,7 @@ public interface AccessToken {
 	 * 
 	 * @return  true if the token is valid, false if it is invalid
 	 */
-	public boolean isValid(long now);
+	public boolean isValid(long now) throws TokenException;
 	
 	
 	/**
