@@ -1,3 +1,18 @@
+/*******************************************************************************
+ * Copyright 2016 SICS Swedish ICT AB.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
 package se.sics.ace.as;
 
 import java.io.FileInputStream;
@@ -34,11 +49,11 @@ public class KissPDP implements PDP {
 	 * @param configurationFile  the file containing the PDP configuration in 
 	 * JSON format.
 	 * @return  the PDP
-	 * @throws PDPException 
+	 * @throws ASException 
 	 * @throws IOException 
 	 */
 	public static KissPDP getInstance(String configurationFile) 
-				throws PDPException, IOException {
+				throws ASException, IOException {
 		FileInputStream fs = new FileInputStream(configurationFile);
 		JSONTokener parser = new JSONTokener(fs);
 		JSONArray config = new JSONArray(parser);
@@ -46,7 +61,7 @@ public class KissPDP implements PDP {
 		//Parse the default values, empty Strings if there aren't any
 		if (!(config.get(0) instanceof JSONObject)) {
 			fs.close();
-			throw new PDPException("Invalid PDP configuration");
+			throw new ASException("Invalid PDP configuration");
 		}
 		JSONObject defaults = (JSONObject)config.get(0);
 		String defaultScope = defaults.getString("defaultScope");
@@ -55,7 +70,7 @@ public class KissPDP implements PDP {
 		//Parse the clients allowed to access this AS
 		if (!(config.get(1) instanceof JSONArray)) {
 			fs.close();
-			throw new PDPException("Invalid PDP configuration");
+			throw new ASException("Invalid PDP configuration");
 		}		
 		JSONArray clientsJ = (JSONArray)config.get(1);
 		Set<String> clients = new HashSet<>();
@@ -66,14 +81,14 @@ public class KissPDP implements PDP {
 				clients.add((String)next);
 			} else {
 				fs.close();
-				throw new PDPException("Invalid PDP configuration");
+				throw new ASException("Invalid PDP configuration");
 			}
 		}
 		
 		//Parse the RS allowed to access this AS
 		if (!(config.get(2) instanceof JSONArray)) {
 			fs.close();
-			throw new PDPException("Invalid PDP configuration");
+			throw new ASException("Invalid PDP configuration");
 		}
 		JSONArray rsJ = (JSONArray)config.get(2);
 		Set<String> rs = new HashSet<>();
@@ -84,14 +99,14 @@ public class KissPDP implements PDP {
 				rs.add((String)next);
 			} else {
 				fs.close();
-				throw new PDPException("Invalid PDP configuration");
+				throw new ASException("Invalid PDP configuration");
 			}
 		}
 		
 		//Read the acl
 		if (!(config.get(3) instanceof JSONObject)) {
 			fs.close();
-			throw new PDPException("Invalid PDP configuration");
+			throw new ASException("Invalid PDP configuration");
 		}
 		JSONObject aclJ = (JSONObject)config.get(3);
 		Map<String, Map<String, Set<String>>> acl = new HashMap<>();
@@ -101,7 +116,7 @@ public class KissPDP implements PDP {
 			String client = clientACL.next();
 			if (!(aclJ.get(client) instanceof JSONObject)) {
 				fs.close();
-				throw new PDPException("Invalid PDP configuration");
+				throw new ASException("Invalid PDP configuration");
 			}
 			Map<String, Set<String>> audM = new HashMap<>(); 
 			JSONObject audJ = (JSONObject) aclJ.get(client);
@@ -111,7 +126,7 @@ public class KissPDP implements PDP {
 				String aud = audACL.next();
 				if (!(audJ.get(aud) instanceof JSONArray)) {
 					fs.close();
-					throw new PDPException("Invalid PDP configuration");
+					throw new ASException("Invalid PDP configuration");
 				}
 				Set<String> scopeS = new HashSet<>();
 				JSONArray scopes = (JSONArray)audJ.get(aud);
@@ -121,7 +136,7 @@ public class KissPDP implements PDP {
 					Object scope = scopeI.next();
 					if (!(scope instanceof String)) {
 						fs.close();
-						throw new PDPException("Invalid PDP configuration");
+						throw new ASException("Invalid PDP configuration");
 					}
 					scopeS.add((String)scope);				
 				}
@@ -188,7 +203,7 @@ public class KissPDP implements PDP {
 
 	@Override
 	public String canAccess(String clientId, String aud, String scope) 
-				throws PDPException {
+				throws ASException {
 		Map<String,Set<String>> clientACL = this.acl.get(clientId);
 		if (clientACL == null || clientACL.isEmpty()) {
 			return null;

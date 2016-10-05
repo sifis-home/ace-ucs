@@ -30,21 +30,47 @@ import se.sics.ace.Protocol;
  */
 public class GetTokenProtocol implements Protocol {
 
+	/**
+	 * First step of the get token protocol
+	 */
 	public static int preparingGet = 0;
+	
+	/**
+	 * Second step of the get token protocol
+	 */
 	public static int getSent = 1;
+	
+	/**
+	 * Third step of the get token protocol 
+	 */
 	public static int responseReceived = 2;
 	
-	public int getState() {
+	@Override
+    public int getState() {
 		// TODO Auto-generated method stub
 		return 0;
 	}
 
-	public int getParty() {
+	@Override
+    public int getParty() {
 		// TODO Auto-generated method stub
 		return 0;
 	}
 	
 	
+	/**
+	 * Create a get message.
+	 * 
+	 * @param audience  the desired audience or null if a default audience is 
+	 *     specified at the AS
+	 * @param clientId  the client identifier
+	 * @param scope  the desired scope or null if a default scope is specified at
+	 *     the AS
+	 * @param clientSecret  the client secret or null if not needed with this
+	 *     grant type
+	 *     
+	 * @return  the get-message payload
+	 */
 	public CBORObject makeGetMessage(String audience, String clientId,
 			String scope, String clientSecret) {
 		CBORObject params = CBORObject.NewMap();

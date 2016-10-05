@@ -36,13 +36,18 @@ public class Token implements Endpoint {
 	private PDP pdp;
 	
 	/**
-	 * The RS registeration information this endpoint uses.
+	 * The RS registration information this endpoint uses.
 	 */
 	private Registrar registrar;
 	
+	/**
+	 * The token factory
+	 */
+	private AccessTokenFactory factory;
+	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-				throws TokenException, PDPException {
+				throws TokenException, ASException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -52,7 +57,7 @@ public class Token implements Endpoint {
 		//2. Check if this client can request this type of token
 		String scope = msg.getParameter("scope");
 		if (scope == null) {
-			scope = registrar.getDefaultScope(id);
+			scope = this.registrar.getDefaultScope(id);
 			if (scope == null) {
 				return msg.failReply(Message.FAIL_BAD_REQUEST, 
 						CBORObject.FromObject("request lacks scope"));
@@ -60,7 +65,7 @@ public class Token implements Endpoint {
 		}
 		String aud = msg.getParameter("aud");
 		if (aud == null) {
-			aud = registrar.getDefaultAud(id);
+			aud = this.registrar.getDefaultAud(id);
 			if (aud == null) {
 				return msg.failReply(Message.FAIL_BAD_REQUEST,
 						CBORObject.FromObject("request lacks audience"));
@@ -73,7 +78,8 @@ public class Token implements Endpoint {
 		}
 		
 		//4. Create token
-		
+		//Find supported token type
+		//AccessToken token = this.factory.generateToken(type, claims);
 		
 		return null; //FIXME: return something meaningful
 	}

@@ -15,6 +15,12 @@
  *******************************************************************************/
 package se.sics.ace;
 
+/**
+ * Constants for use with the ACE framework.
+ * 
+ * @author Ludwig Seitz
+ *
+ */
 public class Constants {
 	
 	/** 

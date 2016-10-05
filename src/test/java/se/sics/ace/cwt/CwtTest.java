@@ -119,7 +119,7 @@ public class CwtTest {
         
         
                
-        claims = new HashMap<String, CBORObject>();
+        claims = new HashMap<>();
         claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
         claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
         claims.put("sub", CBORObject.FromObject("erikw"));

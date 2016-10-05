@@ -53,8 +53,8 @@ public interface PDP {
 	 * 			   there are several
 	 * 
 	 * @return  The scopes that can be granted or null if access id denied
-	 * @throws PDPException 
+	 * @throws ASException 
 	 */
 	public abstract String canAccess(String clientId, String aud, 
-				String scopes) throws PDPException;
+				String scopes) throws ASException;
 }

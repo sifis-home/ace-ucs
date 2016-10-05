@@ -1,3 +1,18 @@
+/*******************************************************************************
+ * Copyright 2016 SICS Swedish ICT AB.
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ *******************************************************************************/
 package se.sics.ace.as;
 
 import java.io.FileInputStream;
@@ -51,6 +66,11 @@ public class Registrar {
 	private Map<String, Set<String>> supportedScopes;
 	
 	/**
+	 * Identifies the type access tokens an RS supports
+	 */
+	private Map<String, Set<Integer>> supportedTokens;
+	
+	/**
 	 * Identifies the audiences an RS identifies with
 	 */
 	private Map<String, Set<String>> rs2aud;
@@ -72,12 +92,14 @@ public class Registrar {
 
 	/**
 	 * Constructor. Makes an empty registrar
+	 * @param configfile  the configuration file
 	 * @throws IOException 
 	 */
 	public Registrar(String configfile) throws IOException {
 		this.configfile = configfile;
 		this.supportedProfiles = new HashMap<>();
 		this.supportedScopes = new HashMap<>();
+		this.supportedTokens = new HashMap<>();
 		this.rs2aud = new HashMap<>();
 		this.supportedKeyTypes = new HashMap<>();
 		this.defaultAud = new HashMap<>();
@@ -92,18 +114,23 @@ public class Registrar {
 	 * @param rs  the identifier for the RS
 	 * @param profiles  the profiles this RS supports
 	 * @param scopes  the scopes this RS supports
+	 * @param auds  the audiences this RS identifies with
+	 * @param keyTypes   the key types this RS supports
+	 * @param tokenTypes  the token types this RS supports.
+	 *     See <code>AccessTokenFactory</code>
 	 * @throws IOException 
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
-			Set<String> auds, Set<String> keyTypes) throws IOException {
+			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes) throws IOException {
 		this.supportedProfiles.put(rs, profiles);
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
+		this.supportedTokens.put(rs, tokenTypes);
 		this.rs2aud.put(rs, auds);
 		for (String aud : auds) {
 			Set<String> rss = this.aud2rs.get(aud);
 			if (rss == null) {
-				rss = new HashSet<String>();
+				rss = new HashSet<>();
 			}
 			rss.add(rs);
 			this.aud2rs.put(aud, rss);
@@ -154,6 +181,7 @@ public class Registrar {
 			}
 		}
 		this.supportedKeyTypes.remove(id);
+		this.supportedTokens.remove(id);
 		this.defaultAud.remove(id);
 		this.defaultScope.remove(id);
 		persist();
@@ -162,10 +190,9 @@ public class Registrar {
 	
 	/**
 	 * Returns a common profile, or null if there isn't any
-	 * 
-	 * FIXME: Need to handle aud <-> rs-id
-	 * 
+     *
 	 * @param client  the id of the client
+	 * @param aud  the audience that this client is addressing
 	 * @param rs  the id of the RS
 	 * 
 	 * @return  a profile both support or null
@@ -174,49 +201,93 @@ public class Registrar {
 		Set<String> rss = this.aud2rs.get(aud);
 		Set<String> clientP = this.supportedProfiles.get(client);
 		for (String rs : rss) {
-			Set<String> rsP = this.supportedProfiles.get("rs");
+			Set<String> rsP = this.supportedProfiles.get(rs);
 			for (String profile : clientP) {
-				if (rsP.contains(profile)) {
-					return profile;
+				if (!rsP.contains(profile)) {
+				    clientP.remove(profile);
 				}
 			}
 		}
-		return null;
+		if (clientP.isEmpty()) {
+		    return null;
+		}
+		return clientP.iterator().next();
 	}
 	
 	/**
 	 * Returns a common key type, or null if there isn't any
 	 * 
 	 * @param client  the id of the client
-	 * @param rs  the id of the RS
+	 * @param aud  the audience that this client is addressing 
 	 * 
-	 * @return  a profile both support or null
+	 * @return  a key type both support or null
 	 */
-	public String getSupportedKeyType(String client, String rs) {
+	public String getSupportedKeyType(String client, String aud) {
+	    Set<String> rss = this.aud2rs.get(aud);
 		Set<String> clientK = this.supportedKeyTypes.get(client);
-		Set<String> rsK = this.supportedKeyTypes.get(rs);
-		for (String keyType : clientK) {
-			if (rsK.contains(keyType)) {
-				return keyType;
-			}
+		for (String rs : rss) {
+		    Set<String> rsK = this.supportedKeyTypes.get(rs);
+		    for (String keyType : clientK) {
+		        if (!rsK.contains(keyType)) {
+		            clientK.remove(keyType);
+		        }
+		    }
 		}
-		return null;
+		if (clientK.isEmpty()) {
+		    return null;
+		}
+		return clientK.iterator().next();
 	}
+	   
+    /**
+     * Returns a common token type, or null if there isn't any
+     * 
+     * @param aud  the audience that is addressed
+     * 
+     * @return  a token type the audience supports or null
+     */
+    public Integer getSupportedTokenType(String aud) {
+        Set<String> rss = this.aud2rs.get(aud);
+        Set<Integer> tokenType = null;
+        for (String rs : rss) {
+            if (tokenType == null) {
+                tokenType = this.supportedTokens.get(rs);                
+            } else  {
+                for (int type : tokenType) {
+                    if (!this.supportedTokens.get(rs).contains(type)) {
+                        tokenType.remove(type);
+                    }
+                }
+            }
+            
+        }
+        if (tokenType == null) {
+            return null;
+        }
+        if (tokenType.isEmpty()) {
+            return null;
+        }
+        
+        return tokenType.iterator().next();
+    }
+	
 	
 	/**
-	 * Checks if the given RS supports the given scope.
+	 * Checks if the given audience supports the given scope.
 	 * 
-	 * @param rs  the RS identifier
+	 * @param aud  the audience that is addressed
 	 * @param scope  the scope
 	 * 
-	 * @return  true if the RS supports the scope, false otherwise
+	 * @return  true if the audience supports the scope, false otherwise
 	 */
-	public boolean isScopeSupported(String rs, String scope) {
-		Set<String> scopes = this.supportedScopes.get(rs);
-		if (scopes == null || !scopes.contains(scope)) {
-			return false;
-		}
-		return true;
+	public boolean isScopeSupported(String aud, String scope) {
+	    Set<String> rss = this.aud2rs.get(aud);
+        for (String rs : rss) {
+            if (!this.supportedScopes.get(rs).contains(scope)) {
+                return false;
+            }
+        }
+       return true;
 	}
 
 	/**
@@ -308,7 +379,7 @@ public class Registrar {
 			this.supportedKeyTypes = parseMap(keyTypes);
 			this.supportedScopes = parseMap(scopes);
 			this.rs2aud = parseMap(audiences);
-			this.aud2rs = new HashMap<String, Set<String>>();
+			this.aud2rs = new HashMap<>();
 			for (Entry<String,Set<String>> e : this.rs2aud.entrySet()) {
 				for (String aud : e.getValue()) {
 					Set<String> set = this.aud2rs.get(aud);
@@ -324,13 +395,13 @@ public class Registrar {
 		}
 	}
 	
-	private Map<String, Set<String>> parseMap(JSONObject map) {
+	private static Map<String, Set<String>> parseMap(JSONObject map) {
 		Map<String,Object> foo = map.toMap();
 		Map<String, Set<String>> bar = new HashMap<>();
 		for (Entry<String, Object> e : foo.entrySet()) {
 			if (e.getValue() instanceof List<?>) {
 				List<String> list = (List<String>)e.getValue();
-				Set<String> set = new HashSet<String>();
+				Set<String> set = new HashSet<>();
 				set.addAll(list);
 				bar.put(e.getKey().toString(), set);
 			}
@@ -338,7 +409,7 @@ public class Registrar {
 		return bar;
 	}
 	
-	private Map<String,String> parseSimpleMap(JSONObject map) {
+	private static Map<String,String> parseSimpleMap(JSONObject map) {
 		Map<String, Object> foo = map.toMap();
 		Map<String, String> bar = new HashMap<>();
 		for (Entry<String, Object> e : foo.entrySet()) {

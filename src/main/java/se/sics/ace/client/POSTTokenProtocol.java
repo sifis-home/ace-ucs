@@ -13,26 +13,27 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.client;
 
 import se.sics.ace.Protocol;
 
 /**
- * Proof-of-Possession protocol.
- * 
+ * Client protocol for POSTing a token from the /auth-info endpoint at the RS.
+ * Note that this implementation only supports the client_credentials 
+ * grant type.
  * @author Ludwig Seitz
  *
  */
-public class Pop implements Protocol {
+public class POSTTokenProtocol implements Protocol {
 
 	@Override
-	public int getState() {
+    public int getState() {
 		// TODO Auto-generated method stub
 		return 0;
 	}
 
 	@Override
-	public int getParty() {
+    public int getParty() {
 		// TODO Auto-generated method stub
 		return 0;
 	}

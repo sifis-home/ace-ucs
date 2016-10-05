@@ -19,9 +19,15 @@ import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
+/**
+ * The OAuth 2.0 Introspection endpoint.
+ * @author Ludwig Seitz
+ *
+ */
 public class Introspect implements Endpoint {
 
-	public Message processMessage(Message msg, CwtCryptoCtx ctx) {
+	@Override
+    public Message processMessage(Message msg, CwtCryptoCtx ctx) {
 		// TODO Auto-generated method stub
 		return null;
 	}

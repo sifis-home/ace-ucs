@@ -13,20 +13,27 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package se.sics.ace.client;
+package se.sics.ace.as;
 
-import se.sics.ace.Protocol;
+/**
+ * Exceptions related to the internal PDP of the AS.
+ * 
+ * @author Ludwig Seitz
+ *
+ */
+public class ASException extends Exception {
 
-public class PutTokenProtocol implements Protocol {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1398418923862910956L;
 
-	public int getState() {
-		// TODO Auto-generated method stub
-		return 0;
+	/**
+	 * Constructor.
+	 * 
+	 * @param msg  the error message
+	 */
+	public ASException(String msg) {
+		super(msg);
 	}
-
-	public int getParty() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
 }
