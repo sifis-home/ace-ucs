@@ -44,6 +44,7 @@ public class Registrar {
 	private static int AUDS = 3;
 	private static int DEFAUD = 4;
 	private static int DEFSCOPE = 5;
+	private static int EXPIRE = 6;
 	
 	/**
 	 * The file for persisting the values of this registrar
@@ -89,6 +90,11 @@ public class Registrar {
 	 * Default scope a client uses when requesting a token
 	 */
 	private Map<String, String> defaultScope;
+	
+	/**
+	 * The expiration time for access tokens for a specific RS
+	 */
+	private Map<String, Long> expiration;
 
 	/**
 	 * Constructor. Makes an empty registrar
@@ -105,6 +111,7 @@ public class Registrar {
 		this.defaultAud = new HashMap<>();
 		this.defaultScope = new HashMap<>();
 		this.aud2rs = new HashMap<>();
+		this.expiration = new HashMap<>();
 		load();
 	}
 
@@ -118,10 +125,13 @@ public class Registrar {
 	 * @param keyTypes   the key types this RS supports
 	 * @param tokenTypes  the token types this RS supports.
 	 *     See <code>AccessTokenFactory</code>
+	 * @param expiration  the expiration time for access tokens for this RS or 0 if
+	 *     the default value is used
 	 * @throws IOException 
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
-			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes) throws IOException {
+			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
+			long expiration) throws IOException {
 		this.supportedProfiles.put(rs, profiles);
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
@@ -134,6 +144,9 @@ public class Registrar {
 			}
 			rss.add(rs);
 			this.aud2rs.put(aud, rss);
+		}
+		if (expiration != 0L) {
+		    this.expiration.put(rs, expiration);
 		}
 		persist();	
 	}
@@ -184,6 +197,7 @@ public class Registrar {
 		this.supportedTokens.remove(id);
 		this.defaultAud.remove(id);
 		this.defaultScope.remove(id);
+		this.expiration.remove(id);
 		persist();
 	}
 	
@@ -323,6 +337,15 @@ public class Registrar {
 	}
 	
 	/**
+	 * Returns the expiration time for this RS. 0 if the default is to be used.
+	 * @param rs  the identifier of the RS
+	 * @return  the expiration time in milliseconds
+	 */
+	public long getExpiration(String rs) {
+	    return this.getExpiration(rs);
+	}
+	
+	/**
 	 * Save the current state in the configfile.
 	 * 
 	 * The configfile is built like this:
@@ -334,6 +357,7 @@ public class Registrar {
 	 *  {id : [audiences], ...},
 	 *  {id : default audience, ....} ,
 	 *  {id : default scope, ...}
+	 *  {id : expiration time, ...}
 	 * ]
 	 * @throws IOException 
 	 * 
@@ -346,12 +370,14 @@ public class Registrar {
 		JSONObject audiences = new JSONObject(this.rs2aud);
 		JSONObject defaultAud = new JSONObject(this.defaultAud);
 		JSONObject defaultScope =  new JSONObject(this.defaultScope);
+		JSONObject expiration = new JSONObject(this.expiration);
 		config.put(profiles);
 		config.put(keyTypes);
 		config.put(scopes);
 		config.put(audiences);
 		config.put(defaultAud);
 		config.put(defaultScope);
+		config.put(expiration);
 		
 		FileOutputStream fos=new FileOutputStream(this.configfile, false);
 		fos.write(config.toString(4).getBytes());
@@ -375,6 +401,7 @@ public class Registrar {
 			JSONObject audiences = config.getJSONObject(Registrar.AUDS);
 			JSONObject defaultAud = config.getJSONObject(Registrar.DEFAUD);
 			JSONObject defaultScope =  config.getJSONObject(Registrar.DEFSCOPE);
+			JSONObject expiration =  config.getJSONObject(Registrar.EXPIRE);
 			this.supportedProfiles = parseMap(profiles);
 			this.supportedKeyTypes = parseMap(keyTypes);
 			this.supportedScopes = parseMap(scopes);
@@ -392,6 +419,11 @@ public class Registrar {
 			}
 			this.defaultAud = parseSimpleMap(defaultAud);
 			this.defaultScope = parseSimpleMap(defaultScope);
+			Map<String, Object> foo = expiration.toMap();
+			this.expiration = new HashMap<>();
+	        for (String key : expiration.keySet()) {
+	            this.expiration.put(key, expiration.getLong(key));
+	        }
 		}
 	}
 	
@@ -419,4 +451,5 @@ public class Registrar {
 		}
 		return bar;
 	}
+	
 }

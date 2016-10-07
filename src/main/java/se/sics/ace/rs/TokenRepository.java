@@ -25,6 +25,7 @@ import org.bouncycastle.util.Arrays;
 
 import com.upokecenter.cbor.CBORObject;
 
+import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CWT;
 
 /**

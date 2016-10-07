@@ -39,5 +39,10 @@
         "clientB": "sensors",
         "clientA": ""
     },
-    {"clientB": "co2"}
+    {"clientB": "co2"},
+    {
+        "rs2": 300000,
+        "rs1": 1000000,
+        "rs3": 30000
+    }
 ]

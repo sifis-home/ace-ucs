@@ -68,7 +68,7 @@ import org.junit.Rule;
 			auds.add("actuators");
 			HashSet<Integer> tokens = new HashSet<>();
 			tokens.add(AccessTokenFactory.CWT_TYPE);
-			r.addRS("rs4", profiles, scopes, auds, keys, tokens);
+			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 10000);
 			r.remove("rs4");
 			FileInputStream fis = new FileInputStream("src/test/resources/ASregistry.json");
 			Scanner scanner = new Scanner(fis, "UTF-8" );

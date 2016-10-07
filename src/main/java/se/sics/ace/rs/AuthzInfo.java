@@ -25,6 +25,7 @@ import com.upokecenter.cbor.CBORType;
 import COSE.CoseException;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
+import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 

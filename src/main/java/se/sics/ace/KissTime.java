@@ -13,19 +13,23 @@
  *    See the License for the specific language governing permissions and
  *    limitations under the License.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace;
+
+import java.util.Date;
 
 /**
- * Provides secure time e.g. for expiration of tokens.
+ * A simplistic time provider for testing purposes.
  * 
  * @author Ludwig Seitz
  *
  */
-public interface TimeProvider {
+public class KissTime implements TimeProvider {
+
+	private Date date = new Date();
 	
-	/**
-	 * @return  system time in milliseconds since January 1, 1970, 00:00:00 GMT
-	 */
-	public long getCurrentTime();
+	@Override
+	public long getCurrentTime() {
+		return this.date.getTime();
+	}
 
 }
