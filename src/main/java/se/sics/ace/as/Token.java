@@ -15,12 +15,17 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.util.Date;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.crypto.KeyGenerator;
+import javax.crypto.SecretKey;
+
 import com.upokecenter.cbor.CBORObject;
 
+import se.sics.ace.AccessToken;
+import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
@@ -50,11 +55,6 @@ public class Token implements Endpoint {
 	private Registrar registrar;
 	
 	/**
-	 * The token factory
-	 */
-	private AccessTokenFactory factory;
-	
-	/**
 	 * The identifier of this AS for the iss claim.
 	 */
 	private String asId;
@@ -70,24 +70,27 @@ public class Token implements Endpoint {
 	private static long expiration = 1000 * 60 * 10; //10 minutes
 	
 	/**
+	 * The counter for generating the cti
+	 */
+	private Long cti = 0L;
+	
+	/**
 	 * Constructor.
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
 	 * @param registrar  the registrar for registering clients and RSs
-  	 * @param factory  the token factory 
 	 * @param time  the time provider
 	 */
 	public Token(String asId, PDP pdp, Registrar registrar, 
-	        AccessTokenFactory factory, TimeProvider time) {
+	        TimeProvider time) {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.registrar = registrar;
-	    this.factory = factory;
 	}
 	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-				throws TokenException, ASException {
+				throws TokenException, ASException, NoSuchAlgorithmException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -95,7 +98,7 @@ public class Token implements Endpoint {
 		}
 		
 		//2. Check if this client can request this type of token
-		String scope = msg.getParameter("scope");
+		String scope = msg.getParameter("scope").AsString();
 		if (scope == null) {
 			scope = this.registrar.getDefaultScope(id);
 			if (scope == null) {
@@ -103,7 +106,7 @@ public class Token implements Endpoint {
 						CBORObject.FromObject("request lacks scope"));
 			}
 		}
-		String aud = msg.getParameter("aud");
+		String aud = msg.getParameter("aud").AsString();
 		if (aud == null) {
 			aud = this.registrar.getDefaultAud(id);
 			if (aud == null) {
@@ -125,25 +128,60 @@ public class Token implements Endpoint {
 		Map<String, CBORObject> claims = new HashMap<>();
 		claims.put("iss", CBORObject.FromObject(this.asId));
 		claims.put("aud", CBORObject.FromObject(aud));
-		 claims.put("sub", CBORObject.FromObject(id));
-		 long now = this.time.getCurrentTime();
-		 //claims.put("exp", CBORObject.FromObject());
-		 //claims.put("nbf", CBORObject.FromObject());
-		 claims.put("iat", CBORObject.FromObject(new Date().getTime()));
-		 byte[] cti = {0x0B, 0x71};
-		 claims.put("cti", CBORObject.FromObject(cti));
-		 claims.put("cnf", CBORObject.FromObject("FIXME")); //FIXME
-		 claims.put("scope", CBORObject.FromObject(
-		         "r+/s/light rwx+/a/led w+/dtls"));
-		 
-		 //Find supported profile
+		claims.put("sub", CBORObject.FromObject(id));
+		long now = this.time.getCurrentTime();
+		long exp = this.registrar.getExpiration(aud);
+		if (exp == 0) {
+		    exp = expiration;
+		}
+		claims.put("exp", CBORObject.FromObject(exp));
+		claims.put("iat", CBORObject.FromObject(now));
+		byte[] cti = Long.toHexString(this.cti).getBytes();
+		this.cti++;
+		claims.put("cti", CBORObject.FromObject(cti));
+		claims.put("scope", CBORObject.FromObject(scope));
+
+		//Find supported profile
+		String profile = this.registrar.getSupportedProfile(id, aud);
+
+		if (tokenType != AccessTokenFactory.CWT_TYPE &&
+		        tokenType != AccessTokenFactory.REF_TYPE) {
+		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, 
+		            CBORObject.FromObject("Unsupported token type"));
+		}
+		
 		//Find supported key type
-		//
-		//AccessToken token = this.factory.generateToken(type, claims);
+		String keyType = this.registrar.getSupportedKeyType(id, aud);
+		switch (keyType) {
+		case "PSK":
+		    KeyGenerator kg = KeyGenerator.getInstance("AES");
+		    SecretKey key = kg.generateKey();
+		    CBORObject psk = CBORObject.FromObject(key.getEncoded());
+		    claims.put("cnf", psk);
+		    break;
+		case "RPK":
+		    CBORObject rpk = msg.getParameter("cnf");
+		    if (rpk == null) {
+		        return msg.failReply(Message.FAIL_BAD_REQUEST, 
+		                CBORObject.FromObject("Client needs to provide RPK"));
+		    }
+		    claims.put("cnf", rpk);
+		    break;
+		default :
+		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, 
+                    CBORObject.FromObject("Unsupported key type"));
+		}
+		
+		AccessToken token = AccessTokenFactory.generateToken(tokenType, claims);
+
+		CBORObject rsInfo = CBORObject.NewMap();
+		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+		rsInfo.Add(Constants.CNF, claims.get("cnf"));
+		//FIXME: Encrypt?
+		rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
 		
 		
-		
-		return null; //FIXME: return something meaningful
+		return msg.successReply(Message.CREATED, rsInfo);
 	}
 
 }

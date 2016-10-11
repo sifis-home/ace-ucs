@@ -32,42 +32,56 @@ import com.upokecenter.cbor.CBORObject;
  */
 public abstract class Message {
 	
+    /**
+     * Generic success code
+     */
+    public static int OK = 200;
+    
+    /**
+     * Request has been fulfilled, resulting in the creation of a new resource.
+     */
+    public static int CREATED = 201;
+    
 	/**
 	 * Generic failure reasons code (following REST/HTTP/COAP).
 	 */
-	public static int FAIL_BAD_REQUEST = 0;
+	public static int FAIL_BAD_REQUEST = 400;
 	
 	/**
 	 * Request was not authorized, the requester should try to authenticate
 	 */
-	public static int FAIL_UNAUTHORIZED = 1;
+	public static int FAIL_UNAUTHORIZED = 401;
 	
 	/**
 	 * Requester lacks permission to perform this request
 	 */
-	public static int FAIL_FORBIDDEN = 3;
+	public static int FAIL_FORBIDDEN = 403;
 	
 	/**
 	 * Requested resource was not found
 	 */
-	public static int FAIL_NOT_FOUND = 4;
+	public static int FAIL_NOT_FOUND = 404;
 	
 	/**
 	 * The requested operation on the resource is not allowed for this
 	 * 	requester
 	 */ 
-	public static int FAIL_METHOD_NOT_ALLOWED = 5;
+	public static int FAIL_METHOD_NOT_ALLOWED = 405;
 	
 	/**
 	 * The responder cannot generate acceptable data format in the response
 	 */
-	public static int FAIL_NOT_ACCEPTABLE = 6;
+	public static int FAIL_NOT_ACCEPTABLE = 406;
 	
 	/**
 	 * The request contained payload in a unsupported data format
 	 */
-	public static int FAIL_UNSUPPORTED_CONTENT_FORMAT = 15;
+	public static int FAIL_UNSUPPORTED_CONTENT_FORMAT = 415;
 	
+	/**
+	 * The server doesn't implement some part required for this request
+	 */
+	public static int FAIL_NOT_IMPLEMENTED = 501;
 	
 	/**
 	 * The raw byte[] value of the payload of this message.
@@ -82,7 +96,7 @@ public abstract class Message {
 	/**
 	 * Parameters of this message
 	 */
-	private Map<String, String> parameters = Collections.emptyMap();
+	private Map<String, CBORObject> parameters = Collections.emptyMap();
 	
 	
 	/**
@@ -113,26 +127,26 @@ public abstract class Message {
 	 * @param name  the name of the parameter
 	 * @return  the parameter value or null if it doesn't exist
 	 */
-	public String getParameter(String name) {
+	public CBORObject getParameter(String name) {
 		return this.parameters.get(name);
 	}
 	
 	/**
 	 * @return  the <code>Map</code> of parameters for this message.
 	 */
-	public Map<String, String> getParameters() {
+	public Map<String, CBORObject> getParameters() {
 		return this.parameters;
 	}
 	
 	/**
 	 * Generate a reply message indicating success.
 	 * 
-	 * @param msg  the request message
+	 * @param code  the success code
 	 * @param payload  the payload of the reply, can be null.
 	 * 
 	 * @return  the reply message
 	 */
-	public abstract Message successReply(Message msg, CBORObject payload);
+	public abstract Message successReply(int code, CBORObject payload);
 	
 	/**
 	 * Generate a reply message indicating failure.

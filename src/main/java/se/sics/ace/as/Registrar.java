@@ -337,12 +337,20 @@ public class Registrar {
 	}
 	
 	/**
-	 * Returns the expiration time for this RS. 0 if the default is to be used.
-	 * @param rs  the identifier of the RS
+	 * Returns the smallest expiration time for the RS in this
+	 *     audience. 0 if the default is to be used.
+	 * @param aud  the audience of the access token
 	 * @return  the expiration time in milliseconds
 	 */
-	public long getExpiration(String rs) {
-	    return this.getExpiration(rs);
+	public long getExpiration(String aud) {
+	    long exp = Long.MAX_VALUE;
+	    for (String rs : this.aud2rs.get(aud)) {
+	        exp =  exp > this.expiration.get(rs) ? exp : this.expiration.get(rs);
+	    }
+	   if (exp == Long.MAX_VALUE) {
+	       return 0;
+	   }
+	   return exp;
 	}
 	
 	/**
