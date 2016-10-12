@@ -15,7 +15,6 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -29,7 +28,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.TokenException;
+import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -90,7 +89,7 @@ public class Token implements Endpoint {
 	
 	@Override
 	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-				throws TokenException, ASException, NoSuchAlgorithmException {
+				throws Exception {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -177,8 +176,12 @@ public class Token implements Endpoint {
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
-		//FIXME: Encrypt?
-		rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
+		if (token instanceof CWT) {
+		    CWT cwt = (CWT)token;
+		    rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
+		} else {
+		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
+		}
 		
 		
 		return msg.successReply(Message.CREATED, rsInfo);

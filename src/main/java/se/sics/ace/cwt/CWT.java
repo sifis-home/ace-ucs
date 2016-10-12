@@ -23,7 +23,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
-
+import se.sics.ace.TokenException;
 import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
@@ -34,7 +34,6 @@ import COSE.KeyKeys;
 import COSE.MAC0Message;
 import COSE.MACMessage;
 import COSE.Message;
-import COSE.MessageTag;
 import COSE.Recipient;
 import COSE.Sign1Message;
 import COSE.SignMessage;
@@ -69,12 +68,12 @@ public class CWT implements AccessToken {
 	 * @param ctx  the crypto context
 	 * @return  the CWT object wrapped by the COSE object
 	 * @throws CoseException 
-	 * @throws CWTException 
+	 * @throws TokenException 
  	 *
 	 * @throws Exception 
 	 */
 	public static CWT processCOSE(byte[] COSE_CWT, CwtCryptoCtx ctx) 
-			throws CoseException, CWTException, Exception {
+			throws CoseException, TokenException, Exception {
 		Message coseRaw = Message.DecodeFromBytes(COSE_CWT);
 		
 		if (coseRaw instanceof SignMessage) {
@@ -93,7 +92,7 @@ public class CWT implements AccessToken {
 					}
 				}
 			}
-			throw new CWTException("No valid signature found");	
+			throw new TokenException("No valid signature found");	
 			
 		} else if (coseRaw instanceof Sign1Message) {
 			Sign1Message signed = (Sign1Message)coseRaw;
@@ -124,7 +123,7 @@ public class CWT implements AccessToken {
 					}
 				}
 			}
-			throw new CWTException("No valid MAC found");
+			throw new TokenException("No valid MAC found");
 			
 		} else if (coseRaw instanceof MAC0Message) {
 			MAC0Message maced = (MAC0Message)coseRaw;
@@ -157,7 +156,7 @@ public class CWT implements AccessToken {
 					}
 				}
 			}
-			throw new CWTException("No valid key for ciphertext found");
+			throw new TokenException("No valid key for ciphertext found");
 			
 		} else if (coseRaw instanceof Encrypt0Message) {
 			Encrypt0Message encrypted = (Encrypt0Message)coseRaw;
@@ -165,7 +164,7 @@ public class CWT implements AccessToken {
 					CBORObject.DecodeFromBytes(encrypted.decrypt(
 							ctx.getKey()))));
 		}
-		throw new CWTException("Unknown or invalid COSE crypto wrapper");
+		throw new TokenException("Unknown or invalid COSE crypto wrapper");
 	}
 	
 	private static byte[] processDecrypt(EncryptMessage m, Recipient r) {
@@ -184,12 +183,12 @@ public class CWT implements AccessToken {
 	 * 
 	 * @param content  the CBOR Map of claims
 	 * @return  the mapping of unabbreviated claim names to values.
-	 * @throws CWTException
+	 * @throws TokenException
 	 */
 	public static Map<String, CBORObject> parseClaims(CBORObject content) 
-				throws CWTException {
+				throws TokenException {
 		if (content.getType() != CBORType.Map) {
-			throw new CWTException("This is not a CWT");
+			throw new TokenException("This is not a CWT");
 		}
 		Map<String, CBORObject> claims = new HashMap<>();
 		for (CBORObject key : content.getKeys()) {
@@ -205,13 +204,13 @@ public class CWT implements AccessToken {
 						claims.put(Constants.ABBREV[abbrev], 
 								content.get(key));
 					} else {
-						throw new CWTException(
+						throw new TokenException(
 								"Unknown claim abbreviation: " + abbrev);
 					}
 					break;
 					
 				default :
-					throw new CWTException(
+					throw new TokenException(
 							"Invalid key type in CWT claims map");
 			
 			}
@@ -240,16 +239,15 @@ public class CWT implements AccessToken {
 	
 	/**
 	 * Encodes this CWT with a COSE crypto wrapper.
-	 * 
-	 * @param what  the type of COSE wrapper to add.
+	 *
 	 * @param ctx  the crypto context.
 	 * @return  the claims as CBOR Map.
 	 * @throws Exception 
 	 */
-	public Message encode(MessageTag what, CwtCryptoCtx ctx) 
+	public CBORObject encode(CwtCryptoCtx ctx) 
 			throws Exception {
 		CBORObject map = encode();
-		switch (what) {
+		switch (ctx.getMessageType()) {
 		
 		case Encrypt0:
 			Encrypt0Message coseE0 = new Encrypt0Message();
@@ -257,7 +255,7 @@ public class CWT implements AccessToken {
 					Attribute.ProtectedAttributes);
 			coseE0.SetContent(map.EncodeToBytes());
 			coseE0.encrypt(ctx.getKey());
-			return coseE0;		
+			return coseE0.EncodeToCBORObject();		
 			
 		case Encrypt:
 			EncryptMessage coseE = new EncryptMessage();
@@ -268,7 +266,7 @@ public class CWT implements AccessToken {
 				coseE.addRecipient(r);
 			}
 			coseE.encrypt();
-			return coseE;
+			return coseE.EncodeToCBORObject();
 			
 		case Sign1:
 			Sign1Message coseS1 = new Sign1Message();
@@ -276,7 +274,7 @@ public class CWT implements AccessToken {
 						Attribute.ProtectedAttributes);
 			coseS1.SetContent(map.EncodeToBytes());
 			coseS1.sign(ctx.getPrivateKey());
-			return coseS1;	
+			return coseS1.EncodeToCBORObject();	
 			
 		case Sign:
 			SignMessage coseS = new SignMessage();
@@ -287,7 +285,7 @@ public class CWT implements AccessToken {
 				coseS.AddSigner(s);
 			}
 			coseS.sign();
-			return coseS;
+			return coseS.EncodeToCBORObject();
 			
 		case MAC:
 			MACMessage coseM = new MACMessage();
@@ -298,7 +296,7 @@ public class CWT implements AccessToken {
 				coseM.addRecipient(r);
 			}
 			coseM.Create();
-			return coseM;
+			return coseM.EncodeToCBORObject();
 			
 		case MAC0:
 			MAC0Message coseM0 = new MAC0Message();
@@ -306,10 +304,10 @@ public class CWT implements AccessToken {
 					Attribute.ProtectedAttributes);
 			coseM0.SetContent(map.EncodeToBytes());
 			coseM0.Create(ctx.getKey());
-			return coseM0;
+			return coseM0.EncodeToCBORObject();
 			
 		default:
-			throw new CWTException("Unknown COSE wrapper type");
+			throw new TokenException("Unknown COSE wrapper type");
 			
 		}
 	}

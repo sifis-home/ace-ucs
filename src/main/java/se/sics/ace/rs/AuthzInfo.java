@@ -132,7 +132,7 @@ public class AuthzInfo implements Endpoint {
 		this.tr.addCWT(cwt);
 		
 		//7. create success message
-		return msg.successReply(msg, null);
+		return msg.successReply(Message.CREATED, null);
 	}
 
 	private Message processRefrenceToken(Message msg) throws RSException {
@@ -192,6 +192,6 @@ public class AuthzInfo implements Endpoint {
 		this.tr.addRefToken(token.AsString(), params);
 		
 		//9. Create success message
-		return msg.successReply(msg, null);
+		return msg.successReply(Message.CREATED, null);
 	}	
 }
