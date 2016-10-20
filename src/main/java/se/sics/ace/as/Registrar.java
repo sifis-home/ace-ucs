@@ -18,6 +18,8 @@ package se.sics.ace.as;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -29,9 +31,18 @@ import java.util.Set;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import com.upokecenter.cbor.CBORObject;
+
+import COSE.AlgorithmID;
+import COSE.Attribute;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.Recipient;
+import se.sics.ace.cwt.CwtCryptoCtx;
+
 /**
  * This class stores information about the clients and RS that are registered at this AS.
- *  
+ * 
  * @author Ludwig Seitz
  *
  */
@@ -95,6 +106,16 @@ public class Registrar {
 	 * The expiration time for access tokens for a specific RS
 	 */
 	private Map<String, Long> expiration;
+	
+	/**
+	 * The secret keys shared with RSs and clients
+	 */
+	private Map<String, byte[]> secretKeys;
+	
+	/**
+	 * The public keys of registered RSs and Clients
+	 */
+	private Map<String, CBORObject> publicKeys;
 
 	/**
 	 * Constructor. Makes an empty registrar
@@ -112,11 +133,14 @@ public class Registrar {
 		this.defaultScope = new HashMap<>();
 		this.aud2rs = new HashMap<>();
 		this.expiration = new HashMap<>();
+		this.secretKeys = new HashMap<>();
+		this.publicKeys = new HashMap<>();
 		load();
 	}
 
 	/**
 	 * Registers a new RS at this AS.
+	 * Note that not both of sharedKey and publicKey may be null!
 	 * 
 	 * @param rs  the identifier for the RS
 	 * @param profiles  the profiles this RS supports
@@ -125,13 +149,19 @@ public class Registrar {
 	 * @param keyTypes   the key types this RS supports
 	 * @param tokenTypes  the token types this RS supports.
 	 *     See <code>AccessTokenFactory</code>
-	 * @param expiration  the expiration time for access tokens for this RS or 0 if
-	 *     the default value is used
+	 * @param expiration  the expiration time for access tokens for this RS 
+	 *     or 0 if the default value is used
+	 * @param sharedKey  the secret key shared with this RS or null if there
+	 *     is none
+	 * @param publicKey  the COSE-encoded public key of this RS or null if
+	 *     there is none
 	 * @throws IOException 
+	 * @throws ASException 
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
 			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-			long expiration) throws IOException {
+			long expiration, byte[] sharedKey, CBORObject publicKey)
+			        throws IOException, ASException {
 		this.supportedProfiles.put(rs, profiles);
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
@@ -148,21 +178,39 @@ public class Registrar {
 		if (expiration != 0L) {
 		    this.expiration.put(rs, expiration);
 		}
+		if (sharedKey == null && publicKey == null) {
+		    throw new ASException("Cannot register RS without a key");
+		}
+		if (sharedKey != null) {
+		    this.secretKeys.put(rs, sharedKey);
+		}
+		if (publicKey != null) {
+		    this.publicKeys.put(rs, publicKey);
+		}
 		persist();	
 	}
+
 	
 	/**
 	 * Registers a new client at this AS.
+	 * Note that not both sharedKey and publicKey may be null!
 	 * 
 	 * @param client  the identifier for the client
 	 * @param profiles  the profiles this client supports
 	 * @param defaultScope  the default scope if any, or null
 	 * @param defaultAud  the default audience if any, or null
 	 * @param keyTypes  the key types this client supports
+	 * @param sharedKey  the secret key shared with this client or null if 
+	 *     there is none
+     * @param publicKey  the COSE-encoded public key of this client or null if
+     *      there is none
+	 * @param publicKey 
 	 * @throws IOException 
+	 * @throws ASException 
 	 */
 	public void addClient(String client, Set<String> profiles, String defaultScope, 
-			String defaultAud, Set<String> keyTypes) throws IOException {
+			String defaultAud, Set<String> keyTypes, byte[] sharedKey, 
+			CBORObject publicKey) throws IOException, ASException {
 		this.supportedProfiles.put(client, profiles);
 		if (defaultScope != null) {
 			this.defaultScope.put(client,  defaultScope);
@@ -171,6 +219,15 @@ public class Registrar {
 			this.defaultAud.put(client, defaultAud);
 		}
 		this.supportedKeyTypes.put(client, keyTypes);
+		if (sharedKey == null && publicKey == null) {
+            throw new ASException("Cannot register RS without a key");
+        }
+		if (sharedKey != null) {
+		    this.secretKeys.put(client, sharedKey);
+		}
+		if (publicKey != null) {
+		    this.publicKeys.put(client, publicKey);
+		}
 		persist();
 	}
 	
@@ -198,6 +255,8 @@ public class Registrar {
 		this.defaultAud.remove(id);
 		this.defaultScope.remove(id);
 		this.expiration.remove(id);
+		this.secretKeys.remove(id);
+		this.publicKeys.remove(id);
 		persist();
 	}
 	
@@ -354,6 +413,102 @@ public class Registrar {
 	}
 	
 	/**
+	 * Returns the right type of CwtContext for use with the given audience
+	 * or null if the audience does not have a common type of keys.
+	 * Note: This assumes that the RS has the AS's public key and can handle 
+	 * public key operations, if itself uses RPK for authentication.
+	 * 
+	 * @param aud  the audience for which we want to create a CWT
+	 * @param asPrivateKey the private key of the AS in case Sign1 is used,
+	 *     null otherwise
+	 * @param alg  the signature algorithm if Sign1 is used, null otherwise
+	 * @return   a common CwtCryptoCtx or null if this is not possible
+	 * 
+	 */
+	public CwtCryptoCtx getCommonCwtCtx(String aud, CBORObject asPrivateKey, 
+	        CBORObject alg) {
+	    Set<String> rss = this.aud2rs.get(aud);
+	    boolean psk = true;
+	    boolean rpk = true;
+	    boolean useMac0 = true;
+	    byte[] key = null;
+	    CBORObject commonAlg = null;
+	    Map<String, byte[]> audKeys = new HashMap<>();
+	    for (String rs : rss) {
+	        if (rpk && !this.publicKeys.containsKey(rs)) {
+	            //one is enough to ruin it for everyone
+	            rpk = false;
+	        }
+	        if (psk && !this.secretKeys.containsKey(rs)) {
+	            psk = false;
+	            useMac0 = false;
+	        } else if (psk) {
+	            //Collect all psk in case we need to use Cose_Mac ...
+	            audKeys.put(rs, this.secretKeys.get(rs));
+	            //... but check if we still can use Cose_Mac0
+	            if (useMac0) {
+	                if (key == null) {
+	                    key = this.secretKeys.get(rs);
+	                } else if (!Arrays.equals(key, this.secretKeys.get(rs))) {
+	                    useMac0 = false;
+	                }
+	            }
+	        } 
+	        if (!(rpk || psk)) {
+	            return null;
+	        }
+	    }
+	    if (rpk == true) {//Prefer rpk before psk
+	        return CwtCryptoCtx.sign1Create(asPrivateKey, alg);
+	    }
+	    if (useMac0) {
+	        return CwtCryptoCtx.mac0(key, commonAlg);
+	    } 
+	    //Make the Mac structure with Recipients
+	    List<Recipient> recipients = new ArrayList<>();
+	    for (byte[] k : audKeys.values()) {
+	        Recipient r = new Recipient();
+	        //XXX: this specifies the use of the "Direct" key wrap
+	        r.addAttribute(HeaderKeys.Algorithm, 
+                    AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
+	        CBORObject ck = CBORObject.NewMap();
+            ck.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+            ck.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(k));
+            r.SetKey(ck); 
+	        recipients.add(r);	                
+	    }
+	    return CwtCryptoCtx.mac(recipients, commonAlg);
+	}
+	
+	/** 
+	 * Returns a public key for a specific device (client or RS) or
+	 * null if we do not have any.
+	 * 
+	 * @param id  the device's identifier.
+	 * @return  the public key encoded as CBOR object
+	 */
+	public CBORObject getPublicKey(String id) {
+	    if (this.publicKeys.containsKey(id)) {
+	       return this.publicKeys.get(id);	        
+	    }
+	    return null;
+	}
+	   
+    /** 
+     * Returns a secret key shared with a specific device (client or RS) or
+     * null if we do not have any.
+     * 
+     * @param id  the device's identifier.
+     * @return  the secret key as raw byte array
+     */
+    public byte[] getSecretKey(String id) {
+        if (this.secretKeys.containsKey(id)) {
+           return this.secretKeys.get(id);          
+        }
+        return null;
+    }
+    
+	/**
 	 * Save the current state in the configfile.
 	 * 
 	 * The configfile is built like this:
@@ -366,6 +521,8 @@ public class Registrar {
 	 *  {id : default audience, ....} ,
 	 *  {id : default scope, ...}
 	 *  {id : expiration time, ...}
+	 *  {id : sharedKey (base64 encoded), ...}
+	 *  {id : publicKey, ...}
 	 * ]
 	 * @throws IOException 
 	 * 
@@ -379,6 +536,8 @@ public class Registrar {
 		JSONObject defaultAud = new JSONObject(this.defaultAud);
 		JSONObject defaultScope =  new JSONObject(this.defaultScope);
 		JSONObject expiration = new JSONObject(this.expiration);
+		JSONObject secretKeys = new JSONObject(this.secretKeys);
+		JSONObject publicKeys = new JSONObject(this.publicKeys);
 		config.put(profiles);
 		config.put(keyTypes);
 		config.put(scopes);
@@ -386,6 +545,8 @@ public class Registrar {
 		config.put(defaultAud);
 		config.put(defaultScope);
 		config.put(expiration);
+		config.put(secretKeys);
+		config.put(publicKeys);
 		
 		FileOutputStream fos=new FileOutputStream(this.configfile, false);
 		fos.write(config.toString(4).getBytes());
@@ -427,7 +588,6 @@ public class Registrar {
 			}
 			this.defaultAud = parseSimpleMap(defaultAud);
 			this.defaultScope = parseSimpleMap(defaultScope);
-			Map<String, Object> foo = expiration.toMap();
 			this.expiration = new HashMap<>();
 	        for (String key : expiration.keySet()) {
 	            this.expiration.put(key, expiration.getLong(key));

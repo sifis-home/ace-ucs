@@ -171,8 +171,10 @@ public class CWT implements AccessToken {
 		try {
 			return m.decrypt(r);
 		} catch (CoseException e) {
+		    e.printStackTrace();
 			return null;
 		} catch (InvalidCipherTextException e) {
+		    e.printStackTrace();
 			return null;
 		}
 	}
@@ -242,10 +244,15 @@ public class CWT implements AccessToken {
 	 *
 	 * @param ctx  the crypto context.
 	 * @return  the claims as CBOR Map.
+	 * @throws CoseException 
+	 * @throws InvalidCipherTextException 
+	 * @throws IllegalStateException 
+	 * @throws TokenException 
 	 * @throws Exception 
 	 */
 	public CBORObject encode(CwtCryptoCtx ctx) 
-			throws Exception {
+	        throws IllegalStateException, InvalidCipherTextException, 
+	               CoseException, TokenException {
 		CBORObject map = encode();
 		switch (ctx.getMessageType()) {
 		
@@ -265,7 +272,13 @@ public class CWT implements AccessToken {
 			for (Recipient r : ctx.getRecipients()) {
 				coseE.addRecipient(r);
 			}
-			coseE.encrypt();
+            try {
+                coseE.encrypt();
+            } catch (Exception e) {
+                //Catching Jim's general "not implemented" exception
+                //and casting it to something more useful
+               throw new CoseException(e.getMessage());
+            }
 			return coseE.EncodeToCBORObject();
 			
 		case Sign1:
@@ -295,7 +308,13 @@ public class CWT implements AccessToken {
 			for (Recipient r : ctx.getRecipients()) {
 				coseM.addRecipient(r);
 			}
-			coseM.Create();
+			try {
+                coseM.Create();
+            } catch (Exception e) {
+                //Catching Jim's general "not implemented" exception
+                //and casting it to something more useful 
+                throw new CoseException(e.getMessage());
+            }
 			return coseM.EncodeToCBORObject();
 			
 		case MAC0:

@@ -65,6 +65,12 @@ public class AuthzInfo implements Endpoint {
 	private AudienceValidator audience;
 	
 	/**
+	 * The crypto context to use with the AS
+	 */
+	private CwtCryptoCtx ctx;
+	
+	
+	/**
 	 * Constructor.
 	 * 
 	 * @param tr  a token repository
@@ -72,9 +78,11 @@ public class AuthzInfo implements Endpoint {
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
+	 * @param ctx  the crypto context to use with the As
 	 */
 	public AuthzInfo(TokenRepository tr, List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, AudienceValidator audience) {
+			TimeProvider time, IntrospectionHandler intro, 
+			AudienceValidator audience, CwtCryptoCtx ctx) {
 		this.tr = tr;
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -84,13 +92,12 @@ public class AuthzInfo implements Endpoint {
 	}
 
 	@Override
-	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-				throws Exception {
+	public Message processMessage(Message msg) throws Exception {
 
 		//1. Check if this is a CWT, and check the crypto wrapper
 		CWT cwt = null;
 		try {
-			cwt = CWT.processCOSE(msg.getRawPayload(), ctx);
+			cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 		} catch (CoseException ce) {
 			//Not a CWT, check if this is a reference token
 			return processRefrenceToken(msg);

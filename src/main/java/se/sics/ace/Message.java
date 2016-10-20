@@ -79,6 +79,11 @@ public abstract class Message {
 	public static int FAIL_UNSUPPORTED_CONTENT_FORMAT = 415;
 	
 	/**
+	 * The server had some internal problem
+	 */
+	public static int FAIL_INTERNAL_SERVER_ERROR = 500;
+	
+	/**
 	 * The server doesn't implement some part required for this request
 	 */
 	public static int FAIL_NOT_IMPLEMENTED = 501;

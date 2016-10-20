@@ -15,19 +15,24 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.CoseException;
 import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.TokenException;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -74,22 +79,37 @@ public class Token implements Endpoint {
 	private Long cti = 0L;
 	
 	/**
+	 * The private key of the AS or null if there isn't any
+	 */
+	private CBORObject privateKey;
+	
+	/**
+	 * The signature algorithm used by this AS if any or null
+	 */
+	private CBORObject sig0Alg;
+	
+	/**
 	 * Constructor.
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
 	 * @param registrar  the registrar for registering clients and RSs
 	 * @param time  the time provider
+	 * @param privateKey  the private key of the AS or null if there isn't any
+	 * @param sig0Alg  the signature algorithm used with the asymmetric key pair
+	 *     or null if asymmetric signatures are not used
 	 */
 	public Token(String asId, PDP pdp, Registrar registrar, 
-	        TimeProvider time) {
+	        TimeProvider time, CBORObject privateKey, CBORObject sig0Alg) {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.registrar = registrar;
 	}
 	
 	@Override
-	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-				throws Exception {
+	public Message processMessage(Message msg) 
+	        throws ASException, NoSuchAlgorithmException, 
+	        IllegalStateException, InvalidCipherTextException, 
+	        CoseException, TokenException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -149,7 +169,7 @@ public class Token implements Endpoint {
 		            CBORObject.FromObject("Unsupported token type"));
 		}
 		
-		//Find supported key type
+		//Find supported key type for proof-of-possession
 		String keyType = this.registrar.getSupportedKeyType(id, aud);
 		switch (keyType) {
 		case "PSK":
@@ -177,6 +197,14 @@ public class Token implements Endpoint {
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
 		if (token instanceof CWT) {
+		    //Get CwtCryptoCtxs for the audience ...
+		    CwtCryptoCtx ctx = this.registrar.getCommonCwtCtx(
+		            aud, this.privateKey, this.sig0Alg);
+		    if (ctx == null) {
+		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
+		                CBORObject.FromObject(
+		                "No common security context found for audience"));
+		    }
 		    CWT cwt = (CWT)token;
 		    rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
 		} else {

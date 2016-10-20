@@ -27,7 +27,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 public class Introspect implements Endpoint {
 
 	@Override
-    public Message processMessage(Message msg, CwtCryptoCtx ctx) {
+    public Message processMessage(Message msg) {
 		// TODO Auto-generated method stub
 		return null;
 	}

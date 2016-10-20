@@ -15,8 +15,6 @@
  *******************************************************************************/
 package se.sics.ace;
 
-import se.sics.ace.cwt.CwtCryptoCtx;
-
 /**
  * An interface for OAuth 2.0 endpoints.
  * 
@@ -27,12 +25,10 @@ public interface Endpoint {
 
 	/**
 	 * @param msg  the incoming message to process
-	 * @param ctx  the cryptographic context needed to access the message and
-	 *             generate the response.
+     *
 	 * @return  the Reply message
 	 * @throws Exception
 	 */
-	public Message processMessage(Message msg, CwtCryptoCtx ctx) 
-			throws Exception;
+	public Message processMessage(Message msg) throws Exception;
 
 }

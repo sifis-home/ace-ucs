@@ -32,6 +32,8 @@ import org.junit.Rule;
 	 */
 	public class TestRegistrar {
 	
+	    static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+	    
 		/**
 		 * Tests for AS.
 		 */
@@ -55,7 +57,8 @@ import org.junit.Rule;
 			HashSet<String> keys = new HashSet<>();
 			keys.add("PSK");
 			keys.add("RPK");
-			r.addClient("client_C", Collections.singleton("coap_dtls"), "temp", null, keys);
+			r.addClient("client_C", Collections.singleton("coap_dtls"), "temp",
+			        null, keys, key128, null);
 			r.remove("client_C");
 			HashSet<String> profiles = new HashSet<>();
 			profiles.add("coap_dtls");
@@ -68,16 +71,19 @@ import org.junit.Rule;
 			auds.add("actuators");
 			HashSet<Integer> tokens = new HashSet<>();
 			tokens.add(AccessTokenFactory.CWT_TYPE);
-			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 10000);
+			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 1000, 
+			        key128, null);
 			r.remove("rs4");
-			FileInputStream fis = new FileInputStream("src/test/resources/ASregistry.json");
+			FileInputStream fis = new FileInputStream(
+			        "src/test/resources/ASregistry.json");
 			Scanner scanner = new Scanner(fis, "UTF-8" );
 			Scanner s = scanner.useDelimiter("\\A");
 			String configStr = s.hasNext() ? s.next() : "";
 			fis.close();
 			scanner.close();
 			s.close();
-			fis = new FileInputStream("src/test/resources/ASregistry.json.bak");
+			fis = new FileInputStream(
+			        "src/test/resources/ASregistry.json.bak");
 			scanner = new Scanner(fis, "UTF-8");
 			s = scanner.useDelimiter("\\A");
 			String configBak = s.hasNext() ? s.next() : "";
