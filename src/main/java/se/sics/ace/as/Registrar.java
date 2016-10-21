@@ -169,8 +169,12 @@ public class Registrar {
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
 		this.supportedTokens.put(rs, tokenTypes);
-		this.rs2aud.put(rs, auds);
-		for (String aud : auds) {
+		Set<String> extAuds = new HashSet<>();
+		extAuds.addAll(auds);
+		//Add the RS itself as a separate audience
+		extAuds.add(rs);
+		this.rs2aud.put(rs, extAuds);
+		for (String aud : extAuds) {
 			Set<String> rss = this.aud2rs.get(aud);
 			if (rss == null) {
 				rss = new HashSet<>();
@@ -178,6 +182,7 @@ public class Registrar {
 			rss.add(rs);
 			this.aud2rs.put(aud, rss);
 		}
+
 		if (expiration != 0L) {
 		    this.expiration.put(rs, expiration);
 		}
