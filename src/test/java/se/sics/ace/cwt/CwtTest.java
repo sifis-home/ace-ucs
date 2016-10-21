@@ -15,6 +15,7 @@
  *******************************************************************************/
 package se.sics.ace.cwt;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -27,30 +28,19 @@ import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import se.sics.ace.cwt.CWT;
-import se.sics.ace.cwt.CwtCryptoCtx;
+import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
-import COSE.Encrypt0Message;
-import COSE.EncryptMessage;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
-import COSE.MAC0Message;
-import COSE.MACMessage;
-import COSE.MessageTag;
 import COSE.Recipient;
-import COSE.Sign1Message;
-import COSE.SignMessage;
 import COSE.Signer;
-
-import com.upokecenter.cbor.CBORObject;
 
 /**
  * Tests of CWT code
@@ -310,6 +300,5 @@ public class CwtTest {
         	   assert(!cwt.expired(early));
         	   assert(cwt.expired(late));
         	   assert(!cwt.expired(now));        	 
-           }
-
+           }           
 }

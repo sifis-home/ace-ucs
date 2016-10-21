@@ -20,6 +20,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -56,6 +57,8 @@ public class Registrar {
 	private static int DEFAUD = 4;
 	private static int DEFSCOPE = 5;
 	private static int EXPIRE = 6;
+	private static int PSK = 7;
+	private static int RPK = 8;
 	
 	/**
 	 * The file for persisting the values of this registrar
@@ -522,7 +525,7 @@ public class Registrar {
 	 *  {id : default scope, ...}
 	 *  {id : expiration time, ...}
 	 *  {id : sharedKey (base64 encoded), ...}
-	 *  {id : publicKey, ...}
+	 *  {id : publicKey (base64 encoded), ...}
 	 * ]
 	 * @throws IOException 
 	 * 
@@ -536,8 +539,20 @@ public class Registrar {
 		JSONObject defaultAud = new JSONObject(this.defaultAud);
 		JSONObject defaultScope =  new JSONObject(this.defaultScope);
 		JSONObject expiration = new JSONObject(this.expiration);
-		JSONObject secretKeys = new JSONObject(this.secretKeys);
-		JSONObject publicKeys = new JSONObject(this.publicKeys);
+		Map<String, String> encSecretKeys = new HashMap<>();
+		for (Entry<String, byte[]> foo : this.secretKeys.entrySet()) {
+		    encSecretKeys.put(foo.getKey(),
+		            Base64.getEncoder().encodeToString(foo.getValue()));
+		}
+		JSONObject secretKeys = new JSONObject(encSecretKeys);
+		Map<String,String> encPublicKeys = new HashMap<>();
+		for (Entry<String, CBORObject> bar : this.publicKeys.entrySet()) {
+            encPublicKeys.put(bar.getKey(),
+                    Base64.getEncoder().encodeToString(
+                            bar.getValue().EncodeToBytes()));
+        }
+		
+		JSONObject publicKeys = new JSONObject(encPublicKeys);
 		config.put(profiles);
 		config.put(keyTypes);
 		config.put(scopes);
@@ -571,6 +586,8 @@ public class Registrar {
 			JSONObject defaultAud = config.getJSONObject(Registrar.DEFAUD);
 			JSONObject defaultScope =  config.getJSONObject(Registrar.DEFSCOPE);
 			JSONObject expiration =  config.getJSONObject(Registrar.EXPIRE);
+			JSONObject psk = config.getJSONObject(Registrar.PSK);
+			JSONObject rpk = config.getJSONObject(Registrar.RPK);
 			this.supportedProfiles = parseMap(profiles);
 			this.supportedKeyTypes = parseMap(keyTypes);
 			this.supportedScopes = parseMap(scopes);
@@ -592,6 +609,16 @@ public class Registrar {
 	        for (String key : expiration.keySet()) {
 	            this.expiration.put(key, expiration.getLong(key));
 	        }
+	        this.secretKeys = new HashMap<>();
+	        for (String id : psk.keySet()) {
+	            byte[] rawKey = Base64.getDecoder().decode(psk.getString(id));
+	            this.secretKeys.put(id, rawKey);
+	        }
+	        this.publicKeys = new HashMap<>();
+	        for (String id : rpk.keySet()) {
+                byte[] rawKey = Base64.getDecoder().decode(rpk.getString(id));
+                this.publicKeys.put(id, CBORObject.DecodeFromBytes(rawKey));
+            }
 		}
 	}
 	
