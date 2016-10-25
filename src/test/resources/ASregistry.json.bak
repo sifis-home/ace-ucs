@@ -44,5 +44,13 @@
         "rs2": 300000,
         "rs1": 1000000,
         "rs3": 30000
+    },
+    {
+        "rs2": "YWJjBAUGBwgJCgsMDQ4PEA==",
+        "rs1": "YWJjBAUGBwgJCgsMDQ4PEA=="
+    },
+    {
+        "rs1": "pCJYIOpj7voegRpvjj1B3vCunhgFYaBT2uzj5gXeUPLItSJRAQIhWCCKYiAucoiFWCOMfg4y8MU1CqfShO7m7yDBigX/DalapCAB",
+        "rs3": "pCJYIOpj7voegRpvjj1B3vCunhgFYaBT2uzj5gXeUPLItSJRAQIhWCCKYiAucoiFWCOMfg4y8MU1CqfShO7m7yDBigX/DalapCAB"
     }
 ]

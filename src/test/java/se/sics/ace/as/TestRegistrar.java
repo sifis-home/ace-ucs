@@ -16,6 +16,7 @@
 package se.sics.ace.as;
 	
 	import java.io.FileInputStream;
+import java.util.Arrays;
 import java.util.Collections;
 	import java.util.HashSet;
 import java.util.Scanner;
@@ -56,10 +57,9 @@ import org.junit.Rule;
 			Registrar r = new Registrar("src/test/resources/ASregistry.json");
 			HashSet<String> keys = new HashSet<>();
 			keys.add("PSK");
-			keys.add("RPK");
-			r.addClient("client_C", Collections.singleton("coap_dtls"), "temp",
+			r.addClient("clientC", Collections.singleton("coap_dtls"), "temp",
 			        null, keys, key128, null);
-			r.remove("client_C");
+			keys.add("RPK");
 			HashSet<String> profiles = new HashSet<>();
 			profiles.add("coap_dtls");
 			profiles.add("coap_oscoap");
@@ -73,6 +73,13 @@ import org.junit.Rule;
 			tokens.add(AccessTokenFactory.CWT_TYPE);
 			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 1000, 
 			        key128, null);
+			
+			assert(r.getSupportedKeyType("clientC", "rs4").equals("PSK"));
+			assert(r.getSupportedProfile("clientC", "rs4").equals("coap_dtls"));
+			assert(r.getRS("sensors").contains("rs4"));
+			assert(r.getRS("actuators").contains("rs4"));
+			assert(Arrays.equals(key128, r.getSecretKey("rs4")));
+			r.remove("clientC");
 			r.remove("rs4");
 			FileInputStream fis = new FileInputStream(
 			        "src/test/resources/ASregistry.json");

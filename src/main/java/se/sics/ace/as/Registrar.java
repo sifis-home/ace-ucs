@@ -652,4 +652,40 @@ public class Registrar {
 		return bar;
 	}
 	
+	@Override
+	public String toString() {
+	       JSONArray config = new JSONArray();
+	        JSONObject profiles = new JSONObject(this.supportedProfiles);
+	        JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
+	        JSONObject scopes = new JSONObject(this.supportedScopes);
+	        JSONObject audiences = new JSONObject(this.rs2aud);
+	        JSONObject defaultAud = new JSONObject(this.defaultAud);
+	        JSONObject defaultScope =  new JSONObject(this.defaultScope);
+	        JSONObject expiration = new JSONObject(this.expiration);
+	        Map<String, String> encSecretKeys = new HashMap<>();
+	        for (Entry<String, byte[]> foo : this.secretKeys.entrySet()) {
+	            encSecretKeys.put(foo.getKey(),
+	                    Base64.getEncoder().encodeToString(foo.getValue()));
+	        }
+	        JSONObject secretKeys = new JSONObject(encSecretKeys);
+	        Map<String,String> encPublicKeys = new HashMap<>();
+	        for (Entry<String, CBORObject> bar : this.publicKeys.entrySet()) {
+	            encPublicKeys.put(bar.getKey(),
+	                    Base64.getEncoder().encodeToString(
+	                            bar.getValue().EncodeToBytes()));
+	        }
+	        
+	        JSONObject publicKeys = new JSONObject(encPublicKeys);
+	        config.put(profiles);
+	        config.put(keyTypes);
+	        config.put(scopes);
+	        config.put(audiences);
+	        config.put(defaultAud);
+	        config.put(defaultScope);
+	        config.put(expiration);
+	        config.put(secretKeys);
+	        config.put(publicKeys);
+	        return config.toString(4);
+	}
+	
 }
