@@ -42,6 +42,8 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.Recipient;
+
+import se.sics.ace.COSEparams;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -98,7 +100,7 @@ public class Registrar {
 	 * Identifies the type of COSE wrapper a RS expects for an access token.
 	 * Default is Sign1 with the AS's private key.
 	 */
-	private Map<String, MessageTag> coseEncoding;
+	private Map<String, COSEparams> coseEncoding;
 	
 	/**
 	 * Identifies the audiences an RS identifies with
@@ -171,7 +173,7 @@ public class Registrar {
 	 * @param keyTypes   the key types this RS supports
 	 * @param tokenTypes  the token types this RS supports.
 	 *     See <code>AccessTokenFactory</code>
-	 * @param coseType  the type of COSE wrapper required for access tokens,
+	 * @param cose the parameters of COSE wrapper for access tokens,
 	 *     or null if this RS doesn't process CWTs
 	 * @param expiration  the expiration time for access tokens for this RS 
 	 *     or 0 if the default value is used
@@ -184,13 +186,13 @@ public class Registrar {
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
 			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-			MessageTag coseType, long expiration, byte[] sharedKey, CBORObject publicKey)
+			COSEparams cose, long expiration, byte[] sharedKey, CBORObject publicKey)
 			        throws IOException, ASException {
 		this.supportedProfiles.put(rs, profiles);
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
 		this.supportedTokens.put(rs, tokenTypes);
-		this.coseEncoding.put(rs, coseType);
+		this.coseEncoding.put(rs, cose);
 		Set<String> extAuds = new HashSet<>();
 		extAuds.addAll(auds);
 		//Add the RS itself as a separate audience
@@ -320,14 +322,15 @@ public class Registrar {
 	}
 	
 	/**
-	 * Returns a common key type, or null if there isn't any
+	 * Returns a common key type for the proof-of-possession
+	 * algorithm, or null if there isn't any.
 	 * 
 	 * @param client  the id of the client
 	 * @param aud  the audience that this client is addressing 
 	 * 
 	 * @return  a key type both support or null
 	 */
-	public String getSupportedKeyType(String client, String aud) {
+	public String getPopKeyType(String client, String aud) {
 	    Set<String> rss = this.aud2rs.get(aud);
 		Set<String> clientK = new HashSet<>();
 		clientK.addAll(this.supportedKeyTypes.get(client));
@@ -350,7 +353,7 @@ public class Registrar {
     /**
      * Returns a common token type, or null if there isn't any
      * 
-     * @param aud  the audience that is addressed
+     * @param aud  the audience that is addressedcose
      * 
      * @return  a token type the audience supports or null
      */
@@ -383,20 +386,20 @@ public class Registrar {
     }
     
     /**
-     * Returns a common COSE message type for the access tokens to that audience
-     * or null if there is no common type.
+     * Returns a common COSE message format for the access token, 
+     * if any, for an audience, null if there is none.
      * 
      * @param aud  the audience id
-     * @return  the COSE message type
+     * @return  the COSE message tag or null if there is none
      */
-    public MessageTag getCoseType(String aud) {
+    public MessageTag getSupportedCoseType(String aud) {
         Set<String> rss = this.aud2rs.get(aud);
         MessageTag cose = null;
         for (String rs : rss) {
             if (cose == null) {
-                cose = this.coseEncoding.get(rs);
+                cose = this.coseEncoding.get(rs).getTag();
             } else {
-                if (cose.value != this.coseEncoding.get(rs).value) {
+                if (!cose.equals(this.coseEncoding.get(rs).getTag())) {
                     return null;
                 }
             }
@@ -474,70 +477,127 @@ public class Registrar {
 	
 	/**
 	 * Returns the right type of CwtContext for use with the given audience
-	 * or null if the audience does not have a common type of keys.
+	 * or null if the audience does not have a common COSE message parameters.
 	 * Note: This assumes that the RS has the AS's public key and can handle 
 	 * public key operations, if itself uses RPK for authentication.
 	 * 
 	 * @param aud  the audience for which we want to create a CWT
 	 * @param asPrivateKey the private key of the AS in case Sign1 is used,
 	 *     null otherwise
-	 * @param alg  the signature algorithm if Sign1 is used, null otherwise
 	 * @return   a common CwtCryptoCtx or null if this is not possible
 	 * 
 	 */
-	public CwtCryptoCtx getCommonCwtCtx(String aud, CBORObject asPrivateKey, 
-	        CBORObject alg) {
-	    Set<String> rss = this.aud2rs.get(aud);
-	    boolean psk = true;
-	    boolean rpk = true;
-	    boolean useMac0 = true;
-	    byte[] key = null;
-	    CBORObject commonAlg = null;
-	    Map<String, byte[]> audKeys = new HashMap<>();
-	    for (String rs : rss) {
-	        if (rpk && !this.publicKeys.containsKey(rs)) {
-	            //one is enough to ruin it for everyone
-	            rpk = false;
-	        }
-	        if (psk && !this.secretKeys.containsKey(rs)) {
-	            psk = false;
-	            useMac0 = false;
-	        } else if (psk) {
-	            //Collect all psk in case we need to use Cose_Mac ...
-	            audKeys.put(rs, this.secretKeys.get(rs));
-	            //... but check if we still can use Cose_Mac0
-	            if (useMac0) {
-	                if (key == null) {
-	                    key = this.secretKeys.get(rs);
-	                } else if (!Arrays.equals(key, this.secretKeys.get(rs))) {
-	                    useMac0 = false;
-	                }
-	            }
-	        } 
-	        if (!(rpk || psk)) {
+	public CwtCryptoCtx getCommonCwtCtx(String aud, CBORObject asPrivateKey) {
+	    MessageTag tag = getSupportedCoseType(aud);
+	    switch (tag) {
+	    case Encrypt:
+	        AlgorithmID ealg = getCommonAlgId(aud);
+	        return CwtCryptoCtx.encrypt(makeRecipients(aud), ealg.AsCBOR());
+	    case Encrypt0:
+	        byte[] ekey = getCommonSecretKey(aud);
+	        if (ekey == null) {
 	            return null;
 	        }
+	        AlgorithmID e0alg = getCommonAlgId(aud);
+	        if (e0alg == null) {
+	            return null;
+	        }
+	        return CwtCryptoCtx.encrypt0(ekey, e0alg.AsCBOR());
+	    case MAC:
+	        AlgorithmID malg = getCommonAlgId(aud);
+	        return CwtCryptoCtx.mac(makeRecipients(aud), malg.AsCBOR());
+	    case MAC0:
+	        byte[] mkey = getCommonSecretKey(aud);
+            if (mkey == null) {
+                return null;
+            }
+            AlgorithmID m0alg = getCommonAlgId(aud);
+            if (m0alg == null) {
+                return null;
+            }
+	        return CwtCryptoCtx.mac0(mkey, m0alg.AsCBOR());
+	    case Sign:
+	     // Not supported, an access token with multiple signers makes no sense
+	        return null;
+	    case Sign1:
+	        AlgorithmID s1alg = getCommonAlgId(aud);
+	        if (s1alg == null) {
+	            return null;
+	        }
+	        return CwtCryptoCtx.sign1Create(
+	                asPrivateKey, s1alg.AsCBOR());
+	    default:
+	        throw new IllegalArgumentException("Unknown COSE message type");
+	            
 	    }
-	    if (rpk == true) {//Prefer rpk before psk
-	        return CwtCryptoCtx.sign1Create(asPrivateKey, alg);
+	}
+	
+	/**
+	 * Tries to find a common PSK for the given audience.
+	 * 
+	 * @param aud  the audience
+	 * @return  a common PSK or null if there isn't any
+	 */
+	private byte[] getCommonSecretKey(String aud) {
+	    Set<String> rss = this.aud2rs.get(aud);
+	    byte[] key = null;
+	    for (String rs : rss) {
+	       if (getSecretKey(rs) == null) {
+	           return null;
+	       }
+	       if (key == null) {
+	           key = Arrays.copyOf(getSecretKey(rs), getSecretKey(rs).length);
+	       } else {
+	           if (!Arrays.equals(key, getSecretKey(rs))) {
+	               return null;
+	           }
+	       }
 	    }
-	    if (useMac0) {
-	        return CwtCryptoCtx.mac0(key, commonAlg);
-	    } 
-	    //Make the Mac structure with Recipients
-	    List<Recipient> recipients = new ArrayList<>();
-	    for (byte[] k : audKeys.values()) {
+	    return key;
+	}
+	
+	/**
+	 * Tries to find a common MAC/Sign/Encrypt algorithm for the given audience.
+	 * 
+	 * @param aud  the audience
+	 * @return  the algorithms identifier or null if there isn't any
+	 */
+	private AlgorithmID getCommonAlgId(String aud) {
+	    Set<String> rss = this.aud2rs.get(aud);
+        AlgorithmID alg = null;
+        for (String rs : rss) {
+           if (alg == null) {
+               alg = this.coseEncoding.get(rs).getAlg();
+           } else {
+               if (!alg.equals(this.coseEncoding.get(rs).getAlg())) {
+                   return null;
+               }
+           }
+        }
+        return alg;
+	}
+	
+	/**
+	 * Create a recipient list for an audience.
+	 * 
+	 * @param aud  the audience
+	 * @return  the recipient list
+	 */
+	private List<Recipient> makeRecipients(String aud) {
+	    List<Recipient> rl = new ArrayList<>();
+	    for (String rs : this.aud2rs.get(aud)) {
 	        Recipient r = new Recipient();
-	        //XXX: this specifies the use of the "Direct" key wrap
 	        r.addAttribute(HeaderKeys.Algorithm, 
-                    AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
-	        CBORObject ck = CBORObject.NewMap();
-            ck.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-            ck.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(k));
-            r.SetKey(ck); 
-	        recipients.add(r);	                
+	                this.coseEncoding.get(rs).getKeyWrap().AsCBOR(), 
+	                Attribute.UnprotectedAttributes);
+	        CBORObject key = CBORObject.NewMap();
+	        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+	        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
+	                this.secretKeys.get(rs)));
+	        r.SetKey(key); 
+	        rl.add(r);
 	    }
-	    return CwtCryptoCtx.mac(recipients, commonAlg);
+	    return rl;
 	}
 	
 	/** 
@@ -595,9 +655,9 @@ public class Registrar {
 		JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
 		JSONObject scopes = new JSONObject(this.supportedScopes);
 		JSONObject tokenTypes = new JSONObject(this.supportedTokens);
-		Map<String, Integer> cose = new HashMap<>();
-		for (Entry<String, MessageTag> foo : this.coseEncoding.entrySet()) {
-		    cose.put(foo.getKey(), foo.getValue().value);
+		Map<String, String> cose = new HashMap<>();
+		for (Entry<String, COSEparams> foo : this.coseEncoding.entrySet()) {
+		    cose.put(foo.getKey(), foo.getValue().toString());
 		}
 		JSONObject coseEncodings = new JSONObject(cose);
 		JSONObject audiences = new JSONObject(this.rs2aud);
@@ -653,7 +713,8 @@ public class Registrar {
 	        JSONObject cose = config.getJSONObject(COSE);
 	        JSONObject audiences = config.getJSONObject(Registrar.AUDS);
 	        JSONObject defaultAud = config.getJSONObject(Registrar.DEFAUD);
-	        JSONObject defaultScope =  config.getJSONObject(Registrar.DEFSCOPE);
+	        JSONObject defaultScope =  config.getJSONObject(
+	                Registrar.DEFSCOPE);
 	        JSONObject expiration =  config.getJSONObject(Registrar.EXPIRE);
 	        JSONObject psk = config.getJSONObject(Registrar.PSK);
 	        JSONObject rpk = config.getJSONObject(Registrar.RPK);
@@ -663,7 +724,8 @@ public class Registrar {
 	        this.supportedTokens = parseIntMap(tokens);
 	        this.coseEncoding = new HashMap<>();
 	        for (String id : cose.keySet()) {
-	            this.coseEncoding.put(id, MessageTag.FromInt(cose.getInt(id)));
+	            this.coseEncoding.put(id, COSEparams.parse(
+	                    cose.getString(id)));
 	        }
 	        this.rs2aud = parseStringMap(audiences);
 	        this.aud2rs = new HashMap<>();
@@ -744,7 +806,11 @@ public class Registrar {
 	    JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
 	    JSONObject scopes = new JSONObject(this.supportedScopes);
 	    JSONObject tokens = new JSONObject(this.supportedTokens);
-	    JSONObject cose = new JSONObject(this.coseEncoding);
+	    Map<String, String> encCoseParams = new HashMap<>();
+	    for (Entry<String, COSEparams> foo : this.coseEncoding.entrySet()) {
+	        encCoseParams.put(foo.getKey(), foo.getValue().toString());
+	    }
+	    JSONObject cose = new JSONObject(encCoseParams);
 	    JSONObject audiences = new JSONObject(this.rs2aud);
 	    JSONObject defaultAud = new JSONObject(this.defaultAud);
 	    JSONObject defaultScope =  new JSONObject(this.defaultScope);

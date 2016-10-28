@@ -141,7 +141,12 @@ public class Token implements Endpoint {
 		
 		//4. Create token
 		//Find supported token type
-		int tokenType = this.registrar.getSupportedTokenType(aud);
+		
+		Integer tokenType = this.registrar.getSupportedTokenType(aud);
+		if (tokenType == null) {
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
+		            CBORObject.FromObject("Audience incompatible"));
+		}
 		
 		
 		Map<String, CBORObject> claims = new HashMap<>();
@@ -170,7 +175,7 @@ public class Token implements Endpoint {
 		}
 		
 		//Find supported key type for proof-of-possession
-		String keyType = this.registrar.getSupportedKeyType(id, aud);
+		String keyType = this.registrar.getPopKeyType(id, aud);
 		switch (keyType) {
 		case "PSK":
 		    KeyGenerator kg = KeyGenerator.getInstance("AES");
@@ -199,7 +204,7 @@ public class Token implements Endpoint {
 		if (token instanceof CWT) {
 		    //Get CwtCryptoCtxs for the audience ...
 		    CwtCryptoCtx ctx = this.registrar.getCommonCwtCtx(
-		            aud, this.privateKey, this.sig0Alg);
+		            aud, this.privateKey);
 		    if (ctx == null) {
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
 		                CBORObject.FromObject(
