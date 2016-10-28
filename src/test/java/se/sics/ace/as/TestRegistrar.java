@@ -24,6 +24,8 @@ import java.util.Scanner;
 import org.junit.Rule;
 	import org.junit.Test;
 	import org.junit.rules.ExpectedException;
+
+import COSE.MessageTag;
 	
 	/**
 	 * Test the AS code.
@@ -71,14 +73,16 @@ import org.junit.Rule;
 			auds.add("actuators");
 			HashSet<Integer> tokens = new HashSet<>();
 			tokens.add(AccessTokenFactory.CWT_TYPE);
-			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 1000, 
-			        key128, null);
+			r.addRS("rs4", profiles, scopes, auds, keys, tokens, 
+			        MessageTag.Sign1, 1000, key128, null);
 			
 			assert(r.getSupportedKeyType("clientC", "rs4").equals("PSK"));
 			assert(r.getSupportedProfile("clientC", "rs4").equals("coap_dtls"));
 			assert(r.getRS("sensors").contains("rs4"));
 			assert(r.getRS("actuators").contains("rs4"));
 			assert(Arrays.equals(key128, r.getSecretKey("rs4")));
+			assert(r.getCoseType("rs4").value == MessageTag.Sign1.value);
+			assert(r.getSupportedTokenType("rs4").equals(AccessTokenFactory.CWT_TYPE));
 			r.remove("clientC");
 			r.remove("rs4");
 			FileInputStream fis = new FileInputStream(
@@ -97,6 +101,15 @@ import org.junit.Rule;
 			fis.close();
 			scanner.close();
 			s.close();
+			assert(r.getSupportedKeyType("clientB", "actuators").equals("PSK"));
+			assert(r.getSupportedKeyType("clientB", "sensors") == null);
+			
+			assert(r.getSupportedProfile("clientA", "sensors").equals("coap_dtls"));
+			assert(r.getSupportedProfile("clientB", "sensors")== null);
+		
+			assert(r.getSupportedTokenType("actuators").equals(AccessTokenFactory.REF_TYPE));
+			assert(r.getSupportedTokenType("sensors").equals(AccessTokenFactory.CWT_TYPE));
+			
 			assert(configStr.equals(configBak));
 			
 		}

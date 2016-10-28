@@ -77,7 +77,7 @@ public class Token implements Endpoint {
 	 * The counter for generating the cti
 	 */
 	private Long cti = 0L;
-	
+
 	/**
 	 * The private key of the AS or null if there isn't any
 	 */
@@ -214,5 +214,16 @@ public class Token implements Endpoint {
 		
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
+	
+	private void saveToken(AccessToken token, Map<String, CBORObject> claims) {
+	    //FIXME: Save a token	    
+	}
+	
+	private void cleanSavedTokens() {
+	    //FIXME: remove expired tokens
+	}
 
+	private void removeToken(CBORObject cti) {
+	    //FIXME: remove a token
+	}
 }

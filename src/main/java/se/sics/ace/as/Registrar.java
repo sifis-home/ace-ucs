@@ -30,19 +30,25 @@ import java.util.Scanner;
 import java.util.Set;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
+import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
+import COSE.MessageTag;
 import COSE.Recipient;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * This class stores information about the clients and RS that are registered at this AS.
+ * 
+ * Note: Each RS is automatically assigned to a singleton audience that corresponds to its
+ * identifier.
  * 
  * @author Ludwig Seitz
  *
@@ -53,12 +59,14 @@ public class Registrar {
 	private static int PROFILES = 0;
 	private static int KEYTYPES = 1;
 	private static int SCOPES = 2;
-	private static int AUDS = 3;
-	private static int DEFAUD = 4;
-	private static int DEFSCOPE = 5;
-	private static int EXPIRE = 6;
-	private static int PSK = 7;
-	private static int RPK = 8;
+	private static int TOKEN = 3;
+	private static int COSE = 4;
+	private static int AUDS = 5;
+	private static int DEFAUD = 6;
+	private static int DEFSCOPE = 7;
+	private static int EXPIRE = 8;
+	private static int PSK = 9;
+	private static int RPK = 10;
 	
 	/**
 	 * The file for persisting the values of this registrar
@@ -81,9 +89,16 @@ public class Registrar {
 	private Map<String, Set<String>> supportedScopes;
 	
 	/**
-	 * Identifies the type access tokens an RS supports
+	 * Identifies the type access tokens an RS supports, 
+	 * see <code>AccessTokenFactory</code>.
 	 */
 	private Map<String, Set<Integer>> supportedTokens;
+	
+	/**
+	 * Identifies the type of COSE wrapper a RS expects for an access token.
+	 * Default is Sign1 with the AS's private key.
+	 */
+	private Map<String, MessageTag> coseEncoding;
 	
 	/**
 	 * Identifies the audiences an RS identifies with
@@ -124,12 +139,16 @@ public class Registrar {
 	 * Constructor. Makes an empty registrar
 	 * @param configfile  the configuration file
 	 * @throws IOException 
+	 * @throws CoseException 
+	 * @throws JSONException 
 	 */
-	public Registrar(String configfile) throws IOException {
+	public Registrar(String configfile) 
+	        throws IOException, JSONException, CoseException {
 		this.configfile = configfile;
 		this.supportedProfiles = new HashMap<>();
 		this.supportedScopes = new HashMap<>();
 		this.supportedTokens = new HashMap<>();
+		this.coseEncoding = new HashMap<>();
 		this.rs2aud = new HashMap<>();
 		this.supportedKeyTypes = new HashMap<>();
 		this.defaultAud = new HashMap<>();
@@ -152,6 +171,8 @@ public class Registrar {
 	 * @param keyTypes   the key types this RS supports
 	 * @param tokenTypes  the token types this RS supports.
 	 *     See <code>AccessTokenFactory</code>
+	 * @param coseType  the type of COSE wrapper required for access tokens,
+	 *     or null if this RS doesn't process CWTs
 	 * @param expiration  the expiration time for access tokens for this RS 
 	 *     or 0 if the default value is used
 	 * @param sharedKey  the secret key shared with this RS or null if there
@@ -163,12 +184,13 @@ public class Registrar {
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
 			Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-			long expiration, byte[] sharedKey, CBORObject publicKey)
+			MessageTag coseType, long expiration, byte[] sharedKey, CBORObject publicKey)
 			        throws IOException, ASException {
 		this.supportedProfiles.put(rs, profiles);
 		this.supportedScopes.put(rs, scopes);
 		this.supportedKeyTypes.put(rs, keyTypes);
 		this.supportedTokens.put(rs, tokenTypes);
+		this.coseEncoding.put(rs, coseType);
 		Set<String> extAuds = new HashSet<>();
 		extAuds.addAll(auds);
 		//Add the RS itself as a separate audience
@@ -260,6 +282,7 @@ public class Registrar {
 		}
 		this.supportedKeyTypes.remove(id);
 		this.supportedTokens.remove(id);
+		this.coseEncoding.remove(id);
 		this.defaultAud.remove(id);
 		this.defaultScope.remove(id);
 		this.expiration.remove(id);
@@ -280,7 +303,8 @@ public class Registrar {
 	 */
 	public String getSupportedProfile(String client, String aud) {
 		Set<String> rss = this.aud2rs.get(aud);
-		Set<String> clientP = this.supportedProfiles.get(client);
+		Set<String> clientP = new HashSet<>();
+		clientP.addAll(this.supportedProfiles.get(client));
 		for (String rs : rss) {
 			Set<String> rsP = this.supportedProfiles.get(rs);
 			for (String profile : clientP) {
@@ -305,14 +329,17 @@ public class Registrar {
 	 */
 	public String getSupportedKeyType(String client, String aud) {
 	    Set<String> rss = this.aud2rs.get(aud);
-		Set<String> clientK = this.supportedKeyTypes.get(client);
+		Set<String> clientK = new HashSet<>();
+		clientK.addAll(this.supportedKeyTypes.get(client));
 		for (String rs : rss) {
 		    Set<String> rsK = this.supportedKeyTypes.get(rs);
+		    Set<String> toRemove = new HashSet<>();
 		    for (String keyType : clientK) {
 		        if (!rsK.contains(keyType)) {
-		            clientK.remove(keyType);
+		            toRemove.add(keyType);
 		        }
 		    }
+		    clientK.removeAll(toRemove);
 		}
 		if (clientK.isEmpty()) {
 		    return null;
@@ -332,13 +359,16 @@ public class Registrar {
         Set<Integer> tokenType = null;
         for (String rs : rss) {
             if (tokenType == null) {
-                tokenType = this.supportedTokens.get(rs);                
+                tokenType = new HashSet<>();
+                tokenType.addAll(this.supportedTokens.get(rs));                
             } else  {
+                Set<Integer> toRemove = new HashSet<>();
                 for (int type : tokenType) {
                     if (!this.supportedTokens.get(rs).contains(type)) {
-                        tokenType.remove(type);
+                        toRemove.add(type);
                     }
                 }
+                tokenType.removeAll(toRemove);
             }
             
         }
@@ -350,6 +380,28 @@ public class Registrar {
         }
         
         return tokenType.iterator().next();
+    }
+    
+    /**
+     * Returns a common COSE message type for the access tokens to that audience
+     * or null if there is no common type.
+     * 
+     * @param aud  the audience id
+     * @return  the COSE message type
+     */
+    public MessageTag getCoseType(String aud) {
+        Set<String> rss = this.aud2rs.get(aud);
+        MessageTag cose = null;
+        for (String rs : rss) {
+            if (cose == null) {
+                cose = this.coseEncoding.get(rs);
+            } else {
+                if (cose.value != this.coseEncoding.get(rs).value) {
+                    return null;
+                }
+            }
+        }
+        return cose;
     }
 	
 	
@@ -525,6 +577,8 @@ public class Registrar {
 	 * 	{id : [profiles], ...},
 	 *  {id : [keyTypes], ...},
 	 *  {id : [scopes], ....},
+	 *  {id : [token types], ...},
+	 *  {id : cose_encoding, ...},
 	 *  {id : [audiences], ...},
 	 *  {id : default audience, ....} ,
 	 *  {id : default scope, ...}
@@ -540,6 +594,12 @@ public class Registrar {
 		JSONObject profiles = new JSONObject(this.supportedProfiles);
 		JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
 		JSONObject scopes = new JSONObject(this.supportedScopes);
+		JSONObject tokenTypes = new JSONObject(this.supportedTokens);
+		Map<String, Integer> cose = new HashMap<>();
+		for (Entry<String, MessageTag> foo : this.coseEncoding.entrySet()) {
+		    cose.put(foo.getKey(), foo.getValue().value);
+		}
+		JSONObject coseEncodings = new JSONObject(cose);
 		JSONObject audiences = new JSONObject(this.rs2aud);
 		JSONObject defaultAud = new JSONObject(this.defaultAud);
 		JSONObject defaultScope =  new JSONObject(this.defaultScope);
@@ -561,6 +621,8 @@ public class Registrar {
 		config.put(profiles);
 		config.put(keyTypes);
 		config.put(scopes);
+		config.put(tokenTypes);
+		config.put(coseEncodings);
 		config.put(audiences);
 		config.put(defaultAud);
 		config.put(defaultScope);
@@ -573,44 +635,51 @@ public class Registrar {
 		fos.close();
 	}
 	
-	private void load() throws IOException {
-		FileInputStream fis = new FileInputStream(this.configfile);
-		Scanner scanner = new Scanner(fis, "UTF-8" );
-		Scanner s = scanner.useDelimiter("\\A");
-		String configStr = s.hasNext() ? s.next() : "";
-		s.close();
-		scanner.close();
-		fis.close();
-		JSONArray config = null;
-		if (!configStr.isEmpty()) {
-			config = new JSONArray(configStr);
-			JSONObject profiles = config.getJSONObject(Registrar.PROFILES);
-			JSONObject keyTypes = config.getJSONObject(Registrar.KEYTYPES);
-			JSONObject scopes = config.getJSONObject(Registrar.SCOPES);
-			JSONObject audiences = config.getJSONObject(Registrar.AUDS);
-			JSONObject defaultAud = config.getJSONObject(Registrar.DEFAUD);
-			JSONObject defaultScope =  config.getJSONObject(Registrar.DEFSCOPE);
-			JSONObject expiration =  config.getJSONObject(Registrar.EXPIRE);
-			JSONObject psk = config.getJSONObject(Registrar.PSK);
-			JSONObject rpk = config.getJSONObject(Registrar.RPK);
-			this.supportedProfiles = parseMap(profiles);
-			this.supportedKeyTypes = parseMap(keyTypes);
-			this.supportedScopes = parseMap(scopes);
-			this.rs2aud = parseMap(audiences);
-			this.aud2rs = new HashMap<>();
-			for (Entry<String,Set<String>> e : this.rs2aud.entrySet()) {
-				for (String aud : e.getValue()) {
-					Set<String> set = this.aud2rs.get(aud);
-					if (set == null) {
-						set = new HashSet<>();
-					}
-					set.add(e.getKey());
-					this.aud2rs.put(aud, set);
-				}
-			}
-			this.defaultAud = parseSimpleMap(defaultAud);
-			this.defaultScope = parseSimpleMap(defaultScope);
-			this.expiration = new HashMap<>();
+	private void load() throws IOException, JSONException, CoseException {
+	    FileInputStream fis = new FileInputStream(this.configfile);
+	    Scanner scanner = new Scanner(fis, "UTF-8" );
+	    Scanner s = scanner.useDelimiter("\\A");
+	    String configStr = s.hasNext() ? s.next() : "";
+	    s.close();
+	    scanner.close();
+	    fis.close();
+	    JSONArray config = null;
+	    if (!configStr.isEmpty()) {
+	        config = new JSONArray(configStr);
+	        JSONObject profiles = config.getJSONObject(Registrar.PROFILES);
+	        JSONObject keyTypes = config.getJSONObject(Registrar.KEYTYPES);
+	        JSONObject scopes = config.getJSONObject(Registrar.SCOPES);
+	        JSONObject tokens = config.getJSONObject(TOKEN);
+	        JSONObject cose = config.getJSONObject(COSE);
+	        JSONObject audiences = config.getJSONObject(Registrar.AUDS);
+	        JSONObject defaultAud = config.getJSONObject(Registrar.DEFAUD);
+	        JSONObject defaultScope =  config.getJSONObject(Registrar.DEFSCOPE);
+	        JSONObject expiration =  config.getJSONObject(Registrar.EXPIRE);
+	        JSONObject psk = config.getJSONObject(Registrar.PSK);
+	        JSONObject rpk = config.getJSONObject(Registrar.RPK);
+	        this.supportedProfiles = parseStringMap(profiles);
+	        this.supportedKeyTypes = parseStringMap(keyTypes);
+	        this.supportedScopes = parseStringMap(scopes);
+	        this.supportedTokens = parseIntMap(tokens);
+	        this.coseEncoding = new HashMap<>();
+	        for (String id : cose.keySet()) {
+	            this.coseEncoding.put(id, MessageTag.FromInt(cose.getInt(id)));
+	        }
+	        this.rs2aud = parseStringMap(audiences);
+	        this.aud2rs = new HashMap<>();
+	        for (Entry<String,Set<String>> e : this.rs2aud.entrySet()) {
+	            for (String aud : e.getValue()) {
+	                Set<String> set = this.aud2rs.get(aud);
+	                if (set == null) {
+	                    set = new HashSet<>();
+	                }
+	                set.add(e.getKey());
+	                this.aud2rs.put(aud, set);
+	            }
+	        }
+	        this.defaultAud = parseSimpleMap(defaultAud);
+	        this.defaultScope = parseSimpleMap(defaultScope);
+	        this.expiration = new HashMap<>();
 	        for (String key : expiration.keySet()) {
 	            this.expiration.put(key, expiration.getLong(key));
 	        }
@@ -621,71 +690,91 @@ public class Registrar {
 	        }
 	        this.publicKeys = new HashMap<>();
 	        for (String id : rpk.keySet()) {
-                byte[] rawKey = Base64.getDecoder().decode(rpk.getString(id));
-                this.publicKeys.put(id, CBORObject.DecodeFromBytes(rawKey));
-            }
-		}
+	            byte[] rawKey = Base64.getDecoder().decode(rpk.getString(id));
+	            this.publicKeys.put(id, CBORObject.DecodeFromBytes(rawKey));
+	        }
+	    }
 	}
-	
-	private static Map<String, Set<String>> parseMap(JSONObject map) {
-		Map<String,Object> foo = map.toMap();
-		Map<String, Set<String>> bar = new HashMap<>();
-		for (Entry<String, Object> e : foo.entrySet()) {
-			if (e.getValue() instanceof List<?>) {
-				List<String> list = (List<String>)e.getValue();
-				Set<String> set = new HashSet<>();
-				set.addAll(list);
-				bar.put(e.getKey().toString(), set);
-			}
-		}
-		return bar;
+
+	private static Map<String, Set<String>> parseStringMap(JSONObject map) {
+	    Map<String,Object> foo = map.toMap();
+	    Map<String, Set<String>> bar = new HashMap<>();
+	    for (Entry<String, Object> e : foo.entrySet()) {
+	        if (e.getValue() instanceof List<?>) {
+	            List<String> list = (List<String>)e.getValue();
+	            Set<String> set = new HashSet<>();
+	            set.addAll(list);
+	            bar.put(e.getKey().toString(), set);
+	        }
+	    }
+	    return bar;
 	}
-	
+
+	private static Map<String, Set<Integer>> parseIntMap(JSONObject map) {
+	    Map<String,Object> foo = map.toMap();
+	    Map<String, Set<Integer>> bar = new HashMap<>();
+	    for (Entry<String, Object> e : foo.entrySet()) {
+	        if (e.getValue() instanceof List<?>) {
+	            List<Integer> list = (List<Integer>)e.getValue();
+	            Set<Integer> set = new HashSet<>();
+	            set.addAll(list);
+	            bar.put(e.getKey().toString(), set);
+	        }
+	    }
+	    return bar;
+	}
+
 	private static Map<String,String> parseSimpleMap(JSONObject map) {
-		Map<String, Object> foo = map.toMap();
-		Map<String, String> bar = new HashMap<>();
-		for (Entry<String, Object> e : foo.entrySet()) {
-			if (e.getValue() instanceof String) {
-				bar.put(e.getKey().toString(), e.getValue().toString());
-			}
-		}
-		return bar;
+	    Map<String, Object> foo = map.toMap();
+	    Map<String, String> bar = new HashMap<>();
+	    for (Entry<String, Object> e : foo.entrySet()) {
+	        if (e.getValue() instanceof String) {
+	            bar.put(e.getKey().toString(), e.getValue().toString());
+	        }
+	    }
+	    return bar;
 	}
 	
+
+
 	@Override
 	public String toString() {
-	       JSONArray config = new JSONArray();
-	        JSONObject profiles = new JSONObject(this.supportedProfiles);
-	        JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
-	        JSONObject scopes = new JSONObject(this.supportedScopes);
-	        JSONObject audiences = new JSONObject(this.rs2aud);
-	        JSONObject defaultAud = new JSONObject(this.defaultAud);
-	        JSONObject defaultScope =  new JSONObject(this.defaultScope);
-	        JSONObject expiration = new JSONObject(this.expiration);
-	        Map<String, String> encSecretKeys = new HashMap<>();
-	        for (Entry<String, byte[]> foo : this.secretKeys.entrySet()) {
-	            encSecretKeys.put(foo.getKey(),
-	                    Base64.getEncoder().encodeToString(foo.getValue()));
-	        }
-	        JSONObject secretKeys = new JSONObject(encSecretKeys);
-	        Map<String,String> encPublicKeys = new HashMap<>();
-	        for (Entry<String, CBORObject> bar : this.publicKeys.entrySet()) {
-	            encPublicKeys.put(bar.getKey(),
-	                    Base64.getEncoder().encodeToString(
-	                            bar.getValue().EncodeToBytes()));
-	        }
-	        
-	        JSONObject publicKeys = new JSONObject(encPublicKeys);
-	        config.put(profiles);
-	        config.put(keyTypes);
-	        config.put(scopes);
-	        config.put(audiences);
-	        config.put(defaultAud);
-	        config.put(defaultScope);
-	        config.put(expiration);
-	        config.put(secretKeys);
-	        config.put(publicKeys);
-	        return config.toString(4);
+	    JSONArray config = new JSONArray();
+	    JSONObject profiles = new JSONObject(this.supportedProfiles);
+	    JSONObject keyTypes = new JSONObject(this.supportedKeyTypes);
+	    JSONObject scopes = new JSONObject(this.supportedScopes);
+	    JSONObject tokens = new JSONObject(this.supportedTokens);
+	    JSONObject cose = new JSONObject(this.coseEncoding);
+	    JSONObject audiences = new JSONObject(this.rs2aud);
+	    JSONObject defaultAud = new JSONObject(this.defaultAud);
+	    JSONObject defaultScope =  new JSONObject(this.defaultScope);
+	    JSONObject expiration = new JSONObject(this.expiration);
+	    Map<String, String> encSecretKeys = new HashMap<>();
+	    for (Entry<String, byte[]> foo : this.secretKeys.entrySet()) {
+	        encSecretKeys.put(foo.getKey(),
+	                Base64.getEncoder().encodeToString(foo.getValue()));
+	    }
+	    JSONObject secretKeys = new JSONObject(encSecretKeys);
+	    Map<String,String> encPublicKeys = new HashMap<>();
+	    for (Entry<String, CBORObject> bar : this.publicKeys.entrySet()) {
+	        encPublicKeys.put(bar.getKey(),
+	                Base64.getEncoder().encodeToString(
+	                        bar.getValue().EncodeToBytes()));
+	    }
+
+	    JSONObject publicKeys = new JSONObject(encPublicKeys);
+	    config.put(profiles);
+	    config.put(keyTypes);
+	    config.put(scopes);
+	    config.put(tokens);
+	    config.put(cose);
+	    config.put(audiences);
+	    config.put(defaultAud);
+	    config.put(defaultScope);
+	    config.put(expiration);
+	    config.put(secretKeys);
+	    config.put(publicKeys);
+	    return config.toString(4);
 	}
-	
+
 }
