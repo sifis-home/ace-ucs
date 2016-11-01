@@ -15,14 +15,24 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -84,9 +94,9 @@ public class Token implements Endpoint {
 	private CBORObject privateKey;
 	
 	/**
-	 * The signature algorithm used by this AS if any or null
+	 * The filename of the file for storing issued tokens
 	 */
-	private CBORObject sig0Alg;
+	private String tokenfile;
 	
 	/**
 	 * Constructor.
@@ -95,21 +105,21 @@ public class Token implements Endpoint {
 	 * @param registrar  the registrar for registering clients and RSs
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
-	 * @param sig0Alg  the signature algorithm used with the asymmetric key pair
-	 *     or null if asymmetric signatures are not used
+	 * @param tokenfile  the filename for storing the list of tokens
 	 */
 	public Token(String asId, PDP pdp, Registrar registrar, 
-	        TimeProvider time, CBORObject privateKey, CBORObject sig0Alg) {
+	        TimeProvider time, CBORObject privateKey, String tokenfile) {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.registrar = registrar;
+	    this.tokenfile = tokenfile;
 	}
 	
 	@Override
 	public Message processMessage(Message msg) 
 	        throws ASException, NoSuchAlgorithmException, 
 	        IllegalStateException, InvalidCipherTextException, 
-	        CoseException, TokenException {
+	        CoseException, TokenException, JSONException, IOException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -216,19 +226,115 @@ public class Token implements Endpoint {
 		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
 		}
 		
+		saveToken(token, claims);
 		
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
-	private void saveToken(AccessToken token, Map<String, CBORObject> claims) {
-	    //FIXME: Save a token	    
-	}
-	
-	private void cleanSavedTokens() {
-	    //FIXME: remove expired tokens
+	/**
+	 * Saves the token in a JSON structure.
+	 * [ { "token" : "<raw token data>", "claims" : "<token claims>"}, ...]
+	 * 
+	 * 
+	 * @param token
+	 * @param claims
+	 * @throws IOException 
+	 * @throws JSONException 
+	 */
+	private void saveToken(AccessToken token, Map<String, CBORObject> claims) 
+	        throws JSONException, IOException {
+        JSONArray config = new JSONArray();
+	    File f = new File(this.tokenfile); 
+	    if (f.isFile() && f.canRead()) {
+	        FileInputStream fis = new FileInputStream(f);
+	        Scanner scanner = new Scanner(fis, "UTF-8" );
+	        Scanner s = scanner.useDelimiter("\\A");
+	        String configStr = s.hasNext() ? s.next() : "";
+	        s.close();
+	        scanner.close();
+	        fis.close();
+	        if (!configStr.isEmpty()) {
+	            config = new JSONArray(configStr);   
+	        }
+	    }
+	    JSONObject tokenEntry = new JSONObject();
+	    tokenEntry.put("token", token.encode().AsString());
+	    tokenEntry.put("claims", claims);
+	    config.put(tokenEntry);
+	    
+        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
+        fos.write(config.toString(4).getBytes());
+        fos.close();
 	}
 
-	private void removeToken(CBORObject cti) {
-	    //FIXME: remove a token
+	/**
+	 * Remove expired tokens from the storage.
+	 * 
+	 * @throws IOException
+	 */
+	public void purgeExpiredTokens() throws IOException {
+	    JSONArray config = new JSONArray();
+        File f = new File(this.tokenfile); 
+        if (f.isFile() && f.canRead()) {
+            FileInputStream fis = new FileInputStream(f);
+            Scanner scanner = new Scanner(fis, "UTF-8" );
+            Scanner s = scanner.useDelimiter("\\A");
+            String configStr = s.hasNext() ? s.next() : "";
+            s.close();
+            scanner.close();
+            fis.close();
+            if (!configStr.isEmpty()) {
+                config = new JSONArray(configStr);   
+            }
+        }
+        List<Integer> expired = new LinkedList<>();
+        long now = this.time.getCurrentTime();
+        for (int i=0; i<config.length(); i++) {
+            JSONObject entry = config.getJSONObject(i);
+            if (entry.getLong("exp") < now) {
+                expired.add(i);
+            }
+        }
+        for (Integer i : expired) {
+            config.remove(i);
+        }
+        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
+        fos.write(config.toString(4).getBytes());
+        fos.close();
+	}
+
+	/**
+	 * Removes a token from the registry
+	 * 
+	 * @param cti
+	 * @throws IOException 
+	 */
+	public void removeToken(CBORObject cti) throws IOException {
+	    JSONArray config = new JSONArray();
+        File f = new File(this.tokenfile); 
+        if (f.isFile() && f.canRead()) {
+            FileInputStream fis = new FileInputStream(f);
+            Scanner scanner = new Scanner(fis, "UTF-8" );
+            Scanner s = scanner.useDelimiter("\\A");
+            String configStr = s.hasNext() ? s.next() : "";
+            s.close();
+            scanner.close();
+            fis.close();
+            if (!configStr.isEmpty()) {
+                config = new JSONArray(configStr);   
+            }
+        }
+        int remove = -1;
+        for (int i=0; i<config.length(); i++) {
+            JSONObject entry = config.getJSONObject(i);
+            if (entry.getString("cti").equals(cti.AsString())) {
+                remove = i;
+                break;
+            }
+        }
+        config.remove(remove);
+        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
+        fos.write(config.toString(4).getBytes());
+        fos.close();
 	}
 }

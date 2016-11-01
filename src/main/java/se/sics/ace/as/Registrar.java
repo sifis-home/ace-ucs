@@ -690,7 +690,7 @@ public class Registrar {
 		config.put(secretKeys);
 		config.put(publicKeys);
 		
-		FileOutputStream fos=new FileOutputStream(this.configfile, false);
+		FileOutputStream fos = new FileOutputStream(this.configfile, false);
 		fos.write(config.toString(4).getBytes());
 		fos.close();
 	}
