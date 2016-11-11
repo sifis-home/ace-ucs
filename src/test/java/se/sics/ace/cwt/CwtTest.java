@@ -86,7 +86,7 @@ public class CwtTest {
      * Set up tests.
      */
     @BeforeClass
-    public static void setUpClass() {
+    public static void setUp() {
     
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         

@@ -244,6 +244,22 @@ public class SQLConnector implements DBConnector {
      */
     private PreparedStatement selectDefaultScope;
 
+    
+    /**
+     * A prepared INSERT statement to add a new supported cose configuration
+     * for protecting CWTs
+     * 
+     * Parameters: rs id, cose config
+     */
+    private PreparedStatement insertCose;
+    
+    /**
+     * A prepared DELETE statement to remove a cose configuration
+     * 
+     * Parameter: rs id
+     */
+    private PreparedStatement deleteCose;
+    
 	/**
 	 * A prepared SELECT statement to get the COSE configurations for
 	 * an audience.
@@ -371,7 +387,7 @@ public class SQLConnector implements DBConnector {
 
 		this.insertRS = this.conn.prepareStatement("INSERT INTO "
 		        + DBConnector.dbName + "." + DBConnector.rsTable
-		        + " VALUES (?,?,?,?,?);");
+		        + " VALUES (?,?,?,?);");
 		
 		this.deleteRS = this.conn.prepareStatement("DELETE FROM "
                 + DBConnector.dbName + "." + DBConnector.rsTable
@@ -381,7 +397,7 @@ public class SQLConnector implements DBConnector {
                 + DBConnector.rsIdColumn
                 + " FROM " + DBConnector.dbName + "." 
                 + DBConnector.audiencesTable
-                + " WHERE " + DBConnector.audColumn + "=?);");
+                + " WHERE " + DBConnector.audColumn + "=?;");
 		        
 		this.insertProfile = this.conn.prepareStatement("INSERT INTO "
 		        + DBConnector.dbName + "." + DBConnector.profilesTable
@@ -389,7 +405,7 @@ public class SQLConnector implements DBConnector {
 		
 		this.deleteProfiles = this.conn.prepareStatement("DELETE FROM "
                 + DBConnector.dbName + "." + DBConnector.profilesTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+                + " WHERE " + DBConnector.idColumn + "=?;");
 		
 		this.selectProfiles = this.conn.prepareStatement("SELECT * FROM " 
 		        + DBConnector.dbName + "." + DBConnector.profilesTable
@@ -407,7 +423,7 @@ public class SQLConnector implements DBConnector {
 		
 		this.deleteKeyTypes = this.conn.prepareStatement("DELETE FROM "
 	                + DBConnector.dbName + "." + DBConnector.keyTypesTable
-	                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+	                + " WHERE " + DBConnector.idColumn + "=?;");
 		
 		this.selectKeyTypes =  this.conn.prepareStatement("SELECT * FROM " 
                 + DBConnector.dbName + "." + DBConnector.keyTypesTable
@@ -445,7 +461,7 @@ public class SQLConnector implements DBConnector {
 		this.selectAudiences = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.audColumn + " FROM "
 		        + DBConnector.dbName + "." + DBConnector.audiencesTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?);");          
+                + " WHERE " + DBConnector.rsIdColumn + "=?;");          
 		
 		this.insertTokenType = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.tokenTypesTable
@@ -468,21 +484,28 @@ public class SQLConnector implements DBConnector {
 	
 		this.deleteClient = this.conn.prepareStatement("DELETE FROM "
                 + DBConnector.dbName + "." + DBConnector.cTable
-                + " WHERE " + DBConnector.cIdColumn + "=?;");
+                + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		
 		this.selectDefaultAudience = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.defaultAud + " FROM " 
                 + DBConnector.dbName + "." + DBConnector.cTable
-                + " WHERE " + DBConnector.cIdColumn + "=?;");
+                + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		  
-		this.selectDefaultAudience = this.conn.prepareStatement("SELECT " 
+		this.selectDefaultScope = this.conn.prepareStatement("SELECT " 
 	                + DBConnector.defaultScope + " FROM " 
 	                + DBConnector.dbName + "." + DBConnector.cTable
-	                + " WHERE " + DBConnector.cIdColumn + "=?;");
+	                + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		
-		this.selectCOSE = this.conn.prepareStatement("SELECT "
-		        + DBConnector.coseColumn 
-                + " FROM " + DBConnector.dbName + "." + DBConnector.rsTable
+		this.insertCose = this.conn.prepareStatement("INSERT INTO "
+                + DBConnector.dbName + "." + DBConnector.coseTable
+                + " VALUES (?,?)");
+		
+		this.deleteCose = this.conn.prepareStatement("DELETE FROM "
+                + DBConnector.dbName + "." + DBConnector.coseTable
+                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+		
+		this.selectCOSE = this.conn.prepareStatement("SELECT * "
+                + " FROM " + DBConnector.dbName + "." + DBConnector.coseTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                     + DBConnector.dbName + "." + DBConnector.audiencesTable 
@@ -512,12 +535,12 @@ public class SQLConnector implements DBConnector {
 		this.selectCPSK = this.conn.prepareStatement("SELECT "
 		        + DBConnector.pskColumn
 		        + " FROM " + DBConnector.dbName + "." + DBConnector.cTable
-		        + " WHERE " + DBConnector.cIdColumn + "=?;");
+		        + " WHERE " + DBConnector.clientIdColumn + "=?;");
 
 		this.selectCRPK = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.rpkColumn
 		        + " FROM " + DBConnector.dbName + "." + DBConnector.cTable
-		        + " WHERE "  + DBConnector.cIdColumn + "=?;");
+		        + " WHERE "  + DBConnector.clientIdColumn + "=?;");
 		
 		this.insertToken = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.tokenTable
@@ -530,7 +553,7 @@ public class SQLConnector implements DBConnector {
 		this.selectToken = this.conn.prepareStatement("SELECT "
 		        + DBConnector.tokenColumn + " FROM " 
 		        + DBConnector.dbName + "." + DBConnector.tokenTable
-		        + " WHERE " + DBConnector.cidColumn + "=?);");  
+		        + " WHERE " + DBConnector.cidColumn + "=?;");  
 		
 		this.selectExpirationTime = this.conn.prepareStatement("SELECT "
 		        + DBConnector.cidColumn + "," + DBConnector.claimValueColumn
@@ -550,7 +573,7 @@ public class SQLConnector implements DBConnector {
                 + DBConnector.claimNameColumn + ","
                 + DBConnector.claimValueColumn + " FROM " 
                 + DBConnector.dbName + "." + DBConnector.claimsTable
-                + " WHERE " + DBConnector.cidColumn + "=?);");  	
+                + " WHERE " + DBConnector.cidColumn + "=?;");  	
 	}
 	
 	/**
@@ -585,18 +608,19 @@ public class SQLConnector implements DBConnector {
 		String createRs = "CREATE TABLE IF NOT EXISTS " + DBConnector.dbName 
 		        + "." + DBConnector.rsTable + "(" 
 		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.coseColumn + " varchar(255) NOT NULL, "
                 + DBConnector.expColumn + " bigint NOT NULL, "
 		        + DBConnector.pskColumn + " varbinary(32), "
-		        + DBConnector.rpkColumn + " varbinary(255));";
+		        + DBConnector.rpkColumn + " varbinary(255),"
+		        + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
 		String createC = "CREATE TABLE IF NOT EXISTS " + DBConnector.dbName
 		        + "." + DBConnector.cTable + " ("
-		        + DBConnector.cidColumn + " varchar(255) NOT NULL, "
+		        + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
 		        + DBConnector.defaultAud + " varchar(255), "
 		        + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " varbinary(32), " 
-                + DBConnector.rpkColumn + " varbinary(255));";
+                + DBConnector.rpkColumn + " varbinary(255),"
+                + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
 		String createProfiles = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."
@@ -628,11 +652,18 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
 		        + DBConnector.audColumn + " varchar(255) NOT NULL);";
 
+		String createCose =  "CREATE TABLE IF NOT EXISTS " 
+		        + DBConnector.dbName + "."
+                + DBConnector.coseTable + "(" 
+                + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
+                + DBConnector.coseColumn + " varchar(255) NOT NULL);";
+		
 		String createTokens = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."
 		        + DBConnector.tokenTable + "(" 
 		        + DBConnector.cidColumn + " varchar(255) NOT NULL, "
-		        + DBConnector.tokenColumn + " varbinary(500));"; 
+		        + DBConnector.tokenColumn + " varbinary(500),"
+		        + "PRIMARY KEY (" + DBConnector.cidColumn + "));"; 
 		
 		String createClaims = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."
@@ -640,7 +671,7 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.cidColumn + " varchar(255) NOT NULL, " 
 		        + DBConnector.claimNameColumn + " varchar(8) NOT NULL," 
 		        + DBConnector.claimValueColumn + " varbinary(255));";
-	      
+		 
 		Statement stmt = rootConn.createStatement();
 		stmt.execute(createDB);
 		stmt.execute(createRs);
@@ -650,6 +681,7 @@ public class SQLConnector implements DBConnector {
 		stmt.execute(createScopes);
 		stmt.execute(createTokenTypes);
 		stmt.execute(createAudiences);
+		stmt.execute(createCose);
 		stmt.execute(createTokens);
 		stmt.execute(createClaims);
 		stmt.close();
@@ -750,16 +782,15 @@ public class SQLConnector implements DBConnector {
     @Override
     public synchronized void addRS(String rs, Set<String> profiles, Set<String> scopes,
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes,
-            COSEparams cose, long expiration, byte[] sharedKey,
+            Set<COSEparams> cose, long expiration, byte[] sharedKey,
             CBORObject publicKey) throws SQLException {
         this.insertRS.setString(1, rs);
-        this.insertRS.setString(2, cose.toString());
-        this.insertRS.setLong(3, expiration);
-        this.insertRS.setBytes(4, sharedKey);
+        this.insertRS.setLong(2, expiration);
+        this.insertRS.setBytes(3, sharedKey);
         if (publicKey != null) {
-            this.insertRS.setBytes(5, publicKey.EncodeToBytes());
+            this.insertRS.setBytes(4, publicKey.EncodeToBytes());
         } else {
-            this.insertRS.setBytes(5, null);
+            this.insertRS.setBytes(4, null);
         }
         this.insertRS.execute();
         this.insertRS.clearParameters();
@@ -785,6 +816,12 @@ public class SQLConnector implements DBConnector {
         }
         this.insertAudience.clearParameters();
         
+        //The RS always recognizes itself as a singleton audience
+        this.insertAudience.setString(1, rs);
+        this.insertAudience.setString(2, rs);
+        this.insertAudience.execute();
+        this.insertAudience.clearParameters();
+        
         for (String keyType : keyTypes) {
             this.insertKeyType.setString(1, rs);
             this.insertKeyType.setString(2, keyType);
@@ -799,6 +836,13 @@ public class SQLConnector implements DBConnector {
             this.insertTokenType.execute();
         }
         this.insertTokenType.clearParameters();
+        
+        for (COSEparams coseP : cose) {
+            this.insertCose.setString(1, rs);
+            this.insertCose.setString(2, coseP.toString());
+            this.insertCose.execute();
+        }
+        this.insertCose.clearParameters();
     }
 
     @Override
@@ -825,7 +869,11 @@ public class SQLConnector implements DBConnector {
         
         this.deleteTokenTypes.setString(1, rs);
         this.deleteTokenTypes.execute();
-        this.deleteTokenTypes.clearParameters();        
+        this.deleteTokenTypes.clearParameters();    
+        
+        this.deleteCose.setString(1, rs);
+        this.deleteCose.execute();
+        this.deleteCose.clearParameters();   
     }
 
     @Override

@@ -107,11 +107,6 @@ public interface DBConnector {
      * The column name for raw public keys
      */
     public String rpkColumn = "RPK";
-    
-    /**
-     * The column name for COSE parameters
-     */
-    public String coseColumn = "Cose";
 
     /**
      * The column name for expiration defaults
@@ -127,7 +122,7 @@ public interface DBConnector {
     /**
      * The column name for client identifier
      */
-    public String cIdColumn = "ClientId";	
+    public String clientIdColumn = "ClientId";	
 	
 	/**
 	 * The column name for the default audience use by the client
@@ -202,6 +197,17 @@ public interface DBConnector {
      */
     public String audColumn = "Aud";
     
+  //******************New table********************************   
+    /**
+     * The table listing the COSE configurations an RS supports
+     * for protecting access tokens
+     */
+    public String coseTable = "CoseParams";
+
+    /**
+     * The column name for COSE parameters
+     */
+    public String coseColumn = "Cose";
 
     
 	
@@ -418,8 +424,8 @@ public interface DBConnector {
      * @param keyTypes   the key types this RS supports
      * @param tokenTypes  the token types this RS supports.
      *     See <code>AccessTokenFactory</code>
-     * @param cose the parameters of COSE wrapper for access tokens,
-     *     or null if this RS doesn't process CWTs
+     * @param cose the set of supported parameters of COSE wrappers for
+     *   access tokens, empty if this RS does not process CWTs
      * @param expiration  the expiration time for access tokens for this RS 
      *     or 0 if the default value is used
      * @param sharedKey  the secret key shared with this RS or null if there
@@ -431,7 +437,7 @@ public interface DBConnector {
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-            COSEparams cose, long expiration, byte[] sharedKey, CBORObject publicKey) 
+            Set<COSEparams> cose, long expiration, byte[] sharedKey, CBORObject publicKey) 
 			throws SQLException;
 	/**
 	 * Deletes an RS and all related registration data.
