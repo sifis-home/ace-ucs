@@ -449,21 +449,21 @@ public interface DBConnector {
 	
 	/**
 	 * Adds a new token to the database
-	 * @param cid  the token identifier
+	 * @param cti  the token identifier encoded Base64
 	 * @param claims  the claims of this token
 	 * 
 	 * @throws ASException 
 	 */
-	public void addToken(String cid, Map<String, CBORObject> claims) 
+	public void addToken(String cti, Map<String, CBORObject> claims) 
 	        throws ASException;
 	
 	/**
      * Deletes an existing token from the database
-     * @param cid  the token identifier
+     * @param cti  the token identifier encoded Base64
      * 
      * @throws ASException 
      */
-    public void deleteToken(String cid) throws ASException;
+    public void deleteToken(String cti) throws ASException;
     
     /**
      * Deletes all expired tokens from the database
@@ -478,13 +478,13 @@ public interface DBConnector {
     /**
      * Returns the claims associated with this token.
      * 
-     * @param cid  the token identifier
+     * @param cti  the token identifier
      * 
      * @return  the set of claims
      *  
      * @throws ASException
      */
-    public Map<String, CBORObject> getClaims(String cid) throws ASException;
+    public Map<String, CBORObject> getClaims(String cti) throws ASException;
     
 	/**
 	 * Close the connections. After this any other method calls to this

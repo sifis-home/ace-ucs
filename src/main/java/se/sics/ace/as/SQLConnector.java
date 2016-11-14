@@ -1287,11 +1287,11 @@ public class SQLConnector implements DBConnector {
     }
     
     @Override
-    public synchronized void addToken(String cid, 
+    public synchronized void addToken(String cti, 
             Map<String, CBORObject> claims) throws ASException {
         try {
             for (Entry<String, CBORObject> claim : claims.entrySet()) {
-                this.insertClaim.setString(1, cid);
+                this.insertClaim.setString(1, cti);
                 this.insertClaim.setString(2, claim.getKey());
                 this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());
                 this.insertClaim.execute();
@@ -1303,9 +1303,9 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public synchronized void deleteToken(String cid) throws ASException {
+    public synchronized void deleteToken(String cti) throws ASException {
         try {
-            this.deleteClaims.setString(1, cid);
+            this.deleteClaims.setString(1, cti);
             this.deleteClaims.execute();
             this.deleteClaims.clearParameters();
         } catch (SQLException e) {
@@ -1332,11 +1332,11 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public synchronized Map<String, CBORObject> getClaims(String cid) 
+    public synchronized Map<String, CBORObject> getClaims(String cti) 
             throws ASException {
         Map<String, CBORObject> claims = new HashMap<>();
         try {
-            this.selectClaims.setString(1, cid);
+            this.selectClaims.setString(1, cti);
             ResultSet result = this.selectClaims.executeQuery();
             this.selectClaims.clearParameters();
             while (result.next()) {

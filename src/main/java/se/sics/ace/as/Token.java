@@ -31,29 +31,32 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.Set;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.json.JSONArray;
-import org.json.JSONException;
-import org.json.JSONObject;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.Recipient;
+
 import se.sics.ace.AccessToken;
+import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
@@ -80,9 +83,9 @@ public class Token implements Endpoint {
 	private PDP pdp;
 	
 	/**
-	 * The RS registration information this endpoint uses.
+	 * The database connector for storing and retrieving stuff.
 	 */
-	private Registrar registrar;
+	private DBConnector db;
 	
 	/**
 	 * The identifier of this AS for the iss claim.
@@ -109,33 +112,28 @@ public class Token implements Endpoint {
 	 */
 	private CBORObject privateKey;
 	
-	/**
-	 * The filename of the file for storing issued tokens
-	 */
-	private String tokenfile;
 	
 	/**
 	 * Constructor.
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
-	 * @param registrar  the registrar for registering clients and RSs
+	 * @param db  the database connector
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
 	 * @param tokenfile  the filename for storing the list of tokens
 	 */
-	public Token(String asId, PDP pdp, Registrar registrar, 
-	        TimeProvider time, CBORObject privateKey, String tokenfile) {
+	public Token(String asId, PDP pdp, DBConnector db, 
+	        TimeProvider time, CBORObject privateKey) {
 	    this.asId = asId;
 	    this.pdp = pdp;
-	    this.registrar = registrar;
-	    this.tokenfile = tokenfile;
+	    this.db = db;
 	}
 	
 	@Override
 	public Message processMessage(Message msg) 
 	        throws ASException, NoSuchAlgorithmException, 
 	        IllegalStateException, InvalidCipherTextException, 
-	        CoseException, TokenException, JSONException, IOException {
+	        CoseException, TokenException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -145,7 +143,7 @@ public class Token implements Endpoint {
 		//2. Check if this client can request this type of token
 		String scope = msg.getParameter("scope").AsString();
 		if (scope == null) {
-			scope = this.registrar.getDefaultScope(id);
+			scope = this.db.getDefaultScope(id);
 			if (scope == null) {
 				return msg.failReply(Message.FAIL_BAD_REQUEST, 
 						CBORObject.FromObject("request lacks scope"));
@@ -153,7 +151,7 @@ public class Token implements Endpoint {
 		}
 		String aud = msg.getParameter("aud").AsString();
 		if (aud == null) {
-			aud = this.registrar.getDefaultAud(id);
+			aud = this.db.getDefaultAudience(id);
 			if (aud == null) {
 				return msg.failReply(Message.FAIL_BAD_REQUEST,
 						CBORObject.FromObject("request lacks audience"));
@@ -168,7 +166,7 @@ public class Token implements Endpoint {
 		//4. Create token
 		//Find supported token type
 		
-		Integer tokenType = this.registrar.getSupportedTokenType(aud);
+		Integer tokenType = this.db.getSupportedTokenType(aud);
 		if (tokenType == null) {
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
 		            CBORObject.FromObject("Audience incompatible"));
@@ -180,8 +178,8 @@ public class Token implements Endpoint {
 		claims.put("aud", CBORObject.FromObject(aud));
 		claims.put("sub", CBORObject.FromObject(id));
 		long now = this.time.getCurrentTime();
-		long exp = this.registrar.getExpiration(aud);
-		if (exp == 0) {
+		long exp = this.db.getExpTime(aud);
+		if (exp == Long.MAX_VALUE) {
 		    exp = expiration;
 		}
 		claims.put("exp", CBORObject.FromObject(exp));
@@ -189,10 +187,11 @@ public class Token implements Endpoint {
 		byte[] cti = Long.toHexString(this.cti).getBytes();
 		this.cti++;
 		claims.put("cti", CBORObject.FromObject(cti));
+		String ctiStr = Base64.getEncoder().encodeToString(cti);
 		claims.put("scope", CBORObject.FromObject(scope));
 
 		//Find supported profile
-		String profile = this.registrar.getSupportedProfile(id, aud);
+		String profile = this.db.getSupportedProfile(id, aud);
 
 		if (tokenType != AccessTokenFactory.CWT_TYPE &&
 		        tokenType != AccessTokenFactory.REF_TYPE) {
@@ -201,7 +200,7 @@ public class Token implements Endpoint {
 		}
 		
 		//Find supported key type for proof-of-possession
-		String keyType = this.registrar.getPopKeyType(id, aud);
+		String keyType = this.db.getSupportedPopKeyType(id, aud);
 		switch (keyType) {
 		case "PSK":
 		    KeyGenerator kg = KeyGenerator.getInstance("AES");
@@ -228,9 +227,8 @@ public class Token implements Endpoint {
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
 		if (token instanceof CWT) {
-		    //Get CwtCryptoCtxs for the audience ...
-		    CwtCryptoCtx ctx = this.registrar.getCommonCwtCtx(
-		            aud, this.privateKey);
+		    		    
+		    CwtCryptoCtx ctx = makeCommonCtx(aud);
 		    if (ctx == null) {
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
 		                CBORObject.FromObject(
@@ -242,115 +240,127 @@ public class Token implements Endpoint {
 		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
 		}
 		
-		saveToken(token, claims);
+		this.db.addToken(ctiStr, claims);
 		
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
 	/**
-	 * Saves the token in a JSON structure.
-	 * [ { "token" : "<raw token data>", "claims" : "<token claims>"}, ...]
-	 * 
-	 * 
-	 * @param token
-	 * @param claims
-	 * @throws IOException 
-	 * @throws JSONException 
-	 */
-	private void saveToken(AccessToken token, Map<String, CBORObject> claims) 
-	        throws JSONException, IOException {
-        JSONArray config = new JSONArray();
-	    File f = new File(this.tokenfile); 
-	    if (f.isFile() && f.canRead()) {
-	        FileInputStream fis = new FileInputStream(f);
-	        Scanner scanner = new Scanner(fis, "UTF-8" );
-	        Scanner s = scanner.useDelimiter("\\A");
-	        String configStr = s.hasNext() ? s.next() : "";
-	        s.close();
-	        scanner.close();
-	        fis.close();
-	        if (!configStr.isEmpty()) {
-	            config = new JSONArray(configStr);   
-	        }
-	    }
-	    JSONObject tokenEntry = new JSONObject();
-	    tokenEntry.put("token", token.encode().AsString());
-	    tokenEntry.put("claims", claims);
-	    config.put(tokenEntry);
-	    
-        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
-        fos.write(config.toString(4).getBytes());
-        fos.close();
-	}
-
-	/**
 	 * Remove expired tokens from the storage.
 	 * 
-	 * @throws IOException
+	 * @throws ASException 
 	 */
-	public void purgeExpiredTokens() throws IOException {
-	    JSONArray config = new JSONArray();
-        File f = new File(this.tokenfile); 
-        if (f.isFile() && f.canRead()) {
-            FileInputStream fis = new FileInputStream(f);
-            Scanner scanner = new Scanner(fis, "UTF-8" );
-            Scanner s = scanner.useDelimiter("\\A");
-            String configStr = s.hasNext() ? s.next() : "";
-            s.close();
-            scanner.close();
-            fis.close();
-            if (!configStr.isEmpty()) {
-                config = new JSONArray(configStr);   
-            }
-        }
-        List<Integer> expired = new LinkedList<>();
-        long now = this.time.getCurrentTime();
-        for (int i=0; i<config.length(); i++) {
-            JSONObject entry = config.getJSONObject(i);
-            if (entry.getLong("exp") < now) {
-                expired.add(i);
-            }
-        }
-        for (Integer i : expired) {
-            config.remove(i);
-        }
-        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
-        fos.write(config.toString(4).getBytes());
-        fos.close();
+	public void purgeExpiredTokens() throws ASException {
+	    this.db.purgeExpiredTokens(this.time.getCurrentTime());
 	}
 
 	/**
 	 * Removes a token from the registry
 	 * 
-	 * @param cti
-	 * @throws IOException 
+	 * @param cti  the token identifier Base64 encoded
+	 * @throws ASException 
 	 */
-	public void removeToken(CBORObject cti) throws IOException {
-	    JSONArray config = new JSONArray();
-        File f = new File(this.tokenfile); 
-        if (f.isFile() && f.canRead()) {
-            FileInputStream fis = new FileInputStream(f);
-            Scanner scanner = new Scanner(fis, "UTF-8" );
-            Scanner s = scanner.useDelimiter("\\A");
-            String configStr = s.hasNext() ? s.next() : "";
-            s.close();
-            scanner.close();
-            fis.close();
-            if (!configStr.isEmpty()) {
-                config = new JSONArray(configStr);   
-            }
-        }
-        int remove = -1;
-        for (int i=0; i<config.length(); i++) {
-            JSONObject entry = config.getJSONObject(i);
-            if (entry.getString("cti").equals(cti.AsString())) {
-                remove = i;
-                break;
-            }
-        }
-        config.remove(remove);
-        FileOutputStream fos = new FileOutputStream(this.tokenfile, false);
-        fos.write(config.toString(4).getBytes());
-        fos.close();
+	public void removeToken(String cti) throws ASException {
+	    this.db.deleteToken(cti);
+	}
+	
+	/**
+	 * Create a common CWT crypto context for the given audience.
+	 * 
+	 * @param aud
+	 * @param cose
+	 * @return
+	 * @throws CoseException 
+	 * @throws ASException 
+	 */
+	private CwtCryptoCtx makeCommonCtx(String aud) 
+	        throws ASException, CoseException {
+	    COSEparams cose = this.db.getSupportedCoseParams(aud);
+	    if (cose == null) {
+	        return null;
+	    }
+	    MessageTag tag = cose.getTag();
+	    switch (tag) {
+	    case Encrypt:
+	        AlgorithmID ealg = cose.getAlg();
+	        return CwtCryptoCtx.encrypt(makeRecipients(aud, cose), 
+	                ealg.AsCBOR());
+	    case Encrypt0:
+	        byte[] ekey = getCommonSecretKey(aud);
+	        if (ekey == null) {
+	            return null;
+	        }
+	        return CwtCryptoCtx.encrypt0(ekey, cose.getAlg().AsCBOR());
+	    case MAC:
+
+	        return CwtCryptoCtx.mac(makeRecipients(aud, cose), 
+	                cose.getAlg().AsCBOR());
+	    case MAC0:
+	        byte[] mkey = getCommonSecretKey(aud);
+	        if (mkey == null) {
+	            return null;
+	        }
+	        return CwtCryptoCtx.mac0(mkey, cose.getAlg().AsCBOR());
+	    case Sign:
+	        // Access tokens with multiple signers not supported
+	        return null;
+	    case Sign1:
+
+	        return CwtCryptoCtx.sign1Create(
+	                this.privateKey, cose.getAlg().AsCBOR());
+	    default:
+	        throw new IllegalArgumentException("Unknown COSE message type");
+	    }
+	}
+
+	/**
+	 * Create a recipient list for an audience.
+	 * 
+	 * @param aud  the audience
+	 * @return  the recipient list
+	 * @throws ASException 
+	 */
+	private List<Recipient> makeRecipients(String aud, COSEparams cose)
+	        throws ASException {
+	    List<Recipient> rl = new ArrayList<>();
+	    for (String rs : this.db.getRSS(aud)) {
+	        Recipient r = new Recipient();
+	        r.addAttribute(HeaderKeys.Algorithm, 
+	                cose.getKeyWrap().AsCBOR(), 
+	                Attribute.UnprotectedAttributes);
+	        CBORObject key = CBORObject.NewMap();
+	        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+	        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
+	                this.db.getRsPSK(rs)));
+	        r.SetKey(key); 
+	        rl.add(r);
+	    }
+	    return rl;
+	}
+
+	/**
+	 * Tries to find a common PSK for the given audience.
+	 * 
+	 * @param aud  the audience
+	 * @return  a common PSK or null if there isn't any
+	 * @throws ASException 
+	 */
+	private byte[] getCommonSecretKey(String aud) throws ASException {
+	    Set<String> rss = this.db.getRSS(aud);
+	    byte[] key = null;
+	    for (String rs : rss) {
+	        byte[] secKey = this.db.getRsPSK(rs);
+	        if (secKey == null) {
+	            return null;
+	        }
+	        if (key == null) {
+	            key = Arrays.copyOf(secKey, secKey.length);
+	        } else {
+	            if (!Arrays.equals(key, secKey)) {
+	                return null;
+	            }
+	        }
+	    }
+	    return key;
 	}
 }
