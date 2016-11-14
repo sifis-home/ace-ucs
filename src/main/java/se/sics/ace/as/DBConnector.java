@@ -31,15 +31,15 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.util.Map;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import se.sics.ace.AccessToken;
+import COSE.CoseException;
+
 import se.sics.ace.COSEparams;
+import se.sics.ace.as.ASException;
 
 /**
  * This interface provides database connectivity methods for the 
@@ -55,27 +55,17 @@ public interface DBConnector {
 	public String dbName = "AceASdb";
 	
 	//******************New table********************************	
+
 	/**
-	 * The table of tokens (as binary blobs)
-	 */	
-	public String tokenTable = "Tokens";
-	
+     * The table of token claims
+     */
+    public String claimsTable = "Claims";
+    
 	/**
 	 * The column for token identifiers (Cid)
 	 */
 	public String cidColumn = "Cid";
-	
-	/**
-	 * The column for the raw token data
-	 */
-	public String tokenColumn = "Token";
-	
-	//******************New table********************************	
-	/**
-	 * The table of token claims
-	 */
-	public String claimsTable = "Claims";
-	
+		
 	/**
 	 * The column for the token claim names
 	 */
@@ -217,178 +207,73 @@ public interface DBConnector {
 	 * 
 	 * @param rootPwd  the root user password
 	 * 
-	 * @throws SQLException 
+	 * @throws ASException 
 	 */
-	public void init(String rootPwd) throws SQLException;
+	public void init(String rootPwd) throws ASException;
 	
 	/**
-	 * Execute a arbitrary query.
-	 * CAUTION! This can be a big security risk, use only for
-	 * debugging.
-	 * 
-	 * @param query  the SQL query
-	 * @return  the ResultSet of the submitted query
-	 * 
-	 * @throws SQLException
-	 */
-	@Deprecated
-	public ResultSet executeQuery(String query) throws SQLException;	
-	
-	/**
-	 * Execute a arbitrary database command
-	 * CAUTION! This is a big security risk, use only for debugging.
-	 * 
-	 * @param statement  the database command
-	 * 
-	 * @throws SQLException
-	 */
-	@Deprecated
-	public void executeCommand(String statement) throws SQLException;
-	
-	/**
-	 * Gets the profiles supported by a specific audience and client
+	 * Gets a common profile supported by a specific audience and client.
 	 * 
 	 * @param audience  the audience identifier
 	 * @param clientId  the client identifier
-	 * @return  the profiles they all support
+	 * @return  a profile they all support or null if there isn't any
 	 * 
-	 * @throws SQLException 
+	 * @throws ASException 
 	 */
-	public ResultSet getProfiles(String audience, String clientId) 
-	            throws SQLException;
+	public String getSupportedProfile(String audience, String clientId) 
+	            throws ASException;
     
 	/**
-     * Gets the key types supported by a specific audience and client
+     * Returns a common key type for the proof-of-possession
+     * algorithm, or null if there isn't any.
      * 
-     * @param audience  the audience identifier
-     * @param clientId  the client identifier
-     * @return  the key types they all support
+     * @param clientId  the id of the client
+     * @param aud  the audience that this client is addressing 
      * 
-     * @throws SQLException 
+     * @return  a key type both support or null
+	 * @throws ASException 
      */
-    public ResultSet getkeyTypes(String audience, String clientId) 
-                throws SQLException;
-	
-    /**
-     * Gets the scopes supported by a specific audience
-     * 
-     * @param audience  the audience identifier
-     *
-     * @return  the scopes they all support
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getScopes(String audience) 
-                throws SQLException;
+    public String getSupportedPopKeyType(String clientId, String aud)
+        throws ASException;
     
     /**
-     * Gets the token types (CWT or Reference) supported by a specific audience
+     * Returns a common token type, or null if there isn't any
      * 
-     * @param audience  the audience identifier
-     *
-     * @return  the token types they all support
+     * @param aud  the audience that is addressed
      * 
-     * @throws SQLException 
+     * @return  a token type the audience supports or null
+     * @throws ASException 
      */
-    public ResultSet getTokenType(String audience) 
-                throws SQLException;
+    public Integer getSupportedTokenType(String aud) throws ASException;
     
     /**
-     * Gets the Cose encoding for CWTs all members of an audience support
+     * Returns a common set of COSE message parameters used to protect
+     * the access token, for an audience, null if there is no common one.
      * 
-     * @param audience  the audience identifier
-     *
-     * @return  the Cose encoding they all support
+     * Note: For a asymmetric key message like Sign0, we assume that the 
+     * RS has the AS's public key and can handle public key operations.
      * 
-     * @throws SQLException 
+     * @param aud  the audience id
+     * @return  the COSE parameters or null
+     * @throws ASException 
+     * @throws CoseException 
      */
-    public ResultSet getCose(String audience) 
-                throws SQLException; 
+    public COSEparams getSupportedCoseParams(String aud) 
+            throws ASException, CoseException;
     
+
     /**
-     * Gets the RSs that are part of this audience.
+     * Checks if the given audience supports the given scope.
      * 
-     * @param audience  the audience identifier
-     *
-     * @return  the RS identifiers of those that are part of this audience
+     * @param aud  the audience that is addressed
+     * @param scope  the scope
      * 
-     * @throws SQLException 
+     * @return  true if the audience supports the scope, false otherwise
+     * @throws ASException 
      */
-    public ResultSet getRSS(String audience) 
-                throws SQLException; 
+    public boolean isScopeSupported(String aud, String scope)
+            throws ASException;
     
-    
-    /**
-     * Gets the audiences that this RS is part of.
-     * 
-     * @param rs  the rs identifier
-     *
-     * @return  the audience identifiers that this RS is part of
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getAudiences(String rs) 
-                throws SQLException; 
-    
-    /**
-     * Get the default expiration time of access tokens for an RS.
-     *  
-     * @param rs  the rs identifier
-     * 
-     * @return  the expiration time
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getExpTime(String rs)
-        throws SQLException;
-    
-    /**
-     * Get the shared symmetric key (PSK) with this RS
-     *  
-     * @param rs  the rs identifier
-     * 
-     * @return  the shared symmetric key if there is any
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getRsPSK(String rs)
-        throws SQLException;
-    
-    /**
-     * Get the public key (RPK) of this RS
-     *  
-     * @param rs  the rs identifier
-     * 
-     * @return  the public key if there is any
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getRsRPK(String rs)
-        throws SQLException;
-    
-    /**
-     * Get the shared symmetric key (PSK) with this client
-     *  
-     * @param client  the client identifier
-     * 
-     * @return  the shared symmetric key if there is any
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getCPSK(String client)
-        throws SQLException;
-    
-    /**
-     * Get the public key (RPK) of this client
-     *  
-     * @param client  the client identifier
-     * 
-     * @return  the public key if there is any
-     * 
-     * @throws SQLException 
-     */
-    public ResultSet getCRPK(String client)
-        throws SQLException;
     
     /**
      * Get the default scope of this client
@@ -397,11 +282,10 @@ public interface DBConnector {
      * 
      * @return  the default scope used by this client if any
      * 
-     * @throws SQLException 
+     * @throws ASException 
      */
-    public ResultSet getDefaultScope(String client)
-        throws SQLException;
-    
+    public String getDefaultScope(String client) throws ASException;
+
     /**
      * Get the default audience of this client
      *  
@@ -409,13 +293,97 @@ public interface DBConnector {
      * 
      * @return  the default audience used by this client if any
      * 
-     * @throws SQLException 
+     * @throws ASException 
      */
-    public ResultSet getDefaultAudience(String client)
-        throws SQLException;
+    public String getDefaultAudience(String client) throws ASException;  
+    
+    /**
+     * Gets the RSs that are part of this audience.
+     * 
+     * @param aud  the audience identifier
+     *
+     * @return  the RS identifiers of those that are part of this audience 
+     *  or null if that audience is not defined
+     * 
+     * @throws ASException 
+     */
+    public Set<String> getRSS(String aud) throws ASException; 
+    
+       
+    /**
+     * Returns the smallest expiration time for the RS in this
+     *     audience.
+     *     
+     * @param aud  the audience of the access token
+     * @return  the expiration time in milliseconds
+     * 
+     * @throws ASException 
+     */
+    public long getExpTime(String aud) throws ASException;
+    
+    /**
+     * Gets the audiences that this RS is part of.
+     * Note that the rs identifier is always a singleton audience itself.
+     * 
+     * @param rs  the rs identifier
+     *
+     * @return  the audience identifiers that this RS is part of
+     * 
+     * @throws ASException 
+     */
+    public Set<String> getAudiences(String rs) 
+                throws ASException;  
+
+    /**
+     * Get the shared symmetric key (PSK) with this RS
+     *  
+     * @param rs  the rs identifier
+     * 
+     * @return  the shared symmetric key if there is any
+     * 
+     * @throws ASException 
+     */
+    public byte[] getRsPSK(String rs)
+        throws ASException;
+    
+    /**
+     * Get the public key (RPK) of this RS
+     *  
+     * @param rs  the rs identifier
+     * 
+     * @return  the public key if there is any
+     * 
+     * @throws ASException 
+     */
+    public CBORObject getRsRPK(String rs)
+        throws ASException;
+    
+    /**
+     * Get the shared symmetric key (PSK) with this client
+     *  
+     * @param client  the client identifier
+     * 
+     * @return  the shared symmetric key if there is any
+     * 
+     * @throws ASException 
+     */
+    public byte[] getCPSK(String client)
+        throws ASException;
+    
+    /**
+     * Get the public key (RPK) of this client
+     *  
+     * @param client  the client identifier
+     * 
+     * @return  the public key if there is any
+     * 
+     * @throws ASException 
+     */
+    public CBORObject getCRPK(String client)
+        throws ASException;
     
 	/**
-	 * Creates a new RS.
+	 * Creates a new RS. Must provide either a sharedKey or a publicKey.
 	 * 
      * @param rs  the identifier for the RS
      * @param profiles  the profiles this RS supports
@@ -433,21 +401,21 @@ public interface DBConnector {
      * @param publicKey  the COSE-encoded public key of this RS or null if
      *     there is none
      *
-	 * @throws SQLException
+	 * @throws ASException 
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-            Set<COSEparams> cose, long expiration, byte[] sharedKey, CBORObject publicKey) 
-			throws SQLException;
+            Set<COSEparams> cose, long expiration, byte[] sharedKey, 
+            CBORObject publicKey) throws ASException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 
 	 * @param rs  the identifier of the RS
 	 * 
-	 * @throws SQLException
+	 * @throws ASException
 	 */
 	public void deleteRS(String rs) 
-			throws SQLException;
+			throws ASException;
 	
 	/**
 	 * Adds a new client to the database.
@@ -461,61 +429,50 @@ public interface DBConnector {
      *     there is none
      * @param publicKey  the COSE-encoded public key of this client or null if
      *      there is none
-     *      
-	 * @throws SQLException 
+     *       
+	 * @throws ASException 
 	 */
-	public void addClient(String client, Set<String> profiles, String defaultScope, 
-            String defaultAud, Set<String> keyTypes, byte[] sharedKey, 
-            CBORObject publicKey) throws SQLException;
+	public void addClient(String client, Set<String> profiles, 
+	        String defaultScope, String defaultAud, Set<String> keyTypes, 
+	        byte[] sharedKey, CBORObject publicKey) 
+	                throws ASException;
 	
 	/**
 	 * Deletes a client and all related data
 	 * 
 	 * @param client  the identifier for the client
 	 * 
-	 * @throws SQLException 
+	 * @throws ASException 
 	 */
-	public void deleteClient(String client) throws SQLException;
+	public void deleteClient(String client) throws ASException;
 
 	
 	/**
 	 * Adds a new token to the database
 	 * @param cid  the token identifier
-	 * @param token  the token raw content
 	 * @param claims  the claims of this token
 	 * 
-	 * @throws SQLException 
+	 * @throws ASException 
 	 */
-	public void addToken(String cid, AccessToken token, 
-	        Map<String, CBORObject> claims) throws SQLException;
+	public void addToken(String cid, Map<String, CBORObject> claims) 
+	        throws ASException;
 	
 	/**
      * Deletes an existing token from the database
      * @param cid  the token identifier
      * 
-     * @throws SQLException 
+     * @throws ASException 
      */
-    public void deleteToken(String cid) throws SQLException;
-    
-    /**
-     * Selects an existing token from the database
-     * @param cid  the token identifier
-     * 
-     * @return  the raw token data
-     * 
-     * @throws SQLException
-     */
-    public ResultSet getToken(String cid) throws SQLException;
-    
+    public void deleteToken(String cid) throws ASException;
     
     /**
      * Deletes all expired tokens from the database
      * 
      * @param now  the current time
      * 
-     * @throws SQLException 
+     * @throws ASException 
      */
-    public void purgeExpiredTokens(long now) throws SQLException;
+    public void purgeExpiredTokens(long now) throws ASException;
 	
     
     /**
@@ -525,16 +482,16 @@ public interface DBConnector {
      * 
      * @return  the set of claims
      *  
-     * @throws SQLException
+     * @throws ASException
      */
-    public ResultSet getClaims(String cid) throws SQLException;
+    public Map<String, CBORObject> getClaims(String cid) throws ASException;
     
 	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
-	 * @throws SQLException
+	 * @throws ASException
 	 */
-	public void close() throws SQLException;
+	public void close() throws ASException;
 
 }

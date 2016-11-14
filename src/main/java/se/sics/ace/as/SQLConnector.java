@@ -37,6 +37,8 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -44,7 +46,8 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import se.sics.ace.AccessToken;
+import COSE.CoseException;
+
 import se.sics.ace.COSEparams;
 
 /**
@@ -307,27 +310,6 @@ public class SQLConnector implements DBConnector {
     private PreparedStatement selectCRPK;
     
     /**
-     * A prepared INSERT statement to add a token to the Tokens table.
-     * 
-     * Parameter: token cid, token raw bytes
-     */
-    private PreparedStatement insertToken;
-    
-    /**
-     * A prepared DELETE statement to remove a token from the Tokens table.
-     * 
-     * Parameter: token cid
-     */
-    private PreparedStatement deleteToken;
-    
-    /**
-     * A prepared SELECT statement to select a token from the Tokens table.
-     * 
-     * Parameter: token cid
-     */
-    private PreparedStatement selectToken;
-    
-    /**
      * A prepared SELECT statement to fetch token ids and their
      * expiration time form the claims table.
      */
@@ -357,6 +339,27 @@ public class SQLConnector implements DBConnector {
      */
     private PreparedStatement selectClaims;
     
+    private static SQLConnector instance = null;
+    
+    /**
+     * Creates (if necessary) and gets the singleton instance of the
+     * connector.
+     * 
+     * @param dbUrl  the database URL, if null the default will be used
+     * @param user   the database user, if null the default will be used
+     * @param pwd    the database user's password, if null the default 
+     *               will be used
+     *               
+     * @return  the instance of the connector
+     * @throws SQLException 
+     */
+    public synchronized static SQLConnector getInstance(
+            String dbUrl, String user, String pwd) throws SQLException {
+        if (instance == null) {
+            instance = new SQLConnector(dbUrl, user, pwd);
+        }
+        return instance;
+    }
     
 	/**
 	 * Create a new database connector either from given values or the 
@@ -368,7 +371,7 @@ public class SQLConnector implements DBConnector {
 	 * 				 will be used
 	 * @throws SQLException 
 	 */
-	public SQLConnector(String dbUrl, String user, String pwd) 
+	protected SQLConnector(String dbUrl, String user, String pwd) 
 			throws SQLException {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
@@ -397,7 +400,8 @@ public class SQLConnector implements DBConnector {
                 + DBConnector.rsIdColumn
                 + " FROM " + DBConnector.dbName + "." 
                 + DBConnector.audiencesTable
-                + " WHERE " + DBConnector.audColumn + "=?;");
+                + " WHERE " + DBConnector.audColumn + "=? ORDER BY "
+                        + DBConnector.rsIdColumn + ";");
 		        
 		this.insertProfile = this.conn.prepareStatement("INSERT INTO "
 		        + DBConnector.dbName + "." + DBConnector.profilesTable
@@ -415,7 +419,8 @@ public class SQLConnector implements DBConnector {
                     + " WHERE " + DBConnector.audColumn
                     + "=?) UNION SELECT * FROM " 
                     + DBConnector.dbName + "." + DBConnector.profilesTable
-                    + " WHERE " + DBConnector.idColumn + "=?;"); 
+                    + " WHERE " + DBConnector.idColumn + "=? ORDER BY "
+                    + DBConnector.idColumn + ";"); 
 			
 		this.insertKeyType = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.keyTypesTable
@@ -433,7 +438,8 @@ public class SQLConnector implements DBConnector {
                     + " WHERE " + DBConnector.audColumn + "=?)"
                     + " UNION SELECT * FROM " + DBConnector.dbName + "." 
                     + DBConnector.keyTypesTable + " WHERE " 
-                    + DBConnector.idColumn + "=?;");             
+                    + DBConnector.idColumn + "=? ORDER BY "
+                    + DBConnector.idColumn + ";");             
 		          
 		this.insertScope = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.scopesTable
@@ -448,7 +454,8 @@ public class SQLConnector implements DBConnector {
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                     + DBConnector.dbName + "." + DBConnector.audiencesTable
-                    + " WHERE " + DBConnector.audColumn + "=?);");          
+                    + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
+                    + DBConnector.rsIdColumn + ";");          
 		
 		this.insertAudience = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.audiencesTable
@@ -461,7 +468,8 @@ public class SQLConnector implements DBConnector {
 		this.selectAudiences = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.audColumn + " FROM "
 		        + DBConnector.dbName + "." + DBConnector.audiencesTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");          
+                + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
+                + DBConnector.audColumn + ";");          
 		
 		this.insertTokenType = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.tokenTypesTable
@@ -476,7 +484,8 @@ public class SQLConnector implements DBConnector {
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                     + DBConnector.dbName + "." + DBConnector.audiencesTable 
-                    + " WHERE " + DBConnector.audColumn + "=?);");      
+                    + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
+                    + DBConnector.rsIdColumn + ";");
 		
 		this.insertClient = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.cTable
@@ -509,7 +518,8 @@ public class SQLConnector implements DBConnector {
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                     + DBConnector.dbName + "." + DBConnector.audiencesTable 
-                    + " WHERE " + DBConnector.audColumn + "=?);");
+                    + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
+                    + DBConnector.rsIdColumn + ";");
 	      
 		this.selectExpiration = this.conn.prepareStatement("SELECT "
 	                + DBConnector.expColumn 
@@ -541,20 +551,7 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.rpkColumn
 		        + " FROM " + DBConnector.dbName + "." + DBConnector.cTable
 		        + " WHERE "  + DBConnector.clientIdColumn + "=?;");
-		
-		this.insertToken = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.tokenTable
-                + " VALUES (?,?)");
-		
-		this.deleteToken = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.tokenTable
-                + " WHERE " + DBConnector.cidColumn + "=?;");
-    
-		this.selectToken = this.conn.prepareStatement("SELECT "
-		        + DBConnector.tokenColumn + " FROM " 
-		        + DBConnector.dbName + "." + DBConnector.tokenTable
-		        + " WHERE " + DBConnector.cidColumn + "=?;");  
-		
+
 		this.selectExpirationTime = this.conn.prepareStatement("SELECT "
 		        + DBConnector.cidColumn + "," + DBConnector.claimValueColumn
 		        + " FROM "  + DBConnector.dbName + "." 
@@ -577,30 +574,15 @@ public class SQLConnector implements DBConnector {
 	}
 	
 	/**
-	 * Get the prepared Statement object.
-	 * 
-	 * @return  the prepared Statement
-	 * @throws SQLException
-	 */
-	private Statement getStatement() throws SQLException {
-		return this.conn.createStatement();
-	}
-	
-	/**
 	 * Create the necessary database and tables. Requires the
 	 * root user password.
 	 * 
 	 * @param rootPwd  the root user password
-	 * @throws SQLException 
+	 * @throws ASException 
 	 */
 	@Override
-	public void init(String rootPwd) throws SQLException {
-		Properties connectionProps = new Properties();
-		connectionProps.put("user", "root");
-		connectionProps.put("password", rootPwd);
-		Connection rootConn = DriverManager.getConnection(
-				this.defaultDbUrl, connectionProps);
-		
+	public void init(String rootPwd) throws ASException {
+				
 		String createDB = "CREATE DATABASE IF NOT EXISTS " + DBConnector.dbName
 		        + " CHARACTER SET utf8 COLLATE utf8_bin;";
 
@@ -657,382 +639,717 @@ public class SQLConnector implements DBConnector {
                 + DBConnector.coseTable + "(" 
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.coseColumn + " varchar(255) NOT NULL);";
-		
-		String createTokens = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.tokenTable + "(" 
-		        + DBConnector.cidColumn + " varchar(255) NOT NULL, "
-		        + DBConnector.tokenColumn + " varbinary(500),"
-		        + "PRIMARY KEY (" + DBConnector.cidColumn + "));"; 
-		
+				
 		String createClaims = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."
 		        + DBConnector.claimsTable + "(" 
 		        + DBConnector.cidColumn + " varchar(255) NOT NULL, " 
 		        + DBConnector.claimNameColumn + " varchar(8) NOT NULL," 
 		        + DBConnector.claimValueColumn + " varbinary(255));";
-		 
-		Statement stmt = rootConn.createStatement();
-		stmt.execute(createDB);
-		stmt.execute(createRs);
-		stmt.execute(createC);
-		stmt.execute(createProfiles);
-		stmt.execute(createKeyTypes);
-		stmt.execute(createScopes);
-		stmt.execute(createTokenTypes);
-		stmt.execute(createAudiences);
-		stmt.execute(createCose);
-		stmt.execute(createTokens);
-		stmt.execute(createClaims);
-		stmt.close();
-		rootConn.close();		
-	}
-	
-	@Override
-	@Deprecated
-	public synchronized ResultSet executeQuery(String query) 
-			throws SQLException {
-		Statement stmt = getStatement();
-		ResultSet res = stmt.executeQuery(query);
-		stmt.close();
-		return res;
-	}
-	
-	@Override
-	@Deprecated
-	public synchronized void executeCommand(String statement) 
-			throws SQLException {
-		Statement stmt = getStatement();
-		stmt.execute(statement);
-		stmt.close();
+		
+		Properties connectionProps = new Properties();
+		connectionProps.put("user", "root");
+		connectionProps.put("password", rootPwd);
+		try (Connection rootConn = DriverManager.getConnection(
+		        this.defaultDbUrl, connectionProps);
+		        Statement stmt = rootConn.createStatement();) {
+		    stmt.execute(createDB);
+		    stmt.execute(createRs);
+		    stmt.execute(createC);
+		    stmt.execute(createProfiles);
+            stmt.execute(createKeyTypes);
+            stmt.execute(createScopes);
+            stmt.execute(createTokenTypes);
+            stmt.execute(createAudiences);
+            stmt.execute(createCose);
+            stmt.execute(createClaims);
+            rootConn.close();
+            stmt.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
 	}
 	
 	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
-	 * @throws SQLException
+	 * @throws ASException
 	 */
 	@Override
-	public void close() throws SQLException {
-		this.conn.close();
+	public void close() throws ASException {
+		try {
+            this.conn.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+	}
+	
+	/**
+	 * Returns a common value that the client supports (first param )
+	 * and that every RS supports (every set in the map)
+	 * 
+	 * @param client  the set of values the client supports
+	 * @param rss  the map of sets of values the rs support
+	 * 
+	 * @return  the common value or null if there isn't any
+	 */
+	private static String getCommonValue(Set<String> client, 
+	        Map<String,Set<String>> rss) {
+	    for (String clientVal : client) {
+            boolean isSupported = true;
+            for (String rs : rss.keySet()) {
+                if (!rss.get(rs).contains(clientVal)) {
+                    isSupported = false;
+                }
+            }
+            if (isSupported) {
+                return clientVal;
+            }
+        }
+        return null;
 	}
 	
     @Override
-    public synchronized ResultSet getProfiles(String audience, String clientId)
-            throws SQLException {
-        this.selectProfiles.setString(1, audience);
-        this.selectProfiles.setString(2, clientId);
-        ResultSet result = this.selectProfiles.executeQuery();
-        this.selectProfiles.clearParameters();
-        return result;
-    }
+    public synchronized String getSupportedProfile(
+            String audience, String clientId) throws ASException {
+        Map<String, Set<String>> rsProfiles = new HashMap<>();
+        Set<String> clientProfiles = new HashSet<>();
+        try {
+            this.selectProfiles.setString(1, audience);
+            this.selectProfiles.setString(2, clientId);
+            ResultSet result = this.selectProfiles.executeQuery();
+            this.selectProfiles.clearParameters();
 
-    @Override
-    public synchronized ResultSet getkeyTypes(String audience, String clientId)
-            throws SQLException {
-        this.selectKeyTypes.setString(1, audience);
-        this.selectKeyTypes.setString(2, clientId);
-        ResultSet result = this.selectKeyTypes.executeQuery();
-        this.selectKeyTypes.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getScopes(String audience) throws SQLException {
-        this.selectScopes.setString(1, audience);
-        ResultSet result = this.selectScopes.executeQuery();
-        this.selectScopes.clearParameters();
-        return result;
-    }
-
-    @Override
-    public ResultSet getTokenType(String audience) throws SQLException {
-        this.selectTokenTypes.setString(1, audience);
-        ResultSet result = this.selectTokenTypes.executeQuery();
-        this.selectTokenTypes.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getCose(String audience) throws SQLException {
-        this.selectCOSE.setString(1, audience);
-        ResultSet result = this.selectCOSE.executeQuery();
-        this.selectCOSE.clearParameters();
-        return result;
-        
-    }
-
-    @Override
-    public synchronized ResultSet getRSS(String audience) throws SQLException {
-        this.selectRS.setString(1, audience);
-        ResultSet result = this.selectRS.executeQuery();
-        this.selectRS.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getAudiences(String rs) throws SQLException {
-        this.selectAudiences.setString(1, rs);
-        ResultSet result = this.selectAudiences.executeQuery();
-        this.selectAudiences.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized void addRS(String rs, Set<String> profiles, Set<String> scopes,
-            Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes,
-            Set<COSEparams> cose, long expiration, byte[] sharedKey,
-            CBORObject publicKey) throws SQLException {
-        this.insertRS.setString(1, rs);
-        this.insertRS.setLong(2, expiration);
-        this.insertRS.setBytes(3, sharedKey);
-        if (publicKey != null) {
-            this.insertRS.setBytes(4, publicKey.EncodeToBytes());
-        } else {
-            this.insertRS.setBytes(4, null);
+            while(result.next()) {
+                String id = result.getString(DBConnector.idColumn);
+                String profile = result.getString(DBConnector.profileColumn);
+                if (id.equals(clientId)) {
+                    clientProfiles.add(profile);
+                } else if (rsProfiles.containsKey(id)) {
+                    Set<String> foo = rsProfiles.get(id);
+                    foo.add(profile);
+                    rsProfiles.put(id, foo);
+                } else {
+                    Set<String> bar = new HashSet<>();
+                    bar.add(profile);
+                    rsProfiles.put(id, bar);
+                }
+            }
+        result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
         }
-        this.insertRS.execute();
-        this.insertRS.clearParameters();
-        
-        for (String profile : profiles) {
-            this.insertProfile.setString(1, rs);
-            this.insertProfile.setString(2, profile);
-            this.insertProfile.execute();
+        return getCommonValue(clientProfiles, rsProfiles);
+      
+    }
+
+    @Override
+    public synchronized String getSupportedPopKeyType(
+            String clientId, String aud) throws ASException {
+        Map<String, Set<String>> rsKeyTypes = new HashMap<>();
+        Set<String> clientKeyTypes = new HashSet<>();
+        try {
+            this.selectKeyTypes.setString(1, aud);
+            this.selectKeyTypes.setString(2, clientId);
+            ResultSet result = this.selectKeyTypes.executeQuery();
+            this.selectKeyTypes.clearParameters();
+            while(result.next()) {
+                String id = result.getString(DBConnector.idColumn);
+                String keyType = result.getString(DBConnector.keyTypeColumn);
+                if (id.equals(clientId)) {
+                    clientKeyTypes.add(keyType);
+                } else if (rsKeyTypes.containsKey(id)) {
+                    Set<String> foo = rsKeyTypes.get(id);
+                    foo.add(keyType);
+                    rsKeyTypes.put(id, foo);
+                } else {
+                    Set<String> bar = new HashSet<>();
+                    bar.add(keyType);
+                    rsKeyTypes.put(id, bar);
+                }
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
         }
-        this.insertProfile.clearParameters();
+        return getCommonValue(clientKeyTypes, rsKeyTypes);
         
-        for (String scope : scopes) {
-            this.insertScope.setString(1, rs);
-            this.insertScope.setString(2, scope);
-            this.insertScope.execute();
+    }
+    
+    @Override
+    public  synchronized Integer getSupportedTokenType(String aud) 
+            throws ASException {
+        //Note: We store the token types as Strings in the DB
+        Map<String, Set<String>> tokenTypes = new HashMap<>();
+        try {
+            this.selectTokenTypes.setString(1, aud);
+            ResultSet result = this.selectTokenTypes.executeQuery();
+            this.selectTokenTypes.clearParameters();
+            while(result.next()) {
+                String id = result.getString(DBConnector.rsIdColumn);
+                String tokenType = result.getString(
+                        DBConnector.tokenTypeColumn);
+               if (tokenTypes.containsKey(id)) {
+                    Set<String> foo = tokenTypes.get(id);
+                    foo.add(tokenType);
+                    tokenTypes.put(id, foo);
+                } else {
+                    Set<String> bar = new HashSet<>();
+                    bar.add(tokenType);
+                    tokenTypes.put(id, bar);
+                } 
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
         }
-        this.insertScope.clearParameters();
         
-        for (String aud : auds) {
+        Set<String> refSet = null;
+        for (Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
+            if (refSet == null) {
+                refSet = new HashSet<>();
+                refSet.addAll(rs.getValue());
+            } else {
+                for (String tokenType : refSet) {
+                    if (!rs.getValue().contains(tokenType)) {
+                        refSet.remove(tokenType);
+                    }
+                }
+                if (refSet.isEmpty()) {
+                    return null;
+                }
+            }
+        }
+        //Get the first remaining value
+        if (refSet != null && !refSet.isEmpty()) {
+            String tokenType = refSet.iterator().next();
+            for (int i=0; i<AccessTokenFactory.ABBREV.length; i++) {
+                if (tokenType.equals(AccessTokenFactory.ABBREV[i])) {
+                    return i;
+                }
+            }
+        } 
+        //The audience was empty or didn't support any token types
+        throw new ASException("No token types found for audience: " + aud);        
+    }
+    
+    @Override
+    public synchronized COSEparams getSupportedCoseParams(String aud) 
+            throws ASException, CoseException {
+        Map<String, Set<String>> cose = new HashMap<>();
+        try {
+            this.selectCOSE.setString(1, aud);
+            ResultSet result = this.selectCOSE.executeQuery();
+            this.selectCOSE.clearParameters();
+            while(result.next()) {
+                String id = result.getString(DBConnector.rsIdColumn);
+                String coseParam = result.getString(
+                        DBConnector.coseColumn);
+               if (cose.containsKey(id)) {
+                    Set<String> foo = cose.get(id);
+                    foo.add(coseParam);
+                    cose.put(id, foo);
+                } else {
+                    Set<String> bar = new HashSet<>();
+                    bar.add(coseParam);
+                    cose.put(id, bar);
+                } 
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        
+        Set<String> refSet = null;
+        for (Entry<String, Set<String>> rs : cose.entrySet()) {
+            if (refSet == null) {
+                refSet = new HashSet<>();
+                refSet.addAll(rs.getValue());
+            } else {
+                for (String tokenType : refSet) {
+                    if (!rs.getValue().contains(tokenType)) {
+                        refSet.remove(tokenType);
+                    }
+                }
+                if (refSet.isEmpty()) {
+                    return null;
+                }
+            }
+        }
+        
+        //Get the first remaining value
+        if (refSet != null && !refSet.isEmpty()) {
+            String result = refSet.iterator().next();
+            return COSEparams.parse(result);
+        }
+        
+        //The audience was empty or didn't support any token types
+        throw new ASException("No cose parameters found for audience: " + aud);                         
+    }
+    
+    @Override
+    public synchronized boolean isScopeSupported(String aud, String scope)
+            throws ASException {
+        Set<String> allRS = getRSS(aud);
+        Set<String> supportingSope = new HashSet<>();
+        try {
+            this.selectScopes.setString(1, aud);
+            ResultSet result = this.selectScopes.executeQuery();
+            this.selectScopes.clearParameters();
+            while (result.next()) {
+                String scp = result.getString(DBConnector.scopeColumn);
+                if (scp.equals(scope)) {
+                    supportingSope.add(result.getString(DBConnector.rsIdColumn));
+                }
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        if (supportingSope.containsAll(allRS)) {
+            return true;
+        }
+        return false;
+    }
+ 
+    @Override
+    public synchronized String getDefaultScope(String client) 
+            throws ASException {
+        try {
+            this.selectDefaultScope.setString(1, client);
+            ResultSet result = this.selectDefaultScope.executeQuery();
+            this.selectDefaultScope.clearParameters();
+            if (result.next()) {
+                String scope = result.getString(DBConnector.defaultScope);
+                result.close();
+                return scope;
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        return null;
+    }
+
+    @Override
+    public synchronized String getDefaultAudience(String client) throws 
+            ASException {
+        try {
+            this.selectDefaultAudience.setString(1, client);
+            ResultSet result = this.selectDefaultAudience.executeQuery();
+            this.selectDefaultAudience.clearParameters();
+            if (result.next()) {
+                String aud = result.getString(DBConnector.defaultAud);
+                result.close();
+                return aud;
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        return null;
+    }
+    
+    @Override
+    public synchronized Set<String> getRSS(String aud) throws ASException {
+       Set<String> rss = new HashSet<>();
+        try {
+            this.selectRS.setString(1, aud);
+            ResultSet result = this.selectRS.executeQuery();
+            this.selectRS.clearParameters();
+            while (result.next()) {
+                rss.add(result.getString(DBConnector.rsIdColumn));
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        if (rss.isEmpty()) {
+            return null;
+        }
+        return rss;
+    }
+    
+    @Override
+    public synchronized long getExpTime(String rs) throws ASException {
+        long smallest = Long.MAX_VALUE;
+        try {
+            this.selectExpiration.setString(1, rs);
+            ResultSet result = this.selectExpiration.executeQuery();
+            this.selectExpiration.clearParameters();
+            while (result.next()) {
+                long val = result.getLong(DBConnector.expColumn);
+                if (val < smallest) {
+                    smallest = val;
+                }
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        return smallest;
+    }
+    
+
+    @Override
+    public synchronized Set<String> getAudiences(String rs) 
+            throws ASException {
+        Set<String> auds = new HashSet<>();
+        try {
+            this.selectAudiences.setString(1, rs);
+            ResultSet result = this.selectAudiences.executeQuery();
+            this.selectAudiences.clearParameters();
+            while (result.next()) {
+                auds.add(result.getString(DBConnector.audColumn));      
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+        return auds;
+    }
+
+    @Override
+    public synchronized byte[] getRsPSK(String rs) throws ASException {
+        try {
+            this.selectRsPSK.setString(1, rs);
+            ResultSet result = this.selectRsPSK.executeQuery();
+            this.selectRsPSK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.pskColumn);
+            }
+            result.close();
+            return key;
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+    }
+
+    @Override
+    public synchronized CBORObject getRsRPK(String rs) throws ASException {
+        try {
+            this.selectRsRPK.setString(1, rs);
+            ResultSet result = this.selectRsRPK.executeQuery();
+            this.selectRsRPK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.rpkColumn);
+            }
+            result.close();
+            if (key != null) {
+                return CBORObject.DecodeFromBytes(key);
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+    }
+    
+    @Override
+    public synchronized byte[] getCPSK(String client) throws ASException {
+        try {
+            this.selectCPSK.setString(1, client);
+            ResultSet result = this.selectCPSK.executeQuery();
+            this.selectCPSK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.pskColumn);
+            }
+            result.close();
+            return key;
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+    }
+
+    @Override
+    public synchronized CBORObject getCRPK(String client) throws ASException {
+        try {
+            this.selectCRPK.setString(1, client);
+            ResultSet result = this.selectCRPK.executeQuery();
+            this.selectCRPK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.rpkColumn);
+            }
+            result.close();
+            if (key != null) {
+                return CBORObject.DecodeFromBytes(key);
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
+    }
+
+    @Override
+    public synchronized void addRS(String rs, Set<String> profiles, 
+            Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
+            Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
+            byte[] sharedKey, CBORObject publicKey) throws ASException {
+
+        if (rs == null || rs.isEmpty()) {
+            throw new ASException(
+                    "RS must have non-null, non-empty identifier");
+        }
+        
+        if (sharedKey == null && publicKey == null) {
+            throw new ASException("Cannot register a RS without a key");
+        }
+        
+        if (profiles.isEmpty()) {
+            throw new ASException("RS must support at least one profile");
+        }
+        
+        if (tokenTypes.isEmpty()) {
+            throw new ASException("RS must support at least one token type");
+        }
+        
+        if (keyTypes.isEmpty()) {
+            throw new ASException("RS must support at least one PoP key type");
+        }
+        
+        if (expiration <= 0L) {
+            throw new ASException("RS must have default expiration time > 0");
+        }
+        
+        
+        
+        // Prevent adding an rs that has an identifier that is equal to an 
+        // existing audience
+        try {
+            this.selectRS.setString(1, rs);
+            ResultSet result = this.selectRS.executeQuery();
+            this.selectRS.clearParameters();
+            if (result.next()) {
+                result.close();
+                throw new ASException("RS id not allowed: " + rs);
+            }
+            result.close();
+                
+            this.insertRS.setString(1, rs);
+            this.insertRS.setLong(2, expiration);
+            this.insertRS.setBytes(3, sharedKey);
+            if (publicKey != null) {
+                this.insertRS.setBytes(4, publicKey.EncodeToBytes());
+            } else {
+                this.insertRS.setBytes(4, null);
+            }
+            this.insertRS.execute();
+            this.insertRS.clearParameters();
+            
+            for (String profile : profiles) {
+                this.insertProfile.setString(1, rs);
+                this.insertProfile.setString(2, profile);
+                this.insertProfile.execute();
+            }
+            this.insertProfile.clearParameters();
+            
+            for (String scope : scopes) {
+                this.insertScope.setString(1, rs);
+                this.insertScope.setString(2, scope);
+                this.insertScope.execute();
+            }
+            this.insertScope.clearParameters();
+            
+            for (String aud : auds) {
+                this.insertAudience.setString(1, rs);
+                this.insertAudience.setString(2, aud);
+                this.insertAudience.execute();
+            }
+            this.insertAudience.clearParameters();
+            
+            //The RS always recognizes itself as a singleton audience
             this.insertAudience.setString(1, rs);
-            this.insertAudience.setString(2, aud);
+            this.insertAudience.setString(2, rs);
             this.insertAudience.execute();
+            this.insertAudience.clearParameters();
+            
+            for (String keyType : keyTypes) {
+                this.insertKeyType.setString(1, rs);
+                this.insertKeyType.setString(2, keyType);
+                this.insertKeyType.execute();
+            }
+            this.insertKeyType.clearParameters();
+            
+            for (int tokenType : tokenTypes) {
+                this.insertTokenType.setString(1, rs);
+                this.insertTokenType.setString(2, 
+                        AccessTokenFactory.ABBREV[tokenType]);
+                this.insertTokenType.execute();
+            }
+            this.insertTokenType.clearParameters();
+            
+            for (COSEparams coseP : cose) {
+                this.insertCose.setString(1, rs);
+                this.insertCose.setString(2, coseP.toString());
+                this.insertCose.execute();
+            }
+            this.insertCose.clearParameters();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
         }
-        this.insertAudience.clearParameters();
-        
-        //The RS always recognizes itself as a singleton audience
-        this.insertAudience.setString(1, rs);
-        this.insertAudience.setString(2, rs);
-        this.insertAudience.execute();
-        this.insertAudience.clearParameters();
-        
-        for (String keyType : keyTypes) {
-            this.insertKeyType.setString(1, rs);
-            this.insertKeyType.setString(2, keyType);
-            this.insertKeyType.execute();
-        }
-        this.insertKeyType.clearParameters();
-        
-        for (int tokenType : tokenTypes) {
-            this.insertTokenType.setString(1, rs);
-            this.insertTokenType.setString(2, 
-                    AccessTokenFactory.ABBREV[tokenType]);
-            this.insertTokenType.execute();
-        }
-        this.insertTokenType.clearParameters();
-        
-        for (COSEparams coseP : cose) {
-            this.insertCose.setString(1, rs);
-            this.insertCose.setString(2, coseP.toString());
-            this.insertCose.execute();
-        }
-        this.insertCose.clearParameters();
     }
 
     @Override
-    public synchronized void deleteRS(String rs) throws SQLException {
-        this.deleteRS.setString(1, rs);
-        this.deleteRS.execute();
-        this.deleteRS.clearParameters();
-        
-        this.deleteProfiles.setString(1, rs);
-        this.deleteProfiles.execute();
-        this.deleteProfiles.clearParameters();
-        
-        this.deleteScopes.setString(1, rs);
-        this.deleteScopes.execute();
-        this.deleteScopes.clearParameters();
+    public synchronized void deleteRS(String rs) throws ASException {
+        try {
+            this.deleteRS.setString(1, rs);
+            this.deleteRS.execute();
+            this.deleteRS.clearParameters();
 
-        this.deleteAudiences.setString(1, rs);
-        this.deleteAudiences.execute();
-        this.deleteAudiences.clearParameters();
+            this.deleteProfiles.setString(1, rs);
+            this.deleteProfiles.execute();
+            this.deleteProfiles.clearParameters();
 
-        this.deleteKeyTypes.setString(1, rs);
-        this.deleteKeyTypes.execute();
-        this.deleteKeyTypes.clearParameters();
-        
-        this.deleteTokenTypes.setString(1, rs);
-        this.deleteTokenTypes.execute();
-        this.deleteTokenTypes.clearParameters();    
-        
-        this.deleteCose.setString(1, rs);
-        this.deleteCose.execute();
-        this.deleteCose.clearParameters();   
+            this.deleteScopes.setString(1, rs);
+            this.deleteScopes.execute();
+            this.deleteScopes.clearParameters();
+
+            this.deleteAudiences.setString(1, rs);
+            this.deleteAudiences.execute();
+            this.deleteAudiences.clearParameters();
+
+            this.deleteKeyTypes.setString(1, rs);
+            this.deleteKeyTypes.execute();
+            this.deleteKeyTypes.clearParameters();
+
+            this.deleteTokenTypes.setString(1, rs);
+            this.deleteTokenTypes.execute();
+            this.deleteTokenTypes.clearParameters();    
+
+            this.deleteCose.setString(1, rs);
+            this.deleteCose.execute();
+            this.deleteCose.clearParameters();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }
     }
 
     @Override
     public synchronized void addClient(String client, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            byte[] sharedKey, CBORObject publicKey) throws SQLException {
-        this.insertClient.setString(1, client);
-        this.insertClient.setString(2, defaultAud);
-        this.insertClient.setString(3, defaultScope);
-        this.insertClient.setBytes(4, sharedKey);
-        if (publicKey != null) {
-            this.insertClient.setBytes(5, publicKey.EncodeToBytes());
-        } else {
-            this.insertClient.setBytes(5, null);
-        }
-        this.insertClient.execute();
-        this.insertClient.clearParameters();
-        
-        for (String profile : profiles) {
-            this.insertProfile.setString(1, client);
-            this.insertProfile.setString(2, profile);
-            this.insertProfile.execute();
-        }
-        this.insertProfile.clearParameters();
-            
-        for (String keyType : keyTypes) {
-            this.insertKeyType.setString(1, client);
-            this.insertKeyType.setString(2, keyType);
-            this.insertKeyType.execute();
-        }
-        this.insertKeyType.clearParameters();       
-    }
-
-    @Override
-    public synchronized void deleteClient(String client) throws SQLException {
-        this.deleteClient.setString(1, client);
-        this.deleteClient.execute();
-        this.deleteClient.clearParameters();
-        
-        this.deleteProfiles.setString(1, client);
-        this.deleteProfiles.execute();
-        this.deleteProfiles.clearParameters();
-
-        this.deleteKeyTypes.setString(1, client);
-        this.deleteKeyTypes.execute();
-        this.deleteKeyTypes.clearParameters(); 
-    }
-
-    @Override
-    public synchronized ResultSet getExpTime(String rs) throws SQLException {
-        this.selectExpiration.setString(1, rs);
-        ResultSet result = this.selectExpiration.executeQuery();
-        this.selectExpiration.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getRsPSK(String rs) throws SQLException {
-        this.selectRsPSK.setString(1, rs);
-        ResultSet result = this.selectRsPSK.executeQuery();
-        this.selectRsPSK.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getRsRPK(String rs) throws SQLException {
-        this.selectRsRPK.setString(1, rs);
-        ResultSet result = this.selectRsRPK.executeQuery();
-        this.selectRsRPK.clearParameters();
-        return result;
-    }
-    
-    @Override
-    public synchronized ResultSet getCPSK(String client) throws SQLException {
-        this.selectCPSK.setString(1, client);
-        ResultSet result = this.selectCPSK.executeQuery();
-        this.selectCPSK.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getCRPK(String client) throws SQLException {
-        this.selectCRPK.setString(1, client);
-        ResultSet result = this.selectCRPK.executeQuery();
-        this.selectCRPK.clearParameters();
-        return result;
-    }
-    
-    @Override
-    public synchronized ResultSet getDefaultScope(String client) throws SQLException {
-        this.selectDefaultScope.setString(1, client);
-        ResultSet result = this.selectDefaultScope.executeQuery();
-        this.selectDefaultScope.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized ResultSet getDefaultAudience(String client) throws SQLException {
-        this.selectDefaultAudience.setString(1, client);
-        ResultSet result = this.selectDefaultAudience.executeQuery();
-        this.selectDefaultAudience.clearParameters();
-        return result;
-    }
-
-    @Override
-    public synchronized void addToken(String cid, AccessToken token,
-            Map<String, CBORObject> claims) throws SQLException {
-        this.insertToken.setString(1, cid);
-        this.insertToken.setBytes(2, token.encode().EncodeToBytes());
-        this.insertToken.execute();
-        this.insertToken.clearParameters();
-        
-        for (Entry<String, CBORObject> claim : claims.entrySet()) {
-            this.insertClaim.setString(1, cid);
-            this.insertClaim.setString(2, claim.getKey());
-            this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());
-            this.insertClaim.execute();
-        }
-        this.insertClaim.clearParameters();
-    }
-
-    @Override
-    public synchronized void deleteToken(String cid) throws SQLException {
-        this.deleteToken.setString(1, cid);
-        this.deleteToken.execute();
-        this.deleteToken.clearParameters();
-        
-        this.deleteClaims.setString(1, cid);
-        this.deleteClaims.execute();
-        this.deleteClaims.clearParameters();        
-    }
-
-    @Override
-    public synchronized void purgeExpiredTokens(long now) throws SQLException {
-        ResultSet result = this.selectExpirationTime.executeQuery();
-        while (result.next()) {
-            byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
-            CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
-            long time = cborTime.AsInt64();
-            if (now > time) {
-                deleteToken(result.getString(DBConnector.cidColumn));
+            byte[] sharedKey, CBORObject publicKey) 
+                    throws ASException {
+        try {
+            if (sharedKey == null && publicKey == null) {
+                throw new ASException("Cannot register a client without a key");
             }
+            this.insertClient.setString(1, client);
+            this.insertClient.setString(2, defaultAud);
+            this.insertClient.setString(3, defaultScope);
+            this.insertClient.setBytes(4, sharedKey);
+            if (publicKey != null) {
+                this.insertClient.setBytes(5, publicKey.EncodeToBytes());
+            } else {
+                this.insertClient.setBytes(5, null);
+            }
+            this.insertClient.execute();
+            this.insertClient.clearParameters();
+
+            for (String profile : profiles) {
+                this.insertProfile.setString(1, client);
+                this.insertProfile.setString(2, profile);
+                this.insertProfile.execute();
+            }
+            this.insertProfile.clearParameters();
+
+            for (String keyType : keyTypes) {
+                this.insertKeyType.setString(1, client);
+                this.insertKeyType.setString(2, keyType);
+                this.insertKeyType.execute();
+            }
+            this.insertKeyType.clearParameters();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
         }
-        result.close();
     }
 
     @Override
-    public synchronized ResultSet getClaims(String cid) throws SQLException {
-        this.selectClaims.setString(1, cid);
-        ResultSet result = this.selectClaims.executeQuery();
-        this.selectClaims.clearParameters();
-        return result;
+    public synchronized void deleteClient(String client) throws ASException {
+        try {
+            this.deleteClient.setString(1, client);
+            this.deleteClient.execute();
+            this.deleteClient.clearParameters();
+
+            this.deleteProfiles.setString(1, client);
+            this.deleteProfiles.execute();
+            this.deleteProfiles.clearParameters();
+
+            this.deleteKeyTypes.setString(1, client);
+            this.deleteKeyTypes.execute();
+            this.deleteKeyTypes.clearParameters(); 
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }   
+    }
+    
+    @Override
+    public synchronized void addToken(String cid, 
+            Map<String, CBORObject> claims) throws ASException {
+        try {
+            for (Entry<String, CBORObject> claim : claims.entrySet()) {
+                this.insertClaim.setString(1, cid);
+                this.insertClaim.setString(2, claim.getKey());
+                this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());
+                this.insertClaim.execute();
+            }
+            this.insertClaim.clearParameters();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }       
     }
 
     @Override
-    public synchronized ResultSet getToken(String cid) throws SQLException {
-       this.selectToken.setString(1, cid);
-       ResultSet result = this.selectToken.executeQuery();
-       this.selectToken.clearParameters();
-       return result;
-    }	 
+    public synchronized void deleteToken(String cid) throws ASException {
+        try {
+            this.deleteClaims.setString(1, cid);
+            this.deleteClaims.execute();
+            this.deleteClaims.clearParameters();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        }   
+    }
+
+    @Override
+    public synchronized void purgeExpiredTokens(long now) throws ASException {
+        try {
+            ResultSet result = this.selectExpirationTime.executeQuery();
+            while (result.next()) {
+                byte[] rawTime = result.getBytes(DBConnector.claimValueColumn);
+                CBORObject cborTime = CBORObject.DecodeFromBytes(rawTime);
+                long time = cborTime.AsInt64();
+                if (now > time) {
+                    deleteToken(result.getString(DBConnector.cidColumn));
+                }
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        } 
+    }
+
+    @Override
+    public synchronized Map<String, CBORObject> getClaims(String cid) 
+            throws ASException {
+        Map<String, CBORObject> claims = new HashMap<>();
+        try {
+            this.selectClaims.setString(1, cid);
+            ResultSet result = this.selectClaims.executeQuery();
+            this.selectClaims.clearParameters();
+            while (result.next()) {
+                String claimName 
+                    = result.getString(DBConnector.claimNameColumn);
+                CBORObject cbor = CBORObject.DecodeFromBytes(
+                        result.getBytes(DBConnector.claimValueColumn));
+                claims.put(claimName, cbor);
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new ASException(e.getMessage());
+        } 
+        return claims;
+    }
 }
