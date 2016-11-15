@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Scanner;
 import java.util.Set;
 
 import org.bouncycastle.asn1.nist.NISTNamedCurves;
@@ -48,6 +49,8 @@ public class TestDB {
     
     static SQLConnector db = null;
     
+    private static String dbPwd = null;
+    
     /**
      * Set up tests.
      * @throws SQLException 
@@ -55,12 +58,18 @@ public class TestDB {
      */
     @BeforeClass
     public static void setUp() throws SQLException, ASException {
+        Scanner reader = new Scanner(System.in);  // Reading from System.in
+        System.out.println("Please input DB password to run tests: ");
+        dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
+        reader.close();
         
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
+        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), 
+                p.getG(), p.getN(), p.getH());
         ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
+        ECKeyGenerationParameters genParam 
+            = new ECKeyGenerationParameters(parameters, null);
         pGen.init(genParam);
         
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
@@ -85,8 +94,7 @@ public class TestDB {
         cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
         
         db = SQLConnector.getInstance(null, null, null);
-        //FIXME: hard-coded Root PWD
-        db.init("ZzIbt3ELL34vEJITzaAIxT");
+        db.init(dbPwd);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
@@ -151,13 +159,15 @@ public class TestDB {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, keyTypes, null, cnKeyPublicCompressed);
+        db.addClient("clientA", profiles, null, null, keyTypes, null,
+                cnKeyPublicCompressed);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, key128, null);
+        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, 
+                key128, null);
         
         //Setup token entries
         String cid = "token1";
@@ -190,8 +200,7 @@ public class TestDB {
     public static void tearDown() throws SQLException, ASException {
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
-        //FIXME: hard-coded DB root password
-        connectionProps.put("password", "ZzIbt3ELL34vEJITzaAIxT");
+        connectionProps.put("password", dbPwd);
         Connection rootConn = DriverManager.getConnection(
                 "jdbc:mysql://localhost:3306", connectionProps);
               
