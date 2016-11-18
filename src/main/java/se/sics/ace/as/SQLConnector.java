@@ -47,7 +47,7 @@ import java.util.Set;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.CoseException;
-
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 
 /**
@@ -578,10 +578,10 @@ public class SQLConnector implements DBConnector {
 	 * root user password.
 	 * 
 	 * @param rootPwd  the root user password
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	@Override
-	public void init(String rootPwd) throws ASException {
+	public void init(String rootPwd) throws AceException {
 				
 		String createDB = "CREATE DATABASE IF NOT EXISTS " + DBConnector.dbName
 		        + " CHARACTER SET utf8 COLLATE utf8_bin;";
@@ -666,7 +666,7 @@ public class SQLConnector implements DBConnector {
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
 	}
 	
@@ -674,14 +674,14 @@ public class SQLConnector implements DBConnector {
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
-	 * @throws ASException
+	 * @throws AceException
 	 */
 	@Override
-	public void close() throws ASException {
+	public void close() throws AceException {
 		try {
             this.conn.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
 	}
 	
@@ -712,7 +712,7 @@ public class SQLConnector implements DBConnector {
 	
     @Override
     public synchronized String getSupportedProfile(
-            String audience, String clientId) throws ASException {
+            String audience, String clientId) throws AceException {
         Map<String, Set<String>> rsProfiles = new HashMap<>();
         Set<String> clientProfiles = new HashSet<>();
         try {
@@ -738,7 +738,7 @@ public class SQLConnector implements DBConnector {
             }
         result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientProfiles, rsProfiles);
       
@@ -746,7 +746,7 @@ public class SQLConnector implements DBConnector {
 
     @Override
     public synchronized String getSupportedPopKeyType(
-            String clientId, String aud) throws ASException {
+            String clientId, String aud) throws AceException {
         Map<String, Set<String>> rsKeyTypes = new HashMap<>();
         Set<String> clientKeyTypes = new HashSet<>();
         try {
@@ -771,7 +771,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientKeyTypes, rsKeyTypes);
         
@@ -779,7 +779,7 @@ public class SQLConnector implements DBConnector {
     
     @Override
     public  synchronized Integer getSupportedTokenType(String aud) 
-            throws ASException {
+            throws AceException {
         //Note: We store the token types as Strings in the DB
         Map<String, Set<String>> tokenTypes = new HashMap<>();
         try {
@@ -802,7 +802,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         
         Set<String> refSet = null;
@@ -831,12 +831,12 @@ public class SQLConnector implements DBConnector {
             }
         } 
         //The audience was empty or didn't support any token types
-        throw new ASException("No token types found for audience: " + aud);        
+        throw new AceException("No token types found for audience: " + aud);        
     }
     
     @Override
     public synchronized COSEparams getSupportedCoseParams(String aud) 
-            throws ASException, CoseException {
+            throws AceException, CoseException {
         Map<String, Set<String>> cose = new HashMap<>();
         try {
             this.selectCOSE.setString(1, aud);
@@ -858,7 +858,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         
         Set<String> refSet = null;
@@ -885,12 +885,12 @@ public class SQLConnector implements DBConnector {
         }
         
         //The audience was empty or didn't support any token types
-        throw new ASException("No cose parameters found for audience: " + aud);                         
+        throw new AceException("No cose parameters found for audience: " + aud);                         
     }
     
     @Override
     public synchronized boolean isScopeSupported(String aud, String scope)
-            throws ASException {
+            throws AceException {
         Set<String> allRS = getRSS(aud);
         Set<String> supportingSope = new HashSet<>();
         try {
@@ -905,7 +905,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         if (supportingSope.containsAll(allRS)) {
             return true;
@@ -915,7 +915,7 @@ public class SQLConnector implements DBConnector {
  
     @Override
     public synchronized String getDefaultScope(String client) 
-            throws ASException {
+            throws AceException {
         try {
             this.selectDefaultScope.setString(1, client);
             ResultSet result = this.selectDefaultScope.executeQuery();
@@ -927,14 +927,14 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return null;
     }
 
     @Override
     public synchronized String getDefaultAudience(String client) throws 
-            ASException {
+            AceException {
         try {
             this.selectDefaultAudience.setString(1, client);
             ResultSet result = this.selectDefaultAudience.executeQuery();
@@ -946,13 +946,13 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return null;
     }
     
     @Override
-    public synchronized Set<String> getRSS(String aud) throws ASException {
+    public synchronized Set<String> getRSS(String aud) throws AceException {
        Set<String> rss = new HashSet<>();
         try {
             this.selectRS.setString(1, aud);
@@ -963,7 +963,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         if (rss.isEmpty()) {
             return null;
@@ -972,7 +972,7 @@ public class SQLConnector implements DBConnector {
     }
     
     @Override
-    public synchronized long getExpTime(String rs) throws ASException {
+    public synchronized long getExpTime(String rs) throws AceException {
         long smallest = Long.MAX_VALUE;
         try {
             this.selectExpiration.setString(1, rs);
@@ -986,7 +986,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return smallest;
     }
@@ -994,7 +994,7 @@ public class SQLConnector implements DBConnector {
 
     @Override
     public synchronized Set<String> getAudiences(String rs) 
-            throws ASException {
+            throws AceException {
         Set<String> auds = new HashSet<>();
         try {
             this.selectAudiences.setString(1, rs);
@@ -1005,13 +1005,13 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
         return auds;
     }
 
     @Override
-    public synchronized byte[] getRsPSK(String rs) throws ASException {
+    public synchronized byte[] getRsPSK(String rs) throws AceException {
         try {
             this.selectRsPSK.setString(1, rs);
             ResultSet result = this.selectRsPSK.executeQuery();
@@ -1023,12 +1023,12 @@ public class SQLConnector implements DBConnector {
             result.close();
             return key;
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
     @Override
-    public synchronized CBORObject getRsRPK(String rs) throws ASException {
+    public synchronized CBORObject getRsRPK(String rs) throws AceException {
         try {
             this.selectRsRPK.setString(1, rs);
             ResultSet result = this.selectRsRPK.executeQuery();
@@ -1043,12 +1043,12 @@ public class SQLConnector implements DBConnector {
             }
             return null;
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
     
     @Override
-    public synchronized byte[] getCPSK(String client) throws ASException {
+    public synchronized byte[] getCPSK(String client) throws AceException {
         try {
             this.selectCPSK.setString(1, client);
             ResultSet result = this.selectCPSK.executeQuery();
@@ -1060,12 +1060,12 @@ public class SQLConnector implements DBConnector {
             result.close();
             return key;
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
     @Override
-    public synchronized CBORObject getCRPK(String client) throws ASException {
+    public synchronized CBORObject getCRPK(String client) throws AceException {
         try {
             this.selectCRPK.setString(1, client);
             ResultSet result = this.selectCRPK.executeQuery();
@@ -1080,7 +1080,7 @@ public class SQLConnector implements DBConnector {
             }
             return null;
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
@@ -1088,31 +1088,31 @@ public class SQLConnector implements DBConnector {
     public synchronized void addRS(String rs, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
-            byte[] sharedKey, CBORObject publicKey) throws ASException {
+            byte[] sharedKey, CBORObject publicKey) throws AceException {
 
         if (rs == null || rs.isEmpty()) {
-            throw new ASException(
+            throw new AceException(
                     "RS must have non-null, non-empty identifier");
         }
         
         if (sharedKey == null && publicKey == null) {
-            throw new ASException("Cannot register a RS without a key");
+            throw new AceException("Cannot register a RS without a key");
         }
         
         if (profiles.isEmpty()) {
-            throw new ASException("RS must support at least one profile");
+            throw new AceException("RS must support at least one profile");
         }
         
         if (tokenTypes.isEmpty()) {
-            throw new ASException("RS must support at least one token type");
+            throw new AceException("RS must support at least one token type");
         }
         
         if (keyTypes.isEmpty()) {
-            throw new ASException("RS must support at least one PoP key type");
+            throw new AceException("RS must support at least one PoP key type");
         }
         
         if (expiration <= 0L) {
-            throw new ASException("RS must have default expiration time > 0");
+            throw new AceException("RS must have default expiration time > 0");
         }
         
         
@@ -1125,7 +1125,7 @@ public class SQLConnector implements DBConnector {
             this.selectRS.clearParameters();
             if (result.next()) {
                 result.close();
-                throw new ASException("RS id not allowed: " + rs);
+                throw new AceException("RS id not allowed: " + rs);
             }
             result.close();
                 
@@ -1189,12 +1189,12 @@ public class SQLConnector implements DBConnector {
             }
             this.insertCose.clearParameters();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
     @Override
-    public synchronized void deleteRS(String rs) throws ASException {
+    public synchronized void deleteRS(String rs) throws AceException {
         try {
             this.deleteRS.setString(1, rs);
             this.deleteRS.execute();
@@ -1224,7 +1224,7 @@ public class SQLConnector implements DBConnector {
             this.deleteCose.execute();
             this.deleteCose.clearParameters();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
@@ -1232,10 +1232,10 @@ public class SQLConnector implements DBConnector {
     public synchronized void addClient(String client, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
             byte[] sharedKey, CBORObject publicKey) 
-                    throws ASException {
+                    throws AceException {
         try {
             if (sharedKey == null && publicKey == null) {
-                throw new ASException("Cannot register a client without a key");
+                throw new AceException("Cannot register a client without a key");
             }
             this.insertClient.setString(1, client);
             this.insertClient.setString(2, defaultAud);
@@ -1263,12 +1263,12 @@ public class SQLConnector implements DBConnector {
             }
             this.insertKeyType.clearParameters();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }
     }
 
     @Override
-    public synchronized void deleteClient(String client) throws ASException {
+    public synchronized void deleteClient(String client) throws AceException {
         try {
             this.deleteClient.setString(1, client);
             this.deleteClient.execute();
@@ -1282,13 +1282,13 @@ public class SQLConnector implements DBConnector {
             this.deleteKeyTypes.execute();
             this.deleteKeyTypes.clearParameters(); 
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }   
     }
     
     @Override
     public synchronized void addToken(String cti, 
-            Map<String, CBORObject> claims) throws ASException {
+            Map<String, CBORObject> claims) throws AceException {
         try {
             for (Entry<String, CBORObject> claim : claims.entrySet()) {
                 this.insertClaim.setString(1, cti);
@@ -1298,23 +1298,23 @@ public class SQLConnector implements DBConnector {
             }
             this.insertClaim.clearParameters();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }       
     }
 
     @Override
-    public synchronized void deleteToken(String cti) throws ASException {
+    public synchronized void deleteToken(String cti) throws AceException {
         try {
             this.deleteClaims.setString(1, cti);
             this.deleteClaims.execute();
             this.deleteClaims.clearParameters();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         }   
     }
 
     @Override
-    public synchronized void purgeExpiredTokens(long now) throws ASException {
+    public synchronized void purgeExpiredTokens(long now) throws AceException {
         try {
             ResultSet result = this.selectExpirationTime.executeQuery();
             while (result.next()) {
@@ -1327,13 +1327,13 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         } 
     }
 
     @Override
     public synchronized Map<String, CBORObject> getClaims(String cti) 
-            throws ASException {
+            throws AceException {
         Map<String, CBORObject> claims = new HashMap<>();
         try {
             this.selectClaims.setString(1, cti);
@@ -1348,7 +1348,7 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
         } catch (SQLException e) {
-            throw new ASException(e.getMessage());
+            throw new AceException(e.getMessage());
         } 
         return claims;
     }

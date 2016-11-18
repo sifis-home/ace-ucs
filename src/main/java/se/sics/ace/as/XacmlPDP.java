@@ -50,6 +50,8 @@ import org.wso2.balana.finder.PolicyFinder;
 import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 import org.wso2.balana.xacml3.Attributes;
 
+import se.sics.ace.AceException;
+
 /**
  * A PDP that uses XACML to provide access control decisions.
  * 
@@ -191,7 +193,7 @@ public class XacmlPDP implements PDP {
 
 	@Override
 	public String canAccess(String clientId, String aud, String scopes) 
-			throws ASException {
+			throws AceException {
 		Set<Attributes> attributes = new HashSet<>();
 		StringAttribute subjectAV = new StringAttribute(clientId);
 		Attribute subject 
@@ -243,7 +245,7 @@ public class XacmlPDP implements PDP {
         while (results.hasNext()) {
         	AbstractResult aResult = results.next();
         	if (!(aResult instanceof Result)) {
-        		throw new ASException(
+        		throw new AceException(
         				"Received XAML 2 Result when expecting XACML 3");		
         	}
         	Result result = (Result)aResult;

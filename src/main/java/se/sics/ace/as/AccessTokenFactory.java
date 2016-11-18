@@ -36,6 +36,7 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AccessToken;
+import se.sics.ace.AceException;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.cwt.CWT;
 
@@ -73,17 +74,17 @@ public class AccessTokenFactory {
 	 * @param type  the type of token you want to generate
 	 * @param claims  the claims associated with this token
 	 * @return  the generated token
-	 * @throws ASException
+	 * @throws AceException
 	 */
 	public static AccessToken generateToken(
-			int type, Map<String, CBORObject> claims) throws ASException {
+			int type, Map<String, CBORObject> claims) throws AceException {
 		switch (type) {
 		case CWT_TYPE :
 			return new CWT(claims);
 		case REF_TYPE :
 			return new ReferenceToken(AccessTokenFactory.defaultRefLength);	
 		default: 
-			throw new ASException("Unsupported token type");
+			throw new AceException("Unsupported token type");
 		}
 	}
 

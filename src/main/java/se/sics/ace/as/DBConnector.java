@@ -39,7 +39,7 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.CoseException;
 
 import se.sics.ace.COSEparams;
-import se.sics.ace.as.ASException;
+import se.sics.ace.AceException;
 
 /**
  * This interface provides database connectivity methods for the 
@@ -207,9 +207,9 @@ public interface DBConnector {
 	 * 
 	 * @param rootPwd  the root user password
 	 * 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
-	public void init(String rootPwd) throws ASException;
+	public void init(String rootPwd) throws AceException;
 	
 	/**
 	 * Gets a common profile supported by a specific audience and client.
@@ -218,10 +218,10 @@ public interface DBConnector {
 	 * @param clientId  the client identifier
 	 * @return  a profile they all support or null if there isn't any
 	 * 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	public String getSupportedProfile(String audience, String clientId) 
-	            throws ASException;
+	            throws AceException;
     
 	/**
      * Returns a common key type for the proof-of-possession
@@ -231,10 +231,10 @@ public interface DBConnector {
      * @param aud  the audience that this client is addressing 
      * 
      * @return  a key type both support or null
-	 * @throws ASException 
+	 * @throws AceException 
      */
     public String getSupportedPopKeyType(String clientId, String aud)
-        throws ASException;
+        throws AceException;
     
     /**
      * Returns a common token type, or null if there isn't any
@@ -242,9 +242,9 @@ public interface DBConnector {
      * @param aud  the audience that is addressed
      * 
      * @return  a token type the audience supports or null
-     * @throws ASException 
+     * @throws AceException 
      */
-    public Integer getSupportedTokenType(String aud) throws ASException;
+    public Integer getSupportedTokenType(String aud) throws AceException;
     
     /**
      * Returns a common set of COSE message parameters used to protect
@@ -255,11 +255,11 @@ public interface DBConnector {
      * 
      * @param aud  the audience id
      * @return  the COSE parameters or null
-     * @throws ASException 
+     * @throws AceException 
      * @throws CoseException 
      */
     public COSEparams getSupportedCoseParams(String aud) 
-            throws ASException, CoseException;
+            throws AceException, CoseException;
     
 
     /**
@@ -269,10 +269,10 @@ public interface DBConnector {
      * @param scope  the scope
      * 
      * @return  true if the audience supports the scope, false otherwise
-     * @throws ASException 
+     * @throws AceException 
      */
     public boolean isScopeSupported(String aud, String scope)
-            throws ASException;
+            throws AceException;
     
     
     /**
@@ -282,9 +282,9 @@ public interface DBConnector {
      * 
      * @return  the default scope used by this client if any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public String getDefaultScope(String client) throws ASException;
+    public String getDefaultScope(String client) throws AceException;
 
     /**
      * Get the default audience of this client
@@ -293,9 +293,9 @@ public interface DBConnector {
      * 
      * @return  the default audience used by this client if any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public String getDefaultAudience(String client) throws ASException;  
+    public String getDefaultAudience(String client) throws AceException;  
     
     /**
      * Gets the RSs that are part of this audience.
@@ -305,9 +305,9 @@ public interface DBConnector {
      * @return  the RS identifiers of those that are part of this audience 
      *  or null if that audience is not defined
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public Set<String> getRSS(String aud) throws ASException; 
+    public Set<String> getRSS(String aud) throws AceException; 
     
        
     /**
@@ -317,9 +317,9 @@ public interface DBConnector {
      * @param aud  the audience of the access token
      * @return  the expiration time in milliseconds
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public long getExpTime(String aud) throws ASException;
+    public long getExpTime(String aud) throws AceException;
     
     /**
      * Gets the audiences that this RS is part of.
@@ -329,10 +329,10 @@ public interface DBConnector {
      *
      * @return  the audience identifiers that this RS is part of
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
     public Set<String> getAudiences(String rs) 
-                throws ASException;  
+                throws AceException;  
 
     /**
      * Get the shared symmetric key (PSK) with this RS
@@ -341,10 +341,10 @@ public interface DBConnector {
      * 
      * @return  the shared symmetric key if there is any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
     public byte[] getRsPSK(String rs)
-        throws ASException;
+        throws AceException;
     
     /**
      * Get the public key (RPK) of this RS
@@ -353,10 +353,10 @@ public interface DBConnector {
      * 
      * @return  the public key if there is any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
     public CBORObject getRsRPK(String rs)
-        throws ASException;
+        throws AceException;
     
     /**
      * Get the shared symmetric key (PSK) with this client
@@ -365,10 +365,10 @@ public interface DBConnector {
      * 
      * @return  the shared symmetric key if there is any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
     public byte[] getCPSK(String client)
-        throws ASException;
+        throws AceException;
     
     /**
      * Get the public key (RPK) of this client
@@ -377,10 +377,10 @@ public interface DBConnector {
      * 
      * @return  the public key if there is any
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
     public CBORObject getCRPK(String client)
-        throws ASException;
+        throws AceException;
     
 	/**
 	 * Creates a new RS. Must provide either a sharedKey or a publicKey.
@@ -401,21 +401,21 @@ public interface DBConnector {
      * @param publicKey  the COSE-encoded public key of this RS or null if
      *     there is none
      *
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
             Set<COSEparams> cose, long expiration, byte[] sharedKey, 
-            CBORObject publicKey) throws ASException;
+            CBORObject publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 
 	 * @param rs  the identifier of the RS
 	 * 
-	 * @throws ASException
+	 * @throws AceException
 	 */
 	public void deleteRS(String rs) 
-			throws ASException;
+			throws AceException;
 	
 	/**
 	 * Adds a new client to the database.
@@ -430,21 +430,21 @@ public interface DBConnector {
      * @param publicKey  the COSE-encoded public key of this client or null if
      *      there is none
      *       
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	public void addClient(String client, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
 	        byte[] sharedKey, CBORObject publicKey) 
-	                throws ASException;
+	                throws AceException;
 	
 	/**
 	 * Deletes a client and all related data
 	 * 
 	 * @param client  the identifier for the client
 	 * 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
-	public void deleteClient(String client) throws ASException;
+	public void deleteClient(String client) throws AceException;
 
 	
 	/**
@@ -452,27 +452,27 @@ public interface DBConnector {
 	 * @param cti  the token identifier encoded Base64
 	 * @param claims  the claims of this token
 	 * 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	public void addToken(String cti, Map<String, CBORObject> claims) 
-	        throws ASException;
+	        throws AceException;
 	
 	/**
      * Deletes an existing token from the database
      * @param cti  the token identifier encoded Base64
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public void deleteToken(String cti) throws ASException;
+    public void deleteToken(String cti) throws AceException;
     
     /**
      * Deletes all expired tokens from the database
      * 
      * @param now  the current time
      * 
-     * @throws ASException 
+     * @throws AceException 
      */
-    public void purgeExpiredTokens(long now) throws ASException;
+    public void purgeExpiredTokens(long now) throws AceException;
 	
     
     /**
@@ -482,16 +482,16 @@ public interface DBConnector {
      * 
      * @return  the set of claims
      *  
-     * @throws ASException
+     * @throws AceException
      */
-    public Map<String, CBORObject> getClaims(String cti) throws ASException;
+    public Map<String, CBORObject> getClaims(String cti) throws AceException;
     
 	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
-	 * @throws ASException
+	 * @throws AceException
 	 */
-	public void close() throws ASException;
+	public void close() throws AceException;
 
 }

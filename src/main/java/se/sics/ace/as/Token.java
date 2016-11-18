@@ -61,7 +61,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.TokenException;
+import se.sics.ace.AceException;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -131,9 +131,9 @@ public class Token implements Endpoint {
 	
 	@Override
 	public Message processMessage(Message msg) 
-	        throws ASException, NoSuchAlgorithmException, 
+	        throws AceException, NoSuchAlgorithmException, 
 	        IllegalStateException, InvalidCipherTextException, 
-	        CoseException, TokenException {
+	        CoseException, AceException {
 		//1. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
@@ -248,9 +248,9 @@ public class Token implements Endpoint {
 	/**
 	 * Remove expired tokens from the storage.
 	 * 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
-	public void purgeExpiredTokens() throws ASException {
+	public void purgeExpiredTokens() throws AceException {
 	    this.db.purgeExpiredTokens(this.time.getCurrentTime());
 	}
 
@@ -258,9 +258,9 @@ public class Token implements Endpoint {
 	 * Removes a token from the registry
 	 * 
 	 * @param cti  the token identifier Base64 encoded
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
-	public void removeToken(String cti) throws ASException {
+	public void removeToken(String cti) throws AceException {
 	    this.db.deleteToken(cti);
 	}
 	
@@ -271,10 +271,10 @@ public class Token implements Endpoint {
 	 * @param cose
 	 * @return
 	 * @throws CoseException 
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	private CwtCryptoCtx makeCommonCtx(String aud) 
-	        throws ASException, CoseException {
+	        throws AceException, CoseException {
 	    COSEparams cose = this.db.getSupportedCoseParams(aud);
 	    if (cose == null) {
 	        return null;
@@ -318,10 +318,10 @@ public class Token implements Endpoint {
 	 * 
 	 * @param aud  the audience
 	 * @return  the recipient list
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
 	private List<Recipient> makeRecipients(String aud, COSEparams cose)
-	        throws ASException {
+	        throws AceException {
 	    List<Recipient> rl = new ArrayList<>();
 	    for (String rs : this.db.getRSS(aud)) {
 	        Recipient r = new Recipient();
@@ -343,9 +343,9 @@ public class Token implements Endpoint {
 	 * 
 	 * @param aud  the audience
 	 * @return  a common PSK or null if there isn't any
-	 * @throws ASException 
+	 * @throws AceException 
 	 */
-	private byte[] getCommonSecretKey(String aud) throws ASException {
+	private byte[] getCommonSecretKey(String aud) throws AceException {
 	    Set<String> rss = this.db.getRSS(aud);
 	    byte[] key = null;
 	    for (String rs : rss) {

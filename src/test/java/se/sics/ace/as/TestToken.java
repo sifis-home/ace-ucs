@@ -17,16 +17,20 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
+import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.KissTime;
 
 /**
  * Test the token endpoint class.
@@ -38,7 +42,9 @@ public class TestToken {
     
     static CBORObject cnKeyPublic;
     static CBORObject cnKeyPublicCompressed;
+    static CBORObject cnKeyPrivate;
     static ECPublicKeyParameters keyPublic;
+    static ECPrivateKeyParameters keyPrivate; 
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
     static SQLConnector db = null;
@@ -47,11 +53,11 @@ public class TestToken {
     
     /**
      * Set up tests.
+     * @throws AceException 
      * @throws SQLException 
-     * @throws ASException 
      */
     @BeforeClass
-    public static void setUp() throws ASException, SQLException {
+    public static void setUp() throws AceException, SQLException {
         Scanner reader = new Scanner(System.in);  // Reading from System.in
         System.out.println("Please input DB password to run tests: ");
         dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
@@ -67,10 +73,12 @@ public class TestToken {
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
         
         keyPublic = (ECPublicKeyParameters) p1.getPublic();
+        keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-
+        byte[] rgbD = keyPrivate.getD().toByteArray();
+        
         cnKeyPublic = CBORObject.NewMap();
         cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
         cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
@@ -84,6 +92,11 @@ public class TestToken {
                     KeyKeys.EC2_P256);
         cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
         cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        
+        cnKeyPrivate = CBORObject.NewMap();
+        cnKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        cnKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        cnKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -183,11 +196,11 @@ public class TestToken {
     /**
      * Deletes the test DB after the tests
      * 
-     * @throws ASException 
+     * @throws AceException 
      * @throws SQLException 
      */
     @AfterClass
-    public static void tearDown() throws ASException, SQLException {
+    public static void tearDown() throws AceException, SQLException {
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);
@@ -203,5 +216,24 @@ public class TestToken {
         db.close();
     }
     
+    
+    /**
+     * Test the token endpoint.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testToken() throws Exception {
+        
+        Token t = new Token("AS", 
+                KissPDP.getInstance("src/test/resources/acl.json"), db, 
+                new KissTime(), cnKeyPrivate);
+        
+        Map<String, CBORObject> params = new HashMap<>();
+        //FIXME:
+        TestMessage msg = new TestMessage("client_1", params);
+        
+        t.processMessage(msg);
+    }
 
 }

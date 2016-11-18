@@ -43,6 +43,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.json.JSONTokener;
 
+import se.sics.ace.AceException;
+
 /**
  * A simple PDP implementation for test purposes. Uses static ACLs for everything.
  * 
@@ -65,11 +67,11 @@ public class KissPDP implements PDP {
 	 * @param configurationFile  the file containing the PDP configuration in 
 	 * JSON format.
 	 * @return  the PDP
-	 * @throws ASException 
+	 * @throws AceException 
 	 * @throws IOException 
 	 */
 	public static KissPDP getInstance(String configurationFile) 
-				throws ASException, IOException {
+				throws AceException, IOException {
 		FileInputStream fs = new FileInputStream(configurationFile);
 		JSONTokener parser = new JSONTokener(fs);
 		JSONArray config = new JSONArray(parser);
@@ -77,7 +79,7 @@ public class KissPDP implements PDP {
 		//Parse the default values, empty Strings if there aren't any
 		if (!(config.get(0) instanceof JSONObject)) {
 			fs.close();
-			throw new ASException("Invalid PDP configuration");
+			throw new AceException("Invalid PDP configuration");
 		}
 		JSONObject defaults = (JSONObject)config.get(0);
 		String defaultScope = defaults.getString("defaultScope");
@@ -86,7 +88,7 @@ public class KissPDP implements PDP {
 		//Parse the clients allowed to access this AS
 		if (!(config.get(1) instanceof JSONArray)) {
 			fs.close();
-			throw new ASException("Invalid PDP configuration");
+			throw new AceException("Invalid PDP configuration");
 		}		
 		JSONArray clientsJ = (JSONArray)config.get(1);
 		Set<String> clients = new HashSet<>();
@@ -97,14 +99,14 @@ public class KissPDP implements PDP {
 				clients.add((String)next);
 			} else {
 				fs.close();
-				throw new ASException("Invalid PDP configuration");
+				throw new AceException("Invalid PDP configuration");
 			}
 		}
 		
 		//Parse the RS allowed to access this AS
 		if (!(config.get(2) instanceof JSONArray)) {
 			fs.close();
-			throw new ASException("Invalid PDP configuration");
+			throw new AceException("Invalid PDP configuration");
 		}
 		JSONArray rsJ = (JSONArray)config.get(2);
 		Set<String> rs = new HashSet<>();
@@ -115,14 +117,14 @@ public class KissPDP implements PDP {
 				rs.add((String)next);
 			} else {
 				fs.close();
-				throw new ASException("Invalid PDP configuration");
+				throw new AceException("Invalid PDP configuration");
 			}
 		}
 		
 		//Read the acl
 		if (!(config.get(3) instanceof JSONObject)) {
 			fs.close();
-			throw new ASException("Invalid PDP configuration");
+			throw new AceException("Invalid PDP configuration");
 		}
 		JSONObject aclJ = (JSONObject)config.get(3);
 		Map<String, Map<String, Set<String>>> acl = new HashMap<>();
@@ -132,7 +134,7 @@ public class KissPDP implements PDP {
 			String client = clientACL.next();
 			if (!(aclJ.get(client) instanceof JSONObject)) {
 				fs.close();
-				throw new ASException("Invalid PDP configuration");
+				throw new AceException("Invalid PDP configuration");
 			}
 			Map<String, Set<String>> audM = new HashMap<>(); 
 			JSONObject audJ = (JSONObject) aclJ.get(client);
@@ -142,7 +144,7 @@ public class KissPDP implements PDP {
 				String aud = audACL.next();
 				if (!(audJ.get(aud) instanceof JSONArray)) {
 					fs.close();
-					throw new ASException("Invalid PDP configuration");
+					throw new AceException("Invalid PDP configuration");
 				}
 				Set<String> scopeS = new HashSet<>();
 				JSONArray scopes = (JSONArray)audJ.get(aud);
@@ -152,7 +154,7 @@ public class KissPDP implements PDP {
 					Object scope = scopeI.next();
 					if (!(scope instanceof String)) {
 						fs.close();
-						throw new ASException("Invalid PDP configuration");
+						throw new AceException("Invalid PDP configuration");
 					}
 					scopeS.add((String)scope);				
 				}
@@ -219,7 +221,7 @@ public class KissPDP implements PDP {
 
 	@Override
 	public String canAccess(String clientId, String aud, String scope) 
-				throws ASException {
+				throws AceException {
 		Map<String,Set<String>> clientACL = this.acl.get(clientId);
 		if (clientACL == null || clientACL.isEmpty()) {
 			return null;

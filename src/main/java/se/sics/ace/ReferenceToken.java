@@ -88,9 +88,9 @@ public class ReferenceToken implements AccessToken {
 	}
 	
 	@Override
-	public boolean expired(long now) throws TokenException {
+	public boolean expired(long now) throws AceException {
 		if (this.introspect == null) {
-			throw new TokenException("Need IntrospectionHandler");
+			throw new AceException("Need IntrospectionHandler");
 		}
 		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
 		CBORObject expO = params.get("exp");
@@ -102,9 +102,9 @@ public class ReferenceToken implements AccessToken {
 	}
 
 	@Override
-	public boolean isValid(long now) throws TokenException {
+	public boolean isValid(long now) throws AceException {
 		if (this.introspect == null) {
-			throw new TokenException("Need IntrospectionHandler");
+			throw new AceException("Need IntrospectionHandler");
 		}
 		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
 		//Check nbf and exp for the found match

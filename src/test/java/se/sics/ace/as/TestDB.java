@@ -33,6 +33,8 @@ import COSE.MessageTag;
 
 import se.sics.ace.COSEparams;
 
+import se.sics.ace.AceException;
+
 
 /**
  * Test the database connection classes.
@@ -54,10 +56,10 @@ public class TestDB {
     /**
      * Set up tests.
      * @throws SQLException 
-     * @throws ASException 
+     * @throws AceException 
      */
     @BeforeClass
-    public static void setUp() throws SQLException, ASException {
+    public static void setUp() throws SQLException, AceException {
         Scanner reader = new Scanner(System.in);  // Reading from System.in
         System.out.println("Please input DB password to run tests: ");
         dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
@@ -194,10 +196,10 @@ public class TestDB {
      * Deletes the test DB after the tests
      * 
      * @throws SQLException 
-     * @throws ASException 
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, ASException {
+    public static void tearDown() throws SQLException, AceException {
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);
@@ -220,7 +222,7 @@ public class TestDB {
      * 
      * @throws Exception 
      */
-    @Test (expected=ASException.class)
+    @Test (expected=AceException.class)
     public void testAddDuplicateRS() throws Exception {
         Set<String> profiles = new HashSet<>();    
         Set<String> scopes = new HashSet<>();
@@ -240,7 +242,7 @@ public class TestDB {
      * 
      * @throws Exception 
      */
-    @Test (expected=ASException.class)
+    @Test (expected=AceException.class)
     public void testAddDuplicateClient() throws Exception {
         Set<String> profiles = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();

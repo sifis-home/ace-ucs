@@ -29,27 +29,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace;
 
 /**
- * Exceptions related to the internal PDP of the AS.
+ * Exceptions related to the /token endpoint of the AS.
  * 
  * @author Ludwig Seitz
  *
  */
-public class ASException extends Exception {
-
+public class AceException extends Exception {
+	
 	/**
 	 * 
 	 */
-	private static final long serialVersionUID = 1398418923862910956L;
+	private static final long serialVersionUID = 3140706692045141425L;
 
 	/**
 	 * Constructor.
 	 * 
 	 * @param msg  the error message
 	 */
-	public ASException(String msg) {
+	public AceException(String msg) {
 		super(msg);
 	}
 }

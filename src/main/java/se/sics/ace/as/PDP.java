@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import se.sics.ace.AceException;
+
 /**
  * An interface for the Policy Decision Point that this AS uses to make 
  * authorization decisions.
@@ -69,8 +71,9 @@ public interface PDP {
 	 * 			   there are several
 	 * 
 	 * @return  The scopes that can be granted or null if access id denied
-	 * @throws ASException 
+	 * 
+	 *  @throws AceException  
 	 */
 	public abstract String canAccess(String clientId, String aud, 
-				String scopes) throws ASException;
+				String scopes) throws AceException;
 }
