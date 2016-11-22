@@ -202,6 +202,7 @@ public class XacmlPDP implements PDP {
 				SUBJECT_CAT, Collections.singleton(subject));
 		attributes.add(subjectCat);
 		
+		//FIXME:
 		String audStr = aud;
 		if (aud == null || aud.isEmpty()) {
 			if (this.defaultAud.isEmpty()) {

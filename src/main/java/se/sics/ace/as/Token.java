@@ -127,6 +127,8 @@ public class Token implements Endpoint {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.db = db;
+	    this.time = time;
+	    this.privateKey = privateKey;
 	}
 	
 	@Override
@@ -141,21 +143,27 @@ public class Token implements Endpoint {
 		}
 		
 		//2. Check if this client can request this type of token
-		String scope = msg.getParameter("scope").AsString();
-		if (scope == null) {
+		CBORObject cbor = msg.getParameter("scope");
+		String scope = null;
+		if (cbor == null ) {
 			scope = this.db.getDefaultScope(id);
-			if (scope == null) {
-				return msg.failReply(Message.FAIL_BAD_REQUEST, 
-						CBORObject.FromObject("request lacks scope"));
-			}
+		} else {
+		    scope = cbor.AsString();
 		}
-		String aud = msg.getParameter("aud").AsString();
+		if (scope == null) {
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+		            CBORObject.FromObject("request lacks scope"));
+		}
+		cbor = msg.getParameter("aud");
+		String aud = null;
+		if (cbor == null) {
+		    aud = this.db.getDefaultAudience(id);
+		} else {
+		    aud = cbor.AsString();
+		}
 		if (aud == null) {
-			aud = this.db.getDefaultAudience(id);
-			if (aud == null) {
-				return msg.failReply(Message.FAIL_BAD_REQUEST,
-						CBORObject.FromObject("request lacks audience"));
-			}
+		    return msg.failReply(Message.FAIL_BAD_REQUEST,
+		            CBORObject.FromObject("request lacks audience"));
 		}
 		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
 		

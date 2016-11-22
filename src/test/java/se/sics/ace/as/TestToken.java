@@ -91,10 +91,11 @@ public class TestToken {
      */
     @BeforeClass
     public static void setUp() throws AceException, SQLException {
-        Scanner reader = new Scanner(System.in);  // Reading from System.in
-        System.out.println("Please input DB password to run tests: ");
-        dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
-        reader.close();
+        //Scanner reader = new Scanner(System.in);  // Reading from System.in
+        //System.out.println("Please input DB password to run tests: ");
+        //dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
+        //reader.close();
+        dbPwd = "";
         
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
@@ -168,6 +169,7 @@ public class TestToken {
         profiles.remove("coap_oscoap");
         scopes.clear();
         auds.remove("actuators");
+        auds.add("fail");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
@@ -179,10 +181,11 @@ public class TestToken {
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
+        auds.add("fail");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
-        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
         coseP = new COSEparams(MessageTag.MAC0, 
                 AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
@@ -258,7 +261,7 @@ public class TestToken {
     @Test
     public void testToken() throws Exception {
         Token t = new Token("AS", 
-                KissPDP.getInstance("src/test/resources/acl.json"), db, 
+                KissPDP.getInstance("src/test/resources/acl.json", db), db,
                 new KissTime(), cnKeyPrivate);
         
         Map<String, CBORObject> params = new HashMap<>();
@@ -269,6 +272,51 @@ public class TestToken {
         Assert.assertNull(response.getRawPayload());
         assert(response.getSenderId().equals("TestRS"));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        
+        msg = new TestMessage(-1, "clientA", params);
+        response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.FromObject("request lacks scope");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+                cbor.EncodeToBytes());
+        
+        params.put("scope", CBORObject.FromObject("blah"));
+        msg = new TestMessage(-1, "clientA", params);
+        response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        cbor = CBORObject.FromObject("request lacks audience");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+                cbor.EncodeToBytes());
+        
+        params.put("aud", CBORObject.FromObject("blubb"));
+        msg = new TestMessage(-1, "clientA", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
+        Assert.assertNull(response.getRawPayload());
+        
+        params.put("aud", CBORObject.FromObject("fail"));
+        params.put("scope", CBORObject.FromObject("fail"));
+        msg = new TestMessage(-1, "clientB", params);
+        response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode()
+                == Message.FAIL_INTERNAL_SERVER_ERROR);
+        cbor = CBORObject.FromObject("Audience incompatiblerequest lacks audience");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+                cbor.EncodeToBytes());
+        
+//        params.put("aud", CBORObject.FromObject("rs1"));
+//        params.put("scope", CBORObject.FromObject("r_temp"));
+//        msg = new TestMessage(-1, "clientA", params);
+//        response = t.processMessage(msg);
+//        System.out.println(CBORObject.DecodeFromBytes(
+//                response.getRawPayload()).toString());
     }
+    
 
 }

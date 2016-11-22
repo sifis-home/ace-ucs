@@ -53,44 +53,28 @@ import se.sics.ace.AceException;
  */
 public class KissPDP implements PDP {
 
-	/**
-	 * Default audience if the AS serves just very few RSs
-	 */
-	private String defaultAud;
-	
-	/**
-	 * Default scope if the RSs served by this AS support only one
-	 */
-	private String defaultScope;
-	
+    private DBConnector db = null;
+    
 	/**
 	 * @param configurationFile  the file containing the PDP configuration in 
 	 * JSON format.
+	 * @param db  the database connector
 	 * @return  the PDP
 	 * @throws AceException 
 	 * @throws IOException 
 	 */
-	public static KissPDP getInstance(String configurationFile) 
+	public static KissPDP getInstance(String configurationFile, DBConnector db) 
 				throws AceException, IOException {
 		FileInputStream fs = new FileInputStream(configurationFile);
 		JSONTokener parser = new JSONTokener(fs);
 		JSONArray config = new JSONArray(parser);
 		
-		//Parse the default values, empty Strings if there aren't any
-		if (!(config.get(0) instanceof JSONObject)) {
-			fs.close();
-			throw new AceException("Invalid PDP configuration");
-		}
-		JSONObject defaults = (JSONObject)config.get(0);
-		String defaultScope = defaults.getString("defaultScope");
-		String defaultAud = defaults.getString("defaultAud");
-		
 		//Parse the clients allowed to access this AS
-		if (!(config.get(1) instanceof JSONArray)) {
+		if (!(config.get(0) instanceof JSONArray)) {
 			fs.close();
 			throw new AceException("Invalid PDP configuration");
 		}		
-		JSONArray clientsJ = (JSONArray)config.get(1);
+		JSONArray clientsJ = (JSONArray)config.get(0);
 		Set<String> clients = new HashSet<>();
 		Iterator<Object> it = clientsJ.iterator();
 		while (it.hasNext()) {
@@ -104,11 +88,11 @@ public class KissPDP implements PDP {
 		}
 		
 		//Parse the RS allowed to access this AS
-		if (!(config.get(2) instanceof JSONArray)) {
+		if (!(config.get(1) instanceof JSONArray)) {
 			fs.close();
 			throw new AceException("Invalid PDP configuration");
 		}
-		JSONArray rsJ = (JSONArray)config.get(2);
+		JSONArray rsJ = (JSONArray)config.get(1);
 		Set<String> rs = new HashSet<>();
 		it = rsJ.iterator();
 		while (it.hasNext()) {
@@ -122,11 +106,11 @@ public class KissPDP implements PDP {
 		}
 		
 		//Read the acl
-		if (!(config.get(3) instanceof JSONObject)) {
+		if (!(config.get(2) instanceof JSONObject)) {
 			fs.close();
 			throw new AceException("Invalid PDP configuration");
 		}
-		JSONObject aclJ = (JSONObject)config.get(3);
+		JSONObject aclJ = (JSONObject)config.get(2);
 		Map<String, Map<String, Set<String>>> acl = new HashMap<>();
 		Iterator<String> clientACL = aclJ.keys();
 		//Iterate through the client_ids
@@ -163,7 +147,7 @@ public class KissPDP implements PDP {
 			acl.put(client, audM);
 		}
 		fs.close();
-		return new KissPDP(defaultAud, defaultScope, clients, rs, acl);
+		return new KissPDP(clients, rs, acl, db);
 	}
 	
 	/**
@@ -189,8 +173,6 @@ public class KissPDP implements PDP {
 	/**
 	 * Constructor.
 	 * 
-	 * @param defaultAud  the default Audience or empty String if there is none
-	 * @param defaultScope  the default Scope or empty String if there is none
 	 * @param clients  the clients authorized to make requests to /token
 	 * @param rs  the RSs authorized to make requests to /introspect
 	 * @param acl   the access tokens clients can request. This maps
@@ -198,15 +180,18 @@ public class KissPDP implements PDP {
 	 * 	are split up by whitespace (e.g. a scope of "r_basicprofile 
 	 * r_emailaddress rw_groups w_messages" would become four scopes 
 	 * "r_basicprofile", "r_emailaddress", "rw_groups" and "w_messages".
+	 * @param db  the database connector.
 	 */
-	public KissPDP(String defaultAud, String defaultScope, Set<String> clients,
-			Set<String> rs,	Map<String, Map<String,Set<String>>> acl) {
+	public KissPDP(Set<String> clients,
+			Set<String> rs,	Map<String, Map<String,Set<String>>> acl,
+			DBConnector db) {
 		this.clients = new HashSet<>();
 		this.clients.addAll(clients);
 		this.rs = new HashSet<>();
 		this.rs.addAll(rs);
 		this.acl = new HashMap<>();
 		this.acl.putAll(acl);
+		this.db = db;
 	}
 	
 	@Override
@@ -226,28 +211,35 @@ public class KissPDP implements PDP {
 		if (clientACL == null || clientACL.isEmpty()) {
 			return null;
 		}
-		
-		String audStr = aud;
-		if (aud == null || aud.isEmpty()) {
-			if (this.defaultAud.isEmpty()) {
-				return null;
-			}
-			audStr = this.defaultAud;
+
+		Set<String> scopes = null;
+		Set<String> rss = this.db.getRSS(aud);
+		if (rss == null) {
+		    return null;
 		}
-		
-		Set<String> scopes = clientACL.get(audStr);
+		for (String rs : rss) {
+		    if (scopes == null) {
+		        scopes = new HashSet<>();
+		        Set<String> bar = clientACL.get(rs);
+		        if (bar != null) {
+		            scopes.addAll(bar);
+		        }
+		    } else {
+		        Set<String> remains = new HashSet<>(scopes);
+		        for (String foo : scopes) {
+		            if (!clientACL.get(rs).contains(foo)) {
+		                remains.remove(foo);
+		            }
+		        }
+		        scopes = remains;
+		    }
+		}
+		   
 		if (scopes == null || scopes.isEmpty()) {
 			return null;
 		}
 		
 		String scopeStr = scope;
-		if (scope == null || scope.isEmpty()) {
-			if (this.defaultScope.isEmpty()) {
-				return null;
-			}
-			scopeStr = this.defaultScope;
-		}
-		
 		String[] requestedScopes = scopeStr.split(" ");
 		String grantedScopes = "";
 		for (int i=0; i<requestedScopes.length; i++) {
