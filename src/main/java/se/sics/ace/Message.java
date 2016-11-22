@@ -103,20 +103,26 @@ public interface Message {
 	 */
 	public static int FAIL_NOT_IMPLEMENTED = 501;
 
+	/**
+	 * @return  the success/failure code
+	 */
+	public int getMessageCode();
+	
 	
 	/**
-	 * @return  the raw bytes of the payload
-	 */
+	 * @return  the raw bytes of the payload, null if the payload is empty.
+	 */ 
 	public byte[] getRawPayload();
 	
 	/**
 	 * @return  The senders identity. This is assumed to have been authenticated by a lower
-	 * 	level protocol.
+	 * 	level protocol. Null if we don't have an authenticated identity
 	 */
 	public String getSenderId();
 	
 	/**
-	 * @return  a set of the parameter names, may be empty.
+	 * @return  a set of the parameter names, null if the message does not
+     *     have a parameter map in the payload.
 	 */
 	public Set<String> getParameterNames();
 	
@@ -124,12 +130,15 @@ public interface Message {
      * Returns a parameter, or null if the parameter does not exist
      * 
 	 * @param name  the name of the parameter
-	 * @return  the parameter value or null if it doesn't exist
+	 * @return  the parameter value or null if it doesn't exist or the 
+	 *     message does not have a parameter map in the payload.
 	 */
 	public CBORObject getParameter(String name);
 	
 	/**
-	 * @return  the <code>Map</code> of parameters for this message.
+	 * @return  the <code>Map</code> of parameters for this message or
+	 *     null if the message does not have a parameter map in the    
+	 *     payload.
 	 */
 	public Map<String, CBORObject> getParameters();
 	
@@ -139,7 +148,8 @@ public interface Message {
 	 * @param code  the success code
 	 * @param payload  the payload of the reply, can be null.
 	 * 
-	 * @return  the reply message
+	 * @return  the reply message or null if the implementing class does not 
+     *     support generating messages
 	 */
 	public abstract Message successReply(int code, CBORObject payload);
 	
@@ -149,7 +159,8 @@ public interface Message {
 	 * @param failureReason  the failure reason code.
 	 * @param payload  the payload of the reply, can be null.
 	 * 
-	 * @return  the reply message
+	 * @return  the reply message or null if the implementing class does not 
+	 *     support generating messages
 	 */
 	public abstract Message failReply(int failureReason, CBORObject payload);
 

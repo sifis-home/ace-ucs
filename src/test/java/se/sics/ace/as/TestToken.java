@@ -1,3 +1,34 @@
+/*******************************************************************************
+ * Copyright (c) 2016, SICS Swedish ICT AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 package se.sics.ace.as;
 
 import java.sql.Connection;
@@ -20,6 +51,7 @@ import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
 import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -31,6 +63,7 @@ import COSE.MessageTag;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.KissTime;
+import se.sics.ace.Message;
 
 /**
  * Test the token endpoint class.
@@ -224,16 +257,18 @@ public class TestToken {
      */
     @Test
     public void testToken() throws Exception {
-        
         Token t = new Token("AS", 
                 KissPDP.getInstance("src/test/resources/acl.json"), db, 
                 new KissTime(), cnKeyPrivate);
         
         Map<String, CBORObject> params = new HashMap<>();
-        //FIXME:
-        TestMessage msg = new TestMessage("client_1", params);
+
+        TestMessage msg = new TestMessage(-1, "client_1", params);
         
-        t.processMessage(msg);
+        Message response = t.processMessage(msg);
+        Assert.assertNull(response.getRawPayload());
+        assert(response.getSenderId().equals("TestRS"));
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
     }
 
 }
