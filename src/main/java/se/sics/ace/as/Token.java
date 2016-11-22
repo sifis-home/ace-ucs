@@ -200,9 +200,14 @@ public class Token implements Endpoint {
 
 		//Find supported profile
 		String profile = this.db.getSupportedProfile(id, aud);
-
-		if (tokenType != AccessTokenFactory.CWT_TYPE &&
-		        tokenType != AccessTokenFactory.REF_TYPE) {
+		if (profile == null) {
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
+                    CBORObject.FromObject("Audience incompatible"));
+		}
+		
+		
+		if (tokenType != AccessTokenFactory.CWT_TYPE 
+		        && tokenType != AccessTokenFactory.REF_TYPE) {
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, 
 		            CBORObject.FromObject("Unsupported token type"));
 		}

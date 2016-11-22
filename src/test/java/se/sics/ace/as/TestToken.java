@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -73,24 +74,24 @@ import se.sics.ace.Message;
  */
 public class TestToken {
     
-    static CBORObject cnKeyPublic;
-    static CBORObject cnKeyPublicCompressed;
-    static CBORObject cnKeyPrivate;
-    static ECPublicKeyParameters keyPublic;
-    static ECPrivateKeyParameters keyPrivate; 
-    static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    
-    static SQLConnector db = null;
-    
+    private static CBORObject cnKeyPublic;
+    private static CBORObject cnKeyPublicCompressed;
+    private static CBORObject cnKeyPrivate;
+    private static ECPublicKeyParameters keyPublic;
+    private static ECPrivateKeyParameters keyPrivate; 
+    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static SQLConnector db = null;
     private static String dbPwd = null;
+    private static Token t = null;
     
     /**
      * Set up tests.
      * @throws AceException 
      * @throws SQLException 
+     * @throws IOException 
      */
     @BeforeClass
-    public static void setUp() throws AceException, SQLException {
+    public static void setUp() throws AceException, SQLException, IOException {
         //Scanner reader = new Scanner(System.in);  // Reading from System.in
         //System.out.println("Please input DB password to run tests: ");
         //dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
@@ -227,6 +228,9 @@ public class TestToken {
         claims.put("exp", CBORObject.FromObject(2000000L));
         claims.put("cid", CBORObject.FromObject("token2"));
         db.addToken(cid, claims);
+        t = new Token("AS", 
+                KissPDP.getInstance("src/test/resources/acl.json", db), db,
+                new KissTime(), cnKeyPrivate); 
     }
     
     /**
@@ -254,69 +258,209 @@ public class TestToken {
     
     
     /**
-     * Test the token endpoint.
+     * Test the token endpoint. Request should fail since it is unauthorized.
      * 
      * @throws Exception
      */
     @Test
-    public void testToken() throws Exception {
-        Token t = new Token("AS", 
-                KissPDP.getInstance("src/test/resources/acl.json", db), db,
-                new KissTime(), cnKeyPrivate);
-        
+    public void testFailUnauthorized() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
-
-        TestMessage msg = new TestMessage(-1, "client_1", params);
-        
+        TestMessage msg = new TestMessage(-1, "client_1", params); 
         Message response = t.processMessage(msg);
         Assert.assertNull(response.getRawPayload());
-        assert(response.getSenderId().equals("TestRS"));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
-        
-        msg = new TestMessage(-1, "clientA", params);
-        response = t.processMessage(msg);
+    }
+    
+
+    /**
+     * Test the token endpoint. Request should fail since the scope is missing.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailBadScope() throws Exception {
+        Map<String, CBORObject> params = new HashMap<>();
+        TestMessage msg = new TestMessage(-1, "clientA", params);
+        Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.FromObject("request lacks scope");
         Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
-        
+        cbor.EncodeToBytes());
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience is missing.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailBadAudience() throws Exception {
+        Map<String, CBORObject> params = new HashMap<>();
         params.put("scope", CBORObject.FromObject("blah"));
-        msg = new TestMessage(-1, "clientA", params);
-        response = t.processMessage(msg);
+        TestMessage msg = new TestMessage(-1, "clientA", params);
+        Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        cbor = CBORObject.FromObject("request lacks audience");
+        CBORObject cbor = CBORObject.FromObject("request lacks audience");
         Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
-        
+        cbor.EncodeToBytes());
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience is missing.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailForbidden() throws Exception {  
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("scope", CBORObject.FromObject("blah"));
         params.put("aud", CBORObject.FromObject("blubb"));
-        msg = new TestMessage(-1, "clientA", params);
-        response = t.processMessage(msg);
+        Message msg = new TestMessage(-1, "clientA", params);
+        Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
         Assert.assertNull(response.getRawPayload());
-        
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience does not support
+     * a common token type.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailIncompatibleTokenType() throws Exception { 
+        Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("fail"));
         params.put("scope", CBORObject.FromObject("fail"));
-        msg = new TestMessage(-1, "clientB", params);
-        response = t.processMessage(msg);
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        cbor = CBORObject.FromObject("Audience incompatiblerequest lacks audience");
+        CBORObject cbor = CBORObject.FromObject("Audience incompatible");
         Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
-        
-//        params.put("aud", CBORObject.FromObject("rs1"));
-//        params.put("scope", CBORObject.FromObject("r_temp"));
-//        msg = new TestMessage(-1, "clientA", params);
-//        response = t.processMessage(msg);
-//        System.out.println(CBORObject.DecodeFromBytes(
-//                response.getRawPayload()).toString());
+        cbor.EncodeToBytes());
+    } 
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience does not support
+     * a common profile.
+     * 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailIncompatibleProfile() throws Exception {
+        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("fail"));
+        params.put("scope", CBORObject.FromObject("fail"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode()
+                == Message.FAIL_INTERNAL_SERVER_ERROR);
+        CBORObject cbor = CBORObject.FromObject("Audience incompatible");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+        cbor.EncodeToBytes());
     }
     
-
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience supports
+     * an unknown token type.
+     *  
+     * @throws Exception
+     */
+    @Test
+    public void testFailUnsupportedTokenType() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the client failed to provide an
+     * RPK. 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailRpkNotProvided() throws Exception { 
+        //FIXME:
+//      params.put("aud", CBORObject.FromObject("rs1"));
+//      params.put("scope", CBORObject.FromObject("r_temp"));
+//      msg = new TestMessage(-1, "clientA", params);
+//      response = t.processMessage(msg);
+//      System.out.println(CBORObject.DecodeFromBytes(
+//              response.getRawPayload()).toString());
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the client provided an
+     * unknown key type. 
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailUnknownKeyType() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should fail since the audience does not
+     * have a common CwtCryptoCtx
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testFailIncompatibleCwt() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should succeed.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSucceed() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. Test purging expired tokens.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testPurge() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. Test removing a specific token.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testRemoveToken() throws Exception { 
+        //FIXME:
+    }
 }
