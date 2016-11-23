@@ -227,6 +227,10 @@ public class KissPDP implements PDP {
 		    } else {
 		        Set<String> remains = new HashSet<>(scopes);
 		        for (String foo : scopes) {
+		            if (clientACL.get(rs) == null ) { 
+		                //The client can access nothing on this RS
+		                return null;
+		            }
 		            if (!clientACL.get(rs).contains(foo)) {
 		                remains.remove(foo);
 		            }

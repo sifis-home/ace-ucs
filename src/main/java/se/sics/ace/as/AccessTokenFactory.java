@@ -59,9 +59,15 @@ public class AccessTokenFactory {
 	public static final int REF_TYPE = 1;
 	
 	/**
+     * The type identifier for test tokens
+     */
+    public static final int TEST_TYPE = 2;
+    
+	
+	/**
      * Array of String values for the token type
      */
-    public static final String[] ABBREV = {"CWT", "REF"};
+    public static final String[] ABBREV = {"CWT", "REF", "TST"};
 	
 	/**
 	 * Default length of the reference tokens

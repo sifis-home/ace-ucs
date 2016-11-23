@@ -40,7 +40,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.Set;
 
 import org.bouncycastle.asn1.nist.NISTNamedCurves;
@@ -170,7 +169,7 @@ public class TestToken {
         profiles.remove("coap_oscoap");
         scopes.clear();
         auds.remove("actuators");
-        auds.add("fail");
+        auds.add("failTokenType");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
@@ -182,7 +181,8 @@ public class TestToken {
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
-        auds.add("fail");
+        auds.add("failTokenType");
+        auds.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -195,6 +195,55 @@ public class TestToken {
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, null, cnKeyPublicCompressed);
         
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.add("co2");
+        auds.clear();
+        auds.add("failProfile");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.MAC0, 
+                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 30000L;
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, cnKeyPublicCompressed);
+        
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.add("co2");
+        auds.clear();
+        auds.add("failTokenNotImplemented");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.TEST_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.MAC0, 
+                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 30000L;
+        db.addRS("rs5", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, cnKeyPublicCompressed);
+        
+        profiles.clear();
+        profiles.add("coap_oscoap");
+        scopes.add("co2");
+        auds.clear();
+        keyTypes.clear();
+        keyTypes.add("TST");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.MAC0, 
+                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 30000L;
+        db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, cnKeyPublicCompressed);
         
         //Setup client entries
         profiles.clear();
@@ -208,6 +257,12 @@ public class TestToken {
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", keyTypes, key128, null);
+        
+        profiles.clear();
+        profiles.add("coap_oscoap");
+        keyTypes.clear();
+        keyTypes.add("TST");        
+        db.addClient("clientC", profiles, "co2", "sensors", keyTypes, key128, null);
         
         //Setup token entries
         String cid = "token1";
@@ -341,15 +396,16 @@ public class TestToken {
     @Test
     public void testFailIncompatibleTokenType() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("aud", CBORObject.FromObject("fail"));
-        params.put("scope", CBORObject.FromObject("fail"));
+        params.put("aud", CBORObject.FromObject("failTokenType"));
+        params.put("scope", CBORObject.FromObject("failTokenType"));
         Message msg = new TestMessage(-1, "clientB", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject("Audience incompatible");
+        CBORObject cbor = CBORObject.FromObject(
+                "Audience incompatible on token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     } 
@@ -364,17 +420,16 @@ public class TestToken {
      */
     @Test
     public void testFailIncompatibleProfile() throws Exception {
-        //FIXME:
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("aud", CBORObject.FromObject("fail"));
-        params.put("scope", CBORObject.FromObject("fail"));
+        params.put("aud", CBORObject.FromObject("failProfile"));
+        params.put("scope", CBORObject.FromObject("failProfile"));
         Message msg = new TestMessage(-1, "clientB", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject("Audience incompatible");
+        CBORObject cbor = CBORObject.FromObject("Audience incompatible on profile");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -388,7 +443,18 @@ public class TestToken {
      */
     @Test
     public void testFailUnsupportedTokenType() throws Exception { 
-        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs5"));
+        params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode()
+                == Message.FAIL_NOT_IMPLEMENTED);
+        CBORObject cbor = CBORObject.FromObject("Unsupported token type");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+        cbor.EncodeToBytes());
     }
     
     /**
@@ -400,13 +466,17 @@ public class TestToken {
      */
     @Test
     public void testFailRpkNotProvided() throws Exception { 
-        //FIXME:
-//      params.put("aud", CBORObject.FromObject("rs1"));
-//      params.put("scope", CBORObject.FromObject("r_temp"));
-//      msg = new TestMessage(-1, "clientA", params);
-//      response = t.processMessage(msg);
-//      System.out.println(CBORObject.DecodeFromBytes(
-//              response.getRawPayload()).toString());
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs2"));
+        params.put("scope", CBORObject.FromObject("r_light"));
+        Message msg = new TestMessage(-1, "clientA", params);
+        Message response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.FromObject("Client needs to provide RPK");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+        cbor.EncodeToBytes());
     }
     
     /**
@@ -417,8 +487,18 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-    public void testFailUnknownKeyType() throws Exception { 
-        //FIXME:
+    public void testFailUnknownKeyType() throws Exception {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs6"));
+        params.put("scope", CBORObject.FromObject("r_valve"));
+        Message msg = new TestMessage(-1, "clientC", params);
+        Message response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode() == Message.FAIL_NOT_IMPLEMENTED);
+        CBORObject cbor = CBORObject.FromObject("Unsupported key type");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+        cbor.EncodeToBytes());
     }
     
     /**

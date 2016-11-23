@@ -614,7 +614,7 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.dbName + "."
 		        + DBConnector.keyTypesTable + "(" 
 		        + DBConnector.idColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.keyTypeColumn + " enum('PSK', 'RPK'));";
+		        + DBConnector.keyTypeColumn + " enum('PSK', 'RPK', 'TST'));";
 
 		String createScopes = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."
@@ -626,7 +626,7 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.dbName + "."
 		        + DBConnector.tokenTypesTable + "(" 
 		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.tokenTypeColumn + " enum('CWT', 'REF'));";
+		        + DBConnector.tokenTypeColumn + " enum('CWT', 'REF', 'TST'));";
 
 		String createAudiences = "CREATE TABLE IF NOT EXISTS " 
 		        + DBConnector.dbName + "."

@@ -177,7 +177,8 @@ public class Token implements Endpoint {
 		Integer tokenType = this.db.getSupportedTokenType(aud);
 		if (tokenType == null) {
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
-		            CBORObject.FromObject("Audience incompatible"));
+		            CBORObject.FromObject(
+		                    "Audience incompatible on token type"));
 		}
 		
 		
@@ -202,9 +203,9 @@ public class Token implements Endpoint {
 		String profile = this.db.getSupportedProfile(id, aud);
 		if (profile == null) {
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
-                    CBORObject.FromObject("Audience incompatible"));
+                    CBORObject.FromObject(
+                            "Audience incompatible on profile"));
 		}
-		
 		
 		if (tokenType != AccessTokenFactory.CWT_TYPE 
 		        && tokenType != AccessTokenFactory.REF_TYPE) {
