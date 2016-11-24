@@ -64,6 +64,8 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.KissTime;
 import se.sics.ace.Message;
+import se.sics.ace.cwt.CWT;
+import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Test the token endpoint class.
@@ -111,7 +113,7 @@ public class TestToken {
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();
+        byte[] rgbD = keyPrivate.getD().toByteArray();      
         
         cnKeyPublic = CBORObject.NewMap();
         cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -275,7 +277,7 @@ public class TestToken {
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, key128, null);
+        db.addClient("clientB", profiles, "co2", "rs1", keyTypes, key128, null);
         
         profiles.clear();
         profiles.add("coap_oscoap");
@@ -529,7 +531,6 @@ public class TestToken {
      */
     @Test
     public void testFailIncompatibleCwt() throws Exception { 
-        //FIXME:
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("failCWTpar"));
         params.put("scope", CBORObject.FromObject("co2"));
@@ -553,7 +554,21 @@ public class TestToken {
      */
     @Test
     public void testSucceedDefaultScope() throws Exception { 
-        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs1"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        TestMessage.unabbreviate(rparams);
+        System.out.println(rparams.toString());
+        assert(response.getMessageCode() 
+                == Message.CREATED);
+        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+                cnKeyPublic, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        System.out.println("Access Token: " + cwt.toString());
     }
     
     /**
@@ -564,7 +579,21 @@ public class TestToken {
      */
     @Test
     public void testSucceedDefaultAud() throws Exception { 
-        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("co2"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        TestMessage.unabbreviate(rparams);
+        System.out.println(rparams.toString());
+        assert(response.getMessageCode() 
+                == Message.CREATED);
+        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+                cnKeyPublic, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        System.out.println("Access Token: " + cwt.toString());
     }
     
     /**

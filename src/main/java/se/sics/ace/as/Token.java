@@ -104,6 +104,7 @@ public class Token implements Endpoint {
 	
 	/**
 	 * The counter for generating the cti
+	 * FIXME: need to save this to avoid resetting each time this is restarted
 	 */
 	private Long cti = 0L;
 

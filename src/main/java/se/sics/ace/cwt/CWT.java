@@ -405,4 +405,9 @@ public class CWT implements AccessToken {
 		return false;		
 	}
 	
+	@Override
+	public String toString() {
+	    return this.claims.toString();
+	}
+	
 }

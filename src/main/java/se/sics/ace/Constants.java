@@ -80,7 +80,7 @@ public class Constants {
 		"nbf", "iat", "cti", "client_id", "client_secret", "response_type",
 		"redirect_uri", "scope", "state", "code", "error_description", 
 		"error_uri", "grant_type", "access_token", "token_type", "expires_in",
-		"username", "password", "refresh_token", "alg", "cnf", "profile", 
+		"username", "password", "refresh_token", "cnf", "profile", 
 		"active", "client_token", "rs_cnf"};
 	
 	
