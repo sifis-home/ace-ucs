@@ -214,13 +214,14 @@ public interface DBConnector {
 	/**
 	 * Gets a common profile supported by a specific audience and client.
 	 * 
+     * @param clientId  the client identifier
 	 * @param audience  the audience identifier
-	 * @param clientId  the client identifier
+	 * 
 	 * @return  a profile they all support or null if there isn't any
 	 * 
 	 * @throws AceException 
 	 */
-	public String getSupportedProfile(String audience, String clientId) 
+	public String getSupportedProfile(String clientId, String audience) 
 	            throws AceException;
     
 	/**

@@ -712,7 +712,7 @@ public class SQLConnector implements DBConnector {
 	
     @Override
     public synchronized String getSupportedProfile(
-            String audience, String clientId) throws AceException {
+            String clientId, String audience) throws AceException {
         Map<String, Set<String>> rsProfiles = new HashMap<>();
         Set<String> clientProfiles = new HashSet<>();
         try {
@@ -811,7 +811,8 @@ public class SQLConnector implements DBConnector {
                 refSet = new HashSet<>();
                 refSet.addAll(rs.getValue());
             } else {
-                for (String tokenType : refSet) {
+                Set<String> iterSet = new HashSet<>(refSet);
+                for (String tokenType : iterSet) {
                     if (!rs.getValue().contains(tokenType)) {
                         refSet.remove(tokenType);
                     }

@@ -147,6 +147,7 @@ public class TestToken {
         Set<String> auds = new HashSet<>();
         auds.add("sensors");
         auds.add("actuators");
+        auds.add("failCWTpar");
         
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -168,7 +169,8 @@ public class TestToken {
         
         profiles.remove("coap_oscoap");
         scopes.clear();
-        auds.remove("actuators");
+        auds.clear();
+        auds.add("sensors");
         auds.add("failTokenType");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
@@ -197,7 +199,6 @@ public class TestToken {
         
         profiles.clear();
         profiles.add("coap_dtls");
-        scopes.add("co2");
         auds.clear();
         auds.add("failProfile");
         keyTypes.clear();
@@ -243,6 +244,24 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, cnKeyPublicCompressed);
+        
+        
+        profiles.clear();
+        profiles.add("coap_oscoap");
+        scopes.add("co2");
+        auds.clear();
+        auds.add("failCWTpar");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.MAC0, 
+                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 30000L;
+        db.addRS("rs7", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, null, cnKeyPublicCompressed);
         
         //Setup client entries
@@ -429,7 +448,7 @@ public class TestToken {
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject("Audience incompatible on profile");
+        CBORObject cbor = CBORObject.FromObject("No compatible profile found");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -446,7 +465,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("rs5"));
         params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
-        Message msg = new TestMessage(-1, "clientB", params);
+        Message msg = new TestMessage(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -510,6 +529,41 @@ public class TestToken {
      */
     @Test
     public void testFailIncompatibleCwt() throws Exception { 
+        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("failCWTpar"));
+        params.put("scope", CBORObject.FromObject("co2"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        System.out.println(CBORObject.DecodeFromBytes(
+                response.getRawPayload()).toString());
+        assert(response.getMessageCode() 
+                == Message.FAIL_INTERNAL_SERVER_ERROR);
+        CBORObject cbor = CBORObject.FromObject(
+                "No common security context found for audience");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+        cbor.EncodeToBytes());
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should succeed with default scope.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSucceedDefaultScope() throws Exception { 
+        //FIXME:
+    }
+    
+    /**
+     * Test the token endpoint. 
+     * Request should succeed with default audience.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSucceedDefaultAud() throws Exception { 
         //FIXME:
     }
     

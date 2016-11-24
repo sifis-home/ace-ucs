@@ -1,17 +1,19 @@
 [
 	["clientA", "clientB", "clientC"],
-	["rs1", "rs2", "rs3"],
+	["rs1", "rs2", "rs3", "rs4", "rs5", "rs6", "rs7"],
 	{
 		"clientA" : {
 			"rs1" : ["r_temp", "rw_config"],
-			"rs2" : ["r_light"]
+			"rs2" : ["r_light"],
+			"rs5" : ["failTokenNotImplemented"]
 		},
 		"clientB" : {
-			"rs1" : ["r_temp"],
+			"rs1" : ["r_temp", "co2"],
 			"rs2" : ["r_light", "r_config", "failTokenType"],
 			"rs3" : ["rw_valve", "r_pressure", "failTokenType", "failProfile"],
 			"rs4" : ["failProfile"],
-			"rs5" : ["failTokenNotImplemented"]
+			"rs6" : ["co2"],
+			"rs7" : ["co2"]
 		},
 		"clientC" : {
 			"rs3" : ["r_valve", "r_pressure"],

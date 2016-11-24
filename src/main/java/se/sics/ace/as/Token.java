@@ -204,7 +204,7 @@ public class Token implements Endpoint {
 		if (profile == null) {
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
                     CBORObject.FromObject(
-                            "Audience incompatible on profile"));
+                            "No compatible profile found"));
 		}
 		
 		if (tokenType != AccessTokenFactory.CWT_TYPE 
