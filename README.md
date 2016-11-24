@@ -35,5 +35,5 @@ fanboys make that hard with their crappy manuals).
 
 ### Who do I talk to? ###
 
-* This code is owned by SICS Swedish ICT AB and released as Open Source under the [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0).
+* This code is owned by SICS Swedish ICT AB and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
 * Please contact ludwig at sics dot se if you have questions or suggestions.
