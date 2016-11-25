@@ -294,24 +294,23 @@ public class TestToken {
         db.addClient("clientD", profiles, null, null, keyTypes, key128, null);
         
         //Setup token entries
-        String cid = "token1";
+        String cti = "token1";
         Map<String, CBORObject> claims = new HashMap<>();
         claims.put("scope", CBORObject.FromObject("co2"));
         claims.put("aud",  CBORObject.FromObject("sensors"));
         claims.put("exp", CBORObject.FromObject(1000000L));   
         claims.put("cid", CBORObject.FromObject("token1"));
         claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
-        db.addToken(cid, claims);
+        claims.put("cti", CBORObject.FromObject("token2"));
+        db.addToken(cti, claims);
         
-        cid = "token2";
+        cti = "token2";
         claims.clear();
         claims.put("scope", CBORObject.FromObject("temp"));
         claims.put("aud",  CBORObject.FromObject("actuators"));
         claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
-        db.addToken(cid, claims);
+        claims.put("cti", CBORObject.FromObject("token2"));
+        db.addToken(cti, claims);
         t = new Token("AS", 
                 KissPDP.getInstance("src/test/resources/acl.json", db), db,
                 new KissTime(), cnKeyPrivate); 
@@ -638,8 +637,12 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-    public void testPurge() throws Exception { 
-        //FIXME:
+    public void testPurge() throws Exception {
+        Map<String, CBORObject> claims = db.getClaims("token1");
+        assert(!claims.isEmpty());
+        db.purgeExpiredTokens(1000001L);
+        claims = db.getClaims("token1");
+        assert(claims.isEmpty());
     }
     
     /**
@@ -649,6 +652,10 @@ public class TestToken {
      */
     @Test
     public void testRemoveToken() throws Exception { 
-        //FIXME:
+        Map<String, CBORObject> claims = db.getClaims("token2");
+        assert(!claims.isEmpty());
+        db.deleteToken("token2");
+        claims = db.getClaims("token2");
+        assert(claims.isEmpty());
     }
 }
