@@ -359,9 +359,18 @@ public class TokenRepository {
 			if (intro != null) {
 				for (String reftoken : this.scope2reftoken.get(scope)) {
 					Map<String, CBORObject> claims = intro.getParams(reftoken);
+					if (claims == null) {
+					    continue; //token unknown, authorizes nothing
+					}
+					
 					//Check valid
+					if (claims.get("active") == null) {
+					    throw new RSException(
+					            "Active parameter missing on introspection");
+					}
 					if (!claims.get("active").AsBoolean()) {
-						continue;
+					    //token not active, authorizes nothing
+					    continue; 
 					}
 
 					//Check if the subject matches

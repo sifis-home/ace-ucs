@@ -409,5 +409,14 @@ public class CWT implements AccessToken {
 	public String toString() {
 	    return this.claims.toString();
 	}
+
+    @Override
+    public String getCti() throws AceException {
+        CBORObject cti = this.claims.get("cti");
+        if (cti == null) {
+            throw new AceException("Token has no cti");
+        }
+        return new String(cti.GetByteString());
+    }
 	
 }

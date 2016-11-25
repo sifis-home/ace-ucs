@@ -36,6 +36,7 @@ import java.security.SecureRandom;
 import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.rs.IntrospectionHandler;
 
@@ -76,6 +77,15 @@ public class ReferenceToken implements AccessToken {
 		this.ref = new BigInteger(128, random).toString(32);
 	}
 	
+	/**
+	 * Constructor. Uses a given string as reference.
+	 * 
+	 * @param ref  the reference
+	 */
+	public ReferenceToken(String ref) {
+	    this.ref = ref;
+	}
+	
 	
 	/**
 	 * Add an introspection handler to this ReferenceToken in order to do 
@@ -93,6 +103,9 @@ public class ReferenceToken implements AccessToken {
 			throw new AceException("Need IntrospectionHandler");
 		}
 		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
+		if (params == null) {
+		    throw new AceException("Token reference not found: " + this.ref);
+		}
 		CBORObject expO = params.get("exp");
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
@@ -107,16 +120,19 @@ public class ReferenceToken implements AccessToken {
 			throw new AceException("Need IntrospectionHandler");
 		}
 		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
+		if (params == null) {
+		    throw new AceException("Token reference not found: " + this.ref);
+		}
 		//Check nbf and exp for the found match
-				CBORObject nbfO = params.get("nbf");
-				if (nbfO != null &&  nbfO.AsInt64()	> now) {
-					return false;
-				}	
-				CBORObject expO = params.get("exp");
-				if (expO != null && expO.AsInt64() < now) {
-					//Token has expired
-					return false;
-				}
+		CBORObject nbfO = params.get("nbf");
+		if (nbfO != null &&  nbfO.AsInt64()	> now) {
+		    return false;
+		}	
+		CBORObject expO = params.get("exp");
+		if (expO != null && expO.AsInt64() < now) {
+		    //Token has expired
+		    return false;
+		}
 		return false;
 	}
 
@@ -125,4 +141,21 @@ public class ReferenceToken implements AccessToken {
 		return CBORObject.FromObject(this.ref);
 	}
 
+	/**
+	 * Parse a reference token from a CBOR object (must be a String).
+	 * @param ob
+	 * @return  the reference token or null of the object didn't contain
+	 *          a valid String
+	 */
+	public static ReferenceToken parse(CBORObject ob) {
+	   if (ob.getType().equals(CBORType.TextString)) {
+	       return new ReferenceToken(ob.AsString());
+	   } 
+	   return null;
+	}
+
+    @Override
+    public String getCti() throws AceException {
+        return this.ref;
+    }
 }

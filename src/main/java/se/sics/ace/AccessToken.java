@@ -70,4 +70,11 @@ public interface AccessToken {
 	 */
 	public CBORObject encode();
 	
+	/**
+	 * @return  the string representation of the cti by Base64 encoding it
+	 * 
+	 * @throws AceException  if the token has no cti
+	 */
+	public String getCti() throws AceException;
+	
 }

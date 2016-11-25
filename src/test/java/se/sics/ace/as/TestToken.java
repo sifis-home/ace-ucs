@@ -285,6 +285,14 @@ public class TestToken {
         keyTypes.add("TST");        
         db.addClient("clientC", profiles, "co2", "sensors", keyTypes, key128, null);
         
+        //Setup client entries
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("RPK");
+        keyTypes.add("PSK");
+        db.addClient("clientD", profiles, null, null, keyTypes, key128, null);
+        
         //Setup token entries
         String cid = "token1";
         Map<String, CBORObject> claims = new HashMap<>();
@@ -490,7 +498,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("rs2"));
         params.put("scope", CBORObject.FromObject("r_light"));
-        Message msg = new TestMessage(-1, "clientA", params);
+        Message msg = new TestMessage(-1, "clientD", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -597,14 +605,31 @@ public class TestToken {
     }
     
     /**
-     * Test the token endpoint. 
-     * Request should succeed.
+     * Test the token endpoint, creating a REF token with multiple scopes, one
+     * of which is not allowed. Request should succeed, but not give access to
+     * scope "foobar"
      * 
      * @throws Exception
      */
     @Test
     public void testSucceed() throws Exception { 
-        //FIXME:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put("aud", CBORObject.FromObject("rs3"));
+        Message msg = new TestMessage(-1, "clientB", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        TestMessage.unabbreviate(rparams);
+        System.out.println(rparams.toString());
+        assert(response.getMessageCode() 
+                == Message.CREATED);
+        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        System.out.println(claims.toString());
+        assert(claims.get("scope").AsString().contains("rw_valve"));
+        assert(claims.get("scope").AsString().contains("r_pressure"));
+        assert(!claims.get("scope").AsString().contains("foobar"));
     }
     
     /**

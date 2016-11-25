@@ -70,11 +70,6 @@ public class AccessTokenFactory {
     public static final String[] ABBREV = {"CWT", "REF", "TST"};
 	
 	/**
-	 * Default length of the reference tokens
-	 */
-	private static int defaultRefLength = 128;
-	
-	/**
 	 * Generate an access token.
 	 * 
 	 * @param type  the type of token you want to generate
@@ -88,19 +83,15 @@ public class AccessTokenFactory {
 		case CWT_TYPE :
 			return new CWT(claims);
 		case REF_TYPE :
-			return new ReferenceToken(AccessTokenFactory.defaultRefLength);	
+		    CBORObject cti = claims.get("cti");
+	        if (cti == null) {
+	            throw new AceException("Token has no cti");
+	        }
+			return new ReferenceToken(
+			        new String(cti.GetByteString()));	
 		default: 
 			throw new AceException("Unsupported token type");
 		}
-	}
-
-	/**
-	 * Set the length of reference tokens create by this factory.
-	 * 
-	 * @param length  the length to set
-	 */
-	public static void setDefaultRefLength(int length) {
-		AccessTokenFactory.defaultRefLength = length;
 	}
 
 }

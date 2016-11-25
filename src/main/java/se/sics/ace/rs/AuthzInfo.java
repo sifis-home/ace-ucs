@@ -168,46 +168,66 @@ public class AuthzInfo implements Endpoint {
 		//2. Try to introspect it
 		Map<String, CBORObject> params = this.intro.getParams(token.AsString());
 		
+		if (params == null) {
+		    //FIXME: check that this is the right error code
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+		            CBORObject.FromObject("Token reference not found"));
+		}
+		
 		//3. Check if the token is active
 		CBORObject active = params.get("active");
 		if (active == null) {
+		    //FIXME: Ok to throw exception here?
 			throw new RSException("Missing 'active' parameter");
 		}
 		if (!active.AsBoolean()) {
-			throw new RSException("Token is not active");
+		    //FIXME: check that this is the right error code
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+                    CBORObject.FromObject("Token not active"));
 		}
 		
 		//4. Check that the token is not expired (exp)
 		CBORObject exp = params.get("exp");
 		if (exp != null && exp.AsInt64() > this.time.getCurrentTime()) { 
-			throw new RSException("Token is expired");
+	         //FIXME: check that this is the right error code
+            return msg.failReply(Message.FAIL_BAD_REQUEST, 
+                    CBORObject.FromObject("Token is expired"));
 		}	
 		
 		//5. Check if we accept the issuer (iss)
 		CBORObject iss = params.get("iss");
 		if (iss == null) {
+		  //FIXME: Ok to throw exception here?
 			throw new RSException("Token has no issuer");
 		}
 		if (!this.issuers.contains(iss.AsString())) {
-			throw new RSException("Issuer " + iss + " not acceptable");
+		  //FIXME: check that this is the right error code
+            return msg.failReply(Message.FAIL_BAD_REQUEST, 
+                    CBORObject.FromObject("Issuer " 
+                            + iss + " not acceptable"));
 		}
 		
 		//6. Check if we are the audience (aud)
 		CBORObject aud = params.get("aud");
 		if (aud == null) {
+		  //  FIXME: Ok to throw exception here?
 			throw new RSException("Token has no audience");
 		}
 		if (!this.audience.match(aud.AsString())) {
-			throw new RSException("We are not the audience of this token");
+		    //FIXME: check that this is the right error code
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+                    CBORObject.FromObject("Audience does not apply"));
 		}
 		
 		//7. Check if the scope is meaningful to us
 		CBORObject scope = params.get("scope");
 		if (scope == null) {
+		    //  FIXME: Ok to throw exception here?
 			throw new RSException("Token has no scope");
 		}
 		if (!this.tr.inScope(scope.AsString())) {
-			throw new RSException("Token is not in scope");
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+                    CBORObject.FromObject("Scope does not apply"));
 		}
 		
 		
@@ -215,6 +235,8 @@ public class AuthzInfo implements Endpoint {
 		this.tr.addRefToken(token.AsString(), params);
 		
 		//9. Create success message
-		return msg.successReply(Message.CREATED, null);
+		//FIXME: Ok to return cti ?
+		return msg.successReply(Message.CREATED, 
+		        token.get(CBORObject.FromObject("cti")));
 	}	
 }

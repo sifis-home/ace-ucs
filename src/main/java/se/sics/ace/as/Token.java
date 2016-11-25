@@ -34,7 +34,6 @@ package se.sics.ace.as;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -194,11 +193,10 @@ public class Token implements Endpoint {
 		}
 		claims.put("exp", CBORObject.FromObject(exp));
 		claims.put("iat", CBORObject.FromObject(now));
-		byte[] cti = Long.toHexString(this.cti).getBytes();
+		String ctiStr = Long.toHexString(this.cti);
 		this.cti++;
-		claims.put("cti", CBORObject.FromObject(cti));
-		String ctiStr = Base64.getEncoder().encodeToString(cti);
-		claims.put("scope", CBORObject.FromObject(scope));
+		claims.put("cti", CBORObject.FromObject(ctiStr.getBytes()));
+		claims.put("scope", CBORObject.FromObject(allowedScopes));
 
 		//Find supported profile
 		String profile = this.db.getSupportedProfile(id, aud);
@@ -225,6 +223,10 @@ public class Token implements Endpoint {
 		    break;
 		case "RPK":
 		    CBORObject rpk = msg.getParameter("cnf");
+		    if (rpk == null) {
+		        //Try to get the RPK from the DB
+		        rpk = this.db.getCRPK(id);
+		    }
 		    if (rpk == null) {
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, 
 		                CBORObject.FromObject("Client needs to provide RPK"));
