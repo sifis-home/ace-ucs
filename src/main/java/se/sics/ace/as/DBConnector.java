@@ -199,7 +199,16 @@ public interface DBConnector {
      */
     public String coseColumn = "Cose";
 
+  //******************New table********************************   
+    /**
+     * The table saving the counter for generating cti's
+     */
+    public String ctiCounterTable = "ctiTable";
     
+    /**
+     * The column name for cti counter
+     */
+    public String ctiCounterColumn = "ctiCounter";
 	
 	/**
 	 * Create the necessary database and tables. Requires the
@@ -486,6 +495,25 @@ public interface DBConnector {
      * @throws AceException
      */
     public Map<String, CBORObject> getClaims(String cti) throws AceException;
+    
+    
+    /**
+     * Load the current cti counter of the token endpoint from the DB.
+     * 
+     * @return   the value of the cti counter in the DB
+     * 
+     * @throws AceException
+     */
+    public Long getCtiCounter() throws AceException;
+    
+    /**
+     * Save the current cti counter from the token endpoint to the DB.
+     * 
+     * @param cti  the current value of the cti counter
+     * 
+     * @throws AceException 
+     */
+    public void saveCtiCounter(Long cti) throws AceException;
     
 	/**
 	 * Close the connections. After this any other method calls to this

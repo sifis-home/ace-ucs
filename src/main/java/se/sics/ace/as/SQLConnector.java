@@ -339,6 +339,19 @@ public class SQLConnector implements DBConnector {
      */
     private PreparedStatement selectClaims;
     
+    /**
+     * A prepared SELECT statement to select the cti counter value from the 
+     * cti counter table.
+     */
+    private PreparedStatement selectCtiCtr;
+    
+    /**
+     * A prepared UPDATE statement to update the saved cti counter value in the
+     * cti counter table.
+     */
+    private PreparedStatement updateCtiCtr;
+    
+    
     private static SQLConnector instance = null;
     
     /**
@@ -571,6 +584,15 @@ public class SQLConnector implements DBConnector {
                 + DBConnector.claimValueColumn + " FROM " 
                 + DBConnector.dbName + "." + DBConnector.claimsTable
                 + " WHERE " + DBConnector.cidColumn + "=?;");  	
+        
+        this.selectCtiCtr = this.conn.prepareStatement("SELECT "
+                + DBConnector.ctiCounterColumn + " FROM"
+                + DBConnector.dbName + "." + DBConnector.ctiCounterTable 
+                + ";");
+        
+        this.updateCtiCtr = this.conn.prepareStatement("UPDATE "
+                + DBConnector.dbName + "." + DBConnector.ctiCounterTable
+                + " SET " + DBConnector.ctiCounterColumn + "=?;");
 	}
 	
 	/**
@@ -647,6 +669,15 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.claimNameColumn + " varchar(8) NOT NULL," 
 		        + DBConnector.claimValueColumn + " varbinary(255));";
 		
+		String createCtiCtr = "CREATE TABLE IF NOT EXISTS " 
+                + DBConnector.dbName + "."
+                + DBConnector.ctiCounterTable + "(" 
+                + DBConnector.ctiCounterColumn + " int unsigned);";
+		
+		String initCtiCtr = "INSERT INTO "
+                + DBConnector.dbName + "." + DBConnector.ctiCounterTable
+                + " VALUES (0);";
+		
 		Properties connectionProps = new Properties();
 		connectionProps.put("user", "root");
 		connectionProps.put("password", rootPwd);
@@ -663,6 +694,8 @@ public class SQLConnector implements DBConnector {
             stmt.execute(createAudiences);
             stmt.execute(createCose);
             stmt.execute(createClaims);
+            stmt.execute(createCtiCtr);
+            stmt.execute(initCtiCtr);
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {
@@ -1352,5 +1385,31 @@ public class SQLConnector implements DBConnector {
             throw new AceException(e.getMessage());
         } 
         return claims;
+    }
+
+    @Override
+    public Long getCtiCounter() throws AceException {
+        Long l = -1L;
+        try {
+            ResultSet result = this.selectCtiCtr.executeQuery();
+            if (result.next()) {
+                l = result.getLong(DBConnector.ctiCounterColumn);
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return l;
+    }
+
+    @Override
+    public void saveCtiCounter(Long cti) throws AceException {
+        try {
+            this.updateCtiCtr.setLong(1, cti);
+            this.updateCtiCtr.execute();
+            this.updateCtiCtr.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }    
     }
 }

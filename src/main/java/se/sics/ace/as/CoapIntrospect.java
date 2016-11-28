@@ -41,14 +41,14 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * @author Ludwig Seitz
  *
  */
-public class CoAPIntrospect extends CoapResource {
+public class CoapIntrospect extends CoapResource {
 
     /**
      * Constructor.
      * 
      * @param name
      */
-    public CoAPIntrospect(String name) {
+    public CoapIntrospect(String name) {
         super(name);
         // TODO Auto-generated constructor stub
     }

@@ -348,10 +348,13 @@ public class TestToken {
     @Test
     public void testFailUnauthorized() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
         TestMessage msg = new TestMessage(-1, "client_1", params); 
         Message response = t.processMessage(msg);
-        Assert.assertNull(response.getRawPayload());
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "unauthorized_client");
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
     }
     
 
@@ -362,16 +365,19 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-    public void testFailBadScope() throws Exception {
+    public void testFailMissingScope() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
         TestMessage msg = new TestMessage(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
         response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject cbor = CBORObject.FromObject("request lacks scope");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "invalid_request");
+        cbor.Add("error_description", "No scope found for message");
         Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+                cbor.EncodeToBytes());
     }
     
     /**
@@ -382,22 +388,25 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-    public void testFailBadAudience() throws Exception {
+    public void testFailMissingAudience() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
         TestMessage msg = new TestMessage(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
         response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject cbor = CBORObject.FromObject("request lacks audience");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "invalid_request");
+        cbor.Add("error_description", "No audience found for message");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
     
     /**
      * Test the token endpoint. 
-     * Request should fail since the audience is missing.
+     * Request should fail since the scope is not allowed.
      * 
      * 
      * @throws Exception
@@ -405,12 +414,16 @@ public class TestToken {
     @Test
     public void testFailForbidden() throws Exception {  
         Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
         params.put("aud", CBORObject.FromObject("blubb"));
         Message msg = new TestMessage(-1, "clientA", params);
         Message response = t.processMessage(msg);
-        assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
-        Assert.assertNull(response.getRawPayload());
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "invalid_scope");
+        Assert.assertArrayEquals(response.getRawPayload(), 
+                cbor.EncodeToBytes());
     }
     
     /**
@@ -424,6 +437,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleTokenType() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failTokenType"));
         params.put("scope", CBORObject.FromObject("failTokenType"));
         Message msg = new TestMessage(-1, "clientB", params);
@@ -432,8 +446,8 @@ public class TestToken {
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject(
-                "Audience incompatible on token type");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "Audience incompatible on token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     } 
@@ -449,6 +463,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleProfile() throws Exception {
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failProfile"));
         params.put("scope", CBORObject.FromObject("failProfile"));
         Message msg = new TestMessage(-1, "clientB", params);
@@ -457,7 +472,8 @@ public class TestToken {
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject("No compatible profile found");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "No compatible profile found");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -472,6 +488,7 @@ public class TestToken {
     @Test
     public void testFailUnsupportedTokenType() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs5"));
         params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new TestMessage(-1, "clientA", params);
@@ -480,7 +497,8 @@ public class TestToken {
                 response.getRawPayload()).toString());
         assert(response.getMessageCode()
                 == Message.FAIL_NOT_IMPLEMENTED);
-        CBORObject cbor = CBORObject.FromObject("Unsupported token type");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "Unsupported token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -495,6 +513,7 @@ public class TestToken {
     @Test
     public void testFailRpkNotProvided() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs2"));
         params.put("scope", CBORObject.FromObject("r_light"));
         Message msg = new TestMessage(-1, "clientD", params);
@@ -502,7 +521,9 @@ public class TestToken {
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject cbor = CBORObject.FromObject("Client needs to provide RPK");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "invalid_request");
+        cbor.Add("error_description", "Client needs to provide RPK");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -517,6 +538,7 @@ public class TestToken {
     @Test
     public void testFailUnknownKeyType() throws Exception {
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs6"));
         params.put("scope", CBORObject.FromObject("r_valve"));
         Message msg = new TestMessage(-1, "clientC", params);
@@ -524,7 +546,8 @@ public class TestToken {
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
         assert(response.getMessageCode() == Message.FAIL_NOT_IMPLEMENTED);
-        CBORObject cbor = CBORObject.FromObject("Unsupported key type");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "Unsupported key type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -539,6 +562,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleCwt() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failCWTpar"));
         params.put("scope", CBORObject.FromObject("co2"));
         Message msg = new TestMessage(-1, "clientB", params);
@@ -547,8 +571,8 @@ public class TestToken {
                 response.getRawPayload()).toString());
         assert(response.getMessageCode() 
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
-        CBORObject cbor = CBORObject.FromObject(
-                "No common security context found for audience");
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add("error", "No common security context found for audience");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -562,12 +586,13 @@ public class TestToken {
     @Test
     public void testSucceedDefaultScope() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs1"));
         Message msg = new TestMessage(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        TestMessage.unabbreviate(rparams);
+        Token.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
@@ -587,12 +612,13 @@ public class TestToken {
     @Test
     public void testSucceedDefaultAud() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("co2"));
         Message msg = new TestMessage(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        TestMessage.unabbreviate(rparams);
+        Token.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
@@ -613,13 +639,14 @@ public class TestToken {
     @Test
     public void testSucceed() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
         Message msg = new TestMessage(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        TestMessage.unabbreviate(rparams);
+        Token.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);

@@ -52,7 +52,7 @@ import se.sics.ace.cwt.CWT;
  * @author Ludwig Seitz
  *
  */
-public class CoAPRequest extends Request implements Message {
+public class CoapRequest extends Request implements Message {
 
     /**
      * The parameters in the payload of this message as a Map for convenience
@@ -64,7 +64,7 @@ public class CoAPRequest extends Request implements Message {
      * @param code  the RESTful action code
      * @param parameters  the request parameters
      */
-    public CoAPRequest(Code code, Map<String, CBORObject> parameters) {
+    public CoapRequest(Code code, Map<String, CBORObject> parameters) {
         super(code);
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
@@ -131,7 +131,7 @@ public class CoAPRequest extends Request implements Message {
             coapCode = ResponseCode._UNKNOWN_SUCCESS_CODE;
             break;
         }
-        CoAPResponse res = new CoAPResponse(coapCode, payload);
+        CoapResponse res = new CoapResponse(coapCode, payload);
         res.setDestination(super.getSource());
         res.setDestinationPort(super.getSourcePort());
         return res;
@@ -158,7 +158,7 @@ public class CoAPRequest extends Request implements Message {
             break; 
         default :
         }
-        CoAPResponse res = new CoAPResponse(coapCode, payload);
+        CoapResponse res = new CoapResponse(coapCode, payload);
         res.setDestination(super.getSource());
         res.setDestinationPort(super.getSourcePort());
         return res;
@@ -171,7 +171,7 @@ public class CoAPRequest extends Request implements Message {
      * @return  the ACE CoAP request
      * @throws AceException 
      */
-    public static CoAPRequest getInstance(Request req) throws AceException {
+    public static CoapRequest getInstance(Request req) throws AceException {
         Map<String, CBORObject> parameters = null;
         CBORObject cborPayload = null;
         try {
@@ -183,7 +183,7 @@ public class CoAPRequest extends Request implements Message {
             throw new AceException("Payload is empty or not encoded as CBOR Map");
         }
         parameters = CWT.parseClaims(cborPayload);
-        return new CoAPRequest(req.getCode(), parameters);
+        return new CoapRequest(req.getCode(), parameters);
     }
 
     @Override

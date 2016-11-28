@@ -47,7 +47,7 @@ import com.upokecenter.cbor.CBORObject;
  * @author Ludwig Seitz
  *
  */
-public class CoAPResponse extends Response implements Message {
+public class CoapResponse extends Response implements Message {
     
     /**
      * The parameters in the payload of this message as a Map for convenience.
@@ -63,7 +63,7 @@ public class CoAPResponse extends Response implements Message {
      * @param payload  the response payload, may be null
      * @param request   the request this responds to
      */
-    public CoAPResponse(ResponseCode code, CBORObject payload) {
+    public CoapResponse(ResponseCode code, CBORObject payload) {
         super(code);
         super.setPayload(payload.EncodeToBytes());   
     }
@@ -75,7 +75,7 @@ public class CoAPResponse extends Response implements Message {
      * @param parameters  the response parameters
      * @param request   the request this responds to
      */
-    public CoAPResponse(ResponseCode code, Map<String, CBORObject> parameters) {
+    public CoapResponse(ResponseCode code, Map<String, CBORObject> parameters) {
         super(code);
         this.parameters.putAll(parameters);
         CBORObject map = CBORObject.NewMap();

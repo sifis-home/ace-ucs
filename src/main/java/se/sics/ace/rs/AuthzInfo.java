@@ -157,7 +157,7 @@ public class AuthzInfo implements Endpoint {
 		//7. create success message
 		return msg.successReply(Message.CREATED, null);
 	}
-
+	
 	private Message processRefrenceToken(Message msg) throws RSException {
 		//1. This should be a CBOR String
 		CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());
@@ -181,16 +181,14 @@ public class AuthzInfo implements Endpoint {
 			throw new RSException("Missing 'active' parameter");
 		}
 		if (!active.AsBoolean()) {
-		    //FIXME: check that this is the right error code
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+		    return msg.failReply(Message.FAIL_UNAUTHORIZED, 
                     CBORObject.FromObject("Token not active"));
 		}
 		
 		//4. Check that the token is not expired (exp)
 		CBORObject exp = params.get("exp");
 		if (exp != null && exp.AsInt64() > this.time.getCurrentTime()) { 
-	         //FIXME: check that this is the right error code
-            return msg.failReply(Message.FAIL_BAD_REQUEST, 
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, 
                     CBORObject.FromObject("Token is expired"));
 		}	
 		
@@ -201,8 +199,7 @@ public class AuthzInfo implements Endpoint {
 			throw new RSException("Token has no issuer");
 		}
 		if (!this.issuers.contains(iss.AsString())) {
-		  //FIXME: check that this is the right error code
-            return msg.failReply(Message.FAIL_BAD_REQUEST, 
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, 
                     CBORObject.FromObject("Issuer " 
                             + iss + " not acceptable"));
 		}
@@ -214,8 +211,7 @@ public class AuthzInfo implements Endpoint {
 			throw new RSException("Token has no audience");
 		}
 		if (!this.audience.match(aud.AsString())) {
-		    //FIXME: check that this is the right error code
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+		    return msg.failReply(Message.FAIL_FORBIDDEN, 
                     CBORObject.FromObject("Audience does not apply"));
 		}
 		
@@ -226,6 +222,7 @@ public class AuthzInfo implements Endpoint {
 			throw new RSException("Token has no scope");
 		}
 		if (!this.tr.inScope(scope.AsString())) {
+		    //FIXME: Check that this is the right error code
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
                     CBORObject.FromObject("Scope does not apply"));
 		}

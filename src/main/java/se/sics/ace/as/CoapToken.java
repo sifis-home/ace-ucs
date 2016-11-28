@@ -31,9 +31,21 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.security.NoSuchAlgorithmException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+
+import COSE.CoseException;
+import se.sics.ace.AceException;
+import se.sics.ace.CoapRequest;
+import se.sics.ace.Message;
 
 /**
  * This class implements the token endpoint / resource (OAuth lingo vs CoAP lingo).
@@ -41,16 +53,28 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
  * @author Ludwig Seitz
  *
  */
-public class CoAPToken extends CoapResource {
-
+public class CoapToken extends CoapResource {
+    
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER = Logger.getLogger(CoapToken.class.getName() );
+    
+    /**
+     * The token library
+     */
+    private Token t;
+    
+    
     /**
      * Constructor.
      * 
      * @param name
+     * @param t 
      */
-    public CoAPToken(String name) {
+    public CoapToken(String name, Token t) {
         super(name);
-        // TODO Auto-generated constructor stub
+        this.t = t;        
     }
     
     /**
@@ -60,8 +84,33 @@ public class CoAPToken extends CoapResource {
      */
     @Override
     public void handlePOST(CoapExchange exchange) {
-        //FIXME:
-        exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+        CoapRequest req = null;
+        try {
+            req = CoapRequest.getInstance(exchange.advanced().getRequest());
+        } catch (AceException e) {
+            LOGGER.log(Level.SEVERE, e.getMessage());
+            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        }
+        LOGGER.log(Level.FINEST, "Received request: " + req.toString());
+        Message m = null;
+        try {
+            m = this.t.processMessage(req);
+        } catch (NoSuchAlgorithmException | IllegalStateException
+                | InvalidCipherTextException | AceException | CoseException e) {
+            LOGGER.log(Level.SEVERE, e.getMessage());
+            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        }
+        
+        if (m instanceof CoapResponse) {
+            CoapResponse res = (CoapResponse)m;
+            LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
+            //XXX: The profile should set the content format
+            exchange.respond(res.getCode(), res.getPayload(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        }
+        LOGGER.log(Level.SEVERE, "Token library produced wrong response type");
+        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
     }
 
 }
+ 

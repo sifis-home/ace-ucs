@@ -150,32 +150,4 @@ public class TestMessage implements Message {
     public int getMessageCode() {
         return this.code;
     }
-    
-    /**
-     * Remaps a parameter map to the unabbreviated version.
-     * 
-     * @param map
-     */
-    public static void unabbreviate(CBORObject map) {
-        if (!map.getType().equals(CBORType.Map)) {
-            return;
-        }
-        Map<CBORObject, CBORObject> replacer = new HashMap<>();
-        for (CBORObject key : map.getKeys()) {
-            if (key.isIntegral()) {
-                int keyInt = key.AsInt32();
-                if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
-                    replacer.put(key, 
-                            CBORObject.FromObject(Constants.ABBREV[keyInt]));
-                    
-                }
-            }
-        }
-        for (CBORObject key : replacer.keySet()) {
-            CBORObject value = map.get(key);
-            map.Remove(key);
-            map.Add(replacer.get(key), value);
-        }
-    }
-
-}
+ }

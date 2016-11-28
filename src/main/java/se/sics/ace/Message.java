@@ -122,12 +122,14 @@ public interface Message {
 	
 	/**
 	 * @return  a set of the parameter names, null if the message does not
-     *     have a parameter map in the payload.
+     *     have a parameter map in the payload.  This MUST be the unabbreviated
+     *     parameter names.
 	 */
 	public Set<String> getParameterNames();
 	
 	/**
-     * Returns a parameter, or null if the parameter does not exist
+     * Returns a parameter, or null if the parameter does not exist.
+     * This MUST use the unabbreviated parameter names.
      * 
 	 * @param name  the name of the parameter
 	 * @return  the parameter value or null if it doesn't exist or the 
@@ -138,7 +140,7 @@ public interface Message {
 	/**
 	 * @return  the <code>Map</code> of parameters for this message or
 	 *     null if the message does not have a parameter map in the    
-	 *     payload.
+	 *     payload.  This MUST provide the unabbreviated parameter names.
 	 */
 	public Map<String, CBORObject> getParameters();
 	

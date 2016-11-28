@@ -45,6 +45,7 @@ import javax.crypto.SecretKey;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
@@ -112,6 +113,13 @@ public class Token implements Endpoint {
 	 */
 	private CBORObject privateKey;
 	
+	/**
+	 * The client credentials grant type as CBOR-string
+	 */
+	public static CBORObject clientCredentialsStr 
+	    = CBORObject.FromObject("client_credentials");
+
+	
 	
 	/**
 	 * Constructor.
@@ -136,13 +144,24 @@ public class Token implements Endpoint {
 	        throws AceException, NoSuchAlgorithmException, 
 	        IllegalStateException, InvalidCipherTextException, 
 	        CoseException, AceException {
-		//1. Check if this client can request tokens
+	    //1. Check that this is a client credentials grant type    
+	    if (msg.getParameter("grant_type") == null 
+	            || !msg.getParameter("grant_type")
+	                .equals(clientCredentialsStr)) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "unsupported_grant_type");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	    }
+	    	    
+		//2. Check if this client can request tokens
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
-			return msg.failReply(Message.FAIL_UNAUTHORIZED, null);
+		    CBORObject map = CBORObject.NewMap();
+		    map.Add("error", "unauthorized_client");
+			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
-		//2. Check if this client can request this type of token
+		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter("scope");
 		String scope = null;
 		if (cbor == null ) {
@@ -151,9 +170,13 @@ public class Token implements Endpoint {
 		    scope = cbor.AsString();
 		}
 		if (scope == null) {
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
-		            CBORObject.FromObject("request lacks scope"));
+		    CBORObject map = CBORObject.NewMap();
+            map.Add("error", "invalid_request");
+            map.Add("error_description", "No scope found for message");
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
+		
+		//4. Check if the request has an audience or if there is a default aud
 		cbor = msg.getParameter("aud");
 		String aud = null;
 		if (cbor == null) {
@@ -162,23 +185,30 @@ public class Token implements Endpoint {
 		    aud = cbor.AsString();
 		}
 		if (aud == null) {
-		    return msg.failReply(Message.FAIL_BAD_REQUEST,
-		            CBORObject.FromObject("request lacks audience"));
+		    CBORObject map = CBORObject.NewMap();
+            map.Add("error", "invalid_request");
+            map.Add("error_description", "No audience found for message");
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
+		
+		
+		//5. Check if the scope is allowed
 		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
-		
-		if (allowedScopes == null) {		
-			return msg.failReply(Message.FAIL_FORBIDDEN, null);
+		if (allowedScopes == null) {	
+		      CBORObject map = CBORObject.NewMap();
+	            map.Add("error", "invalid_scope");
+			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
-		//4. Create token
+		//6. Create token
 		//Find supported token type
 		
 		Integer tokenType = this.db.getSupportedTokenType(aud);
 		if (tokenType == null) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "Audience incompatible on token type");
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
-		            CBORObject.FromObject(
-		                    "Audience incompatible on token type"));
+		           map);
 		}
 		
 		
@@ -201,15 +231,16 @@ public class Token implements Endpoint {
 		//Find supported profile
 		String profile = this.db.getSupportedProfile(id, aud);
 		if (profile == null) {
-		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
-                    CBORObject.FromObject(
-                            "No compatible profile found"));
+		    CBORObject map = CBORObject.NewMap();
+            map.Add("error", "No compatible profile found");
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		}
 		
 		if (tokenType != AccessTokenFactory.CWT_TYPE 
 		        && tokenType != AccessTokenFactory.REF_TYPE) {
-		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, 
-		            CBORObject.FromObject("Unsupported token type"));
+		    CBORObject map = CBORObject.NewMap();
+            map.Add("error", "Unsupported token type");
+		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
 		//Find supported key type for proof-of-possession
@@ -228,14 +259,17 @@ public class Token implements Endpoint {
 		        rpk = this.db.getCRPK(id);
 		    }
 		    if (rpk == null) {
-		        return msg.failReply(Message.FAIL_BAD_REQUEST, 
-		                CBORObject.FromObject("Client needs to provide RPK"));
+		        CBORObject map = CBORObject.NewMap();
+		        map.Add("error", "invalid_request");
+		        map.Add("error_description", "Client needs to provide RPK");
+		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
 		    claims.put("cnf", rpk);
 		    break;
 		default :
-		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, 
-                    CBORObject.FromObject("Unsupported key type"));
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "Unsupported key type");
+		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
 		AccessToken token = AccessTokenFactory.generateToken(tokenType, claims);
@@ -247,9 +281,10 @@ public class Token implements Endpoint {
 		    		    
 		    CwtCryptoCtx ctx = makeCommonCtx(aud);
 		    if (ctx == null) {
-		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
-		                CBORObject.FromObject(
-		                "No common security context found for audience"));
+		        CBORObject map = CBORObject.NewMap();
+	            map.Add("error", 
+	                    "No common security context found for audience");
+		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
 		    rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
@@ -380,4 +415,31 @@ public class Token implements Endpoint {
 	    }
 	    return key;
 	}
+	
+	 /**
+     * Remaps a parameter map to the unabbreviated version.
+     * 
+     * @param map
+     */
+    public static void unabbreviate(CBORObject map) {
+        if (!map.getType().equals(CBORType.Map)) {
+            return;
+        }
+        Map<CBORObject, CBORObject> replacer = new HashMap<>();
+        for (CBORObject key : map.getKeys()) {
+            if (key.isIntegral()) {
+                int keyInt = key.AsInt32();
+                if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
+                    replacer.put(key, 
+                            CBORObject.FromObject(Constants.ABBREV[keyInt]));
+                    
+                }
+            }
+        }
+        for (CBORObject key : replacer.keySet()) {
+            CBORObject value = map.get(key);
+            map.Remove(key);
+            map.Add(replacer.get(key), value);
+        }
+    }
 }
