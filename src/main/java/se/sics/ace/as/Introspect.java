@@ -31,8 +31,32 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import COSE.Attribute;
+import COSE.CoseException;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.Recipient;
+import se.sics.ace.AccessToken;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
+import se.sics.ace.ReferenceToken;
+import se.sics.ace.TimeProvider;
+import se.sics.ace.cwt.CWT;
+import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * The OAuth 2.0 Introspection endpoint.
@@ -40,11 +64,177 @@ import se.sics.ace.Message;
  *
  */
 public class Introspect implements Endpoint {
-
+    
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(Introspect.class.getName() );
+    
+    /**
+     * The PDP this endpoint uses to make access control decisions.
+     */
+    private PDP pdp;
+    
+    /**
+     * The database connector for storing and retrieving stuff.
+     */
+    private DBConnector db;
+    
+    /**
+     * The time provider for this AS.
+     */
+    private TimeProvider time;
+    
+    /**
+     * The public key of the AS
+     */
+    private CBORObject publicKey;
+    
 	@Override
-    public Message processMessage(Message msg) {
-		// TODO Auto-generated method stub
-		return null;
-	}
+    public Message processMessage(Message msg) throws AceException {
+	    //1. Check that this RS is allowed to introspect
+	    String id = msg.getSenderId();
+        if (!this.pdp.canAccessIntrospect(id)) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "unauthorized_client");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "unauthorized client");
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+        }
+	    
+	    //2. Purge expired tokens from the database
+        try {
+            this.db.purgeExpiredTokens(this.time.getCurrentTime());
+        } catch (AceException e) {
+            LOGGER.severe("Database error: " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 
+	    
+        //parse the token
+        AccessToken token = parseToken(msg.getRawPayload(), id);
+        
+        //3. Check if token is still in there
+        //If not return active=false	    
+        Map<String, CBORObject> claims = this.db.getClaims(token.getCti());
+        CBORObject payload = CBORObject.NewMap();
+        if (claims == null || claims.isEmpty()) {
+            LOGGER.log(Level.INFO, "Returning introspection result: inactive "
+                    + "for " + token.getCti());  
+            payload.Add(Constants.ACTIVE, CBORObject.False);           
+        } else {
+            for (Entry<String, CBORObject> entry : claims.entrySet()) {
+                int abbrev = Constants.getAbbrev(entry.getKey());
+                if (abbrev == -1) { //No abbreviation found
+                    payload.Add(entry.getKey(), entry.getValue());
+                } else {
+                    payload.Add(abbrev, entry.getValue());
+                }
+                LOGGER.log(Level.INFO, "Returning introspection result: " 
+                        + claims.toString() + " for " + token.getCti());
+            }
+            payload.Add(Constants.ACTIVE, CBORObject.True);
+        }
+        
+        return msg.successReply(Message.CREATED, payload);
+	}
+    
+    /**
+     * Parses a CBOR object presumably containing an access token.
+     * 
+     * @param raw  the raw payload
+     * @param rsid  the RS identifier
+     * 
+     * @return  the parsed access token
+     * 
+     * @throws AceException 
+     */
+    public AccessToken parseToken(byte[] raw, String rsid) throws AceException {
+        if (raw == null) {
+            throw new AceException("Access token parser indata was null");
+        }
+        CBORObject cbor = CBORObject.DecodeFromBytes(raw);
+        if (cbor.getType().equals(CBORType.Array)) {
+            try {
+                CwtCryptoCtx ctx = makeCtx(rsid);
+                return CWT.processCOSE(cbor.EncodeToBytes(), ctx);
+            } catch (Exception e) {
+                LOGGER.severe("Error while processing CWT: " + e.getMessage());
+                throw new AceException(e.getMessage());
+            }
+        } else if (cbor.getType().equals(CBORType.TextString)) {
+            return ReferenceToken.parse(cbor);
+        }
+        throw new AceException("Unknown access token format");        
+    }
+    
+    /**
+     * Create a  CWT crypto context for the given RS.
+     * 
+     * @param rsid  the identifier of the RS
+     * 
+     * @return  the CWT crytpo context
+     * @throws CoseException 
+     * @throws AceException 
+     */
+    private CwtCryptoCtx makeCtx(String rsid) 
+            throws AceException, CoseException {
+        COSEparams cose = this.db.getSupportedCoseParams(rsid);
+        if (cose == null) {
+            return null;
+        }
+        MessageTag tag = cose.getTag();
+        switch (tag) {
+        case Encrypt:
+            return CwtCryptoCtx.encrypt(makeRecipient(cose, rsid), 
+                   cose.getAlg().AsCBOR());
+        case Encrypt0:
+            byte[] ekey = this.db.getRsPSK(rsid);
+            if (ekey == null) {
+                return null;
+            }
+            return CwtCryptoCtx.encrypt0(ekey, cose.getAlg().AsCBOR());
+        case MAC:
+            return CwtCryptoCtx.mac(makeRecipient(cose, rsid), 
+                    cose.getAlg().AsCBOR());
+        case MAC0:
+            byte[] mkey = this.db.getRsPSK(rsid);
+            if (mkey == null) {
+                return null;
+            }
+            return CwtCryptoCtx.mac0(mkey, cose.getAlg().AsCBOR());
+        case Sign:
+            // Access tokens with multiple signers not supported
+            return null;
+        case Sign1:
+            return CwtCryptoCtx.sign1Verify(this.publicKey, 
+                    cose.getAlg().AsCBOR());
+        default:
+            throw new IllegalArgumentException("Unknown COSE message type");
+        }
+    }
+    
+    /**
+     * Creates the singleton list of recipients for MAC and Encrypt messages.
+     * 
+     * @param cose  the cose parameters
+     * @param rsid  the RS identifier
+     * 
+     * @return  the recipients list
+     * @throws AceException 
+     */
+    private List<Recipient> makeRecipient(COSEparams cose, String rsid) 
+            throws AceException {
+        Recipient rs = new Recipient();  
+        rs.addAttribute(HeaderKeys.Algorithm, 
+             cose.getKeyWrap().AsCBOR(), Attribute.UnprotectedAttributes);
+        CBORObject key = CBORObject.NewMap();
+        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
+                this.db.getRsPSK(rsid)));
+        rs.SetKey(key); 
+        return Collections.singletonList(rs);
+    }
+    
 }

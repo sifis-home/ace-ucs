@@ -53,7 +53,7 @@ import se.sics.ace.Message;
  * @author Ludwig Seitz
  *
  */
-public class CoapToken extends CoapResource {
+public class CoapToken extends CoapResource implements AutoCloseable {
     
     /**
      * The logger
@@ -91,7 +91,8 @@ public class CoapToken extends CoapResource {
             LOGGER.log(Level.SEVERE, e.getMessage());
             exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         }
-        LOGGER.log(Level.FINEST, "Received request: " + req.toString());
+        LOGGER.log(Level.FINEST, "Received request: " 
+                + ((req==null)?"null" : req.toString()));
         Message m = null;
         try {
             m = this.t.processMessage(req);
@@ -110,6 +111,11 @@ public class CoapToken extends CoapResource {
         }
         LOGGER.log(Level.SEVERE, "Token library produced wrong response type");
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.t.close();        
     }
 
 }

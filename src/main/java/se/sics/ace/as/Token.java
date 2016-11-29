@@ -38,6 +38,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
@@ -75,8 +77,15 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * @author Ludwig Seitz
  *
  */
-public class Token implements Endpoint {
+public class Token implements Endpoint, AutoCloseable {
+    
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(Token.class.getName() );
 
+    
 	/**
 	 * The PDP this endpoint uses to make access control decisions.
 	 */
@@ -104,7 +113,6 @@ public class Token implements Endpoint {
 	
 	/**
 	 * The counter for generating the cti
-	 * FIXME: need to save this to avoid resetting each time this is restarted
 	 */
 	private Long cti = 0L;
 
@@ -112,44 +120,54 @@ public class Token implements Endpoint {
 	 * The private key of the AS or null if there isn't any
 	 */
 	private CBORObject privateKey;
-	
-	/**
-	 * The client credentials grant type as CBOR-string
-	 */
+
+    
+    /**
+     * The client credentials grant type as CBOR-string
+     */
 	public static CBORObject clientCredentialsStr 
 	    = CBORObject.FromObject("client_credentials");
 
 	
-	
 	/**
 	 * Constructor.
+	 * 
 	 * @param asId  the identifier of this AS
 	 * @param pdp   the PDP for deciding access
 	 * @param db  the database connector
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
 	 * @param tokenfile  the filename for storing the list of tokens
+	 * 
+	 * @throws AceException  if fetching the cti from the database fails
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
-	        TimeProvider time, CBORObject privateKey) {
+	        TimeProvider time, CBORObject privateKey) throws AceException {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.db = db;
 	    this.time = time;
 	    this.privateKey = privateKey;
+	    this.cti = db.getCtiCounter();
 	}
+	
+
 	
 	@Override
 	public Message processMessage(Message msg) 
 	        throws AceException, NoSuchAlgorithmException, 
 	        IllegalStateException, InvalidCipherTextException, 
 	        CoseException, AceException {
+	    LOGGER.log(Level.INFO, "received message: " + msg.toString());
+	    
 	    //1. Check that this is a client credentials grant type    
 	    if (msg.getParameter("grant_type") == null 
 	            || !msg.getParameter("grant_type")
 	                .equals(clientCredentialsStr)) {
             CBORObject map = CBORObject.NewMap();
             map.Add("error", "unsupported_grant_type");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "unsupported_grant_type");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
 	    }
 	    	    
@@ -158,6 +176,8 @@ public class Token implements Endpoint {
 		if (!this.pdp.canAccessToken(id)) {
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add("error", "unauthorized_client");
+		    LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "unauthorized client");
 			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
@@ -173,6 +193,8 @@ public class Token implements Endpoint {
 		    CBORObject map = CBORObject.NewMap();
             map.Add("error", "invalid_request");
             map.Add("error_description", "No scope found for message");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "No scope found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
@@ -186,27 +208,32 @@ public class Token implements Endpoint {
 		}
 		if (aud == null) {
 		    CBORObject map = CBORObject.NewMap();
-            map.Add("error", "invalid_request");
-            map.Add("error_description", "No audience found for message");
+		    map.Add("error", "invalid_request");
+		    map.Add("error_description", "No audience found for message");
+		    LOGGER.log(Level.INFO, "Message processing aborted: "
+		            + "No audience found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
-		
+
 		
 		//5. Check if the scope is allowed
 		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
 		if (allowedScopes == null) {	
-		      CBORObject map = CBORObject.NewMap();
-	            map.Add("error", "invalid_scope");
-			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		    CBORObject map = CBORObject.NewMap();
+		    map.Add("error", "invalid_scope");
+		    LOGGER.log(Level.INFO, "Message processing aborted: "
+		            + "invalid_scope");
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
 		//6. Create token
 		//Find supported token type
-		
 		Integer tokenType = this.db.getSupportedTokenType(aud);
 		if (tokenType == null) {
             CBORObject map = CBORObject.NewMap();
             map.Add("error", "Audience incompatible on token type");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Audience incompatible on token type");
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
 		           map);
 		}
@@ -233,6 +260,8 @@ public class Token implements Endpoint {
 		if (profile == null) {
 		    CBORObject map = CBORObject.NewMap();
             map.Add("error", "No compatible profile found");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "No compatible profile found");
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		}
 		
@@ -240,6 +269,8 @@ public class Token implements Endpoint {
 		        && tokenType != AccessTokenFactory.REF_TYPE) {
 		    CBORObject map = CBORObject.NewMap();
             map.Add("error", "Unsupported token type");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Unsupported token type");
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
@@ -261,7 +292,9 @@ public class Token implements Endpoint {
 		    if (rpk == null) {
 		        CBORObject map = CBORObject.NewMap();
 		        map.Add("error", "invalid_request");
-		        map.Add("error_description", "Client needs to provide RPK");
+		        map.Add("error_description", "Client failed to provide RPK");
+		        LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Client failed to provide RPK");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
 		    claims.put("cnf", rpk);
@@ -269,11 +302,12 @@ public class Token implements Endpoint {
 		default :
             CBORObject map = CBORObject.NewMap();
             map.Add("error", "Unsupported key type");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Unsupported key type");
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
 		AccessToken token = AccessTokenFactory.generateToken(tokenType, claims);
-
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
@@ -284,6 +318,8 @@ public class Token implements Endpoint {
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add("error", 
 	                    "No common security context found for audience");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "No common security context found for audience");
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
@@ -293,7 +329,7 @@ public class Token implements Endpoint {
 		}
 		
 		this.db.addToken(ctiStr, claims);
-		
+		 LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
@@ -319,9 +355,10 @@ public class Token implements Endpoint {
 	/**
 	 * Create a common CWT crypto context for the given audience.
 	 * 
-	 * @param aud
-	 * @param cose
-	 * @return
+	 * @param aud  the audience
+
+	 * @return  a common crypto context or null if there isn't any
+	 * 
 	 * @throws CoseException 
 	 * @throws AceException 
 	 */
@@ -441,5 +478,10 @@ public class Token implements Endpoint {
             map.Remove(key);
             map.Add(replacer.get(key), value);
         }
+    }
+
+    @Override
+    public void close() throws Exception {
+        this.db.saveCtiCounter(this.cti);        
     }
 }

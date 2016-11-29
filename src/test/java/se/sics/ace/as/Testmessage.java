@@ -36,9 +36,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
-import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -47,7 +45,7 @@ import se.sics.ace.Message;
  * @author Ludwig Seitz
  *
  */
-public class TestMessage implements Message {
+public class Testmessage implements Message {
 
     /**
      * The authenticated id of the sender
@@ -75,7 +73,7 @@ public class TestMessage implements Message {
      * @param senderId
      * @param parameters
      */
-    public TestMessage(int code, String senderId, Map<String, CBORObject> parameters) {
+    public Testmessage(int code, String senderId, Map<String, CBORObject> parameters) {
         this.code = code;
         this.senderId = senderId;
         this.params = new HashMap<>();
@@ -89,7 +87,7 @@ public class TestMessage implements Message {
      * @param senderId
      * @param payload
      */
-    public TestMessage(int code, String senderId,CBORObject payload) {
+    public Testmessage(int code, String senderId,CBORObject payload) {
         this.code = code;
         this.senderId = senderId;
         this.params = null;
@@ -100,12 +98,12 @@ public class TestMessage implements Message {
     
     @Override
     public Message successReply(int code, CBORObject payload) {
-        return new TestMessage(code, "TestRS", payload);
+        return new Testmessage(code, "TestRS", payload);
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        return new TestMessage(failureReason, "TestRS", payload);
+        return new Testmessage(failureReason, "TestRS", payload);
     }
 
 
