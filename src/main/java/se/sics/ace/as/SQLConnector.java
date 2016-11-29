@@ -586,7 +586,7 @@ public class SQLConnector implements DBConnector {
                 + " WHERE " + DBConnector.cidColumn + "=?;");  	
         
         this.selectCtiCtr = this.conn.prepareStatement("SELECT "
-                + DBConnector.ctiCounterColumn + " FROM"
+                + DBConnector.ctiCounterColumn + " FROM "
                 + DBConnector.dbName + "." + DBConnector.ctiCounterTable 
                 + ";");
         

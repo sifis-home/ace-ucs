@@ -62,6 +62,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.KissTime;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CWT;
@@ -299,9 +300,8 @@ public class TestToken {
         claims.put("scope", CBORObject.FromObject("co2"));
         claims.put("aud",  CBORObject.FromObject("sensors"));
         claims.put("exp", CBORObject.FromObject(1000000L));   
-        claims.put("cid", CBORObject.FromObject("token1"));
         claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject("token2"));
+        claims.put("cti", CBORObject.FromObject("token1"));
         db.addToken(cti, claims);
         
         cti = "token2";
@@ -592,7 +592,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Token.unabbreviate(rparams);
+        Constants.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
@@ -618,7 +618,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Token.unabbreviate(rparams);
+        Constants.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
@@ -646,7 +646,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Token.unabbreviate(rparams);
+        Constants.unabbreviate(rparams);
         System.out.println(rparams.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);

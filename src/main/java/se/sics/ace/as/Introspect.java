@@ -91,8 +91,27 @@ public class Introspect implements Endpoint {
      */
     private CBORObject publicKey;
     
+    /**
+     * Constructor.
+     * 
+     * @param pdp   the PDP for deciding access
+     * @param db  the database connector
+     * @param time  the time provider
+     * @param publicKey  the public key of the AS or null if there isn't any
+     * 
+     * @throws AceException  if fetching the cti from the database fails
+     */
+    public Introspect(PDP pdp, DBConnector db, 
+            TimeProvider time, CBORObject publicKey) throws AceException {
+        this.pdp = pdp;
+        this.db = db;
+        this.time = time;
+        this.publicKey = publicKey;
+    }
+    
+    
 	@Override
-    public Message processMessage(Message msg) throws AceException {
+    public Message processMessage(Message msg) {
 	    //1. Check that this RS is allowed to introspect
 	    String id = msg.getSenderId();
         if (!this.pdp.canAccessIntrospect(id)) {
@@ -113,15 +132,36 @@ public class Introspect implements Endpoint {
 
 	    
         //parse the token
-        AccessToken token = parseToken(msg.getRawPayload(), id);
+        AccessToken token;
+        try {
+            token = parseToken(msg.getRawPayload(), id);
+        } catch (AceException e) {
+            LOGGER.log(Level.INFO, e.getMessage());
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "must provide non-null token");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+
         
         //3. Check if token is still in there
         //If not return active=false	    
-        Map<String, CBORObject> claims = this.db.getClaims(token.getCti());
+        Map<String, CBORObject> claims;
+        try {
+            claims = this.db.getClaims(token.getCti());
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
         CBORObject payload = CBORObject.NewMap();
         if (claims == null || claims.isEmpty()) {
-            LOGGER.log(Level.INFO, "Returning introspection result: inactive "
-                    + "for " + token.getCti());  
+            try {
+                LOGGER.log(Level.INFO, "Returning introspection result: inactive "
+                        + "for " + token.getCti());
+            } catch (AceException e) {
+                LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
+                return  msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }  
             payload.Add(Constants.ACTIVE, CBORObject.False);           
         } else {
             for (Entry<String, CBORObject> entry : claims.entrySet()) {
@@ -131,8 +171,13 @@ public class Introspect implements Endpoint {
                 } else {
                     payload.Add(abbrev, entry.getValue());
                 }
-                LOGGER.log(Level.INFO, "Returning introspection result: " 
-                        + claims.toString() + " for " + token.getCti());
+                try {
+                    LOGGER.log(Level.INFO, "Returning introspection result: " 
+                            + claims.toString() + " for " + token.getCti());
+                } catch (AceException e) {
+                    LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
+                    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
         }

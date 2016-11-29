@@ -31,6 +31,12 @@
  *******************************************************************************/
 package se.sics.ace;
 
+import java.util.HashMap;
+import java.util.Map;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
 /**
  * Constants for use with the ACE framework.
  * 
@@ -80,8 +86,8 @@ public class Constants {
 		"nbf", "iat", "cti", "client_id", "client_secret", "response_type",
 		"redirect_uri", "scope", "state", "code", "error_description", 
 		"error_uri", "grant_type", "access_token", "token_type", "expires_in",
-		"username", "password", "refresh_token", "cnf", "profile", 
-		"active", "client_token", "rs_cnf"};
+		"username", "password", "refresh_token", "cnf", "profile", "token",
+		"token_type_hint", "active", "client_token", "rs_cnf"};
 	
 	
 	/**
@@ -132,5 +138,32 @@ public class Constants {
 			}
 		}
 		return -1;	
-	}	
+	}
+		   
+    /**
+    * Remaps a parameter map to the unabbreviated version.
+    * 
+    * @param map
+    */
+   public static void unabbreviate(CBORObject map) {
+       if (!map.getType().equals(CBORType.Map)) {
+           return;
+       }
+       Map<CBORObject, CBORObject> replacer = new HashMap<>();
+       for (CBORObject key : map.getKeys()) {
+           if (key.isIntegral()) {
+               int keyInt = key.AsInt32();
+               if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
+                   replacer.put(key, 
+                           CBORObject.FromObject(Constants.ABBREV[keyInt]));
+                   
+               }
+           }
+       }
+       for (CBORObject key : replacer.keySet()) {
+           CBORObject value = map.get(key);
+           map.Remove(key);
+           map.Add(replacer.get(key), value);
+       }
+   }
 }

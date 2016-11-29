@@ -93,14 +93,7 @@ public class CoapToken extends CoapResource implements AutoCloseable {
         }
         LOGGER.log(Level.FINEST, "Received request: " 
                 + ((req==null)?"null" : req.toString()));
-        Message m = null;
-        try {
-            m = this.t.processMessage(req);
-        } catch (NoSuchAlgorithmException | IllegalStateException
-                | InvalidCipherTextException | AceException | CoseException e) {
-            LOGGER.log(Level.SEVERE, e.getMessage());
-            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
-        }
+        Message m = this.t.processMessage(req);
         
         if (m instanceof CoapResponse) {
             CoapResponse res = (CoapResponse)m;

@@ -47,7 +47,6 @@ import javax.crypto.SecretKey;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
@@ -137,7 +136,6 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @param db  the database connector
 	 * @param time  the time provider
 	 * @param privateKey  the private key of the AS or null if there isn't any
-	 * @param tokenfile  the filename for storing the list of tokens
 	 * 
 	 * @throws AceException  if fetching the cti from the database fails
 	 */
@@ -154,11 +152,8 @@ public class Token implements Endpoint, AutoCloseable {
 
 	
 	@Override
-	public Message processMessage(Message msg) 
-	        throws AceException, NoSuchAlgorithmException, 
-	        IllegalStateException, InvalidCipherTextException, 
-	        CoseException, AceException {
-	    LOGGER.log(Level.INFO, "received message: " + msg.toString());
+	public Message processMessage(Message msg) {
+	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    
 	    //1. Check that this is a client credentials grant type    
 	    if (msg.getParameter("grant_type") == null 
@@ -185,7 +180,13 @@ public class Token implements Endpoint, AutoCloseable {
 		CBORObject cbor = msg.getParameter("scope");
 		String scope = null;
 		if (cbor == null ) {
-			scope = this.db.getDefaultScope(id);
+			try {
+                scope = this.db.getDefaultScope(id);
+            } catch (AceException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		} else {
 		    scope = cbor.AsString();
 		}
@@ -202,7 +203,13 @@ public class Token implements Endpoint, AutoCloseable {
 		cbor = msg.getParameter("aud");
 		String aud = null;
 		if (cbor == null) {
-		    aud = this.db.getDefaultAudience(id);
+		    try {
+                aud = this.db.getDefaultAudience(id);
+            } catch (AceException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		} else {
 		    aud = cbor.AsString();
 		}
@@ -217,7 +224,14 @@ public class Token implements Endpoint, AutoCloseable {
 
 		
 		//5. Check if the scope is allowed
-		String allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
+		String allowedScopes = null;
+        try {
+            allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		if (allowedScopes == null) {	
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add("error", "invalid_scope");
@@ -228,7 +242,14 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//6. Create token
 		//Find supported token type
-		Integer tokenType = this.db.getSupportedTokenType(aud);
+		Integer tokenType = null;
+        try {
+            tokenType = this.db.getSupportedTokenType(aud);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		if (tokenType == null) {
             CBORObject map = CBORObject.NewMap();
             map.Add("error", "Audience incompatible on token type");
@@ -244,7 +265,14 @@ public class Token implements Endpoint, AutoCloseable {
 		claims.put("aud", CBORObject.FromObject(aud));
 		claims.put("sub", CBORObject.FromObject(id));
 		long now = this.time.getCurrentTime();
-		long exp = this.db.getExpTime(aud);
+		long exp = Long.MAX_VALUE;
+        try {
+            exp = this.db.getExpTime(aud);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		if (exp == Long.MAX_VALUE) {
 		    exp = expiration;
 		}
@@ -256,7 +284,14 @@ public class Token implements Endpoint, AutoCloseable {
 		claims.put("scope", CBORObject.FromObject(allowedScopes));
 
 		//Find supported profile
-		String profile = this.db.getSupportedProfile(id, aud);
+		String profile = null;
+        try {
+            profile = this.db.getSupportedProfile(id, aud);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		if (profile == null) {
 		    CBORObject map = CBORObject.NewMap();
             map.Add("error", "No compatible profile found");
@@ -275,19 +310,39 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		
 		//Find supported key type for proof-of-possession
-		String keyType = this.db.getSupportedPopKeyType(id, aud);
+		String keyType = "";
+        try {
+            keyType = this.db.getSupportedPopKeyType(id, aud);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		switch (keyType) {
 		case "PSK":
-		    KeyGenerator kg = KeyGenerator.getInstance("AES");
-		    SecretKey key = kg.generateKey();
-		    CBORObject psk = CBORObject.FromObject(key.getEncoded());
-		    claims.put("cnf", psk);
+            try {
+                KeyGenerator kg = KeyGenerator.getInstance("AES");
+                SecretKey key = kg.generateKey();
+                CBORObject psk = CBORObject.FromObject(key.getEncoded());
+                claims.put("cnf", psk);
+            } catch (NoSuchAlgorithmException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }	    
 		    break;
 		case "RPK":
 		    CBORObject rpk = msg.getParameter("cnf");
 		    if (rpk == null) {
 		        //Try to get the RPK from the DB
-		        rpk = this.db.getCRPK(id);
+		        try {
+                    rpk = this.db.getCRPK(id);
+                } catch (AceException e) {
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
 		    }
 		    if (rpk == null) {
 		        CBORObject map = CBORObject.NewMap();
@@ -307,13 +362,28 @@ public class Token implements Endpoint, AutoCloseable {
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
-		AccessToken token = AccessTokenFactory.generateToken(tokenType, claims);
+		AccessToken token = null;
+        try {
+            token = AccessTokenFactory.generateToken(tokenType, claims);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
+
 		if (token instanceof CWT) {
 		    		    
-		    CwtCryptoCtx ctx = makeCommonCtx(aud);
+		    CwtCryptoCtx ctx = null;
+            try {
+                ctx = makeCommonCtx(aud);
+            } catch (AceException | CoseException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		    if (ctx == null) {
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add("error", 
@@ -323,12 +393,25 @@ public class Token implements Endpoint, AutoCloseable {
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
-		    rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
+		    try {
+                rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
+            } catch (IllegalStateException | InvalidCipherTextException
+                    | CoseException | AceException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		} else {
 		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
 		}
 		
-		this.db.addToken(ctiStr, claims);
+		try {
+            this.db.addToken(ctiStr, claims);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		 LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
@@ -452,33 +535,6 @@ public class Token implements Endpoint, AutoCloseable {
 	    }
 	    return key;
 	}
-	
-	 /**
-     * Remaps a parameter map to the unabbreviated version.
-     * 
-     * @param map
-     */
-    public static void unabbreviate(CBORObject map) {
-        if (!map.getType().equals(CBORType.Map)) {
-            return;
-        }
-        Map<CBORObject, CBORObject> replacer = new HashMap<>();
-        for (CBORObject key : map.getKeys()) {
-            if (key.isIntegral()) {
-                int keyInt = key.AsInt32();
-                if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
-                    replacer.put(key, 
-                            CBORObject.FromObject(Constants.ABBREV[keyInt]));
-                    
-                }
-            }
-        }
-        for (CBORObject key : replacer.keySet()) {
-            CBORObject value = map.get(key);
-            map.Remove(key);
-            map.Add(replacer.get(key), value);
-        }
-    }
 
     @Override
     public void close() throws Exception {

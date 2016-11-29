@@ -148,4 +148,11 @@ public class Testmessage implements Message {
     public int getMessageCode() {
         return this.code;
     }
+    
+    @Override
+    public String toString() {
+        return "SenderId: " + this.senderId + " Parameters: "
+                + ((this.params == null)? 
+                        this.payload.toString() : this.params.toString());
+    }
  }
