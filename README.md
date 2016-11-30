@@ -7,7 +7,7 @@ fanboys make that hard with their crappy manuals).
 ### What is this repository for? ###
 
 * This is a Java library for the functions necessary to run a client, resource
-  server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://tools.ietf.org/html/draft-ietf-ace-oauth-authz-02). 
+  server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://tools.ietf.org/html/draft-ietf-ace-oauth-authz). 
   It currently does not include network functionality, since it tries to be
   protocol agnostic. However as this work progesses at least support for [CoAP](https://tools.ietf.org/html/rfc7252) will be added.
 * Version: early_alpha
@@ -16,14 +16,17 @@ fanboys make that hard with their crappy manuals).
 ### How do I get set up? ###
 
 * Just clone the repo, do the Maven fu and you are good to go
-* Configuration: None needed to test. To run in production you need to
-  configure like everything, starting with your resource servers (out of scope
-  here), the access control policies for the authorization server (KissPDP has
-  a demo format in JSON, check the test resources), the discovery of AS (out of
-  scope again). If you don't know where to start you probably shouldn't use
-  this in production settings.
+* Configuration: You need to set up a SQL database to run the tests, check the
+  default* parameters given in the SQLConnector class. To run in production you 
+  need to configure like everything, starting with your resource servers (out of
+  scope here), the access control policies for the authorization server 
+  (KissPDP has a demo format in JSON, check the test resources), the discovery
+  of AS (out of scope again). If you don't know where to start you probably
+  shouldn't use this in production settings.
 * Dependencies: Lots, check the .pom file
-* Database configuration:  TBD
+* Database configuration:  Set up an SQL database (I used MySQL), for running 
+  the tests create a file 'db.pwd' with the root password of your test database
+  at the root directory of this library.
 * How to run tests: Run the class files in the src/test folders
 * Deployment instructions: Depends ... TBD
 
