@@ -1,6 +1,6 @@
 [
 	["clientA", "clientB", "clientC", "clientD"],
-	["rs1", "rs2", "rs3", "rs4", "rs5", "rs6", "rs7"],
+	["rs1", "rs2", "rs3", "rs5", "rs6", "rs7"],
 	{
 		"clientA" : {
 			"rs1" : ["r_temp", "rw_config"],

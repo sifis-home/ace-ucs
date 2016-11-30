@@ -38,6 +38,7 @@ import java.util.List;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.MessageTag;
+import COSE.OneKey;
 import COSE.Recipient;
 import COSE.Signer;
 
@@ -59,13 +60,13 @@ public class CwtCryptoCtx {
     
 	private List<Signer> signers = Collections.emptyList();
 	
-	private CBORObject privatekey = null;
+	private OneKey privatekey = null;
 	
 	private List<Recipient> recipients = Collections.emptyList();
 	
 	private byte[] rawSymmetricKey = null;
 
-	private CBORObject publicKey = null;
+	private OneKey publicKey = null;
 	
 	private CBORObject alg = null;
 	
@@ -75,8 +76,8 @@ public class CwtCryptoCtx {
 		this.alg = alg;
 	}
 	
-	protected CwtCryptoCtx(MessageTag what, CBORObject publicKey, 
-	        CBORObject privateKey, CBORObject alg) {
+	protected CwtCryptoCtx(MessageTag what, OneKey publicKey, 
+	        OneKey privateKey, CBORObject alg) {
 	    this.what = what;
 		this.publicKey = publicKey;
 		this.privatekey = privateKey;
@@ -168,7 +169,7 @@ public class CwtCryptoCtx {
 	 * @param alg   the signature algorithm (from AlgorithmID.*.ASCBOR())
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx signVerify(CBORObject publicKey, CBORObject alg) {
+	public static CwtCryptoCtx signVerify(OneKey publicKey, CBORObject alg) {
 		return new CwtCryptoCtx(MessageTag.Sign, publicKey, null, alg);
 	}
 	
@@ -180,7 +181,7 @@ public class CwtCryptoCtx {
 	 * 
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx sign1Verify(CBORObject publicKey, CBORObject alg) {
+	public static CwtCryptoCtx sign1Verify(OneKey publicKey, CBORObject alg) {
 			return new CwtCryptoCtx(MessageTag.Sign1, publicKey, null, alg);
 	}
 	
@@ -192,7 +193,7 @@ public class CwtCryptoCtx {
 	 * 
 	 * @return  the matching context
 	 */
-	public static CwtCryptoCtx sign1Create(CBORObject privateKey, CBORObject alg) {
+	public static CwtCryptoCtx sign1Create(OneKey privateKey, CBORObject alg) {
 		return new CwtCryptoCtx(MessageTag.Sign1, null, privateKey, alg);
 	}
 		
@@ -206,7 +207,7 @@ public class CwtCryptoCtx {
 	/**
 	 * @return  the private key
 	 */
-	public CBORObject getPrivateKey() {
+	public OneKey getPrivateKey() {
 		return this.privatekey;
 	}
 	
@@ -234,7 +235,7 @@ public class CwtCryptoCtx {
 	/**
 	 * @return  the public key
 	 */
-	public CBORObject getPublicKey() {
+	public OneKey getPublicKey() {
 		return this.publicKey;
 	}
 	

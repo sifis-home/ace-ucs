@@ -45,8 +45,11 @@ import java.util.Properties;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 
@@ -1062,7 +1065,7 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public synchronized CBORObject getRsRPK(String rs) throws AceException {
+    public synchronized OneKey getRsRPK(String rs) throws AceException {
         try {
             this.selectRsRPK.setString(1, rs);
             ResultSet result = this.selectRsRPK.executeQuery();
@@ -1073,10 +1076,11 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
             if (key != null) {
-                return CBORObject.DecodeFromBytes(key);
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
             }
             return null;
-        } catch (SQLException e) {
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1099,7 +1103,7 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public synchronized CBORObject getCRPK(String client) throws AceException {
+    public synchronized OneKey getCRPK(String client) throws AceException {
         try {
             this.selectCRPK.setString(1, client);
             ResultSet result = this.selectCRPK.executeQuery();
@@ -1110,10 +1114,11 @@ public class SQLConnector implements DBConnector {
             }
             result.close();
             if (key != null) {
-                return CBORObject.DecodeFromBytes(key);
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
             }
             return null;
-        } catch (SQLException e) {
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1122,7 +1127,7 @@ public class SQLConnector implements DBConnector {
     public synchronized void addRS(String rs, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
-            byte[] sharedKey, CBORObject publicKey) throws AceException {
+            byte[] sharedKey, OneKey publicKey) throws AceException {
 
         if (rs == null || rs.isEmpty()) {
             throw new AceException(
@@ -1167,7 +1172,8 @@ public class SQLConnector implements DBConnector {
             this.insertRS.setLong(2, expiration);
             this.insertRS.setBytes(3, sharedKey);
             if (publicKey != null) {
-                this.insertRS.setBytes(4, publicKey.EncodeToBytes());
+                this.insertRS.setBytes(4, 
+                        oneKey2cbor(publicKey).EncodeToBytes());
             } else {
                 this.insertRS.setBytes(4, null);
             }
@@ -1222,7 +1228,7 @@ public class SQLConnector implements DBConnector {
                 this.insertCose.execute();
             }
             this.insertCose.clearParameters();
-        } catch (SQLException e) {
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1265,7 +1271,7 @@ public class SQLConnector implements DBConnector {
     @Override
     public synchronized void addClient(String client, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            byte[] sharedKey, CBORObject publicKey) 
+            byte[] sharedKey, OneKey publicKey) 
                     throws AceException {
         try {
             if (sharedKey == null && publicKey == null) {
@@ -1276,7 +1282,8 @@ public class SQLConnector implements DBConnector {
             this.insertClient.setString(3, defaultScope);
             this.insertClient.setBytes(4, sharedKey);
             if (publicKey != null) {
-                this.insertClient.setBytes(5, publicKey.EncodeToBytes());
+                this.insertClient.setBytes(5, 
+                        oneKey2cbor(publicKey).EncodeToBytes());
             } else {
                 this.insertClient.setBytes(5, null);
             }
@@ -1296,7 +1303,7 @@ public class SQLConnector implements DBConnector {
                 this.insertKeyType.execute();
             }
             this.insertKeyType.clearParameters();
-        } catch (SQLException e) {
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1412,4 +1419,76 @@ public class SQLConnector implements DBConnector {
             throw new AceException(e.getMessage());
         }    
     }
+    
+    /**
+     * Temporary workaround to get the CBOR encoding from a OneKey object.
+     * 
+     * @param key  the OneKey object
+     * 
+     * @return  the CBOR encoded key
+     * 
+     * @throws CoseException 
+     */
+    @Deprecated
+    public static CBORObject oneKey2cbor(OneKey key) throws CoseException {
+        CBORObject cbor = CBORObject.NewMap();
+        CBORObject val;
+        val = key.get(KeyKeys.KeyType);
+        cbor.Add(KeyKeys.KeyType.AsCBOR(), val);
+        if (val.equals(KeyKeys.KeyType_Octet)) {
+            val = key.get(KeyKeys.Octet_K);
+            if ((val== null) || (val.getType() != CBORType.ByteString)) {
+                throw new CoseException("Malformed key structure");
+            }
+            cbor.Add(KeyKeys.Octet_K.AsCBOR(), val);
+        } else if (val.equals(KeyKeys.KeyType_EC2)) {
+            val = key.get(KeyKeys.EC2_Curve);
+            if (val == null) {
+                throw new CoseException("Malformed key structure");
+            } else if (val != KeyKeys.EC2_P256 
+                    && val != KeyKeys.EC2_P384 
+                    && val != KeyKeys.EC2_P521) {
+                throw new CoseException("Unsupported EC curve");               
+            } else {
+                cbor.Add(KeyKeys.EC2_Curve.AsCBOR(), val);
+            }
+            
+            boolean privateKey = false;
+            val = key.get(KeyKeys.EC2_D);
+            if (val != null) {
+                if (val.getType() != CBORType.ByteString) {
+                    throw new CoseException("Malformed key structure");
+                }
+                privateKey = true;
+                cbor.Add(KeyKeys.EC2_D.AsCBOR(), val);
+            }
+            
+            val = key.get(KeyKeys.EC2_X);
+            if (val == null) {
+                if (!privateKey) {
+                    throw new CoseException("Malformed key structure");
+                }
+            }
+            else if (val.getType() != CBORType.ByteString) {
+                throw new CoseException("Malformed key structure");
+            } else {
+               cbor.Add(KeyKeys.EC2_X.AsCBOR(), val);
+           }
+            
+            val = key.get(KeyKeys.EC2_Y);
+            if (val == null) {
+                if (!privateKey) {
+                    throw new CoseException("Malformed key structure");
+                }
+            }
+            else if ((val.getType() != CBORType.ByteString) && (val.getType() != CBORType.Boolean)) {
+                throw new CoseException("Malformed key structure");
+            } else {
+                cbor.Add(KeyKeys.EC2_Y.AsCBOR(), val);
+            }
+        } else throw new CoseException("Unsupported key type");
+        
+        return cbor;
+    }
+    
 }

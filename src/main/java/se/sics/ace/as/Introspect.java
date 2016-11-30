@@ -41,11 +41,11 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.Attribute;
 import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
+import COSE.OneKey;
 import COSE.Recipient;
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
@@ -89,7 +89,7 @@ public class Introspect implements Endpoint {
     /**
      * The public key of the AS
      */
-    private CBORObject publicKey;
+    private OneKey publicKey;
     
     /**
      * Constructor.
@@ -102,7 +102,7 @@ public class Introspect implements Endpoint {
      * @throws AceException  if fetching the cti from the database fails
      */
     public Introspect(PDP pdp, DBConnector db, 
-            TimeProvider time, CBORObject publicKey) throws AceException {
+            TimeProvider time, OneKey publicKey) throws AceException {
         this.pdp = pdp;
         this.db = db;
         this.time = time;
@@ -268,17 +268,19 @@ public class Introspect implements Endpoint {
      * 
      * @return  the recipients list
      * @throws AceException 
+     * @throws CoseException 
      */
     private List<Recipient> makeRecipient(COSEparams cose, String rsid) 
-            throws AceException {
+            throws AceException, CoseException {
         Recipient rs = new Recipient();  
         rs.addAttribute(HeaderKeys.Algorithm, 
-             cose.getKeyWrap().AsCBOR(), Attribute.UnprotectedAttributes);
+             cose.getKeyWrap().AsCBOR(), COSE.Message.UNPROTECTED);
         CBORObject key = CBORObject.NewMap();
         key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
                 this.db.getRsPSK(rsid)));
-        rs.SetKey(key); 
+        OneKey coseKey = new OneKey(key);
+        rs.SetKey(coseKey); 
         return Collections.singletonList(rs);
     }
     

@@ -1,5 +1,7 @@
 package se.sics.ace.as;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -27,8 +29,10 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -46,11 +50,8 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  */
 public class TestIntrospect {
     
-    private static CBORObject cnKeyPublic;
-    private static CBORObject cnKeyPublicCompressed;
-    private static CBORObject cnKeyPrivate;
-    private static ECPublicKeyParameters keyPublic;
-    private static ECPrivateKeyParameters keyPrivate; 
+    private static OneKey publicKey;
+    private static OneKey privateKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
   
     private static SQLConnector db = null;
@@ -62,49 +63,58 @@ public class TestIntrospect {
      * @throws AceException 
      * @throws SQLException 
      * @throws IOException 
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() throws AceException, SQLException, IOException {
-        //Scanner reader = new Scanner(System.in);  // Reading from System.in
-        //System.out.println("Please input DB password to run tests: ");
-        //dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
-        //reader.close();
-        dbPwd = "";
+    public static void setUp() 
+            throws AceException, SQLException, IOException, CoseException {
+        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            dbPwd = sb.toString().replace(
+                    System.getProperty("line.separator"), "");     
+        } finally {
+            br.close();
+        }
         
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
+        ECDomainParameters parameters = new ECDomainParameters(
+                p.getCurve(), p.getG(), p.getN(), p.getH());
         ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
+        ECKeyGenerationParameters genParam 
+            = new ECKeyGenerationParameters(parameters, null);
         pGen.init(genParam);
         
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
         
-        keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
+        ECPublicKeyParameters keyPublic = (ECPublicKeyParameters) p1.getPublic();
+        ECPrivateKeyParameters keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
         byte[] rgbD = keyPrivate.getD().toByteArray();      
         
-        cnKeyPublic = CBORObject.NewMap();
-        cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        
-        cnKeyPublicCompressed = CBORObject.NewMap();
-        cnKeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
+        CBORObject cKeyPublic = CBORObject.NewMap();
+        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), 
                     KeyKeys.KeyType_EC2);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
+        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), 
                     KeyKeys.EC2_P256);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
+        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        publicKey = new OneKey(cKeyPublic);
         
-        cnKeyPrivate = CBORObject.NewMap();
-        cnKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
+        CBORObject cKeyPrivate = CBORObject.NewMap();
+        cKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        cKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        cKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
+        privateKey = new OneKey(cKeyPrivate);
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -139,7 +149,7 @@ public class TestIntrospect {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, cnKeyPublicCompressed);
+                expiration, key128, publicKey);
                 
         KissTime time = new KissTime();
         
@@ -164,7 +174,7 @@ public class TestIntrospect {
 
         i = new Introspect(
                 KissPDP.getInstance("src/test/resources/acl.json", db), 
-                db, time, cnKeyPublic);
+                db, time, publicKey);
     }
     
     
@@ -276,7 +286,7 @@ public class TestIntrospect {
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
-                cnKeyPrivate, coseP.getAlg().AsCBOR());
+                privateKey, coseP.getAlg().AsCBOR());
         Message response = i.processMessage(
                 new Testmessage(-1, "rs1", token.encode(ctx)));
         assert(response.getMessageCode() == Message.CREATED);

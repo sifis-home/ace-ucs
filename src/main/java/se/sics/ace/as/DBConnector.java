@@ -37,7 +37,7 @@ import java.util.Set;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.CoseException;
-
+import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.AceException;
 
@@ -365,7 +365,7 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public CBORObject getRsRPK(String rs)
+    public OneKey getRsRPK(String rs)
         throws AceException;
     
     /**
@@ -389,7 +389,7 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public CBORObject getCRPK(String client)
+    public OneKey getCRPK(String client)
         throws AceException;
     
 	/**
@@ -416,7 +416,7 @@ public interface DBConnector {
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
             Set<COSEparams> cose, long expiration, byte[] sharedKey, 
-            CBORObject publicKey) throws AceException;
+            OneKey publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 
@@ -444,7 +444,7 @@ public interface DBConnector {
 	 */
 	public void addClient(String client, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
-	        byte[] sharedKey, CBORObject publicKey) 
+	        byte[] sharedKey, OneKey publicKey) 
 	                throws AceException;
 	
 	/**

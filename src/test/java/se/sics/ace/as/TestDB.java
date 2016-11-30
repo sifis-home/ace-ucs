@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -40,7 +43,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Scanner;
 import java.util.Set;
 
 import org.bouncycastle.asn1.nist.NISTNamedCurves;
@@ -59,9 +61,10 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
-
+import COSE.OneKey;
 import se.sics.ace.COSEparams;
 
 import se.sics.ace.AceException;
@@ -75,9 +78,7 @@ import se.sics.ace.AceException;
  */
 public class TestDB {
   
-    static CBORObject cnKeyPublic;
-    static CBORObject cnKeyPublicCompressed;
-    static ECPublicKeyParameters keyPublic;
+    static OneKey publicKey;
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
     static SQLConnector db = null;
@@ -88,18 +89,32 @@ public class TestDB {
      * Set up tests.
      * @throws SQLException 
      * @throws AceException 
+     * @throws IOException 
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() throws SQLException, AceException {
-        Scanner reader = new Scanner(System.in);  // Reading from System.in
-        System.out.println("Please input DB password to run tests: ");
-        dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
-        reader.close();
+    public static void setUp() 
+            throws SQLException, AceException, IOException, CoseException {
+        
+        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            dbPwd = sb.toString().replace(
+                    System.getProperty("line.separator"), "");     
+        } finally {
+            br.close();
+        }
         
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), 
-                p.getG(), p.getN(), p.getH());
+        ECDomainParameters parameters = new ECDomainParameters(
+                p.getCurve(), p.getG(), p.getN(), p.getH());
         ECKeyPairGenerator pGen = new ECKeyPairGenerator();
         ECKeyGenerationParameters genParam 
             = new ECKeyGenerationParameters(parameters, null);
@@ -107,24 +122,21 @@ public class TestDB {
         
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
         
-        keyPublic = (ECPublicKeyParameters) p1.getPublic();
+        ECPublicKeyParameters keyPublic 
+            = (ECPublicKeyParameters) p1.getPublic();
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
 
-        cnKeyPublic = CBORObject.NewMap();
-        cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        
-        cnKeyPublicCompressed = CBORObject.NewMap();
-        cnKeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
+        CBORObject cKeyPublic = CBORObject.NewMap();
+        cKeyPublic = CBORObject.NewMap();
+        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), 
                     KeyKeys.KeyType_EC2);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
+        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), 
                     KeyKeys.EC2_P256);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
+        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        publicKey = new OneKey(cKeyPublic);
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -158,7 +170,7 @@ public class TestDB {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, cnKeyPublicCompressed);
+                expiration, key128, publicKey);
         
         profiles.remove("coap_oscoap");
         scopes.clear();
@@ -184,7 +196,7 @@ public class TestDB {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, cnKeyPublicCompressed);
+                expiration, null, publicKey);
         
         
         //Setup client entries
@@ -193,7 +205,7 @@ public class TestDB {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient("clientA", profiles, null, null, keyTypes, null,
-                cnKeyPublicCompressed);
+                publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
@@ -289,7 +301,7 @@ public class TestDB {
      */
     @Test
     public void testGetProfiles() throws Exception {
-        String profile = db.getSupportedProfile("sensors", "clientA");
+        String profile = db.getSupportedProfile("clientA", "sensors");
         assert(profile.equals("coap_dtls"));
         
         profile = db.getSupportedProfile("sensors", "clientB");
@@ -331,9 +343,9 @@ public class TestDB {
     public void testGetCose() throws Exception {
         COSEparams cose = db.getSupportedCoseParams("actuators");
         assert(cose == null);
-        
         cose = db.getSupportedCoseParams("sensors");
-        assert(cose.toString().equals("997:-7:-6")); 
+        System.out.println(cose.toString());
+        assert(cose.toString().equals("18:-7:-6")); 
     }
     
     /**
@@ -450,9 +462,10 @@ public class TestDB {
      */
     @Test
     public void testGetRsRPK() throws Exception {
-        CBORObject rpk = db.getRsRPK("rs1");
-        assert(rpk.equals(cnKeyPublicCompressed));
-           
+        OneKey rpk = db.getRsRPK("rs1");
+        Assert.assertArrayEquals(
+                SQLConnector.oneKey2cbor(publicKey).EncodeToBytes(),
+                SQLConnector.oneKey2cbor(rpk).EncodeToBytes());           
         rpk = db.getRsRPK("rs2");
         Assert.assertNull(rpk);
     }
@@ -478,9 +491,10 @@ public class TestDB {
      */
     @Test
     public void testGetCRPK() throws Exception {
-        CBORObject rpk = db.getCRPK("clientA");
-        assert(rpk.equals(cnKeyPublicCompressed));
-
+        OneKey rpk = db.getCRPK("clientA");
+        Assert.assertArrayEquals(
+                SQLConnector.oneKey2cbor(publicKey).EncodeToBytes(),
+                SQLConnector.oneKey2cbor(rpk).EncodeToBytes());   
         rpk = db.getCRPK("clientB");
         Assert.assertNull(rpk);
     }

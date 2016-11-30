@@ -31,7 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.cwt;
 
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
@@ -52,7 +51,9 @@ import org.junit.rules.ExpectedException;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.Attribute;
+import COSE.CoseException;
+import COSE.Message;
+import COSE.OneKey;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.Recipient;
@@ -66,11 +67,9 @@ import COSE.Signer;
  */
 public class CwtTest {
 	
-    static CBORObject cnKeyPublic;
-    static CBORObject cnKeyPublicCompressed;
-    static CBORObject cnKeyPrivate;
-    static ECPublicKeyParameters keyPublic;
-    static ECPrivateKeyParameters keyPrivate;
+    static OneKey publicKey;
+    static OneKey privateKey;
+
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
 
@@ -84,45 +83,43 @@ public class CwtTest {
     
     /**
      * Set up tests.
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws CoseException {
     
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
+        ECDomainParameters parameters = new ECDomainParameters(
+                p.getCurve(), p.getG(), p.getN(), p.getH());
         ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
+        ECKeyGenerationParameters genParam 
+            = new ECKeyGenerationParameters(parameters, null);
         pGen.init(genParam);
         
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
         
-        keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
+        ECPublicKeyParameters keyPublic
+            = (ECPublicKeyParameters) p1.getPublic();
+        ECPrivateKeyParameters keyPrivate 
+            = (ECPrivateKeyParameters) p1.getPrivate();
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
         byte[] rgbD = keyPrivate.getD().toByteArray();
 
-        cnKeyPublic = CBORObject.NewMap();
-        cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        CBORObject cKeyPublic = CBORObject.NewMap();
+        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
+        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        publicKey = new OneKey(cKeyPublic);
         
-        cnKeyPublicCompressed = CBORObject.NewMap();
-        cnKeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
-        			KeyKeys.KeyType_EC2);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
-        			KeyKeys.EC2_P256);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-
-        cnKeyPrivate = CBORObject.NewMap();
-        cnKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
-        
+        CBORObject cKeyPrivate = CBORObject.NewMap();
+        cKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        cKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        cKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
+        privateKey = new OneKey(cKeyPrivate);
         
                
         claims = new HashMap<>();
@@ -134,7 +131,7 @@ public class CwtTest {
         claims.put("iat", CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
-        claims.put("cks", cnKeyPublic);
+        claims.put("cks", cKeyPublic);
         claims.put("scope", CBORObject.FromObject(
         		"r+/s/light rwx+/a/led w+/dtls"));
     }
@@ -154,15 +151,14 @@ public class CwtTest {
         System.out.println("Round Trip Sign1");
         
         CBORObject alg = AlgorithmID.ECDSA_256.AsCBOR();
-        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(cnKeyPrivate, alg);    
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(privateKey, alg);    
         
         CWT cwt = new CWT(claims);
         
         CBORObject msg = cwt.encode(ctx);
         
         byte[] rawCWT = msg.EncodeToBytes();
-        
-        ctx = CwtCryptoCtx.sign1Verify(cnKeyPublic, alg);
+        ctx = CwtCryptoCtx.sign1Verify(publicKey, alg);
         CWT cwt2 = CWT.processCOSE(rawCWT, ctx);
         
         for (String key : claims.keySet()) {
@@ -217,16 +213,16 @@ public class CwtTest {
        public void testRoundTripSign() throws Exception {
            System.out.println("Round Trip Sign");
            Signer me = new Signer();
-           me.setKey(cnKeyPrivate);
+           me.setKey(privateKey);
            me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), 
-        		   Attribute.ProtectedAttributes);
+        		   Message.PROTECTED);
            CwtCryptoCtx ctx = CwtCryptoCtx.signCreate(
         		   Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
            CWT cwt = new CWT(claims);
            
            CBORObject msg = cwt.encode(ctx);
            
-           CwtCryptoCtx ctx2 = CwtCryptoCtx.signVerify(cnKeyPublic, AlgorithmID.ECDSA_256.AsCBOR());  
+           CwtCryptoCtx ctx2 = CwtCryptoCtx.signVerify(publicKey, AlgorithmID.ECDSA_256.AsCBOR());  
            byte[] rawCWT = msg.EncodeToBytes();
           
            CWT cwt2 = CWT.processCOSE(rawCWT, ctx2);
@@ -244,11 +240,12 @@ public class CwtTest {
             System.out.println("Round Trip Encrypt");
             Recipient me = new Recipient();  
             me.addAttribute(HeaderKeys.Algorithm, 
-           		 AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
+           		 AlgorithmID.Direct.AsCBOR(), Message.UNPROTECTED);
             CBORObject ckey256 = CBORObject.NewMap();
             ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
             ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
-            me.SetKey(ckey256); 
+            OneKey cborKey = new OneKey(ckey256);
+            me.SetKey(cborKey); 
             CwtCryptoCtx ctx = CwtCryptoCtx.encrypt(
             		Collections.singletonList(me), AlgorithmID.AES_CCM_16_64_128.AsCBOR());  
             CWT cwt = new CWT(claims);
@@ -270,11 +267,12 @@ public class CwtTest {
              System.out.println("Round Trip MAC");
              Recipient me = new Recipient();  
              me.addAttribute(HeaderKeys.Algorithm, 
-            		 AlgorithmID.Direct.AsCBOR(), Attribute.UnprotectedAttributes);
+            		 AlgorithmID.Direct.AsCBOR(), Message.UNPROTECTED);
              CBORObject ckey256 = CBORObject.NewMap();
              ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
              ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
-             me.SetKey(ckey256); 
+             OneKey cborKey = new OneKey(ckey256);
+             me.SetKey(cborKey); 
              CwtCryptoCtx ctx = CwtCryptoCtx.mac (
             		 Collections.singletonList(me), AlgorithmID.HMAC_SHA_256.AsCBOR());  
              CWT cwt = new CWT(claims);

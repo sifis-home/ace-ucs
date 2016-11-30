@@ -116,6 +116,7 @@ public class AuthzInfo implements Endpoint {
 			cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 		} catch (CoseException ce) {
 			//Not a CWT, check if this is a reference token
+		    //FIXME: add logger
 			return processRefrenceToken(msg);
 		}
 

@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -48,7 +51,6 @@ import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
 import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
 import org.bouncycastle.crypto.params.ECDomainParameters;
 import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
 import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 
 import org.junit.AfterClass;
@@ -60,9 +62,10 @@ import org.junit.rules.ExpectedException;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
-
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 
@@ -74,11 +77,7 @@ import se.sics.ace.COSEparams;
  */
 public class TestKissPDP {
     
-    private static CBORObject cnKeyPublic;
-    private static CBORObject cnKeyPublicCompressed;
-    private static CBORObject cnKeyPrivate;
-    private static ECPublicKeyParameters keyPublic;
-    private static ECPrivateKeyParameters keyPrivate; 
+    private static OneKey publicKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
     private static String dbPwd = null;
@@ -94,49 +93,53 @@ public class TestKissPDP {
      * Set up tests.
      * @throws AceException 
      * @throws SQLException 
+     * @throws IOException 
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() throws AceException, SQLException {
-      //Scanner reader = new Scanner(System.in);  // Reading from System.in
-        //System.out.println("Please input DB password to run tests: ");
-        //dbPwd = reader.nextLine(); // Scans the next token of the input as an int.System.in.
-        //reader.close();
-        dbPwd = "";
+    public static void setUp() 
+            throws AceException, SQLException, IOException, CoseException {
+        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
+        try {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            dbPwd = sb.toString().replace(
+                    System.getProperty("line.separator"), ""); 
+        } finally {
+            br.close();
+        } 
         
         X9ECParameters p = NISTNamedCurves.getByName("P-256");
         
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
+        ECDomainParameters parameters = new ECDomainParameters(
+                p.getCurve(), p.getG(), p.getN(), p.getH());
         ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
+        ECKeyGenerationParameters genParam 
+            = new ECKeyGenerationParameters(parameters, null);
         pGen.init(genParam);
         
         AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
         
-        keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
+        ECPublicKeyParameters keyPublic 
+            = (ECPublicKeyParameters) p1.getPublic();
         
         byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
         byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();
-        
-        cnKeyPublic = CBORObject.NewMap();
-        cnKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        
-        cnKeyPublicCompressed = CBORObject.NewMap();
-        cnKeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
+            
+        CBORObject ckeyPublicCompressed = CBORObject.NewMap();
+        ckeyPublicCompressed.Add(KeyKeys.KeyType.AsCBOR(), 
                     KeyKeys.KeyType_EC2);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
+        ckeyPublicCompressed.Add(KeyKeys.EC2_Curve.AsCBOR(), 
                     KeyKeys.EC2_P256);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cnKeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        
-        cnKeyPrivate = CBORObject.NewMap();
-        cnKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cnKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cnKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
+        ckeyPublicCompressed.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
+        ckeyPublicCompressed.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
+        publicKey = new OneKey(ckeyPublicCompressed);
+
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -170,7 +173,7 @@ public class TestKissPDP {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, cnKeyPublicCompressed);
+                expiration, key128, publicKey);
         
         profiles.remove("coap_oscoap");
         scopes.clear();
@@ -198,7 +201,7 @@ public class TestKissPDP {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, cnKeyPublicCompressed);
+                expiration, null, publicKey);
         
         
         //Setup client entries
@@ -206,7 +209,7 @@ public class TestKissPDP {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, keyTypes, null, cnKeyPublicCompressed);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
@@ -279,7 +282,7 @@ public class TestKissPDP {
     	assert(pdp.canAccess("clientA", "rs1", "r_temp").equals("r_temp"));
     	assert(pdp.canAccess("clientB", "rs1", "r_config")==null);
     	assert(pdp.canAccessIntrospect("rs1"));
-    	assert(!pdp.canAccessToken("clientD"));
+    	assert(!pdp.canAccessToken("clientF"));
     	assert(!pdp.canAccessIntrospect("rs4"));
     }
 }

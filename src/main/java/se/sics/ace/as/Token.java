@@ -49,11 +49,11 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.Attribute;
 import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
+import COSE.OneKey;
 import COSE.Recipient;
 
 import se.sics.ace.AccessToken;
@@ -118,7 +118,7 @@ public class Token implements Endpoint, AutoCloseable {
 	/**
 	 * The private key of the AS or null if there isn't any
 	 */
-	private CBORObject privateKey;
+	private OneKey privateKey;
 
     
     /**
@@ -140,7 +140,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @throws AceException  if fetching the cti from the database fails
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
-	        TimeProvider time, CBORObject privateKey) throws AceException {
+	        TimeProvider time, OneKey privateKey) throws AceException {
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.db = db;
@@ -332,12 +332,22 @@ public class Token implements Endpoint, AutoCloseable {
             }	    
 		    break;
 		case "RPK":
-		    CBORObject rpk = msg.getParameter("cnf");
-		    if (rpk == null) {
+		    CBORObject crpk = msg.getParameter("cnf");
+		    OneKey rpk = null;
+		    if (crpk == null) {
 		        //Try to get the RPK from the DB
 		        try {
                     rpk = this.db.getCRPK(id);
                 } catch (AceException e) {
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		    } else {
+		        try {
+                    rpk = new OneKey(crpk);
+                } catch (CoseException e) {
                     LOGGER.severe("Message processing aborted: "
                             + e.getMessage());
                     return msg.failReply(
@@ -352,7 +362,7 @@ public class Token implements Endpoint, AutoCloseable {
 	                    + "Client failed to provide RPK");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    claims.put("cnf", rpk);
+		    claims.put("cnf", crpk);
 		    break;
 		default :
             CBORObject map = CBORObject.NewMap();
@@ -491,20 +501,22 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @param aud  the audience
 	 * @return  the recipient list
 	 * @throws AceException 
+	 * @throws CoseException 
 	 */
 	private List<Recipient> makeRecipients(String aud, COSEparams cose)
-	        throws AceException {
+	        throws AceException, CoseException {
 	    List<Recipient> rl = new ArrayList<>();
 	    for (String rs : this.db.getRSS(aud)) {
 	        Recipient r = new Recipient();
 	        r.addAttribute(HeaderKeys.Algorithm, 
 	                cose.getKeyWrap().AsCBOR(), 
-	                Attribute.UnprotectedAttributes);
+	                COSE.Message.UNPROTECTED);
 	        CBORObject key = CBORObject.NewMap();
 	        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
 	        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
 	                this.db.getRsPSK(rs)));
-	        r.SetKey(key); 
+	        OneKey coseKey = new OneKey(key);
+	        r.SetKey(coseKey); 
 	        rl.add(r);
 	    }
 	    return rl;
