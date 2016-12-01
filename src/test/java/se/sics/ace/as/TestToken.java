@@ -44,14 +44,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
-import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -61,9 +53,9 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
-import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -110,37 +102,12 @@ public class TestToken {
         } finally {
             br.close();
         }
-
-        X9ECParameters p = NISTNamedCurves.getByName("P-256");
-
-        ECDomainParameters parameters = new ECDomainParameters(p.getCurve(), p.getG(), p.getN(), p.getH());
-        ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam = new ECKeyGenerationParameters(parameters, null);
-        pGen.init(genParam);
-
-        AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
-        ECPublicKeyParameters keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        ECPrivateKeyParameters keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
-
-        byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
-        byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();      
         
-        CBORObject cKeyPublic = CBORObject.NewMap();
-        cKeyPublic = CBORObject.NewMap();
-        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), 
-                    KeyKeys.KeyType_EC2);
-        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), 
-                    KeyKeys.EC2_P256);
-        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        publicKey = new OneKey(cKeyPublic);
+        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+                "jdbc:mysql://localhost:3306");
         
-        CBORObject cKeyPrivate = CBORObject.NewMap();
-        cKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
-        privateKey = new OneKey(cKeyPrivate);
+        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        publicKey = privateKey.PublicKey();        
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -339,9 +306,10 @@ public class TestToken {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        
+        String dropUser = "DROP USER 'aceUser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
+        stmt.execute(dropUser);
         stmt.close();
         rootConn.close();
         db.close();
@@ -357,7 +325,7 @@ public class TestToken {
     public void testFailUnauthorized() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
-        Testmessage msg = new Testmessage(-1, "client_1", params); 
+        Message4Tests msg = new Message4Tests(-1, "client_1", params); 
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
@@ -376,7 +344,7 @@ public class TestToken {
     public void testFailMissingScope() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
-        Testmessage msg = new Testmessage(-1, "clientA", params);
+        Message4Tests msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
         response.getRawPayload()).toString());
@@ -400,7 +368,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
-        Testmessage msg = new Testmessage(-1, "clientA", params);
+        Message4Tests msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
         response.getRawPayload()).toString());
@@ -425,7 +393,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
         params.put("aud", CBORObject.FromObject("blubb"));
-        Message msg = new Testmessage(-1, "clientA", params);
+        Message msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
@@ -448,7 +416,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failTokenType"));
         params.put("scope", CBORObject.FromObject("failTokenType"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -474,7 +442,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failProfile"));
         params.put("scope", CBORObject.FromObject("failProfile"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -499,7 +467,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs5"));
         params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
-        Message msg = new Testmessage(-1, "clientA", params);
+        Message msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -524,7 +492,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs2"));
         params.put("scope", CBORObject.FromObject("r_light"));
-        Message msg = new Testmessage(-1, "clientD", params);
+        Message msg = new Message4Tests(-1, "clientD", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -549,7 +517,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs6"));
         params.put("scope", CBORObject.FromObject("r_valve"));
-        Message msg = new Testmessage(-1, "clientC", params);
+        Message msg = new Message4Tests(-1, "clientC", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -573,7 +541,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failCWTpar"));
         params.put("scope", CBORObject.FromObject("co2"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         System.out.println(CBORObject.DecodeFromBytes(
                 response.getRawPayload()).toString());
@@ -596,7 +564,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs1"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -622,7 +590,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("co2"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -650,7 +618,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        Message msg = new Testmessage(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

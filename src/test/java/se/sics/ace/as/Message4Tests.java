@@ -45,7 +45,7 @@ import se.sics.ace.Message;
  * @author Ludwig Seitz
  *
  */
-public class Testmessage implements Message {
+public class Message4Tests implements Message {
 
     /**
      * The authenticated id of the sender
@@ -73,7 +73,7 @@ public class Testmessage implements Message {
      * @param senderId
      * @param parameters
      */
-    public Testmessage(int code, String senderId, Map<String, CBORObject> parameters) {
+    public Message4Tests(int code, String senderId, Map<String, CBORObject> parameters) {
         this.code = code;
         this.senderId = senderId;
         this.params = new HashMap<>();
@@ -87,7 +87,7 @@ public class Testmessage implements Message {
      * @param senderId
      * @param payload
      */
-    public Testmessage(int code, String senderId,CBORObject payload) {
+    public Message4Tests(int code, String senderId,CBORObject payload) {
         this.code = code;
         this.senderId = senderId;
         this.params = null;
@@ -98,12 +98,12 @@ public class Testmessage implements Message {
     
     @Override
     public Message successReply(int code, CBORObject payload) {
-        return new Testmessage(code, "TestRS", payload);
+        return new Message4Tests(code, "TestRS", payload);
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        return new Testmessage(failureReason, "TestRS", payload);
+        return new Message4Tests(failureReason, "TestRS", payload);
     }
 
 

@@ -31,18 +31,15 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
-import COSE.CoseException;
 import se.sics.ace.AceException;
 import se.sics.ace.CoapRequest;
 import se.sics.ace.Message;

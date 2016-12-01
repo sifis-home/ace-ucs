@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.Attribute;
 import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
@@ -274,7 +275,7 @@ public class Introspect implements Endpoint {
             throws AceException, CoseException {
         Recipient rs = new Recipient();  
         rs.addAttribute(HeaderKeys.Algorithm, 
-             cose.getKeyWrap().AsCBOR(), COSE.Message.UNPROTECTED);
+             cose.getKeyWrap().AsCBOR(), Attribute.UNPROTECTED);
         CBORObject key = CBORObject.NewMap();
         key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(

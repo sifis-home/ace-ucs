@@ -45,11 +45,10 @@ import java.util.Properties;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-import COSE.KeyKeys;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 
@@ -398,12 +397,13 @@ public class SQLConnector implements DBConnector {
 		if (pwd != null) {
 			this.defaultPassword = pwd;
 		}
-		Properties connectionProps = new Properties();		
+
+		Properties connectionProps = new Properties();      
 		connectionProps.put("user", this.defaultUser);
 		connectionProps.put("password", this.defaultPassword);
 		this.conn = DriverManager.getConnection(this.defaultDbUrl, 
-				connectionProps);
-
+		        connectionProps);
+	        
 		this.insertRS = this.conn.prepareStatement("INSERT INTO "
 		        + DBConnector.dbName + "." + DBConnector.rsTable
 		        + " VALUES (?,?,?,?);");
@@ -606,11 +606,11 @@ public class SQLConnector implements DBConnector {
 	 * @throws AceException 
 	 */
 	@Override
-	public void init(String rootPwd) throws AceException {
+	public synchronized void init(String rootPwd) throws AceException {
 				
 		String createDB = "CREATE DATABASE IF NOT EXISTS " + DBConnector.dbName
 		        + " CHARACTER SET utf8 COLLATE utf8_bin;";
-
+	
 		//rs id, cose encoding, default expiration time, psk, rpk
 		String createRs = "CREATE TABLE IF NOT EXISTS " + DBConnector.dbName 
 		        + "." + DBConnector.rsTable + "(" 
@@ -713,7 +713,7 @@ public class SQLConnector implements DBConnector {
 	 * @throws AceException
 	 */
 	@Override
-	public void close() throws AceException {
+	public synchronized void close() throws AceException {
 		try {
             this.conn.close();
         } catch (SQLException e) {
@@ -1172,8 +1172,7 @@ public class SQLConnector implements DBConnector {
             this.insertRS.setLong(2, expiration);
             this.insertRS.setBytes(3, sharedKey);
             if (publicKey != null) {
-                this.insertRS.setBytes(4, 
-                        oneKey2cbor(publicKey).EncodeToBytes());
+                this.insertRS.setBytes(4, publicKey.EncodeToBytes());
             } else {
                 this.insertRS.setBytes(4, null);
             }
@@ -1228,7 +1227,7 @@ public class SQLConnector implements DBConnector {
                 this.insertCose.execute();
             }
             this.insertCose.clearParameters();
-        } catch (SQLException | CoseException e) {
+        } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1275,15 +1274,15 @@ public class SQLConnector implements DBConnector {
                     throws AceException {
         try {
             if (sharedKey == null && publicKey == null) {
-                throw new AceException("Cannot register a client without a key");
+                throw new AceException(
+                        "Cannot register a client without a key");
             }
             this.insertClient.setString(1, client);
             this.insertClient.setString(2, defaultAud);
             this.insertClient.setString(3, defaultScope);
             this.insertClient.setBytes(4, sharedKey);
             if (publicKey != null) {
-                this.insertClient.setBytes(5, 
-                        oneKey2cbor(publicKey).EncodeToBytes());
+                this.insertClient.setBytes(5, publicKey.EncodeToBytes());
             } else {
                 this.insertClient.setBytes(5, null);
             }
@@ -1303,7 +1302,7 @@ public class SQLConnector implements DBConnector {
                 this.insertKeyType.execute();
             }
             this.insertKeyType.clearParameters();
-        } catch (SQLException | CoseException e) {
+        } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1395,7 +1394,7 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public Long getCtiCounter() throws AceException {
+    public synchronized Long getCtiCounter() throws AceException {
         Long l = -1L;
         try {
             ResultSet result = this.selectCtiCtr.executeQuery();
@@ -1410,7 +1409,7 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public void saveCtiCounter(Long cti) throws AceException {
+    public synchronized void saveCtiCounter(Long cti) throws AceException {
         try {
             this.updateCtiCtr.setLong(1, cti);
             this.updateCtiCtr.execute();
@@ -1421,74 +1420,34 @@ public class SQLConnector implements DBConnector {
     }
     
     /**
-     * Temporary workaround to get the CBOR encoding from a OneKey object.
+     * Creates the user that manages this database.
      * 
-     * @param key  the OneKey object
+     * @param rootPwd  the database root password
+     * @param username  the name of the user
+     * @param userPwd   the password for the user
+     * @param dbUrl  the URL of the database
      * 
-     * @return  the CBOR encoded key
-     * 
-     * @throws CoseException 
+     * @throws AceException 
      */
-    @Deprecated
-    public static CBORObject oneKey2cbor(OneKey key) throws CoseException {
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject val;
-        val = key.get(KeyKeys.KeyType);
-        cbor.Add(KeyKeys.KeyType.AsCBOR(), val);
-        if (val.equals(KeyKeys.KeyType_Octet)) {
-            val = key.get(KeyKeys.Octet_K);
-            if ((val== null) || (val.getType() != CBORType.ByteString)) {
-                throw new CoseException("Malformed key structure");
-            }
-            cbor.Add(KeyKeys.Octet_K.AsCBOR(), val);
-        } else if (val.equals(KeyKeys.KeyType_EC2)) {
-            val = key.get(KeyKeys.EC2_Curve);
-            if (val == null) {
-                throw new CoseException("Malformed key structure");
-            } else if (val != KeyKeys.EC2_P256 
-                    && val != KeyKeys.EC2_P384 
-                    && val != KeyKeys.EC2_P521) {
-                throw new CoseException("Unsupported EC curve");               
-            } else {
-                cbor.Add(KeyKeys.EC2_Curve.AsCBOR(), val);
-            }
-            
-            boolean privateKey = false;
-            val = key.get(KeyKeys.EC2_D);
-            if (val != null) {
-                if (val.getType() != CBORType.ByteString) {
-                    throw new CoseException("Malformed key structure");
-                }
-                privateKey = true;
-                cbor.Add(KeyKeys.EC2_D.AsCBOR(), val);
-            }
-            
-            val = key.get(KeyKeys.EC2_X);
-            if (val == null) {
-                if (!privateKey) {
-                    throw new CoseException("Malformed key structure");
-                }
-            }
-            else if (val.getType() != CBORType.ByteString) {
-                throw new CoseException("Malformed key structure");
-            } else {
-               cbor.Add(KeyKeys.EC2_X.AsCBOR(), val);
-           }
-            
-            val = key.get(KeyKeys.EC2_Y);
-            if (val == null) {
-                if (!privateKey) {
-                    throw new CoseException("Malformed key structure");
-                }
-            }
-            else if ((val.getType() != CBORType.ByteString) && (val.getType() != CBORType.Boolean)) {
-                throw new CoseException("Malformed key structure");
-            } else {
-                cbor.Add(KeyKeys.EC2_Y.AsCBOR(), val);
-            }
-        } else throw new CoseException("Unsupported key type");
-        
-        return cbor;
+    public synchronized static void createUser(String rootPwd, String username, 
+            String userPwd, String dbUrl) throws AceException {
+        Properties connectionProps = new Properties();
+        connectionProps.put("user", "root");
+        connectionProps.put("password", rootPwd);
+        String cUser = "CREATE USER '" + username 
+                + "'@'localhost' IDENTIFIED BY '" + userPwd 
+                + "';";
+        String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE ON "
+               + DBConnector.dbName + ".* TO '" + username + "'@'localhost';";
+        try (Connection rootConn = DriverManager.getConnection(
+                dbUrl, connectionProps);
+                Statement stmt = rootConn.createStatement();) {
+            stmt.execute(cUser);
+            stmt.execute(authzUser);
+            stmt.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
     }
     
 }

@@ -45,14 +45,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
-import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -62,11 +54,10 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
-import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import se.sics.ace.COSEparams;
 
+import se.sics.ace.COSEparams;
 import se.sics.ace.AceException;
 
 
@@ -111,32 +102,12 @@ public class TestDB {
             br.close();
         }
         
-        X9ECParameters p = NISTNamedCurves.getByName("P-256");
+        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+                "jdbc:mysql://localhost:3306");
         
-        ECDomainParameters parameters = new ECDomainParameters(
-                p.getCurve(), p.getG(), p.getN(), p.getH());
-        ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam 
-            = new ECKeyGenerationParameters(parameters, null);
-        pGen.init(genParam);
         
-        AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
-        
-        ECPublicKeyParameters keyPublic 
-            = (ECPublicKeyParameters) p1.getPublic();
-        
-        byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
-        byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-
-        CBORObject cKeyPublic = CBORObject.NewMap();
-        cKeyPublic = CBORObject.NewMap();
-        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), 
-                    KeyKeys.KeyType_EC2);
-        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), 
-                    KeyKeys.EC2_P256);
-        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        publicKey = new OneKey(cKeyPublic);
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        publicKey = key.PublicKey();
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -250,9 +221,10 @@ public class TestDB {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        
+        String dropUser = "DROP USER 'aceUser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
+        stmt.execute(dropUser);        
         stmt.close();
         rootConn.close();
         db.close();
@@ -464,8 +436,7 @@ public class TestDB {
     public void testGetRsRPK() throws Exception {
         OneKey rpk = db.getRsRPK("rs1");
         Assert.assertArrayEquals(
-                SQLConnector.oneKey2cbor(publicKey).EncodeToBytes(),
-                SQLConnector.oneKey2cbor(rpk).EncodeToBytes());           
+                publicKey.EncodeToBytes(), rpk.EncodeToBytes());           
         rpk = db.getRsRPK("rs2");
         Assert.assertNull(rpk);
     }
@@ -493,8 +464,7 @@ public class TestDB {
     public void testGetCRPK() throws Exception {
         OneKey rpk = db.getCRPK("clientA");
         Assert.assertArrayEquals(
-                SQLConnector.oneKey2cbor(publicKey).EncodeToBytes(),
-                SQLConnector.oneKey2cbor(rpk).EncodeToBytes());   
+                publicKey.EncodeToBytes(), rpk.EncodeToBytes());   
         rpk = db.getCRPK("clientB");
         Assert.assertNull(rpk);
     }

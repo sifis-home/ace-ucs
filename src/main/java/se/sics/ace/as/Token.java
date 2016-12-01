@@ -49,6 +49,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
@@ -510,7 +511,7 @@ public class Token implements Endpoint, AutoCloseable {
 	        Recipient r = new Recipient();
 	        r.addAttribute(HeaderKeys.Algorithm, 
 	                cose.getKeyWrap().AsCBOR(), 
-	                COSE.Message.UNPROTECTED);
+	                Attribute.UNPROTECTED);
 	        CBORObject key = CBORObject.NewMap();
 	        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
 	        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(

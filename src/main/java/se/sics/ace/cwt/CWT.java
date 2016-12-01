@@ -41,6 +41,7 @@ import se.sics.ace.AccessToken;
 import se.sics.ace.Constants;
 import se.sics.ace.AceException;
 import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
 import COSE.Encrypt0Message;
 import COSE.EncryptMessage;
@@ -277,7 +278,7 @@ public class CWT implements AccessToken {
 		case Encrypt0:
 			Encrypt0Message coseE0 = new Encrypt0Message();
 			coseE0.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Message.PROTECTED);
+					Attribute.PROTECTED);
 			coseE0.SetContent(map.EncodeToBytes());
 			coseE0.encrypt(ctx.getKey());
 			return coseE0.EncodeToCBORObject();		
@@ -285,7 +286,7 @@ public class CWT implements AccessToken {
 		case Encrypt:
 			EncryptMessage coseE = new EncryptMessage();
 			coseE.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Message.PROTECTED);
+					Attribute.PROTECTED);
 			coseE.SetContent(map.EncodeToBytes());
 			for (Recipient r : ctx.getRecipients()) {
 				coseE.addRecipient(r);
@@ -302,7 +303,7 @@ public class CWT implements AccessToken {
 		case Sign1:
 			Sign1Message coseS1 = new Sign1Message();
 			coseS1.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-						Message.PROTECTED);
+						Attribute.PROTECTED);
 			coseS1.SetContent(map.EncodeToBytes());
 			coseS1.sign(ctx.getPrivateKey());
 			return coseS1.EncodeToCBORObject();	
@@ -310,7 +311,7 @@ public class CWT implements AccessToken {
 		case Sign:
 			SignMessage coseS = new SignMessage();
 			coseS.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Message.PROTECTED);
+					Attribute.PROTECTED);
 			coseS.SetContent(map.EncodeToBytes());
 			for (Signer s : ctx.getSigners()) {
 				coseS.AddSigner(s);
@@ -321,7 +322,7 @@ public class CWT implements AccessToken {
 		case MAC:
 			MACMessage coseM = new MACMessage();
 			coseM.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Message.PROTECTED);
+					Attribute.PROTECTED);
 			coseM.SetContent(map.EncodeToBytes());
 			for (Recipient r : ctx.getRecipients()) {
 				coseM.addRecipient(r);
@@ -338,7 +339,7 @@ public class CWT implements AccessToken {
 		case MAC0:
 			MAC0Message coseM0 = new MAC0Message();
 			coseM0.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-					Message.PROTECTED);
+					Attribute.PROTECTED);
 			coseM0.SetContent(map.EncodeToBytes());
 			coseM0.Create(ctx.getKey());
 			return coseM0.EncodeToCBORObject();

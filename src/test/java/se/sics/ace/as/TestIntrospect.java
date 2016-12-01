@@ -1,3 +1,34 @@
+/*******************************************************************************
+ * Copyright (c) 2016, SICS Swedish ICT AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 package se.sics.ace.as;
 
 import java.io.BufferedReader;
@@ -13,14 +44,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
-import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -30,9 +53,9 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
-import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -82,40 +105,13 @@ public class TestIntrospect {
         } finally {
             br.close();
         }
-        
-        X9ECParameters p = NISTNamedCurves.getByName("P-256");
-        
-        ECDomainParameters parameters = new ECDomainParameters(
-                p.getCurve(), p.getG(), p.getN(), p.getH());
-        ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam 
-            = new ECKeyGenerationParameters(parameters, null);
-        pGen.init(genParam);
-        
-        AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
-        
-        ECPublicKeyParameters keyPublic = (ECPublicKeyParameters) p1.getPublic();
-        ECPrivateKeyParameters keyPrivate = (ECPrivateKeyParameters) p1.getPrivate();
-        
-        byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
-        byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();      
-        
-        CBORObject cKeyPublic = CBORObject.NewMap();
-        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), 
-                    KeyKeys.KeyType_EC2);
-        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), 
-                    KeyKeys.EC2_P256);
-        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        publicKey = new OneKey(cKeyPublic);
-        
-        CBORObject cKeyPrivate = CBORObject.NewMap();
-        cKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
-        privateKey = new OneKey(cKeyPrivate);
-        
+       
+        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+                "jdbc:mysql://localhost:3306");
+            
+        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        publicKey = privateKey.PublicKey();
+
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
         
@@ -193,9 +189,10 @@ public class TestIntrospect {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        
+        String dropUser = "DROP USER 'aceUser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
+        stmt.execute(dropUser);    
         stmt.close();
         rootConn.close();
         db.close();
@@ -209,7 +206,7 @@ public class TestIntrospect {
     @Test
     public void testFailUnauthorized() throws Exception {
         Message response = i.processMessage(
-                new Testmessage(-1, "unauthorizedRS", CBORObject.Null));
+                new Message4Tests(-1, "unauthorizedRS", CBORObject.Null));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add("error", "unauthorized_client");
@@ -227,7 +224,7 @@ public class TestIntrospect {
     public void testFailNoTokenSent() throws Exception {
         CBORObject nullObj = null;
         Message response = i.processMessage(
-                new Testmessage(-1, "rs1", nullObj));
+                new Message4Tests(-1, "rs1", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add("error", "must provide non-null token");
@@ -244,7 +241,7 @@ public class TestIntrospect {
     public void testSuccessPurgedInactive() throws Exception {
         CBORObject purged = CBORObject.FromObject("token1");
         Message response = i.processMessage(
-                new Testmessage(-1, "rs1", purged));
+                new Message4Tests(-1, "rs1", purged));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -262,7 +259,7 @@ public class TestIntrospect {
     public void testSuccessNotExistInactive() throws Exception {
         CBORObject notExist = CBORObject.FromObject("notExist");
         Message response = i.processMessage(
-                new Testmessage(-1, "rs1", notExist));
+                new Message4Tests(-1, "rs1", notExist));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -288,7 +285,7 @@ public class TestIntrospect {
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());
         Message response = i.processMessage(
-                new Testmessage(-1, "rs1", token.encode(ctx)));
+                new Message4Tests(-1, "rs1", token.encode(ctx)));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -306,7 +303,7 @@ public class TestIntrospect {
     public void testSuccessRef() throws Exception {
         ReferenceToken t = new ReferenceToken("token2");
         Message response = i.processMessage(
-                new Testmessage(-1, "rs1", t.encode()));
+                new Message4Tests(-1, "rs1", t.encode()));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

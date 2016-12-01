@@ -35,14 +35,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 
-import org.bouncycastle.asn1.nist.NISTNamedCurves;
-import org.bouncycastle.asn1.x9.X9ECParameters;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.ECKeyPairGenerator;
-import org.bouncycastle.crypto.params.ECDomainParameters;
-import org.bouncycastle.crypto.params.ECKeyGenerationParameters;
-import org.bouncycastle.crypto.params.ECPrivateKeyParameters;
-import org.bouncycastle.crypto.params.ECPublicKeyParameters;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -51,8 +43,8 @@ import org.junit.rules.ExpectedException;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
-import COSE.Message;
 import COSE.OneKey;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
@@ -87,41 +79,10 @@ public class CwtTest {
      */
     @BeforeClass
     public static void setUp() throws CoseException {
-    
-        X9ECParameters p = NISTNamedCurves.getByName("P-256");
-        
-        ECDomainParameters parameters = new ECDomainParameters(
-                p.getCurve(), p.getG(), p.getN(), p.getH());
-        ECKeyPairGenerator pGen = new ECKeyPairGenerator();
-        ECKeyGenerationParameters genParam 
-            = new ECKeyGenerationParameters(parameters, null);
-        pGen.init(genParam);
-        
-        AsymmetricCipherKeyPair p1 = pGen.generateKeyPair();
-        
-        ECPublicKeyParameters keyPublic
-            = (ECPublicKeyParameters) p1.getPublic();
-        ECPrivateKeyParameters keyPrivate 
-            = (ECPrivateKeyParameters) p1.getPrivate();
-        
-        byte[] rgbX = keyPublic.getQ().normalize().getXCoord().getEncoded();
-        byte[] rgbY = keyPublic.getQ().normalize().getYCoord().getEncoded();
-        byte[] rgbD = keyPrivate.getD().toByteArray();
 
-        CBORObject cKeyPublic = CBORObject.NewMap();
-        cKeyPublic.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cKeyPublic.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cKeyPublic.Add(KeyKeys.EC2_X.AsCBOR(), rgbX);
-        cKeyPublic.Add(KeyKeys.EC2_Y.AsCBOR(), rgbY);
-        publicKey = new OneKey(cKeyPublic);
-        
-        CBORObject cKeyPrivate = CBORObject.NewMap();
-        cKeyPrivate.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        cKeyPrivate.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        cKeyPrivate.Add(KeyKeys.EC2_D.AsCBOR(), rgbD);
-        privateKey = new OneKey(cKeyPrivate);
-        
-               
+        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        publicKey = privateKey.PublicKey();
+
         claims = new HashMap<>();
         claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
         claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
@@ -131,7 +92,8 @@ public class CwtTest {
         claims.put("iat", CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
-        claims.put("cks", cKeyPublic);
+        claims.put("cks", 
+                CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
         claims.put("scope", CBORObject.FromObject(
         		"r+/s/light rwx+/a/led w+/dtls"));
     }
@@ -215,7 +177,7 @@ public class CwtTest {
            Signer me = new Signer();
            me.setKey(privateKey);
            me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), 
-        		   Message.PROTECTED);
+        		   Attribute.PROTECTED);
            CwtCryptoCtx ctx = CwtCryptoCtx.signCreate(
         		   Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
            CWT cwt = new CWT(claims);
@@ -240,7 +202,7 @@ public class CwtTest {
             System.out.println("Round Trip Encrypt");
             Recipient me = new Recipient();  
             me.addAttribute(HeaderKeys.Algorithm, 
-           		 AlgorithmID.Direct.AsCBOR(), Message.UNPROTECTED);
+           		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
             CBORObject ckey256 = CBORObject.NewMap();
             ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
             ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
@@ -267,7 +229,7 @@ public class CwtTest {
              System.out.println("Round Trip MAC");
              Recipient me = new Recipient();  
              me.addAttribute(HeaderKeys.Algorithm, 
-            		 AlgorithmID.Direct.AsCBOR(), Message.UNPROTECTED);
+            		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
              CBORObject ckey256 = CBORObject.NewMap();
              ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
              ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
