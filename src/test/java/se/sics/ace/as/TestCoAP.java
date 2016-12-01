@@ -34,6 +34,7 @@ package se.sics.ace.as;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -44,17 +45,24 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.MessageTag;
-import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.CoapRequest;
 import se.sics.ace.KissTime;
 
 /**
@@ -65,10 +73,8 @@ import se.sics.ace.KissTime;
  */
 public class TestCoAP {
 
-    private static OneKey publicKey;
-    private static OneKey privateKey;
-    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-  
+    static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+
     private static SQLConnector db = null;
     private static String dbPwd = null;
     private static Introspect i = null;
@@ -102,71 +108,46 @@ public class TestCoAP {
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
             
-        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        publicKey = privateKey.PublicKey();
-
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
-        profiles.add("coap_dtls");
         profiles.add("coap_oscoap");
-        
         Set<String> scopes = new HashSet<>();
-        scopes.add("temp");
-        scopes.add("co2");
-        
+        scopes.add("rw_valve");
+        scopes.add("r_pressure");
+        scopes.add("foobar");
         Set<String> auds = new HashSet<>();
-        auds.add("sensors");
-        auds.add("actuators");
-        auds.add("failCWTpar");
-        
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        keyTypes.add("RPK");
-        
         Set<Integer> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
-        tokenTypes.add(AccessTokenFactory.REF_TYPE);
-        
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.MAC0, 
+                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
+        long expiration = 30000L;
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, key256, null);
         
-        long expiration = 1000000L;
+        profiles.clear();
+        profiles.add("coap_oscoap");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("clientB", profiles, null, null, keyTypes, key256, null);        
+        
        
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, publicKey);
-                
+        
         KissTime time = new KissTime();
         
-        //Setup token entries
-        String cti = "token1";
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(time.getCurrentTime()-1L));   
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject("token1"));
-        db.addToken(cti, claims);
-        
-        cti = "token2";
-        claims.clear();
-        claims.put("scope", CBORObject.FromObject("temp"));
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(
-                time.getCurrentTime() + 2000000L));
-        claims.put("cti", CBORObject.FromObject("token2"));
-        db.addToken(cti, claims);
 
         i = new Introspect(
                 KissPDP.getInstance("src/test/resources/acl.json", db), 
-                db, time, publicKey);
+                db, time, null);
         
         t = new Token("AS", KissPDP.getInstance("src/test/resources/acl.json",
-                db), db, new KissTime(), privateKey); 
+                db), db, new KissTime(), null); 
     }
     
     
@@ -194,5 +175,41 @@ public class TestCoAP {
         db.close();
     }
     
+    /**
+     * Test CoapToken
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testCoapToken() throws Exception {
+        CoapToken ct = new CoapToken("token", t);
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
+        params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put("aud", CBORObject.FromObject("rs3"));
+        CoapRequest req = new CoapRequest(Code.POST, params);
+        req.setSenderIdentity(new Principal4Tests("clientB"));
+        req.setSource(InetAddress.getLoopbackAddress());
+        req.setSourcePort(5683);
+        byte[] token = {0x01, (byte)0xab};
+        req.setToken(token);
+        Exchange ex = new Exchange(req, Origin.REMOTE);
+        ex.setRequest(req);
+        ex.setEndpoint(new CoapEndpoint());
+        CoapExchange exchange = new CoapExchange(ex, ct);
+       
+        ct.handlePOST(exchange);
+        ct.close();
+    }
     
+    /**
+     * Test CoapIntrospect
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCoapIntrospect() throws Exception {
+        //FIXME:
+        CoapIntrospect ci = new CoapIntrospect("FIXME");
+    }
 }

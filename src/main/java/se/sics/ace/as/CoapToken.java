@@ -35,13 +35,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
 import se.sics.ace.CoapRequest;
+import se.sics.ace.CoapResponse;
 import se.sics.ace.Message;
 
 /**
@@ -98,6 +98,7 @@ public class CoapToken extends CoapResource implements AutoCloseable {
             //XXX: The profile should set the content format
             exchange.respond(res.getCode(), res.getPayload(), 
                     MediaTypeRegistry.APPLICATION_CBOR);
+            return;
         }
         LOGGER.log(Level.SEVERE, "Token library produced wrong response type");
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);

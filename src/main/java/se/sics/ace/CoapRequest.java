@@ -38,6 +38,7 @@ import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 
 import com.upokecenter.cbor.CBORException;
@@ -183,7 +184,33 @@ public class CoapRequest extends Request implements Message {
             throw new AceException("Payload is empty or not encoded as CBOR Map");
         }
         parameters = CWT.parseClaims(cborPayload);
-        return new CoapRequest(req.getCode(), parameters);
+        CoapRequest creq = new CoapRequest(req.getCode(), parameters);
+        //Need to set everything manually here since there is no copy constructor       
+        creq.setType(req.getType());
+        creq.setMID(req.getMID());
+        creq.setToken(req.getToken());
+        creq.setOptions(req.getOptions());
+        //payload was done above
+        creq.setDestination(req.getDestination());
+        creq.setSource(req.getSource());
+        creq.setSourcePort(req.getSourcePort());
+        creq.setAcknowledged(req.isAcknowledged());
+        creq.setRejected(req.isRejected());
+        creq.setCanceled(req.isCanceled());
+        creq.setTimedOut(req.isTimedOut());
+        creq.setDuplicate(req.isDuplicate());
+        creq.setBytes(req.getBytes());
+        for (MessageObserver mo : req.getMessageObservers()) {
+            creq.addMessageObserver(mo);
+        }
+        creq.setTimestamp(req.getTimestamp());
+        //code was set in the constructor
+        creq.setMulticast(req.isMulticast());
+        creq.setResponse(req.getResponse());
+        creq.setScheme(req.getScheme());
+        //FIXME: lock, need a copy constructor
+        creq.setSenderIdentity(req.getSenderIdentity());
+        return creq;
     }
 
     @Override
