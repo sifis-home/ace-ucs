@@ -16,17 +16,18 @@ fanboys make that hard with their crappy manuals).
 ### How do I get set up? ###
 
 * Just clone the repo, do the Maven fu and you are good to go
-* Configuration: You need to set up a SQL database to run the tests, check the
-  default* parameters given in the SQLConnector class. To run in production you 
-  need to configure like everything, starting with your resource servers (out of
-  scope here), the access control policies for the authorization server 
-  (KissPDP has a demo format in JSON, check the test resources), the discovery
-  of AS (out of scope again). If you don't know where to start you probably
-  shouldn't use this in production settings.
+* Configuration: You need to set up a MySQL database to run the Junit tests. 
+  To run in production you need to configure like everything, starting with
+  your resource servers (out of scope here), the access control policies for
+  the authorization server (KissPDP has a demo format in JSON, check the
+  test resources), the discovery of AS (out of scope again). If you don't
+  know where to start you probably shouldn't use this in production settings.
 * Dependencies: Lots, check the .pom file
-* Database configuration:  Set up an SQL database (I used MySQL), for running 
-  the tests create a file 'db.pwd' with the root password of your test database
-  at the root directory of this library.
+* Database configuration:  Set up an MySQL database, for running 
+  the Junit tests create a file 'db.pwd' with the root password of your test 
+  database at the root directory of this library. If you want an alternative 
+  database you have to change the dependencies to include another JDBC and
+  double check if SQLConnector uses a compatible syntax.
 * How to run tests: Run the class files in the src/test folders
 * Deployment instructions: Depends ... TBD
 
