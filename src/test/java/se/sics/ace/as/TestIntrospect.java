@@ -227,7 +227,7 @@ public class TestIntrospect {
                 new Message4Tests(-1, "rs1", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
-        map.Add("error", "must provide non-null token");
+        map.Add("error", "Must provide 'access_token' parameter");
         Assert.assertArrayEquals(response.getRawPayload(), 
                 map.EncodeToBytes());
     }
@@ -239,9 +239,11 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessPurgedInactive() throws Exception {
-        CBORObject purged = CBORObject.FromObject("token1");
+        ReferenceToken purged = new ReferenceToken("token1");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("access_token", purged.encode());
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", purged));
+                new Message4Tests(-1, "rs1", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -258,8 +260,10 @@ public class TestIntrospect {
     @Test
     public void testSuccessNotExistInactive() throws Exception {
         CBORObject notExist = CBORObject.FromObject("notExist");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("access_token", notExist);
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", notExist));
+                new Message4Tests(-1, "rs1", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -284,8 +288,10 @@ public class TestIntrospect {
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());
+        params.clear();
+        params.put("access_token", token.encode(ctx));
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", token.encode(ctx)));
+                new Message4Tests(-1, "rs1", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -302,8 +308,10 @@ public class TestIntrospect {
     @Test
     public void testSuccessRef() throws Exception {
         ReferenceToken t = new ReferenceToken("token2");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("access_token", t.encode());
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", t.encode()));
+                new Message4Tests(-1, "rs1", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

@@ -64,7 +64,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * @author Ludwig Seitz
  *
  */
-public class Introspect implements Endpoint {
+public class Introspect implements Endpoint, AutoCloseable {
     
     /**
      * The logger
@@ -131,11 +131,20 @@ public class Introspect implements Endpoint {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    
+	    //Get the token from the payload
+        CBORObject cbor = msg.getParameter("access_token");
+        if (cbor == null) {
+            LOGGER.log(Level.INFO,
+                    "Request didn't provide 'access_token' parameter");
+            CBORObject map = CBORObject.NewMap();
+            map.Add("error", "Must provide 'access_token' parameter");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+              
         //parse the token
         AccessToken token;
         try {
-            token = parseToken(msg.getRawPayload(), id);
+            token = parseToken(cbor, id);
         } catch (AceException e) {
             LOGGER.log(Level.INFO, e.getMessage());
             CBORObject map = CBORObject.NewMap();
@@ -189,28 +198,29 @@ public class Introspect implements Endpoint {
     /**
      * Parses a CBOR object presumably containing an access token.
      * 
-     * @param raw  the raw payload
+     * @param token  the object
      * @param rsid  the RS identifier
      * 
      * @return  the parsed access token
      * 
      * @throws AceException 
      */
-    public AccessToken parseToken(byte[] raw, String rsid) throws AceException {
-        if (raw == null) {
+    public AccessToken parseToken(CBORObject token, String rsid) 
+            throws AceException {
+        if (token == null) {
             throw new AceException("Access token parser indata was null");
         }
-        CBORObject cbor = CBORObject.DecodeFromBytes(raw);
-        if (cbor.getType().equals(CBORType.Array)) {
+     
+        if (token.getType().equals(CBORType.Array)) {
             try {
                 CwtCryptoCtx ctx = makeCtx(rsid);
-                return CWT.processCOSE(cbor.EncodeToBytes(), ctx);
+                return CWT.processCOSE(token.EncodeToBytes(), ctx);
             } catch (Exception e) {
                 LOGGER.severe("Error while processing CWT: " + e.getMessage());
                 throw new AceException(e.getMessage());
             }
-        } else if (cbor.getType().equals(CBORType.TextString)) {
-            return ReferenceToken.parse(cbor);
+        } else if (token.getType().equals(CBORType.TextString)) {
+            return ReferenceToken.parse(token);
         }
         throw new AceException("Unknown access token format");        
     }
@@ -283,6 +293,12 @@ public class Introspect implements Endpoint {
         OneKey coseKey = new OneKey(key);
         rs.SetKey(coseKey); 
         return Collections.singletonList(rs);
+    }
+
+
+    @Override
+    public void close() throws AceException {
+        this.db.close();        
     }
     
 }

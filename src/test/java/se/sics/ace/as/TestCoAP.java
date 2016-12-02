@@ -64,6 +64,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.CoapRequest;
 import se.sics.ace.KissTime;
+import se.sics.ace.ReferenceToken;
 
 /**
  * Test the CoAP classes.
@@ -137,10 +138,15 @@ public class TestCoAP {
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, null, null, keyTypes, key256, null);        
         
-       
-        
         KissTime time = new KissTime();
-        
+        String cti = "token1";
+        Map<String, CBORObject> claims = new HashMap<>();
+        claims.put("scope", CBORObject.FromObject("co2"));
+        claims.put("aud",  CBORObject.FromObject("sensors"));
+        claims.put("exp", CBORObject.FromObject(time.getCurrentTime()+1000000L));   
+        claims.put("aud",  CBORObject.FromObject("actuators"));
+        claims.put("cti", CBORObject.FromObject("token1"));
+        db.addToken(cti, claims);       
 
         i = new Introspect(
                 KissPDP.getInstance("src/test/resources/acl.json", db), 
@@ -182,7 +188,7 @@ public class TestCoAP {
      */
     @Test
     public void testCoapToken() throws Exception {
-        CoapToken ct = new CoapToken("token", t);
+        CoapAceEndpoint ct = new CoapAceEndpoint(t);
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
@@ -199,7 +205,6 @@ public class TestCoAP {
         CoapExchange exchange = new CoapExchange(ex, ct);
        
         ct.handlePOST(exchange);
-        ct.close();
     }
     
     /**
@@ -209,7 +214,10 @@ public class TestCoAP {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        //FIXME:
-        CoapIntrospect ci = new CoapIntrospect("FIXME");
+        CoapAceEndpoint ci = new CoapAceEndpoint(i);
+        ReferenceToken at = new ReferenceToken("token1");
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("grant_type", Token.clientCredentialsStr);
+
     }
 }

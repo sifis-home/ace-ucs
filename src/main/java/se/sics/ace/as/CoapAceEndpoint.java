@@ -35,45 +35,66 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
 import se.sics.ace.CoapRequest;
 import se.sics.ace.CoapResponse;
+import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 
 /**
- * This class implements the token endpoint / resource (OAuth lingo vs CoAP lingo).
+ * This class implements the ACE endpoints/resources 
+ * (OAuth lingo vs CoAP lingo) token and introspect.
  * 
  * @author Ludwig Seitz
  *
  */
-public class CoapToken extends CoapResource implements AutoCloseable {
+public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
     
     /**
      * The logger
      */
-    private static final Logger LOGGER = Logger.getLogger(CoapToken.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger(CoapAceEndpoint.class.getName() );
     
     /**
      * The token library
      */
-    private Token t;
-    
+    private Endpoint e;
     
     /**
      * Constructor.
      * 
-     * @param name
-     * @param t 
+     * @param name  the resource name (should be "introspect" or "token")
+     * @param e  the endpoint library instance
      */
-    public CoapToken(String name, Token t) {
+    public CoapAceEndpoint(String name, Endpoint e) {
         super(name);
-        this.t = t;        
+        this.e = e;        
     }
     
+    /**
+     * Default constructor.
+     * 
+     * @param e  the endpoint library instance
+     */
+    public CoapAceEndpoint(Introspect e) {
+        super("introspect");
+        this.e = e;
+    }
+    
+    /**
+     * Default constructor.
+     * 
+     * @param e  the endpoint library instance
+     */
+    public CoapAceEndpoint(Token e) {
+        super("token");
+        this.e = e;
+    }
+     
     /**
      * Handles the POST request in the given CoAPExchange.
      *
@@ -85,29 +106,29 @@ public class CoapToken extends CoapResource implements AutoCloseable {
         try {
             req = CoapRequest.getInstance(exchange.advanced().getRequest());
         } catch (AceException e) {
-            LOGGER.log(Level.SEVERE, e.getMessage());
+            LOGGER.severe(e.getMessage());
             exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
         }
         LOGGER.log(Level.FINEST, "Received request: " 
                 + ((req==null)?"null" : req.toString()));
-        Message m = this.t.processMessage(req);
+        Message m = this.e.processMessage(req);
         
         if (m instanceof CoapResponse) {
             CoapResponse res = (CoapResponse)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
-            //XXX: The profile should set the content format
+            //XXX: Should the profile set the content format here?
             exchange.respond(res.getCode(), res.getPayload(), 
                     MediaTypeRegistry.APPLICATION_CBOR);
             return;
         }
-        LOGGER.log(Level.SEVERE, "Token library produced wrong response type");
+        LOGGER.severe(this.e.getClass().getName() 
+                + " library produced wrong response type");
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
     }
 
     @Override
     public void close() throws Exception {
-        this.t.close();        
+        this.e.close();
     }
 
 }
- 

@@ -43,8 +43,15 @@ public interface Endpoint {
 	 * @param msg  the incoming message to process
      *
 	 * @return  the Reply message
-	 * @throws Exception
 	 */
-	public Message processMessage(Message msg) throws Exception;
+	public Message processMessage(Message msg);
+	
+	/**
+	 * Close any resources held by this endpoint before
+	 * shutting down.
+	 * 
+	 * @throws AceException 
+	 */
+	public void close() throws AceException;
 
 }

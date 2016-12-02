@@ -38,7 +38,7 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.CoseException;
+import se.sics.ace.AceException;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
@@ -108,52 +108,67 @@ public class AuthzInfo implements Endpoint {
 	}
 
 	@Override
-	public Message processMessage(Message msg) throws Exception {
+	public Message processMessage(Message msg) {
 
 		//1. Check if this is a CWT, and check the crypto wrapper
 		CWT cwt = null;
 		try {
 			cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
-		} catch (CoseException ce) {
+		} catch (Exception ce) {
 			//Not a CWT, check if this is a reference token
 		    //FIXME: add logger
-			return processRefrenceToken(msg);
+			try {
+                return processRefrenceToken(msg);
+            } catch (RSException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
 		}
 
 		//2. Check that the token is not expired (exp)
 		if (cwt.expired(this.time.getCurrentTime())) {
-			throw new RSException("Token has expired");
+			//throw new RSException("Token has expired");
 		}
 		
 		//3. Check if we accept the issuer (iss)
 		CBORObject iss = cwt.getClaim("iss");
 		if (iss == null) {
-			throw new RSException("Token has no issuer");
+			//throw new RSException("Token has no issuer");
 		}
 		if (!this.issuers.contains(iss.AsString())) {
-			throw new RSException("Issuer " + iss + " not acceptable");
+			//throw new RSException("Issuer " + iss + " not acceptable");
 		}
 		
 		//4. Check if we are the audience (aud)
 		CBORObject aud = cwt.getClaim("aud");
 		if (aud == null) {
-			throw new RSException("Token has no audience");
+			//throw new RSException("Token has no audience");
 		}
 		if (!this.audience.match(aud.AsString())) {
-			throw new RSException("We are not the audience of this token");
+			//throw new RSException("We are not the audience of this token");
 		}
 		
 		//5. Check if the scope is meaningful to us
 		CBORObject scope = cwt.getClaim("scope");
 		if (scope == null) {
-			throw new RSException("Token has no scope");
+			//throw new RSException("Token has no scope");
 		}
-		if (!this.tr.inScope(scope.AsString())) {
-			throw new RSException("Token is not in scope");
-		}
+		try {
+            if (!this.tr.inScope(scope.AsString())) {
+            	//throw new RSException("Token is not in scope");
+            }
+        } catch (RSException e1) {
+            // TODO Auto-generated catch block
+            e1.printStackTrace();
+        }
 		
 		//6. Store the claims of this token		
-		this.tr.addCWT(cwt);
+		try {
+            this.tr.addCWT(cwt);
+        } catch (RSException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 		
 		//7. create success message
 		return msg.successReply(Message.CREATED, null);
@@ -236,5 +251,11 @@ public class AuthzInfo implements Endpoint {
 		//FIXME: Ok to return cti ?
 		return msg.successReply(Message.CREATED, 
 		        token.get(CBORObject.FromObject("cti")));
-	}	
+	}
+
+    @Override
+    public void close() throws AceException {
+        // TODO Auto-generated method stub
+        
+    }	
 }

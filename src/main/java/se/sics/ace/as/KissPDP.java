@@ -51,7 +51,7 @@ import se.sics.ace.AceException;
  * @author Ludwig Seitz
  *
  */
-public class KissPDP implements PDP {
+public class KissPDP implements PDP, AutoCloseable {
 
     private DBConnector db = null;
     
@@ -260,5 +260,10 @@ public class KissPDP implements PDP {
 		}
 		return grantedScopes;
 	}
+
+    @Override
+    public void close() throws Exception {
+        this.db.close();
+    }
 
 }
