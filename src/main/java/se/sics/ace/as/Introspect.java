@@ -298,7 +298,7 @@ public class Introspect implements Endpoint, AutoCloseable {
 
     @Override
     public void close() throws AceException {
-        this.db.close();        
+        //this.db.close();        
     }
     
 }

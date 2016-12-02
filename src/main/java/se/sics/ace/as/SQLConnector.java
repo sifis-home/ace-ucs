@@ -716,6 +716,7 @@ public class SQLConnector implements DBConnector {
 	public synchronized void close() throws AceException {
 		try {
             this.conn.close();
+            SQLConnector.instance = null;
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }

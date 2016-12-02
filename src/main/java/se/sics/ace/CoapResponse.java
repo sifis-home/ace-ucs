@@ -65,7 +65,9 @@ public class CoapResponse extends Response implements Message {
      */
     public CoapResponse(ResponseCode code, CBORObject payload) {
         super(code);
-        super.setPayload(payload.EncodeToBytes());   
+        if (payload != null) {
+            super.setPayload(payload.EncodeToBytes());
+        }
     }
 
     /**

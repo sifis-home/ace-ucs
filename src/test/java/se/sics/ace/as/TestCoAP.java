@@ -203,8 +203,9 @@ public class TestCoAP {
         ex.setRequest(req);
         ex.setEndpoint(new CoapEndpoint());
         CoapExchange exchange = new CoapExchange(ex, ct);
-       
         ct.handlePOST(exchange);
+        //XXX: Need to assert something here ...
+        ct.close();
     }
     
     /**
@@ -217,7 +218,19 @@ public class TestCoAP {
         CoapAceEndpoint ci = new CoapAceEndpoint(i);
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();
-        params.put("grant_type", Token.clientCredentialsStr);
-
+        params.put("access_token", at.encode());
+        CoapRequest req = new CoapRequest(Code.POST, params);
+        req.setSenderIdentity(new Principal4Tests("rs1"));
+        req.setSource(InetAddress.getLoopbackAddress());
+        req.setSourcePort(5683);
+        byte[] token = {0x01, (byte)0xab};
+        req.setToken(token);
+        Exchange ex = new Exchange(req, Origin.REMOTE);
+        ex.setRequest(req);
+        ex.setEndpoint(new CoapEndpoint());
+        CoapExchange exchange = new CoapExchange(ex, ci);
+        ci.handlePOST(exchange);
+        //XXX: Need to assert something here ...
+        ci.close();
     }
 }
