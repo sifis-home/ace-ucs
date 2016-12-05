@@ -36,9 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 
 import com.upokecenter.cbor.CBORException;
@@ -53,7 +51,7 @@ import se.sics.ace.cwt.CWT;
  * @author Ludwig Seitz
  *
  */
-public class CoapRequest extends Request implements Message {
+public class CoapRequest implements Message {
 
     /**
      * The parameters in the payload of this message as a Map for convenience
@@ -61,34 +59,31 @@ public class CoapRequest extends Request implements Message {
     private Map<String, CBORObject> parameters;
     
     /**
-     * Constructor 
-     * @param code  the RESTful action code
-     * @param parameters  the request parameters
+     * The underlying Request from Californium
      */
-    public CoapRequest(Code code, Map<String, CBORObject> parameters) {
-        super(code);
+    private Request request;
+    
+    /**
+     * Create a request from an existing Californium request.
+     * 
+     * @param req
+     * @param parameters
+     */
+    public CoapRequest(Request req, Map<String, CBORObject> parameters) {
+        this.request = req;
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        CBORObject map = CBORObject.NewMap();
-        for (String key : this.parameters.keySet()) {
-            short i = Constants.getAbbrev(key);
-            if (i != -1) {
-                map.Add(CBORObject.FromObject(i), this.parameters.get(key));
-            } else { //This claim/parameter has no abbreviation
-                map.Add(CBORObject.FromObject(key), this.parameters.get(key));
-            }
-        }
-        super.setPayload(map.EncodeToBytes());
+        this.request.setPayload(makeParameters(this.parameters));
     }
 
     @Override
     public byte[] getRawPayload() {
-        return super.getPayload();
+        return this.request.getPayload();
     }
 
     @Override
     public String getSenderId() {
-        Principal p = super.getSenderIdentity();
+        Principal p = this.request.getSenderIdentity();
         if (p==null) {
             return null;
         }
@@ -133,8 +128,7 @@ public class CoapRequest extends Request implements Message {
             break;
         }
         CoapResponse res = new CoapResponse(coapCode, payload);
-        res.setDestination(super.getSource());
-        res.setDestinationPort(super.getSourcePort());
+        
         return res;
     }
 
@@ -160,8 +154,6 @@ public class CoapRequest extends Request implements Message {
         default :
         }
         CoapResponse res = new CoapResponse(coapCode, payload);
-        res.setDestination(super.getSource());
-        res.setDestinationPort(super.getSourcePort());
         return res;
     }
     
@@ -184,38 +176,34 @@ public class CoapRequest extends Request implements Message {
             throw new AceException("Payload is empty or not encoded as CBOR Map");
         }
         parameters = CWT.parseClaims(cborPayload);
-        CoapRequest creq = new CoapRequest(req.getCode(), parameters);
-        //Need to set everything manually here since there is no copy constructor       
-        creq.setType(req.getType());
-        creq.setMID(req.getMID());
-        creq.setToken(req.getToken());
-        creq.setOptions(req.getOptions());
-        //payload was done above
-        creq.setDestination(req.getDestination());
-        creq.setSource(req.getSource());
-        creq.setSourcePort(req.getSourcePort());
-        creq.setAcknowledged(req.isAcknowledged());
-        creq.setRejected(req.isRejected());
-        creq.setCanceled(req.isCanceled());
-        creq.setTimedOut(req.isTimedOut());
-        creq.setDuplicate(req.isDuplicate());
-        creq.setBytes(req.getBytes());
-        for (MessageObserver mo : req.getMessageObservers()) {
-            creq.addMessageObserver(mo);
-        }
-        creq.setTimestamp(req.getTimestamp());
-        //code was set in the constructor
-        creq.setMulticast(req.isMulticast());
-        creq.setResponse(req.getResponse());
-        creq.setScheme(req.getScheme());
-        //FIXME: lock, need a copy constructor
-        creq.setSenderIdentity(req.getSenderIdentity());
+        CoapRequest creq = new CoapRequest(req, parameters);
         return creq;
     }
 
     @Override
     public int getMessageCode() {
-        return getCode().value;
+        return this.request.getCode().value;
     }
+    
+    /**
+     * Encode the parameter map as CBOR object for sending with a 
+     * Californium Request.
+     * 
+     * @param params  the parameter map
+     * @return  the byte array encoding the CBOR map
+     */
+    public static byte[] makeParameters(Map<String, CBORObject> params) {
+        CBORObject map = CBORObject.NewMap();
+        for (String key : params.keySet()) {
+            short i = Constants.getAbbrev(key);
+            if (i != -1) {
+                map.Add(CBORObject.FromObject(i), params.get(key));
+            } else { //This claim/parameter has no abbreviation
+                map.Add(CBORObject.FromObject(key), params.get(key));
+            }
+        }
+        return map.EncodeToBytes();
+    }
+
 
 }

@@ -46,6 +46,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
@@ -193,12 +194,14 @@ public class TestCoAP {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        CoapRequest req = new CoapRequest(Code.POST, params);
+        Request req = new Request(Code.POST);
         req.setSenderIdentity(new Principal4Tests("clientB"));
         req.setSource(InetAddress.getLoopbackAddress());
         req.setSourcePort(5683);
         byte[] token = {0x01, (byte)0xab};
         req.setToken(token);
+        req.setPayload(CoapRequest.makeParameters(params));
+        
         Exchange ex = new Exchange(req, Origin.REMOTE);
         ex.setRequest(req);
         ex.setEndpoint(new CoapEndpoint());
@@ -219,12 +222,14 @@ public class TestCoAP {
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();
         params.put("access_token", at.encode());
-        CoapRequest req = new CoapRequest(Code.POST, params);
+        Request req = new Request(Code.POST);
         req.setSenderIdentity(new Principal4Tests("rs1"));
         req.setSource(InetAddress.getLoopbackAddress());
         req.setSourcePort(5683);
         byte[] token = {0x01, (byte)0xab};
         req.setToken(token);
+        req.setPayload(CoapRequest.makeParameters(params));
+        
         Exchange ex = new Exchange(req, Origin.REMOTE);
         ex.setRequest(req);
         ex.setEndpoint(new CoapEndpoint());

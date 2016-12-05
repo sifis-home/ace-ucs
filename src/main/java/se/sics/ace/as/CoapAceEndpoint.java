@@ -117,7 +117,7 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
             CoapResponse res = (CoapResponse)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
             //XXX: Should the profile set the content format here?
-            exchange.respond(res.getCode(), res.getPayload(), 
+            exchange.respond(res.getCode(), res.getRawPayload(), 
                     MediaTypeRegistry.APPLICATION_CBOR);
             return;
         }

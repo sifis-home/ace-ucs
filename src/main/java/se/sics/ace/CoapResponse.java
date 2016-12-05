@@ -47,7 +47,7 @@ import com.upokecenter.cbor.CBORObject;
  * @author Ludwig Seitz
  *
  */
-public class CoapResponse extends Response implements Message {
+public class CoapResponse implements Message {
     
     /**
      * The parameters in the payload of this message as a Map for convenience.
@@ -57,6 +57,11 @@ public class CoapResponse extends Response implements Message {
     
     
     /**
+     * The underlying CoAP response from Californium.
+     */
+    private Response response;
+    
+    /**
      * Constructor
      * 
      * @param code  the response code
@@ -64,9 +69,9 @@ public class CoapResponse extends Response implements Message {
      * @param request   the request this responds to
      */
     public CoapResponse(ResponseCode code, CBORObject payload) {
-        super(code);
+        this.response = new Response(code);
         if (payload != null) {
-            super.setPayload(payload.EncodeToBytes());
+            this.response.setPayload(payload.EncodeToBytes());
         }
     }
 
@@ -78,7 +83,7 @@ public class CoapResponse extends Response implements Message {
      * @param request   the request this responds to
      */
     public CoapResponse(ResponseCode code, Map<String, CBORObject> parameters) {
-        super(code);
+        this.response = new Response(code);
         this.parameters.putAll(parameters);
         CBORObject map = CBORObject.NewMap();
         for (String key : this.parameters.keySet()) {
@@ -89,12 +94,12 @@ public class CoapResponse extends Response implements Message {
                 map.Add(CBORObject.FromObject(key), this.parameters.get(key));
             }
         }
-        super.setPayload(map.EncodeToBytes());   
+        this.response.setPayload(map.EncodeToBytes());   
     }
     
     @Override
     public byte[] getRawPayload() {
-        return super.getPayload();
+        return this.response.getPayload();
     }
 
     @Override
@@ -140,7 +145,14 @@ public class CoapResponse extends Response implements Message {
 
     @Override
     public int getMessageCode() {
-        return getCode().value;
+        return this.response.getCode().value;
+    }
+    
+    /**
+     * @return  the response code as a <code>ResponseCode</code> instance
+     */
+    public ResponseCode getCode() {
+        return this.response.getCode();
     }
 
 }
