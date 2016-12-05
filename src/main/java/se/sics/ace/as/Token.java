@@ -161,7 +161,7 @@ public class Token implements Endpoint, AutoCloseable {
 	            || !msg.getParameter("grant_type")
 	                .equals(clientCredentialsStr)) {
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "unsupported_grant_type");
+            map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "unsupported_grant_type");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
@@ -171,7 +171,7 @@ public class Token implements Endpoint, AutoCloseable {
 		String id = msg.getSenderId();
 		if (!this.pdp.canAccessToken(id)) {
 		    CBORObject map = CBORObject.NewMap();
-		    map.Add("error", "unauthorized_client");
+		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
 		    LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "unauthorized client");
 			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -193,8 +193,8 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		if (scope == null) {
 		    CBORObject map = CBORObject.NewMap();
-            map.Add("error", "invalid_request");
-            map.Add("error_description", "No scope found for message");
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "No scope found for message");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No scope found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -216,8 +216,9 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		if (aud == null) {
 		    CBORObject map = CBORObject.NewMap();
-		    map.Add("error", "invalid_request");
-		    map.Add("error_description", "No audience found for message");
+		    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		    map.Add(Constants.ERROR_DESCRIPTION, 
+		            "No audience found for message");
 		    LOGGER.log(Level.INFO, "Message processing aborted: "
 		            + "No audience found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -235,7 +236,7 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		if (allowedScopes == null) {	
 		    CBORObject map = CBORObject.NewMap();
-		    map.Add("error", "invalid_scope");
+		    map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
 		    LOGGER.log(Level.INFO, "Message processing aborted: "
 		            + "invalid_scope");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -253,7 +254,7 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		if (tokenType == null) {
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "Audience incompatible on token type");
+            map.Add(Constants.ERROR, "Audience incompatible on token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience incompatible on token type");
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
@@ -295,7 +296,7 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		if (profile == null) {
 		    CBORObject map = CBORObject.NewMap();
-            map.Add("error", "No compatible profile found");
+            map.Add(Constants.ERROR, "No compatible profile found");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No compatible profile found");
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
@@ -304,7 +305,7 @@ public class Token implements Endpoint, AutoCloseable {
 		if (tokenType != AccessTokenFactory.CWT_TYPE 
 		        && tokenType != AccessTokenFactory.REF_TYPE) {
 		    CBORObject map = CBORObject.NewMap();
-            map.Add("error", "Unsupported token type");
+            map.Add(Constants.ERROR, "Unsupported token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Unsupported token type");
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
@@ -357,8 +358,9 @@ public class Token implements Endpoint, AutoCloseable {
 		    }
 		    if (rpk == null) {
 		        CBORObject map = CBORObject.NewMap();
-		        map.Add("error", "invalid_request");
-		        map.Add("error_description", "Client failed to provide RPK");
+		        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		        map.Add(Constants.ERROR_DESCRIPTION, 
+		                "Client failed to provide RPK");
 		        LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "Client failed to provide RPK");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
@@ -367,7 +369,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    break;
 		default :
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "Unsupported key type");
+            map.Add(Constants.ERROR, "Unsupported key type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Unsupported key type");
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
@@ -397,7 +399,7 @@ public class Token implements Endpoint, AutoCloseable {
             }
 		    if (ctx == null) {
 		        CBORObject map = CBORObject.NewMap();
-	            map.Add("error", 
+	            map.Add(Constants.ERROR, 
 	                    "No common security context found for audience");
 	            LOGGER.log(Level.INFO, "Message processing aborted: "
 	                    + "No common security context found for audience");

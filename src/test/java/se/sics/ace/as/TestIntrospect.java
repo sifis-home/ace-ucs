@@ -209,7 +209,7 @@ public class TestIntrospect {
                 new Message4Tests(-1, "unauthorizedRS", CBORObject.Null));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "unauthorized_client");
+        cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         Assert.assertArrayEquals(response.getRawPayload(), 
                 cbor.EncodeToBytes());
     }
@@ -227,7 +227,7 @@ public class TestIntrospect {
                 new Message4Tests(-1, "rs1", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
-        map.Add("error", "Must provide 'access_token' parameter");
+        map.Add(Constants.ERROR, "Must provide 'access_token' parameter");
         Assert.assertArrayEquals(response.getRawPayload(), 
                 map.EncodeToBytes());
     }
@@ -247,9 +247,10 @@ public class TestIntrospect {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
-        assert(rparams.get("active").equals(CBORObject.False));
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(params.get("active").equals(CBORObject.False));
     }
     
     /**
@@ -267,9 +268,10 @@ public class TestIntrospect {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
-        assert(rparams.get("active").equals(CBORObject.False));
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(params.get("active").equals(CBORObject.False));
     }
     
     /**
@@ -295,9 +297,10 @@ public class TestIntrospect {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
-        assert(rparams.get("active").equals(CBORObject.True)); 
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(params.get("active").equals(CBORObject.True)); 
     }
     
     /**
@@ -315,8 +318,9 @@ public class TestIntrospect {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
-        assert(rparams.get("active").equals(CBORObject.True));
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(params.get("active").equals(CBORObject.True));
     }
 }

@@ -73,7 +73,8 @@ public class CoapRequest implements Message {
         this.request = req;
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        this.request.setPayload(makeParameters(this.parameters));
+        this.request.setPayload(
+                Constants.abbreviate(this.parameters).EncodeToBytes());
     }
 
     @Override
@@ -184,26 +185,4 @@ public class CoapRequest implements Message {
     public int getMessageCode() {
         return this.request.getCode().value;
     }
-    
-    /**
-     * Encode the parameter map as CBOR object for sending with a 
-     * Californium Request.
-     * 
-     * @param params  the parameter map
-     * @return  the byte array encoding the CBOR map
-     */
-    public static byte[] makeParameters(Map<String, CBORObject> params) {
-        CBORObject map = CBORObject.NewMap();
-        for (String key : params.keySet()) {
-            short i = Constants.getAbbrev(key);
-            if (i != -1) {
-                map.Add(CBORObject.FromObject(i), params.get(key));
-            } else { //This claim/parameter has no abbreviation
-                map.Add(CBORObject.FromObject(key), params.get(key));
-            }
-        }
-        return map.EncodeToBytes();
-    }
-
-
 }

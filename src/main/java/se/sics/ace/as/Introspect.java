@@ -48,6 +48,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import COSE.Recipient;
+
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -117,7 +118,7 @@ public class Introspect implements Endpoint, AutoCloseable {
 	    String id = msg.getSenderId();
         if (!this.pdp.canAccessIntrospect(id)) {
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "unauthorized_client");
+            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "unauthorized client");
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
@@ -137,7 +138,7 @@ public class Introspect implements Endpoint, AutoCloseable {
             LOGGER.log(Level.INFO,
                     "Request didn't provide 'access_token' parameter");
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "Must provide 'access_token' parameter");
+            map.Add(Constants.ERROR, "Must provide 'access_token' parameter");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
               
@@ -148,7 +149,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         } catch (AceException e) {
             LOGGER.log(Level.INFO, e.getMessage());
             CBORObject map = CBORObject.NewMap();
-            map.Add("error", "must provide non-null token");
+            map.Add(Constants.ERROR, "must provide non-null token");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 
@@ -175,7 +176,8 @@ public class Introspect implements Endpoint, AutoCloseable {
             payload.Add(Constants.ACTIVE, CBORObject.False);           
         } else {
             for (Entry<String, CBORObject> entry : claims.entrySet()) {
-                int abbrev = Constants.getAbbrev(entry.getKey());
+                short abbrev = Constants.getIdx(
+                        Constants.ABBREV, entry.getKey());
                 if (abbrev == -1) { //No abbreviation found
                     payload.Add(entry.getKey(), entry.getValue());
                 } else {

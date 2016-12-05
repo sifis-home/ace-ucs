@@ -82,19 +82,13 @@ public class CoapResponse implements Message {
      * @param parameters  the response parameters
      * @param request   the request this responds to
      */
-    public CoapResponse(ResponseCode code, Map<String, CBORObject> parameters) {
+    public CoapResponse(ResponseCode code,
+            Map<String, CBORObject> parameters) {
         this.response = new Response(code);
+        this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        CBORObject map = CBORObject.NewMap();
-        for (String key : this.parameters.keySet()) {
-            short i = Constants.getAbbrev(key);
-            if (i != -1) {
-                map.Add(CBORObject.FromObject(i), this.parameters.get(key));
-            } else { //This claim/parameter has no abbreviation
-                map.Add(CBORObject.FromObject(key), this.parameters.get(key));
-            }
-        }
-        this.response.setPayload(map.EncodeToBytes());   
+        this.response.setPayload(
+                Constants.abbreviate(this.parameters).EncodeToBytes());   
     }
     
     @Override

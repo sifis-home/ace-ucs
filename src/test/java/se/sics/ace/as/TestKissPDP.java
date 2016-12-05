@@ -256,5 +256,6 @@ public class TestKissPDP {
     	assert(pdp.canAccessIntrospect("rs1"));
     	assert(!pdp.canAccessToken("clientF"));
     	assert(!pdp.canAccessIntrospect("rs4"));
+    	pdp.close();
     }
 }

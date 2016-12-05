@@ -246,16 +246,7 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public CBORObject encode() {
-		CBORObject map = CBORObject.NewMap();
-		for (String key : this.claims.keySet()) {
-			short i = Constants.getAbbrev(key);
-			if (i != -1) {
-				map.Add(CBORObject.FromObject(i), this.claims.get(key));
-			} else { //This claim/parameter has no abbreviation
-				map.Add(CBORObject.FromObject(key), this.claims.get(key));
-			}
-		}
-		return map;
+        return Constants.abbreviate(this.claims);
 	}
 	
 	/**

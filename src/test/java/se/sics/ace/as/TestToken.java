@@ -329,7 +329,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "unauthorized_client");
+        cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
     }
     
@@ -346,12 +346,12 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         Message4Tests msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-        response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+        response.getRawPayload())));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "invalid_request");
-        cbor.Add("error_description", "No scope found for message");
+        cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        cbor.Add(Constants.ERROR_DESCRIPTION, "No scope found for message");
         Assert.assertArrayEquals(response.getRawPayload(), 
                 cbor.EncodeToBytes());
     }
@@ -370,12 +370,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("blah"));
         Message4Tests msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-        response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+        response.getRawPayload())));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "invalid_request");
-        cbor.Add("error_description", "No audience found for message");
+        cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        cbor.Add(Constants.ERROR_DESCRIPTION, "No audience found for message");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -397,7 +397,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "invalid_scope");
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
         Assert.assertArrayEquals(response.getRawPayload(), 
                 cbor.EncodeToBytes());
     }
@@ -418,12 +418,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("failTokenType"));
         Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "Audience incompatible on token type");
+        cbor.Add(Constants.ERROR, "Audience incompatible on token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     } 
@@ -444,12 +444,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("failProfile"));
         Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode()
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "No compatible profile found");
+        cbor.Add(Constants.ERROR, "No compatible profile found");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -469,12 +469,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new Message4Tests(-1, "clientA", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode()
                 == Message.FAIL_NOT_IMPLEMENTED);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "Unsupported token type");
+        cbor.Add(Constants.ERROR, "Unsupported token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -494,12 +494,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("r_light"));
         Message msg = new Message4Tests(-1, "clientD", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "invalid_request");
-        cbor.Add("error_description", "Client failed to provide RPK");
+        cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        cbor.Add(Constants.ERROR_DESCRIPTION, "Client failed to provide RPK");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -519,11 +519,11 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("r_valve"));
         Message msg = new Message4Tests(-1, "clientC", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode() == Message.FAIL_NOT_IMPLEMENTED);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "Unsupported key type");
+        cbor.Add(Constants.ERROR, "Unsupported key type");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -543,12 +543,12 @@ public class TestToken {
         params.put("scope", CBORObject.FromObject("co2"));
         Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
-        System.out.println(CBORObject.DecodeFromBytes(
-                response.getRawPayload()).toString());
+        System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
+                response.getRawPayload())));
         assert(response.getMessageCode() 
                 == Message.FAIL_INTERNAL_SERVER_ERROR);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add("error", "No common security context found for audience");
+        cbor.Add(Constants.ERROR, "No common security context found for audience");
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -568,11 +568,12 @@ public class TestToken {
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
-        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        CBORObject token = params.get("access_token");
         CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         
@@ -594,11 +595,12 @@ public class TestToken {
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
         assert(response.getMessageCode() 
                 == Message.CREATED);
-        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        CBORObject token = params.get("access_token");
         CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         
@@ -616,17 +618,18 @@ public class TestToken {
     public void testSucceed() throws Exception { 
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
-        params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put("scope", 
+                CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
         Message msg = new Message4Tests(-1, "clientB", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-        Constants.unabbreviate(rparams);
-        System.out.println(rparams.toString());
-        assert(response.getMessageCode() 
-                == Message.CREATED);
-        CBORObject token = rparams.get(CBORObject.FromObject("access_token"));
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get("access_token");
         Map<String, CBORObject> claims = db.getClaims(token.AsString());
         System.out.println(claims.toString());
         assert(claims.get("scope").AsString().contains("rw_valve"));

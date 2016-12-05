@@ -63,7 +63,7 @@ import COSE.MessageTag;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
-import se.sics.ace.CoapRequest;
+import se.sics.ace.Constants;
 import se.sics.ace.KissTime;
 import se.sics.ace.ReferenceToken;
 
@@ -192,7 +192,8 @@ public class TestCoAP {
         CoapAceEndpoint ct = new CoapAceEndpoint(t);
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
-        params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put("scope", 
+                CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
         Request req = new Request(Code.POST);
         req.setSenderIdentity(new Principal4Tests("clientB"));
@@ -200,7 +201,7 @@ public class TestCoAP {
         req.setSourcePort(5683);
         byte[] token = {0x01, (byte)0xab};
         req.setToken(token);
-        req.setPayload(CoapRequest.makeParameters(params));
+        req.setPayload(Constants.abbreviate(params).EncodeToBytes());
         
         Exchange ex = new Exchange(req, Origin.REMOTE);
         ex.setRequest(req);
@@ -228,7 +229,7 @@ public class TestCoAP {
         req.setSourcePort(5683);
         byte[] token = {0x01, (byte)0xab};
         req.setToken(token);
-        req.setPayload(CoapRequest.makeParameters(params));
+        req.setPayload(Constants.abbreviate(params).EncodeToBytes());
         
         Exchange ex = new Exchange(req, Origin.REMOTE);
         ex.setRequest(req);
