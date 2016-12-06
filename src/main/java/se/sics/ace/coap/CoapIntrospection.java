@@ -29,37 +29,47 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.coap;
 
-import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.server.resources.CoapExchange;
+import java.util.Map;
+
+import com.upokecenter.cbor.CBORObject;
+
+import se.sics.ace.rs.IntrospectionHandler;
 
 /**
- * This class implements the authz-info endpoint / resource (OAuth lingo vs CoAP lingo).
+ * An IntrospectionHandler that uses CoAP to talk to the /introspect endpoint at the AS.
  * 
  * @author Ludwig Seitz
- *
  */
-public class CoAPAuthzInfo extends CoapResource {
+public class CoapIntrospection implements IntrospectionHandler {
 
-    /**
-     * @param name
-     */
-    public CoAPAuthzInfo(String name) {
-        super(name);
-        // TODO Auto-generated constructor stub
-    }
-    
-    /**
-     * Handles the POST request in the given CoAPExchange.
-     *
-     * @param exchange the CoapExchange for the simple API
-     */
-    @Override
-    public void handlePOST(CoapExchange exchange) {
-        //FIXME:
-        exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
-    }
+	private String asAddress;
+	
+	/**
+	 * Constructor.
+	 * 
+	 * @param asAddress  the base address of the AS
+	 */
+	public CoapIntrospection(String asAddress) {
+		this.asAddress = asAddress;
+	}
+	
+	
+	@Override
+	public Map<String, CBORObject> getParams(String tokenReference) {
+		CBORObject requestParams = CBORObject.NewMap();
+		requestParams.Add(CBORObject.FromObject("token"), 
+				CBORObject.FromObject(tokenReference));
+		requestParams.Add(CBORObject.FromObject("token_type_hint"), 
+				CBORObject.FromObject("pop"));
+		
+		//FIXME: Generate CoAP request
+		
+		//FIXME: Retrieve CoAP response
+		
+		//FIXME: Return something meaningful
+		return null;
+	}
 
 }

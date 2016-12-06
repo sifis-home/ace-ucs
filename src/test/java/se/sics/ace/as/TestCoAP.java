@@ -66,6 +66,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.KissTime;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.coap.CoapAceEndpoint;
 
 /**
  * Test the CoAP classes.

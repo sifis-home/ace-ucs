@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.coap;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,10 +40,10 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
-import se.sics.ace.CoapRequest;
-import se.sics.ace.CoapResponse;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
+import se.sics.ace.as.Introspect;
+import se.sics.ace.as.Token;
 
 /**
  * This class implements the ACE endpoints/resources 

@@ -34,11 +34,14 @@ package se.sics.ace.rs;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
@@ -58,6 +61,15 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  */
 public class AuthzInfo implements Endpoint {
 	
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(AuthzInfo.class.getName());
+    
+    /**
+     * The token storage
+     */
 	private TokenRepository tr;
 	
 	/**
@@ -105,152 +117,161 @@ public class AuthzInfo implements Endpoint {
 		this.time = time;
 		this.intro = intro;
 		this.audience = audience;
+		this.ctx = ctx;
 	}
 
 	@Override
 	public Message processMessage(Message msg) {
-
-		//1. Check if this is a CWT, and check the crypto wrapper
-		CWT cwt = null;
-		try {
-			cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
-		} catch (Exception ce) {
-			//Not a CWT, check if this is a reference token
-		    //FIXME: add logger
-			try {
-                return processRefrenceToken(msg);
-            } catch (RSException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+	    LOGGER.log(Level.INFO, "received message: " + msg);
+	    
+		//1. Check whether it is a CWT or REF type
+	    CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    Map<String, CBORObject> claims = null;
+	    if (cbor.getType().equals(CBORType.TextString)) {
+	        try {
+                claims = processRefrenceToken(msg);
+            } catch (AceException e) {
+                LOGGER.severe("Message processing aborted: " + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
-		}
+	        CBORObject active = claims.get("active");
+	        if (active.isFalse()) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Token is not active");
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	        }
+	    } else if (cbor.getType().equals(CBORType.Array)) {
+	        try {
+	            claims = processCWT(msg);
+	        } catch (Exception e) {
+	            CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+                map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+	    } else {
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+	        LOGGER.log(Level.INFO, "Message processing aborted: "
+	                + "invalid reuqest");
+	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
 
-		//2. Check that the token is not expired (exp)
-		if (cwt.expired(this.time.getCurrentTime())) {
-			//throw new RSException("Token has expired");
-		}
-		
-		//3. Check if we accept the issuer (iss)
-		CBORObject iss = cwt.getClaim("iss");
-		if (iss == null) {
-			//throw new RSException("Token has no issuer");
-		}
-		if (!this.issuers.contains(iss.AsString())) {
-			//throw new RSException("Issuer " + iss + " not acceptable");
-		}
-		
-		//4. Check if we are the audience (aud)
-		CBORObject aud = cwt.getClaim("aud");
-		if (aud == null) {
-			//throw new RSException("Token has no audience");
-		}
-		if (!this.audience.match(aud.AsString())) {
-			//throw new RSException("We are not the audience of this token");
-		}
-		
-		//5. Check if the scope is meaningful to us
-		CBORObject scope = cwt.getClaim("scope");
-		if (scope == null) {
-			//throw new RSException("Token has no scope");
-		}
-		try {
+	    //2. Check that the token is not expired (exp)
+	    CBORObject exp = claims.get("exp");
+	    if (exp != null && exp.AsInt64() > this.time.getCurrentTime()) { 
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+            map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token is expired");
+	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }   
+      
+	    //3. Check if we accept the issuer (iss)
+	    CBORObject iss = claims.get("iss");
+	    if (iss == null) {
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token has no issuer");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    if (!this.issuers.contains(iss.AsString())) {
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	        map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
+	        LOGGER.log(Level.INFO, "Message processing aborted: "
+	                + "Token issuer unknown");
+	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
+
+	    //4. Check if we are the audience (aud)
+	    CBORObject aud = claims.get("aud");
+	    if (aud == null) {
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	        map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
+	        LOGGER.log(Level.INFO, "Message processing aborted: "
+	                + "Token has no audience");
+	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    if (!this.audience.match(aud.AsString())) {
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+            map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Audience does not apply");
+	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
+
+	    //5. Check if the scope is meaningful to us
+	    CBORObject scope = claims.get("scope");
+	    if (scope == null) {
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+            map.Add(Constants.ERROR_DESCRIPTION, "Token has no scope");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token has no scope");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    
+	    try {
             if (!this.tr.inScope(scope.AsString())) {
-            	//throw new RSException("Token is not in scope");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+                map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
+                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
             }
-        } catch (RSException e1) {
-            // TODO Auto-generated catch block
-            e1.printStackTrace();
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		
-		//6. Store the claims of this token		
-		try {
-            this.tr.addCWT(cwt);
-        } catch (RSException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+
+
+	    //6. Store the claims of this token
+	    try {
+            this.tr.addToken(claims);
+        } catch (AceException e) {
+            LOGGER.severe("Message processing aborted: " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		
-		//7. create success message
-		return msg.successReply(Message.CREATED, null);
+
+	    //9. Create success message
+	    //FIXME: Ok to return cti ?
+	    return msg.successReply(Message.CREATED, claims.get("cti"));
 	}
 	
-	private Message processRefrenceToken(Message msg) throws RSException {
-		//1. This should be a CBOR String
-		CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());
-		if (token.getType() != CBORType.TextString) {
-			throw new RSException("Token reference is not a CBOR String");
-		}
-		
-		//2. Try to introspect it
-		Map<String, CBORObject> params = this.intro.getParams(token.AsString());
-		
-		if (params == null) {
-		    //FIXME: check that this is the right error code
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
-		            CBORObject.FromObject("Token reference not found"));
-		}
-		
-		//3. Check if the token is active
-		CBORObject active = params.get("active");
-		if (active == null) {
-		    //FIXME: Ok to throw exception here?
-			throw new RSException("Missing 'active' parameter");
-		}
-		if (!active.AsBoolean()) {
-		    return msg.failReply(Message.FAIL_UNAUTHORIZED, 
-                    CBORObject.FromObject("Token not active"));
-		}
-		
-		//4. Check that the token is not expired (exp)
-		CBORObject exp = params.get("exp");
-		if (exp != null && exp.AsInt64() > this.time.getCurrentTime()) { 
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, 
-                    CBORObject.FromObject("Token is expired"));
-		}	
-		
-		//5. Check if we accept the issuer (iss)
-		CBORObject iss = params.get("iss");
-		if (iss == null) {
-		  //FIXME: Ok to throw exception here?
-			throw new RSException("Token has no issuer");
-		}
-		if (!this.issuers.contains(iss.AsString())) {
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, 
-                    CBORObject.FromObject("Issuer " 
-                            + iss + " not acceptable"));
-		}
-		
-		//6. Check if we are the audience (aud)
-		CBORObject aud = params.get("aud");
-		if (aud == null) {
-		  //  FIXME: Ok to throw exception here?
-			throw new RSException("Token has no audience");
-		}
-		if (!this.audience.match(aud.AsString())) {
-		    return msg.failReply(Message.FAIL_FORBIDDEN, 
-                    CBORObject.FromObject("Audience does not apply"));
-		}
-		
-		//7. Check if the scope is meaningful to us
-		CBORObject scope = params.get("scope");
-		if (scope == null) {
-		    //  FIXME: Ok to throw exception here?
-			throw new RSException("Token has no scope");
-		}
-		if (!this.tr.inScope(scope.AsString())) {
-		    //FIXME: Check that this is the right error code
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
-                    CBORObject.FromObject("Scope does not apply"));
-		}
-		
-		
-		//8. Store the claims of this token
-		this.tr.addRefToken(token.AsString(), params);
-		
-		//9. Create success message
-		//FIXME: Ok to return cti ?
-		return msg.successReply(Message.CREATED, 
-		        token.get(CBORObject.FromObject("cti")));
+	private Map<String,CBORObject> processCWT(Message msg) throws Exception {
+	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
+        return cwt.getClaims();
+    }
+    
+    private Map<String, CBORObject> processRefrenceToken(Message msg)
+                throws AceException {
+        
+        // This should be a CBOR String
+        CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());
+        if (token.getType() != CBORType.TextString) {
+            throw new AceException("Reference Token processing error");
+        }
+        
+        // Try to introspect the token
+        Map<String, CBORObject> params 
+            = this.intro.getParams(token.AsString());
+        
+        if (params == null) {
+            throw new AceException("Reference Token not found");
+        }
+       
+        return params;
 	}
 
     @Override

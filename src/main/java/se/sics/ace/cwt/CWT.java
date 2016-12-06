@@ -361,6 +361,13 @@ public class CWT implements AccessToken {
 	}
 	
 	/**
+	 * @return a copy of the claims in this CWT.
+	 */
+	public Map<String, CBORObject> getClaims() {
+	    return new HashMap<>(this.claims);
+	}
+	
+	/**
 	 * Checks if the token is valid according to the nbf and exp claims
 	 * (if present).  Does not check the crypto wrapper.
 	 * 

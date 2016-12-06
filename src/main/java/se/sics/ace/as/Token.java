@@ -83,7 +83,7 @@ public class Token implements Endpoint, AutoCloseable {
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(Token.class.getName() );
+        = Logger.getLogger(Token.class.getName());
 
     
 	/**

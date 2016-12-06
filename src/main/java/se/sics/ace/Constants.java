@@ -234,16 +234,16 @@ public class Constants {
 	 * ACE-OAUTH-AUTHZ /token parameters
 	 */
 	public static final short[] TOKEN_PAR = {CLIENT_ID, CLIENT_SECRET, AUD, 
-		RESPONSE_TYPE, REDIRECT_URI, SCOPE, STATE, CODE, ERROR_DESCRIPTION, 
-		ERROR_URI, GRANT_TYPE, ACCESS_TOKEN, TOKEN_TYPE, EXPIRES_IN, USERNAME,
-		PASSWORD, REFRESH_TOKEN, CNF, PROFILE};
+		RESPONSE_TYPE, REDIRECT_URI, SCOPE, STATE, CODE, ERROR, 
+		ERROR_DESCRIPTION,ERROR_URI, GRANT_TYPE, ACCESS_TOKEN, TOKEN_TYPE, 
+		EXPIRES_IN, USERNAME, PASSWORD, REFRESH_TOKEN, CNF, PROFILE};
 
    /**
     * ACE-OAUTH-AUTHZ /introspect parameters
     */
 	public static final short[] INTROSPECT_PAR = {ACTIVE, USERNAME, CLIENT_ID,
-	        SCOPE, TOKEN_TYPE, EXP, IAT, NBF, SUB, AUD, ISS, CTI, CNF, 
-	        CLIENT_TOKEN, RS_CNF};
+	        SCOPE, ERROR, ERROR_DESCRIPTION, ERROR_URI, TOKEN_TYPE, EXP, IAT,
+	        NBF, SUB, AUD, ISS, CTI, CNF, CLIENT_TOKEN, RS_CNF};
 	
 	/**
 	 * Abbreviations for OAuth error codes
@@ -262,7 +262,6 @@ public class Constants {
 	 * Client authentication failed
 	 */
 	public static final short INVALID_CLIENT = 1;
-	
 	
 	/**
 	 * The provided authorization grant or refresh token is

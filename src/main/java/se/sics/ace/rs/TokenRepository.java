@@ -37,33 +37,51 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
-import org.bouncycastle.util.Arrays;
-
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
+import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.cwt.CWT;
 
 /**
  * This class is used to store valid access tokens and 
  * provides methods to check them against an incoming request.  It is the 
  * responsibility of the request handler to call this class. 
  * 
- * Note that this class assumes that every token has a 'scope', 'sub', and 
- * 'aud' and in addition every CWT has a 'cti'.  Tokens that don't have these
- * will lead to exceptions.
+ * Note that this class assumes that every token has a 'scope', 'sub',  
+ * 'aud' and 'cti' (the token itself for a reference token).  Tokens that 
+ * don't have these will lead to request failure.
  * 
- * FIXME: Need to implement persistence for this data. Maybe som DB layer?
+ * FIXME: Need to implement persistence for this data. Maybe some DB layer?
  *  
  * @author Ludwig Seitz
  *
  */
 public class TokenRepository {
 	
+    /**
+     * Maps resource identifiers to matching scopes.
+     */
 	private Map<String, Set<String>> resource2scope;
-	private Map<String, Set<CWT>> scope2cwt;
-	private Map<String, Set<String>> scope2reftoken;
+	
+	/**
+	 * Maps scopes to token identifiers (cti).
+	 */
+	private Map<String, Set<String>> scope2cti;
+	
+	/**
+	 * Maps cti to the claims of the corresponding token
+	 */
+	private Map<String, Map<String,CBORObject>> cti2claims;
+	
+	/**
+	 * The resources handled by this repository
+	 */
 	private Set<String> resources;
+	
+	/**
+	 * The scope validator
+	 */
 	private ScopeValidator scopeValidator;
 	
 	/**
@@ -74,32 +92,28 @@ public class TokenRepository {
 	 */
 	public TokenRepository(ScopeValidator scopeValidator, 
 			Set<String> resources) {
-		this.scopeValidator = scopeValidator;
-		this.scope2cwt = new HashMap<>();
-		this.scope2reftoken = new HashMap<>();
-		this.resource2scope = new HashMap<>();
-		this.resources = resources;
+	    this.resource2scope = new HashMap<>();
+	    this.scope2cti = new HashMap<>();
+	    this.cti2claims = new HashMap<>();
+	    this.resources = new HashSet<>(resources);
+	    this.scopeValidator = scopeValidator;
 	}
 	
 	/**
 	 * Add a new resource to the set of resources managed by this repository.
 	 * 
 	 * @param resourceId  the identifier of the new resource. 
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
-	public void addResource(String resourceId) throws RSException {
-		this.resources.add(resourceId);
+	public void addResource(String resourceId) throws AceException {
+		//Fetch all matching scopes
 		Set<String> scopes = new HashSet<>();
-		for (String scope : this.scope2cwt.keySet()) {
+		for (String scope : this.scope2cti.keySet()) {
 			if (this.scopeValidator.scopeIncludesResource(scope, resourceId)) {
 				scopes.add(scope);
 			}
 		}
-		for (String scope : this.scope2reftoken.keySet()) {
-			if (this.scopeValidator.scopeIncludesResource(scope, resourceId)) {
-				scopes.add(scope);
-			}
-		}
+		//Add the matching scopes to the map.
 		this.resource2scope.put(resourceId, scopes);
 	}
 	
@@ -114,191 +128,125 @@ public class TokenRepository {
 	}
 	
 	/**
-	 * Add a new CWT to the repo.  Note that this method DOES NOT check
-	 * the validity of the token.
+	 * Add a new Access Token to the repo.  Note that this method DOES NOT 
+	 * check the validity of the token.
 	 * 
-	 * @param token  The CWT containing the token
-	 * @throws RSException 
+	 * @param claims  the claims of the token
+	 * @throws AceException 
 	 */
-	public void addCWT(CWT token) throws RSException {
-		CBORObject so = token.getClaim("scope");
+	public void addToken(Map<String, CBORObject> claims) throws AceException {
+		CBORObject so = claims.get("scope");
 		if (so == null) {
-			throw new RSException("Token has no scope");
+			throw new AceException("Token has no scope");
 		}
 		String scope = so.AsString();
 
-		if (token.getClaim("cti") == null) {
-			throw new RSException("Token has no cti");
+		CBORObject cticb = claims.get("cti");
+		if (cticb == null) {
+			throw new AceException("Token has no cti");
+		} else if (!cticb.getType().equals(CBORType.ByteString)) {
+		    throw new AceException("Cti has invalid format");
 		}
 		
-		//Store the mapping scope 2 token
-		Set<CWT> cwts = this.scope2cwt.get(scope);
-		if (cwts == null) {
-			cwts = new HashSet<>();
-		}
-		cwts.add(token);			
-		this.scope2cwt.put(scope, cwts);
-
-		//Store the mapping scope 2 resources
-		for (String resource : this.resources) {
-			if (this.scopeValidator.scopeIncludesResource(scope, resource)) {
-				Set<String> scopes = this.resource2scope.get(resource);
-				if (scopes == null) {
-					scopes = new HashSet<>();
-
-				}
-				scopes.add(scope);
-				this.resource2scope.put(resource, scopes);
-			}
-		}
-	}
-	
-	/**
-	 * Add a new reference token to the repo.  
-	 * Note that this method DOES NOT check the validity of the token.
-	 * 
-	 * @param token  the String containing the token-reference
-	 * @param parameters  the parameters (claims) of this token
-	 * @throws RSException 
-	 */
-	public void addRefToken(String token, Map<String, CBORObject> parameters)
-			throws RSException {
-		if (parameters == null) {
-			throw new RSException(
-					"Need token parameters");
-		}
-		CBORObject so = parameters.get("scope");
-		if (so == null) {
-			throw new RSException("Token has no scope");
-		}
-		String scope = so.AsString();
+		String cti = new String(claims.get("cti").GetByteString());
 		
-		//Store the mapping scope 2 reftoken
-		Set<String> refs = this.scope2reftoken.get(scope);
-		if (refs == null) {
-			refs = new HashSet<>();
-		}
-		refs.add(token);			
-		this.scope2reftoken.put(scope, refs);
+		String[] scopes = scope.split(" ");
+		
+		//Store the mapping scope 2 cti
+		for (int i=0; i<scopes.length; i++) {
+		    Set<String> ctis = this.scope2cti.get(scopes[i]);
+		    if (ctis == null) {
+		        ctis = new HashSet<>();
+		    }
+		    ctis.add(cti);
+		    this.scope2cti.put(scopes[i], ctis);
+		    
+	        //Store the mapping resource 2 scope
+	        for (String resource : this.resources) {
+	            if (this.scopeValidator.scopeIncludesResource(scopes[i], resource)) {
+	                Set<String> rscope = this.resource2scope.get(resource);
+	                if (rscope == null) {
+	                    rscope = new HashSet<>();
 
-		//Store the mapping scope 2 resources
-		for (String resource : this.resources) {
-			if (this.scopeValidator.scopeIncludesResource(scope, resource)) {
-				Set<String> scopes = this.resource2scope.get(resource);
-				if (scopes == null) {
-					scopes = new HashSet<>();
+	                }
+	                rscope.add(scopes[i]);
+	                this.resource2scope.put(resource, rscope);
+	            }
+	        }
+		    
+		}
+		
+		//Store the mapping cti 2 claims, if a token with the same cti
+		//already exists, this leads to an exception
+		if (this.cti2claims.containsKey(cti)) {
+		    throw new AceException("Duplicate token identifier");
+		}
 
-				}
-				scopes.add(scope);
-				this.resource2scope.put(resource, scopes);
-			}
-		}
+		this.cti2claims.put(cti, claims);
+
+		
 	}
-	
-	
+
 	/**
-	 * Remove an existing CWT from the repository.
+	 * Remove an existing token from the repository.
 	 * 
-	 * @param  tokenID  the cid of the CWT to be removed.
+	 * @param cti  the cti of the token to be removed.
+	 * @throws AceException 
 	 */
-	public void removeTokenCid(byte[] tokenID) {
-		for(Entry<String, Set<CWT>> foo : this.scope2cwt.entrySet()) {
-			for (CWT bar : foo.getValue()) {
-				if (Arrays.areEqual(bar.getClaim("cti").EncodeToBytes(), 
-						tokenID)) {
-					Set<CWT> foobar = this.scope2cwt.get(foo.getKey());
-					foobar.remove(bar);
-					if (foobar.isEmpty()) {
-						this.scope2cwt.remove(foo.getKey());
-						//Check if the reftokens are empty too for this scope
-						if (!this.scope2reftoken.containsKey(foo.getKey())) {
-							removeScope(foo.getKey());
-						}
-					} else {
-						this.scope2cwt.put(foo.getKey(), foobar);
-					}
-					
-				}
+	public void removeToken(CBORObject cti) throws AceException {
+	    if (cti == null) {
+            throw new AceException("Cti is null");
+        } else if (!cti.getType().equals(CBORType.ByteString)) {
+            throw new AceException("Cti has invalid format");
+        }
+        
+        String ctiStr = new String(cti.GetByteString());
+        this.cti2claims.remove(ctiStr);
+        Set<String> removableScopes = new HashSet<>();
+		for(Entry<String, Set<String>> foo : this.scope2cti.entrySet()) {
+		    if (foo.getValue() == null) {
+		        removableScopes.add(foo.getKey());
+		    } else {
+		        foo.getValue().remove(ctiStr);
+		        if (foo.getValue().isEmpty()) {
+		            removableScopes.add(foo.getKey());
+		        }
 			}
 		}
-	}
-	
-	private void removeScope(String scope) {
-		for (Entry<String, Set<String>> foo : 
-				this.resource2scope.entrySet()) {
-			if (foo.getValue().contains(scope)) {
-				foo.getValue().remove(scope);
-				if (foo.getValue().isEmpty()) {
-					this.resource2scope.remove(foo.getKey());
-				}
-			}
+		
+		//Now remove the empty scopes
+		for (String scope : removableScopes) {
+		    this.scope2cti.remove(scope);
 		}
-	}
-	
-	/**
-	 * Remove a reference token from the repository.
-	 * 
-	 * @param reftoken  the token to be removed.
-	 */
-	public void removeRefToken(String reftoken) {
-		for(Entry<String, Set<String>> foo : this.scope2reftoken.entrySet()) {
-			for (String bar : foo.getValue()) {
-				if (bar.equals(reftoken)) {
-					Set<String> foobar 
-						= this.scope2reftoken.get(foo.getKey());
-					foobar.remove(bar);
-					if (foobar.isEmpty()) {
-						this.scope2reftoken.remove(foo.getKey());
-						//Check if the CWTs are empty too for this scope
-						if (!this.scope2cwt.containsKey(foo.getKey())) {
-							removeScope(foo.getKey());
-						}
-					} else {
-						this.scope2reftoken.put(foo.getKey(), foobar);
-					}
-					
-				}
-			}
+		
+		//Now clean the resource 2 scope mappings
+		for (Entry<String, Set<String>> foo : this.scope2cti.entrySet()) {
+		    if (foo.getValue() == null || foo.getValue().isEmpty()) {
+		        this.resource2scope.remove(foo.getKey());		        
+		    }
 		}
 	}
 	
 	/**
 	 * Poll the stored tokens and expunge those that have expired.
 	 * @param time  the time provider
-	 * @param intro  the introspection handler
-	 * @throws RSException 
+     *
+	 * @throws AceException 
 	 */
-	public void pollTokens(TimeProvider time, IntrospectionHandler intro) 
-				throws RSException {
-		for (Entry<String, Set<CWT>> foo : this.scope2cwt.entrySet()) {
-			for (CWT cwt : foo.getValue()) {
-				if (cwt.expired(time.getCurrentTime())) {
-					removeTokenCid(cwt.getClaim("cti").GetByteString());
-				}
-			}
-		}
-		
-		//Now check the reference tokens
-		if (intro != null) {
-			for (Entry<String, Set<String>> bar 
-					: this.scope2reftoken.entrySet()) {
-				for (String reft : bar.getValue()) {
-					Map<String, CBORObject> claims = intro.getParams(reft);
-					if (claims.get("active") == null) {
-						throw new RSException("Token introspection didn't "
-								+ "return an 'active' parameter");
-					}
-					if (!claims.get("active").AsBoolean()) {
-						removeRefToken(reft);
-					} else {
-						CBORObject expO = claims.get("exp");
-						if (expO != null) {
-							if (time.getCurrentTime() > expO.AsInt64()) {
-								//	Remove expired token
-								removeRefToken(reft);
-							}
-						}
-					}
+	public void pollTokens(TimeProvider time) 
+				throws AceException {
+		for (Entry<String, Map<String, CBORObject>> foo 
+		        : this.cti2claims.entrySet()) {
+		    if (foo.getValue() != null) {
+		        CBORObject exp = foo.getValue().get("exp");
+		        if (exp == null) {
+		            continue; //This token never expires
+		        }
+		        if (!exp.isIntegral()) {
+		            throw new AceException("Expiration time is in wrong format");
+		        }
+		        if (exp.AsInt64() > time.getCurrentTime()) {
+					removeToken(foo.getValue().get("cti"));
 				}
 			}
 		}
@@ -314,89 +262,68 @@ public class TokenRepository {
 	 * @param intro  the introspection handler, can be null
 	 * @return  true if the subject can access the resource 
 	 * 	with the given action, false if not.
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
 	public boolean canAccess(String subject, String resource, String action, 
-			TimeProvider time, IntrospectionHandler intro) throws RSException {
+			TimeProvider time, IntrospectionHandler intro) 
+			        throws AceException {
 		//Check if we have a token that is in scope for this resource
 		for (String scope : this.resource2scope.get(resource)) {
 			//Check if the action matches
 			if (!this.scopeValidator.scopeIncludesAction(scope, action)) {
-				//Action does not match this scope
+				//Action does not match this scope, net iteration
 				continue;
 			}
-			for (CWT token : this.scope2cwt.get(scope)) {
+			for (String cti : this.scope2cti.get(scope)) {
+			    //Get the claims
+			    Map<String, CBORObject> claims = this.cti2claims.get(cti);
+			    if (claims == null || claims.isEmpty()) {
+			        //No claims found
+			        continue;
+			    }
+			    
 				//Check if the subject matches
-				CBORObject subO = token.getClaim("sub");
+				CBORObject subO = claims.get("sub");
 				if (subO == null) {
-					throw new RSException("Token has no 'sub' claim");
+					throw new AceException("Token has no 'sub' claim");
 				}
 				if (!subO.AsString().equals(subject)) {
 					//Token doesn't match subject
 					continue;
 				}
-				if (!token.isValid(time.getCurrentTime())) {
-					//token expired or not valid yet
-					continue;
-				}
-				//Check if we should introspect this CWT
+				
+				//Check if the token is expired
+				CBORObject exp = claims.get("exp"); 
+				 if (exp != null && !exp.isIntegral()) {
+	                    throw new AceException("Expiration time is in wrong format");
+				 }
+				 if (exp != null && exp.AsInt64() < time.getCurrentTime()) {
+				     //Token is expired
+				     continue;
+				 }
+				
+                 //Check nbf
+                 CBORObject nbf = claims.get("nbf");
+                 if (nbf != null &&  !nbf.isIntegral()) {
+                     throw new AceException("NotBefore time is in wrong format");
+                 }
+                 if (nbf != null && nbf.AsInt64() > time.getCurrentTime()) {
+                     //Token not valid yet
+                     continue;
+                 }   
+
+				//Check if we should introspect this token
 				if (intro != null) {
-					Map<String,CBORObject> introspect = intro.getParams(
-							token.getClaim("cti").AsString());
-					if (introspect.get("active") == null) {
-						throw new RSException("Token introspection didn't "
+				    Map<String,CBORObject> introspect = intro.getParams(cti);
+					if (introspect != null && introspect.get("active") == null) {
+						throw new AceException("Token introspection didn't "
 								+ "return an 'active' parameter");
 					}
-					if (introspect.get("active").AsBoolean()) {
+					if (introspect != null && introspect.get("active").isTrue()) {
 						return true;
 					}
 				} else { //We didn't introspect but everything else checked out
 					return true;
-				}
-			}
-
-			//Now check reference tokens
-			if (intro != null) {
-				for (String reftoken : this.scope2reftoken.get(scope)) {
-					Map<String, CBORObject> claims = intro.getParams(reftoken);
-					if (claims == null) {
-					    continue; //token unknown, authorizes nothing
-					}
-					
-					//Check valid
-					if (claims.get("active") == null) {
-					    throw new RSException(
-					            "Active parameter missing on introspection");
-					}
-					if (!claims.get("active").AsBoolean()) {
-					    //token not active, authorizes nothing
-					    continue; 
-					}
-
-					//Check if the subject matches
-					CBORObject subO = claims.get("sub");
-					if (subO == null) {
-						throw new RSException(
-								"Introspection gave no 'sub' parameter");
-					}
-					if (!subO.AsString().equals(subject)) {
-						//Token doesn't match subject
-						continue;
-					}
-					
-					//Check nbf and exp for the found match
-					CBORObject nbfO = claims.get("nbf");
-					if (nbfO != null &&  nbfO.AsInt64() 
-							> time.getCurrentTime()) {
-						//Token not valid yet
-						continue;
-					}	
-					CBORObject expO = claims.get("exp");
-					if (expO != null && expO.AsInt64() < 
-							time.getCurrentTime()) {
-						//Token has expired
-						continue;
-					}		
 				}
 			}
 		}
@@ -407,11 +334,12 @@ public class TokenRepository {
 	
 	/**
 	 * Checks if this scope applies to any resource.
+	 * 
 	 * @param scope  the scope
 	 * @return  true if the scope applies to any resource, false if not
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
-	public boolean inScope(String scope) throws RSException {
+	public boolean inScope(String scope) throws AceException {
 		for (String resource : this.resources) {
 			if (this.scopeValidator.scopeIncludesResource(scope, resource)) {
 				return true;

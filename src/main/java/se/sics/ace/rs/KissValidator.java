@@ -31,8 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
+
+import se.sics.ace.AceException;
 
 /**
  * Simple audience validator for testing purposes.
@@ -40,23 +44,47 @@ import java.util.Set;
  * @author Ludwig Seitz
  *
  */
-public class KissAudValidator implements AudienceValidator {
+public class KissValidator implements AudienceValidator, ScopeValidator {
 
 	private Set<String> myAudiences;
+	
+	/**
+	 * Maps the scopes to a map that maps the scope's resources to the actions 
+	 * allowed on that resource
+	 */
+	private Map<String, Map<String, Set<String>>> myScopes;
 	
 	/**
 	 * Constructor.
 	 * 
 	 * @param myAudiences  the audiences that this validator should accept
+	 * @param myScopes  the scopes that this validator should accept
 	 */
-	public KissAudValidator(Set<String> myAudiences) {
+	public KissValidator(Set<String> myAudiences, 
+	        Map<String, Map<String, Set<String>>> myScopes) {
 		this.myAudiences = new HashSet<>();
+		this.myScopes = new HashMap<>();
 		this.myAudiences.addAll(myAudiences);
+		this.myScopes.putAll(myScopes);
 	}
 	
 	@Override
 	public boolean match(String aud) {
 		return this.myAudiences.contains(aud);
 	}
+
+    @Override
+    public boolean scopeIncludesResource(String scope, String resourceId)
+            throws AceException {
+        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        return (resources.containsKey(resourceId));
+    }
+
+    @Override
+    public boolean scopeIncludesAction(String scope, String actionId)
+            throws AceException {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
 }

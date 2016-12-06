@@ -29,26 +29,37 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.coap;
+
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.server.resources.CoapExchange;
 
 /**
- * Exceptions in the RS while handling OAuth-ACE
+ * This class implements the authz-info endpoint / resource (OAuth lingo vs CoAP lingo).
  * 
  * @author Ludwig Seitz
  *
  */
-public class RSException extends Exception {
-	/**
-	 * 
-	 */
-	private static final long serialVersionUID = 581237992313582664L;
+public class CoAPAuthzInfo extends CoapResource {
 
-	/**
-	 * Constructor.
-	 * 
-	 * @param msg  the error message
-	 */
-	public RSException(String msg) {
-		super(msg);
-	}
+    /**
+     * @param name
+     */
+    public CoAPAuthzInfo(String name) {
+        super(name);
+        // TODO Auto-generated constructor stub
+    }
+    
+    /**
+     * Handles the POST request in the given CoAPExchange.
+     *
+     * @param exchange the CoapExchange for the simple API
+     */
+    @Override
+    public void handlePOST(CoapExchange exchange) {
+        //FIXME:
+        exchange.respond(ResponseCode.METHOD_NOT_ALLOWED);
+    }
+
 }

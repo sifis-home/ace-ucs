@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import se.sics.ace.AceException;
+
 /**
  * The interface for scope validators.  These should be implemented for the specific applications.
  * 
@@ -45,9 +47,10 @@ public interface ScopeValidator {
 	 * @param scope  the scope
 	 * @param resourceId  the resource
 	 * @return  true if the scope includes the resource, false if not.
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
-	boolean scopeIncludesResource(String scope, String resourceId) throws RSException;
+	boolean scopeIncludesResource(String scope, String resourceId)
+	        throws AceException;
 	
 	/**
 	 * Does the given scope allow the given action?
@@ -55,8 +58,9 @@ public interface ScopeValidator {
 	 * @param scope  the scope
 	 * @param actionId  the action
 	 * @return  true if the scope includes the action, false if not.
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
-	boolean scopeIncludesAction(String scope, String actionId) throws RSException;
+	boolean scopeIncludesAction(String scope, String actionId) 
+	        throws AceException;
 	
 }

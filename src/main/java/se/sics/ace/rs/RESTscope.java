@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import se.sics.ace.AceException;
+
 /**
  * This class implements scope validation for RESTful resources as follows:
  * 
@@ -49,20 +51,20 @@ public class RESTscope implements ScopeValidator {
 
 	@Override
 	public boolean scopeIncludesResource(String scope, String resourceId) 
-			throws RSException {
+			throws AceException {
 		String parts[] = scope.split("_");
 		if (parts.length != 2) {
-			throw new RSException("Scope format not recognized");
+			throw new AceException("Scope format not recognized");
 		}
 		return resourceId.equals(parts[1]);
 	}
 
 	@Override
 	public boolean scopeIncludesAction(String scope, String actionId) 
-			throws RSException {
+			throws AceException {
 		String parts[] = scope.split("_");
 		if (parts.length != 2) {
-			throw new RSException("Scope format not recognized");
+			throw new AceException("Scope format not recognized");
 		}
 		return parts[0].contains(actionId);
 	}
@@ -74,15 +76,15 @@ public class RESTscope implements ScopeValidator {
 	 * 
 	 * @return  the action string for the scope
 	 * 
-	 * @throws RSException  thrown if the request code is unknown
+	 * @throws AceException  thrown if the request code is unknown
 	 */
-	public static String fromCoap(int coapCode) throws RSException {
+	public static String fromCoap(int coapCode) throws AceException {
 		switch (coapCode) {
 			case 1: return "g";
 			case 2: return "p";
 			case 3: return "u";
 			case 4: return "d";
-			default: throw new RSException(
+			default: throw new AceException(
 					"Unknwon CoAP request code " + coapCode);
 		}
 	}
