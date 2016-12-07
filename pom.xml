@@ -62,6 +62,11 @@
 		<artifactId>californium-core</artifactId>
 		<version>1.0.4</version>
 	</dependency>
+	<dependency>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>scandium</artifactId>
+		<version>1.0.4</version>
+	</dependency>
   </dependencies>
   <build>
 	<plugins>
