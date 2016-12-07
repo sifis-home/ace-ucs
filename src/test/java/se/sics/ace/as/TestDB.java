@@ -109,7 +109,7 @@ public class TestDB {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
-        db = SQLConnector.getInstance(null, null, null);
+        db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
         //Setup RS entries

@@ -154,7 +154,8 @@ public class Token implements Endpoint, AutoCloseable {
 	
 	@Override
 	public Message processMessage(Message msg) {
-	    LOGGER.log(Level.INFO, "received message: " + msg);
+	    LOGGER.log(Level.INFO, "Token received message: " 
+	            + msg.getParameters());
 	    
 	    //1. Check that this is a client credentials grant type    
 	    if (msg.getParameter("grant_type") == null 
@@ -173,7 +174,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
 		    LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unauthorized client");
+                    + "unauthorized client: " + id);
 			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		

@@ -46,7 +46,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
-import se.sics.ace.cwt.CWT;
 
 /**
  * A CoAP request implementing the Message interface for the ACE library.
@@ -179,7 +178,7 @@ public class CoapRequest implements Message {
         if (cborPayload == null || !cborPayload.getType().equals(CBORType.Map)) {
             throw new AceException("Payload is empty or not encoded as CBOR Map");
         }
-        parameters = CWT.parseClaims(cborPayload);
+        parameters = Constants.unabbreviate(cborPayload);
         CoapRequest creq = new CoapRequest(req, parameters);
         return creq;
     }

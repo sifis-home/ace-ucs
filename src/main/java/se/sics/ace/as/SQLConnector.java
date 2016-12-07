@@ -352,30 +352,7 @@ public class SQLConnector implements DBConnector {
      * cti counter table.
      */
     private PreparedStatement updateCtiCtr;
-    
-    
-    private static SQLConnector instance = null;
-    
-    /**
-     * Creates (if necessary) and gets the singleton instance of the
-     * connector.
-     * 
-     * @param dbUrl  the database URL, if null the default will be used
-     * @param user   the database user, if null the default will be used
-     * @param pwd    the database user's password, if null the default 
-     *               will be used
-     *               
-     * @return  the instance of the connector
-     * @throws SQLException 
-     */
-    public synchronized static SQLConnector getInstance(
-            String dbUrl, String user, String pwd) throws SQLException {
-        if (instance == null) {
-            instance = new SQLConnector(dbUrl, user, pwd);
-        }
-        return instance;
-    }
-    
+
 	/**
 	 * Create a new database connector either from given values or the 
 	 * defaults.
@@ -386,7 +363,7 @@ public class SQLConnector implements DBConnector {
 	 * 				 will be used
 	 * @throws SQLException 
 	 */
-	protected SQLConnector(String dbUrl, String user, String pwd) 
+	public SQLConnector(String dbUrl, String user, String pwd) 
 			throws SQLException {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
@@ -716,7 +693,6 @@ public class SQLConnector implements DBConnector {
 	public synchronized void close() throws AceException {
 		try {
             this.conn.close();
-            SQLConnector.instance = null;
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }

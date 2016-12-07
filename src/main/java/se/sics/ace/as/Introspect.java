@@ -114,13 +114,16 @@ public class Introspect implements Endpoint, AutoCloseable {
     
 	@Override
     public Message processMessage(Message msg) {
+	    LOGGER.log(Level.INFO, "Introspect received message: " 
+	            + msg.getParameters());
+        	    
 	    //1. Check that this RS is allowed to introspect
 	    String id = msg.getSenderId();
         if (!this.pdp.canAccessIntrospect(id)) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unauthorized client");
+                    + "unauthorized client: " + id);
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
         }
 	    

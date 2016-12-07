@@ -29,12 +29,14 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.coap;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
@@ -45,12 +47,13 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.Exchange.Origin;
-import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.core.network.EndpointManager;
+import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -60,13 +63,17 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.MessageTag;
-
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.KissTime;
 import se.sics.ace.ReferenceToken;
-import se.sics.ace.coap.CoapAceEndpoint;
+import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.DBConnector;
+import se.sics.ace.as.Introspect;
+import se.sics.ace.as.KissPDP;
+import se.sics.ace.as.SQLConnector;
+import se.sics.ace.as.Token;
 
 /**
  * Test the CoAP classes.
@@ -82,6 +89,13 @@ public class TestCoAP {
     private static String dbPwd = null;
     private static Introspect i = null;
     private static Token t = null;
+    private static CoapAceEndpoint token = null;
+    private static CoapAceEndpoint introspect = null;
+    private static CoapServer rs = null;
+    private static final int COAP_PORT 
+        = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
+    
+    
     
     /**
      * Set up tests.
@@ -111,7 +125,7 @@ public class TestCoAP {
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
             
-        db = SQLConnector.getInstance(null, null, null);
+        db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
         //Setup RS entries
@@ -156,17 +170,34 @@ public class TestCoAP {
         
         t = new Token("AS", KissPDP.getInstance("src/test/resources/acl.json",
                 db), db, new KissTime(), null); 
+        
+        token = new CoapAceEndpoint(t);
+        introspect = new CoapAceEndpoint(i);
+        
+        rs = new CoapServer();
+        rs.add(token);
+        rs.add(introspect);
+        for (InetAddress addr : EndpointManager.getEndpointManager()
+                .getNetworkInterfaces()) {
+            // only binds to IPv4 addresses and localhost
+            if (addr instanceof Inet4Address || addr.isLoopbackAddress()) {
+                InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
+                rs.addEndpoint(new CoapEndpoint(bindToAddress));
+            }
+        }
+        rs.start();
     }
     
     
     /**
      * Deletes the test DB after the tests
-     * 
-     * @throws AceException 
-     * @throws SQLException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws AceException, SQLException {
+    public static void tearDown() throws Exception {
+        rs.destroy();
+        token.close();
+        introspect.close();
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);
@@ -181,6 +212,7 @@ public class TestCoAP {
         stmt.close();
         rootConn.close();
         db.close();
+        
     }
     
     /**
@@ -190,27 +222,19 @@ public class TestCoAP {
      */
     @Test
     public void testCoapToken() throws Exception {
-        CoapAceEndpoint ct = new CoapAceEndpoint(t);
+        CoapClient client = new CoapClient("localhost/token");
+
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", 
                 CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        Request req = new Request(Code.POST);
-        req.setSenderIdentity(new Principal4Tests("clientB"));
-        req.setSource(InetAddress.getLoopbackAddress());
-        req.setSourcePort(5683);
-        byte[] token = {0x01, (byte)0xab};
-        req.setToken(token);
-        req.setPayload(Constants.abbreviate(params).EncodeToBytes());
-        
-        Exchange ex = new Exchange(req, Origin.REMOTE);
-        ex.setRequest(req);
-        ex.setEndpoint(new CoapEndpoint());
-        CoapExchange exchange = new CoapExchange(ex, ct);
-        ct.handlePOST(exchange);
+        CoapResponse response = client.post(
+                Constants.abbreviate(params).EncodeToBytes(), 
+                MediaTypeRegistry.APPLICATION_CBOR);    
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        System.out.println(Constants.unabbreviate(res));
         //XXX: Need to assert something here ...
-        ct.close();
     }
     
     /**
@@ -220,24 +244,16 @@ public class TestCoAP {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        CoapAceEndpoint ci = new CoapAceEndpoint(i);
+        CoapClient client = new CoapClient("localhost/introspect");
+       
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();
         params.put("access_token", at.encode());
-        Request req = new Request(Code.POST);
-        req.setSenderIdentity(new Principal4Tests("rs1"));
-        req.setSource(InetAddress.getLoopbackAddress());
-        req.setSourcePort(5683);
-        byte[] token = {0x01, (byte)0xab};
-        req.setToken(token);
-        req.setPayload(Constants.abbreviate(params).EncodeToBytes());
-        
-        Exchange ex = new Exchange(req, Origin.REMOTE);
-        ex.setRequest(req);
-        ex.setEndpoint(new CoapEndpoint());
-        CoapExchange exchange = new CoapExchange(ex, ci);
-        ci.handlePOST(exchange);
+        CoapResponse response = client.post(
+                Constants.abbreviate(params).EncodeToBytes(), 
+                MediaTypeRegistry.APPLICATION_CBOR);  
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        System.out.println(Constants.unabbreviate(res));
         //XXX: Need to assert something here ...
-        ci.close();
     }
 }

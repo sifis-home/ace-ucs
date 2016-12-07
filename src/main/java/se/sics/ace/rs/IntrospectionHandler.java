@@ -50,6 +50,7 @@ public interface IntrospectionHandler {
 	 * 
 	 * @return  the map of claims (key to claim value) or null if there is no 
 	 *     such tokenReference
+	 *     
 	 * @throws RSException 
 	 */
 	public Map<String, CBORObject> getParams(String tokenReference);

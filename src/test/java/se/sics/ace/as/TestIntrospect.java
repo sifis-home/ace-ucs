@@ -112,7 +112,7 @@ public class TestIntrospect {
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey();
 
-        db = SQLConnector.getInstance(null, null, null);
+        db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
         //Setup RS entries
