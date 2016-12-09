@@ -77,6 +77,9 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
     public boolean scopeIncludesResource(String scope, String resourceId)
             throws AceException {
         Map<String, Set<String>> resources = this.myScopes.get(scope);
+        if (resources == null) {
+            return false;
+        }
         return (resources.containsKey(resourceId));
     }
 

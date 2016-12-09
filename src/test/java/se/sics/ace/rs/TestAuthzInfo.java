@@ -45,8 +45,10 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -57,11 +59,13 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.KissTime;
-import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.Message;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.KissPDP;
+import se.sics.ace.as.Message4Tests;
 import se.sics.ace.as.SQLConnector;
+import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -134,8 +138,10 @@ public class TestAuthzInfo {
         resources.add("temp");
         resources.add("co2");
         TokenRepository tr = new TokenRepository(valid, resources);
-        CwtCryptoCtx ctx = null;
-        
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
         i = new Introspect(
                 KissPDP.getInstance("src/test/resources/acl.json", db), db, 
                 new KissTime(), key);
@@ -170,6 +176,38 @@ public class TestAuthzInfo {
         db.close();
         i.close();
     }
+    
+    /**
+     * Test AuthInfo
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testGetProfiles() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        System.out.println(response.toString());
+        assert(response.getMessageCode() == Message.CREATED);
+    }
+    
     
     
     
