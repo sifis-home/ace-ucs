@@ -53,6 +53,11 @@ public class Message4Tests implements Message {
     private String senderId;
     
     /**
+     * The id of the recipient of this message (for reply messages)
+     */
+    private String recipientId;
+    
+    /**
      * The parameters contained in the payload of this message
      */
     private Map<String, CBORObject> params;
@@ -71,11 +76,14 @@ public class Message4Tests implements Message {
      * Constructor.
      * @param code 
      * @param senderId
+     * @param recipientId 
      * @param parameters
      */
-    public Message4Tests(int code, String senderId, Map<String, CBORObject> parameters) {
+    public Message4Tests(int code, String senderId, 
+            String recipientId, Map<String, CBORObject> parameters) {
         this.code = code;
         this.senderId = senderId;
+        this.recipientId = recipientId;
         this.params = new HashMap<>();
         this.params.putAll(parameters);
         this.payload = null;
@@ -87,9 +95,11 @@ public class Message4Tests implements Message {
      * @param senderId
      * @param payload
      */
-    public Message4Tests(int code, String senderId,CBORObject payload) {
+    public Message4Tests(int code, String senderId, 
+            String recipientId, CBORObject payload) {
         this.code = code;
         this.senderId = senderId;
+        this.recipientId = recipientId;
         this.params = null;
         this.payload = payload;
     }
@@ -98,12 +108,14 @@ public class Message4Tests implements Message {
     
     @Override
     public Message successReply(int code, CBORObject payload) {
-        return new Message4Tests(code, "TestRS", payload);
+        return new Message4Tests(
+                code, this.recipientId, this.senderId, payload);
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        return new Message4Tests(failureReason, "TestRS", payload);
+        return new Message4Tests(
+                failureReason, this.recipientId, this.senderId, payload);
     }
 
 

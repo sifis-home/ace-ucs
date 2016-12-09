@@ -206,7 +206,8 @@ public class TestIntrospect {
     @Test
     public void testFailUnauthorized() throws Exception {
         Message response = i.processMessage(
-                new Message4Tests(-1, "unauthorizedRS", CBORObject.Null));
+                new Message4Tests(
+                        -1, "unauthorizedRS", "TestAS", CBORObject.Null));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -224,7 +225,7 @@ public class TestIntrospect {
     public void testFailNoTokenSent() throws Exception {
         CBORObject nullObj = null;
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", nullObj));
+                new Message4Tests(-1, "rs1", "TestAS", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, "Must provide 'access_token' parameter");
@@ -243,7 +244,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("access_token", purged.encode());
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", params));
+                new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -264,7 +265,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("access_token", notExist);
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", params));
+                new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -293,7 +294,7 @@ public class TestIntrospect {
         params.clear();
         params.put("access_token", token.encode(ctx));
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", params));
+                new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -314,7 +315,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("access_token", t.encode());
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", params));
+                new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

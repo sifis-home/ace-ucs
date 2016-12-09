@@ -31,14 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 import se.sics.ace.AceException;
-import se.sics.ace.as.SQLConnector;
 
 /**
  * Simple audience validator for testing purposes.

@@ -325,7 +325,7 @@ public class TestToken {
     public void testFailUnauthorized() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
-        Message4Tests msg = new Message4Tests(-1, "client_1", params); 
+        Message4Tests msg = new Message4Tests(-1, "client_1", "TestAS", params); 
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
@@ -344,7 +344,7 @@ public class TestToken {
     public void testFailMissingScope() throws Exception {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
-        Message4Tests msg = new Message4Tests(-1, "clientA", params);
+        Message4Tests msg = new Message4Tests(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
         response.getRawPayload())));
@@ -368,7 +368,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
-        Message4Tests msg = new Message4Tests(-1, "clientA", params);
+        Message4Tests msg = new Message4Tests(-1, "clientA","TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
         response.getRawPayload())));
@@ -393,7 +393,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("blah"));
         params.put("aud", CBORObject.FromObject("blubb"));
-        Message msg = new Message4Tests(-1, "clientA", params);
+        Message msg = new Message4Tests(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
@@ -416,7 +416,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failTokenType"));
         params.put("scope", CBORObject.FromObject("failTokenType"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -442,7 +442,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failProfile"));
         params.put("scope", CBORObject.FromObject("failProfile"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -467,7 +467,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs5"));
         params.put("scope", CBORObject.FromObject("failTokenNotImplemented"));
-        Message msg = new Message4Tests(-1, "clientA", params);
+        Message msg = new Message4Tests(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -492,7 +492,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs2"));
         params.put("scope", CBORObject.FromObject("r_light"));
-        Message msg = new Message4Tests(-1, "clientD", params);
+        Message msg = new Message4Tests(-1, "clientD", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -517,7 +517,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs6"));
         params.put("scope", CBORObject.FromObject("r_valve"));
-        Message msg = new Message4Tests(-1, "clientC", params);
+        Message msg = new Message4Tests(-1, "clientC", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -541,7 +541,7 @@ public class TestToken {
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("failCWTpar"));
         params.put("scope", CBORObject.FromObject("co2"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
@@ -564,7 +564,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("aud", CBORObject.FromObject("rs1"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -591,7 +591,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", CBORObject.FromObject("co2"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -621,7 +621,7 @@ public class TestToken {
         params.put("scope", 
                 CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        Message msg = new Message4Tests(-1, "clientB", params);
+        Message msg = new Message4Tests(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
