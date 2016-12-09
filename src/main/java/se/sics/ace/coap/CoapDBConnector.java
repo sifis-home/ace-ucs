@@ -2,6 +2,7 @@ package se.sics.ace.coap;
 
 import java.net.InetSocketAddress;
 import java.sql.SQLException;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
@@ -15,7 +16,13 @@ import se.sics.ace.as.SQLConnector;
  *
  */
 public class CoapDBConnector extends SQLConnector implements PskStore {
-
+    
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(CoapDBConnector.class.getName() );
+    
     /**
      * Constructor.
      *  
@@ -38,12 +45,14 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
         try {
             key = super.getCPSK(identity);
         } catch (AceException e) {
+            LOGGER.severe(e.getMessage());
             return null;
         }
         if (key == null) {
             try {
                 key = super.getRsPSK(identity);
             } catch (AceException e) {
+                LOGGER.severe(e.getMessage());
                 return null;
             }
         }

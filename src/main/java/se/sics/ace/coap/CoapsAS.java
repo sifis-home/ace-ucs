@@ -1,17 +1,15 @@
 package se.sics.ace.coap;
 
-import java.net.Inet4Address;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 import COSE.OneKey;
 
@@ -25,11 +23,14 @@ import se.sics.ace.as.Token;
  * An authorization server listening to CoAP requests
  * over DTLS.
  * 
+ * Create an instance of this server with the constructor then call
+ * CoapsAS.start();
+ * 
  * @author Ludwig Seitz
  *
  */
 public class CoapsAS extends CoapServer implements AutoCloseable {
-
+    
     /**
      * The logger
      */
@@ -49,6 +50,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
     private CoapAceEndpoint token;
 
     private CoapAceEndpoint introspect;
+
     
     /**
      * Constructor.
@@ -63,7 +65,11 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException {
-        this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+        if (asymmetricKey == null) {
+            this.i = new Introspect(pdp, db, time, null);
+        } else {
+            this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+        }
         this.t = new Token(asId, pdp, db, time, asymmetricKey); 
     
         this.token = new CoapAceEndpoint(this.t);
@@ -71,30 +77,31 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
 
         add(this.token);
         add(this.introspect);
-        
-        
 
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-        builder.setClientAuthenticationRequired(true);
-        builder.setPskStore(db);
-        
-        DTLSConnector connector = new DTLSConnector(builder.build(), null);
-
-        for (InetAddress addr : 
-            EndpointManager.getEndpointManager().getNetworkInterfaces()) {
-            // only binds to IPv4 addresses and localhost
-            if (addr instanceof Inet4Address || addr.isLoopbackAddress()) {
-                CoapEndpoint endpoint = new CoapEndpoint(connector, 
-                        NetworkConfig.getStandard()); 
-                addEndpoint(endpoint);
-                EndpointManager.getEndpointManager().setDefaultSecureEndpoint(endpoint);
-            }
-        }
+       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
+               new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+       if (asymmetricKey == null) {
+           LOGGER.finest("Starting CoapsAS with PSK only");
+           config.setSupportedCipherSuites(new CipherSuite[]{
+                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+       } else {
+           LOGGER.finest("Starting CoapsAS with PSK and RPK");
+           config.setSupportedCipherSuites(new CipherSuite[]{
+                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+                   CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+       }
+       config.setPskStore(db);
+       if (asymmetricKey != null) {//FIXME: 
+           //config.setIdentity(privKey, pubKey);
+       }
+      
+       DTLSConnector connector = new DTLSConnector(config.build());
+       addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
     }
 
     @Override
     public void close() throws Exception {
+       LOGGER.info("Closing down CoapsAS ...");
        this.token.close();
        this.introspect.close();
     }

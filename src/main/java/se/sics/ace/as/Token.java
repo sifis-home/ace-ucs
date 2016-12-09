@@ -387,6 +387,9 @@ public class Token implements Endpoint, AutoCloseable {
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
 		rsInfo.Add(Constants.CNF, claims.get("cnf"));
+		if (!allowedScopes.equals(scope)) {
+		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
+		}
 
 		if (token instanceof CWT) {
 		    		    

@@ -90,7 +90,7 @@ public class CoapRequest implements Message {
         if (p==null) {
             return null;
         }
-        return p.toString();
+        return p.getName();
     }
 
     @Override
