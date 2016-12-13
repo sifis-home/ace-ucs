@@ -42,25 +42,26 @@ import se.sics.ace.AceException;
 public interface ScopeValidator {
 	
 	/**
-	 * Does the given scope match the given resource?
+	 * Does the given scope match the given resource and action
 	 * 
 	 * @param scope  the scope
 	 * @param resourceId  the resource
-	 * @return  true if the scope includes the resource, false if not.
+	 * @param actionId  the action on the resource
+	 * @return  true if the scope includes the resource and the action, false if not.
 	 * @throws AceException 
 	 */
-	boolean scopeIncludesResource(String scope, String resourceId)
+	boolean scopeMatch(String scope, String resourceId, String actionId)
 	        throws AceException;
 	
-	/**
-	 * Does the given scope allow the given action?
-	 * 
-	 * @param scope  the scope
-	 * @param actionId  the action
-	 * @return  true if the scope includes the action, false if not.
-	 * @throws AceException 
-	 */
-	boolean scopeIncludesAction(String scope, String actionId) 
-	        throws AceException;
+    /**
+     * Does the given scope match the given resource
+     * 
+     * @param scope  the scope
+     * @param resourceId  the resource
+     * @return  true if the scope includes the resource, false if not.
+     * @throws AceException 
+     */
+    boolean scopeMatchResource(String scope, String resourceId)
+            throws AceException;
 	
 }

@@ -40,8 +40,8 @@ import se.sics.ace.AceException;
  * (encoded as g = GET, p = POST, u = PUT, d = DELETE), and underscore '_' 
  * and the resource-uri.
  * 
- * For example gpu_/tempC  would allow GET, PUT, POST (but not DELETE) on the 
- * resource '/tempC'
+ * For example gpu_tempC  would allow GET, PUT, POST (but not DELETE) on the 
+ * resource 'tempC'
  * 
  * 
  * @author Ludwig Seitz
@@ -50,7 +50,7 @@ import se.sics.ace.AceException;
 public class RESTscope implements ScopeValidator {
 
 	@Override
-	public boolean scopeIncludesResource(String scope, String resourceId) 
+	public boolean scopeMatchResource(String scope, String resourceId) 
 			throws AceException {
 		String parts[] = scope.split("_");
 		if (parts.length != 2) {
@@ -60,13 +60,9 @@ public class RESTscope implements ScopeValidator {
 	}
 
 	@Override
-	public boolean scopeIncludesAction(String scope, String actionId) 
+	public boolean scopeMatch(String scope, String resource, String actionId) 
 			throws AceException {
-		String parts[] = scope.split("_");
-		if (parts.length != 2) {
-			throw new AceException("Scope format not recognized");
-		}
-		return parts[0].contains(actionId);
+	    return scope.equals(actionId + "_" + resource);
 	}
 	
 	/**

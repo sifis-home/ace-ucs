@@ -84,7 +84,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
            LOGGER.finest("Starting CoapsAS with PSK only");
            config.setSupportedCipherSuites(new CipherSuite[]{
                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-       } else {
+       } else {//XXX: Need to check whether we got an ECDSA key
            LOGGER.finest("Starting CoapsAS with PSK and RPK");
            config.setSupportedCipherSuites(new CipherSuite[]{
                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,

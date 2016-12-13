@@ -246,7 +246,7 @@ public class AuthzInfo implements Endpoint {
         }
 
 	    //9. Create success message
-	    //FIXME: Ok to return cti ?
+	    //XXX: Ok to return cti ?
 	    return msg.successReply(Message.CREATED, claims.get("cti"));
 	}
 	
@@ -278,7 +278,7 @@ public class AuthzInfo implements Endpoint {
 
     @Override
     public void close() throws AceException {
-        // TODO Auto-generated method stub
+        // Nothing to do.
         
     }	
 }

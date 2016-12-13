@@ -74,20 +74,25 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	}
 
     @Override
-    public boolean scopeIncludesResource(String scope, String resourceId)
+    public boolean scopeMatch(String scope, String resourceId, String actionId)
             throws AceException {
         Map<String, Set<String>> resources = this.myScopes.get(scope);
         if (resources == null) {
             return false;
         }
-        return (resources.containsKey(resourceId));
-    }
-
-    @Override
-    public boolean scopeIncludesAction(String scope, String actionId)
-            throws AceException {
-        // TODO Auto-generated method stub
+        if (resources.containsKey(resourceId)) {
+            return resources.get(resourceId).contains(actionId);
+        }
         return false;
     }
 
+    @Override
+    public boolean scopeMatchResource(String scope, String resourceId)
+            throws AceException {
+        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        if (resources == null) {
+            return false;
+        }
+        return resources.containsKey(resourceId);
+    }
 }

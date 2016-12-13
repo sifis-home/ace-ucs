@@ -24,7 +24,7 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
     private String asId; 
     
     /**
-     * Create a new test instrospection handler
+     * Create a new test introspection handler
      * 
      * @param i  the introspect library
      * @param rsId  the resource server's identifier

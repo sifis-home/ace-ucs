@@ -93,6 +93,7 @@ public class Message4Tests implements Message {
      * Constructor.
      * @param code 
      * @param senderId
+     * @param recipientId 
      * @param payload
      */
     public Message4Tests(int code, String senderId, 

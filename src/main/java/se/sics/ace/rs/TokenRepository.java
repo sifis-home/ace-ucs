@@ -52,7 +52,7 @@ import se.sics.ace.TimeProvider;
  * 'aud' and 'cti' (the token itself for a reference token).  Tokens that 
  * don't have these will lead to request failure.
  * 
- * FIXME: Need to implement persistence for this data. Maybe some DB layer?
+ * XXX: Need to implement persistence for this data. Maybe some DB layer?
  *  
  * @author Ludwig Seitz
  *
@@ -109,7 +109,7 @@ public class TokenRepository {
 		//Fetch all matching scopes
 		Set<String> scopes = new HashSet<>();
 		for (String scope : this.scope2cti.keySet()) {
-			if (this.scopeValidator.scopeIncludesResource(scope, resourceId)) {
+			if (this.scopeValidator.scopeMatchResource(scope, resourceId)) {
 				scopes.add(scope);
 			}
 		}
@@ -163,7 +163,7 @@ public class TokenRepository {
 		    
 	        //Store the mapping resource 2 scope
 	        for (String resource : this.resources) {
-	            if (this.scopeValidator.scopeIncludesResource(scopes[i], resource)) {
+	            if (this.scopeValidator.scopeMatchResource(scopes[i], resource)) {
 	                Set<String> rscope = this.resource2scope.get(resource);
 	                if (rscope == null) {
 	                    rscope = new HashSet<>();
@@ -269,8 +269,8 @@ public class TokenRepository {
 			        throws AceException {
 		//Check if we have a token that is in scope for this resource
 		for (String scope : this.resource2scope.get(resource)) {
-			//Check if the action matches
-			if (!this.scopeValidator.scopeIncludesAction(scope, action)) {
+			//Check if the scope matches
+			if (!this.scopeValidator.scopeMatch(scope, resource, action)) {
 				//Action does not match this scope, net iteration
 				continue;
 			}
@@ -341,7 +341,7 @@ public class TokenRepository {
 	 */
 	public boolean inScope(String scope) throws AceException {
 		for (String resource : this.resources) {
-			if (this.scopeValidator.scopeIncludesResource(scope, resource)) {
+			if (this.scopeValidator.scopeMatchResource(scope, resource)) {
 				return true;
 			}
 		}
