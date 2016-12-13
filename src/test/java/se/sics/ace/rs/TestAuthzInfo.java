@@ -47,6 +47,7 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -58,8 +59,10 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.KissTime;
 import se.sics.ace.Message;
+import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.KissPDP;
@@ -76,7 +79,7 @@ public class TestAuthzInfo {
     
     static OneKey publicKey;
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    
+    static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static DBConnector db = null;
     
     private static String dbPwd = null;
@@ -146,10 +149,7 @@ public class TestAuthzInfo {
                 KissPDP.getInstance("src/test/resources/acl.json", db), db, 
                 new KissTime(), key);
         ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), new KissTime(), 
-                new IntrospectionHandler4Tests(i, "rs1", "TestAS"), valid, ctx);
-
-        //FIXME: create the necessary tokens 
-        
+                new IntrospectionHandler4Tests(i, "rs1", "TestAS"), valid, ctx);        
     }
     
     /**
@@ -178,16 +178,347 @@ public class TestAuthzInfo {
     }
     
     /**
-     * Test AuthInfo
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws InvalidCipherTextException 
+     * Test inactive reference token submission to AuthzInfo
+     * 
      * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
      * 
      * @throws Exception 
      */
     @Test
-    public void testGetProfiles() throws IllegalStateException, 
+    public void testRefInactive() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        ReferenceToken token = new ReferenceToken(20);
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode());
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }    
+    
+    /**
+     * Test CWT with invalid MAC submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testInvalidCWT() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> claims = new HashMap<>();
+        claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
+        claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
+        claims.put("sub", CBORObject.FromObject("erikw"));
+        claims.put("exp", CBORObject.FromObject(1444064944));
+        claims.put("nbf", CBORObject.FromObject(1443944944));
+        claims.put("iat", CBORObject.FromObject(1443944944));
+        byte[] cti = {0x0B, 0x71};
+        claims.put("cti", CBORObject.FromObject(cti));
+        claims.put("cks", 
+                CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
+        claims.put("scope", CBORObject.FromObject(
+                "r+/s/light rwx+/a/led w+/dtls"));
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
+        CWT cwt = new CWT(claims);
+
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                cwt.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test an invalid token format submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testInvalidTokenFormat() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        CBORObject token = CBORObject.False;
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+               token);
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test expired CWT submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testExpiredCWT() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> claims = new HashMap<>();
+        claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
+        claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
+        claims.put("sub", CBORObject.FromObject("erikw"));
+        claims.put("exp", CBORObject.FromObject(10000));
+        claims.put("nbf", CBORObject.FromObject(1443944944));
+        claims.put("iat", CBORObject.FromObject(1443944944));
+        byte[] cti = {0x0B, 0x71};
+        claims.put("cti", CBORObject.FromObject(cti));
+        claims.put("cks", 
+                CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
+        claims.put("scope", CBORObject.FromObject(
+                "r+/s/light rwx+/a/led w+/dtls"));
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
+        CWT cwt = new CWT(claims);
+
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                cwt.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test CWT without issuer submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testNoIssuer() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test CWT with unrecognized issuer submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testIssuerNotRecognized() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("FalseAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);  
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test CWT without audience submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testNoAudience() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test CWT with audience that does not match RS submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testNoAudienceMatch() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("blah"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);  
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+        map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());      
+    }  
+    
+    /**
+     * Test CWT without scope submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testNoScope() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        map.Add(Constants.ERROR_DESCRIPTION, "Token has no scope");
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+    }
+    
+    /**
+     * Test CWT with scope that does not apply submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testScopeNotApplicable() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("blah"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+                token.encode(ctx));
+                
+        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
+    }
+    
+    /**
+     * Test successful submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException 
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testSuccess() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         
         Map<String, CBORObject> params = new HashMap<>(); 
@@ -206,6 +537,8 @@ public class TestAuthzInfo {
         Message4Tests response = (Message4Tests)ai.processMessage(request);
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
+        Assert.assertArrayEquals(response.getRawPayload(), 
+                CBORObject.FromObject("token2".getBytes()).EncodeToBytes());
     }
     
     

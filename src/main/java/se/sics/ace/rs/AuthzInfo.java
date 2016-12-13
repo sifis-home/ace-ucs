@@ -32,6 +32,7 @@
 package se.sics.ace.rs;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
@@ -165,7 +166,7 @@ public class AuthzInfo implements Endpoint {
 
 	    //2. Check that the token is not expired (exp)
 	    CBORObject exp = claims.get("exp");
-	    if (exp != null && exp.AsInt64() > this.time.getCurrentTime()) { 
+	    if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) { 
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
@@ -268,7 +269,8 @@ public class AuthzInfo implements Endpoint {
             = this.intro.getParams(token.AsString());
         
         if (params == null) {
-            throw new AceException("Reference Token not found");
+            params = new HashMap<>();
+            params.put("active", CBORObject.False);
         }
        
         return params;
