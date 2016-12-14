@@ -11,6 +11,8 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
+import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
@@ -61,10 +63,11 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * @param time 
      * @param asymmetricKey 
      * @throws AceException 
+     * @throws CoseException 
      * 
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey) throws AceException {
+            OneKey asymmetricKey) throws AceException, CoseException {
         if (asymmetricKey == null) {
             this.i = new Introspect(pdp, db, time, null);
         } else {
@@ -80,19 +83,21 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
 
        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
                new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-       if (asymmetricKey == null) {
-           LOGGER.finest("Starting CoapsAS with PSK only");
-           config.setSupportedCipherSuites(new CipherSuite[]{
-                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-       } else {//XXX: Need to check whether we got an ECDSA key
-           LOGGER.finest("Starting CoapsAS with PSK and RPK");
+       if (asymmetricKey != null && 
+               asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
+           LOGGER.info("Starting CoapsAS with PSK and RPK");
            config.setSupportedCipherSuites(new CipherSuite[]{
                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+       } else {
+           LOGGER.info("Starting CoapsAS with PSK only");
+           config.setSupportedCipherSuites(new CipherSuite[]{
+                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
        }
        config.setPskStore(db);
-       if (asymmetricKey != null) {//FIXME: 
-           //config.setIdentity(privKey, pubKey);
+       if (asymmetricKey != null) {
+           config.setIdentity(asymmetricKey.AsPrivateKey(), 
+                   asymmetricKey.AsPublicKey());
        }
       
        DTLSConnector connector = new DTLSConnector(config.build());

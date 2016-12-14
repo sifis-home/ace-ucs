@@ -25,6 +25,8 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.AlgorithmID;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
@@ -87,10 +89,12 @@ public class TestCoAPClient {
      */
     @Test
     public void testCoapToken() throws Exception {
+        OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientA", key256));
-        //builder.setIdentity(...);
+        builder.setIdentity(asymmetricKey.AsPrivateKey(), 
+                asymmetricKey.AsPublicKey());
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());

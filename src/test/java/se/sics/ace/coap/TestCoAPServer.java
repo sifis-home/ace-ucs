@@ -45,7 +45,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.MessageTag;
-
+import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.KissTime;
 import se.sics.ace.as.AccessTokenFactory;
@@ -95,7 +95,9 @@ public class TestCoAPServer {
         } finally {
             br.close();
         }
-       
+
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
             
@@ -112,6 +114,7 @@ public class TestCoAPServer {
         Set<String> auds = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
+        keyTypes.add("RPK");
         Set<Integer> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
@@ -120,7 +123,7 @@ public class TestCoAPServer {
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, key256, null);
+                expiration, key256, key);
         
         profiles.clear();
         profiles.add("coap_oscoap");
