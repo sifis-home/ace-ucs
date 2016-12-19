@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.examples;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -51,6 +51,8 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.DBConnector;
 
 /**
  * This class provides SQL database connectivity for the Attribute Authority.

@@ -29,23 +29,60 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace;
+package se.sics.ace.examples;
 
-import java.util.Date;
+import se.sics.ace.AceException;
+import se.sics.ace.rs.ScopeValidator;
 
 /**
- * A simplistic time provider for testing purposes.
+ * This class implements scope validation for RESTful resources as follows:
+ * 
+ * Each statement in the scope is a "mini-ACL" concatenating the RESTful action(s)
+ * (encoded as g = GET, p = POST, u = PUT, d = DELETE), and underscore '_' 
+ * and the resource-uri.
+ * 
+ * For example gpu_tempC  would allow GET, PUT, POST (but not DELETE) on the 
+ * resource 'tempC'
+ * 
  * 
  * @author Ludwig Seitz
  *
  */
-public class KissTime implements TimeProvider {
+public class RESTscope implements ScopeValidator {
 
-	private Date date = new Date();
-	
 	@Override
-	public long getCurrentTime() {
-		return this.date.getTime();
+	public boolean scopeMatchResource(String scope, String resourceId) 
+			throws AceException {
+		String parts[] = scope.split("_");
+		if (parts.length != 2) {
+			throw new AceException("Scope format not recognized");
+		}
+		return resourceId.equals(parts[1]);
 	}
 
+	@Override
+	public boolean scopeMatch(String scope, String resource, String actionId) 
+			throws AceException {
+	    return scope.equals(actionId + "_" + resource);
+	}
+	
+	/**
+	 * Returns the <code>String</code> representing a coap Request code.
+	 * 
+	 * @param coapCode  the CoAP request code
+	 * 
+	 * @return  the action string for the scope
+	 * 
+	 * @throws AceException  thrown if the request code is unknown
+	 */
+	public static String fromCoap(int coapCode) throws AceException {
+		switch (coapCode) {
+			case 1: return "g";
+			case 2: return "p";
+			case 3: return "u";
+			case 4: return "d";
+			default: throw new AceException(
+					"Unknwon CoAP request code " + coapCode);
+		}
+	}
 }

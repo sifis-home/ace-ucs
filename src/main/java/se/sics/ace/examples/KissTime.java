@@ -29,28 +29,25 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.examples;
 
-import se.sics.ace.Protocol;
+import java.util.Date;
+
+import se.sics.ace.TimeProvider;
 
 /**
- * Introspection protocol.
+ * A simplistic time provider for testing purposes.
  * 
  * @author Ludwig Seitz
  *
  */
-public class Introspection implements Protocol {
+public class KissTime implements TimeProvider {
 
+	private Date date = new Date();
+	
 	@Override
-	public int getState() {
-		// TODO Auto-generated method stub
-		return 0;
-	}
-
-	@Override
-	public int getParty() {
-		// TODO Auto-generated method stub
-		return 0;
+	public long getCurrentTime() {
+		return this.date.getTime();
 	}
 
 }

@@ -60,6 +60,8 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.examples.KissPDP;
+import se.sics.ace.examples.SQLConnector;
 
 /**
  * Test the KissPDP class.

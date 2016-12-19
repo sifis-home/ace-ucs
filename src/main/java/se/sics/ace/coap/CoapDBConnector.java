@@ -7,7 +7,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 import se.sics.ace.AceException;
-import se.sics.ace.as.SQLConnector;
+import se.sics.ace.examples.SQLConnector;
 
 /**
  * A SQLConnector for CoAP, implementing the PskStore interface.

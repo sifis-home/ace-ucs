@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.examples;
 
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -44,6 +44,8 @@ import org.json.JSONObject;
 import org.json.JSONTokener;
 
 import se.sics.ace.AceException;
+import se.sics.ace.as.DBConnector;
+import se.sics.ace.as.PDP;
 
 /**
  * A simple PDP implementation for test purposes. Uses static ACLs for everything.

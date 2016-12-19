@@ -58,6 +58,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
+import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.AceException;
 
 

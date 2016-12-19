@@ -59,10 +59,12 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.KissTime;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.KissPDP;
+import se.sics.ace.examples.KissTime;
+import se.sics.ace.examples.SQLConnector;
 
 /**
  * Test the token endpoint class.

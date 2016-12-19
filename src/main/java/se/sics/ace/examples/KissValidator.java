@@ -29,25 +29,72 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace;
+package se.sics.ace.examples;
+
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import se.sics.ace.AceException;
+import se.sics.ace.rs.AudienceValidator;
+import se.sics.ace.rs.ScopeValidator;
 
 /**
- * This interface represents ACE protocols, such as the interaction between
- * Client and AS when requesting a token.
+ * Simple audience validator for testing purposes.
  * 
  * @author Ludwig Seitz
  *
  */
-public interface Protocol {
+public class KissValidator implements AudienceValidator, ScopeValidator {
 
-	/**
-	 * @return  the state the protocol is in.
-	 */
-	public int getState();
+	private Set<String> myAudiences;
 	
 	/**
-	 * @return  the party this instance of the protocol is running for.
+	 * Maps the scopes to a map that maps the scope's resources to the actions 
+	 * allowed on that resource
 	 */
-	public int getParty();
+	private Map<String, Map<String, Set<String>>> myScopes;  
 	
+	/**
+	 * Constructor.
+	 * 
+	 * @param myAudiences  the audiences that this validator should accept
+	 * @param myScopes  the scopes that this validator should accept
+	 */
+	public KissValidator(Set<String> myAudiences, 
+	        Map<String, Map<String, Set<String>>> myScopes) {
+		this.myAudiences = new HashSet<>();
+		this.myScopes = new HashMap<>();
+		this.myAudiences.addAll(myAudiences);
+		this.myScopes.putAll(myScopes);
+	}
+	
+	@Override
+	public boolean match(String aud) {
+		return this.myAudiences.contains(aud);
+	}
+
+    @Override
+    public boolean scopeMatch(String scope, String resourceId, String actionId)
+            throws AceException {
+        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        if (resources == null) {
+            return false;
+        }
+        if (resources.containsKey(resourceId)) {
+            return resources.get(resourceId).contains(actionId);
+        }
+        return false;
+    }
+
+    @Override
+    public boolean scopeMatchResource(String scope, String resourceId)
+            throws AceException {
+        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        if (resources == null) {
+            return false;
+        }
+        return resources.containsKey(resourceId);
+    }
 }

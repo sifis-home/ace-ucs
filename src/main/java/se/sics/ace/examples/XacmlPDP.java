@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.examples;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -51,6 +51,7 @@ import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 import org.wso2.balana.xacml3.Attributes;
 
 import se.sics.ace.AceException;
+import se.sics.ace.as.PDP;
 
 /**
  * A PDP that uses XACML to provide access control decisions.
