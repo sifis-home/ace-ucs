@@ -38,12 +38,14 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -76,7 +78,8 @@ public class TestIntrospect {
     private static OneKey publicKey;
     private static OneKey privateKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-  
+    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+      
     private static SQLConnector db = null;
     private static String dbPwd = null;
     private static Introspect i = null;
@@ -108,8 +111,9 @@ public class TestIntrospect {
        
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-            
-        privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+         
+        privateKey = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
         db = new SQLConnector(null, null, null);
@@ -314,8 +318,10 @@ public class TestIntrospect {
         ReferenceToken t = new ReferenceToken("token2");
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("access_token", t.encode());
+        String senderId = new RawPublicKeyIdentity(
+                publicKey.AsPublicKey()).getName();
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", "TestAS", params));
+                new Message4Tests(-1, senderId, "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

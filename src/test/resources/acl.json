@@ -1,6 +1,6 @@
 [
-	["clientA", "clientB", "clientC", "clientD"],
-	["rs1", "rs2", "rs3", "rs5", "rs6", "rs7"],
+	["ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "clientA", "clientB", "clientC", "clientD"],
+	["ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs1", "rs2", "rs3", "rs5", "rs6", "rs7"],
 	{
 		"clientA" : {
 			"rs1" : ["r_temp", "rw_config"],

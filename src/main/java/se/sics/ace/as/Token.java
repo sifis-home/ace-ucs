@@ -169,7 +169,9 @@ public class Token implements Endpoint, AutoCloseable {
 	    }
 	    	    
 		//2. Check if this client can request tokens
-		String id = msg.getSenderId();
+	    //XXX: need trim at this time due to bad Californium implementation
+	    //of RPK identity (adds a newline)
+		String id = msg.getSenderId().trim();  
 		if (!this.pdp.canAccessToken(id)) {
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);

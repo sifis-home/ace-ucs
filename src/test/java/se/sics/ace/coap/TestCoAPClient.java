@@ -8,6 +8,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
@@ -19,6 +20,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -42,7 +44,8 @@ import se.sics.ace.as.Token;
 public class TestCoAPClient {
     
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-
+    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+    
     /**
      * Deletes the test DB after the tests
      * 
@@ -83,7 +86,7 @@ public class TestCoAPClient {
     }
     
     /**
-     * Test CoapToken
+     * Test CoapToken using PSK
      * 
      * @throws Exception 
      */
@@ -95,6 +98,8 @@ public class TestCoAPClient {
         builder.setPskStore(new StaticPskStore("clientA", key256));
         builder.setIdentity(asymmetricKey.AsPrivateKey(), 
                 asymmetricKey.AsPublicKey());
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
@@ -121,17 +126,21 @@ public class TestCoAPClient {
     }
     
     /**
-     * Test CoapIntrospect
+     * Test CoapIntrospect using RPK
      * 
      * @throws Exception
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        
+        OneKey key = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("rs1", key256));
-        //builder.setIdentity(...);
+        //builder.setPskStore(new StaticPskStore("rs1", key256));
+        builder.setIdentity(key.AsPrivateKey(), 
+                key.AsPublicKey());
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());

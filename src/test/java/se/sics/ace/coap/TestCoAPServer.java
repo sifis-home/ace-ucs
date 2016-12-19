@@ -33,6 +33,7 @@ package se.sics.ace.coap;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -66,7 +67,8 @@ public class TestCoAPServer {
     }
 
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-
+    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+    
     private static CoapDBConnector db = null;
     private static String dbPwd = null;
     private static CoapsAS rs = null; 
@@ -96,7 +98,8 @@ public class TestCoAPServer {
             br.close();
         }
 
-        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        OneKey key = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
@@ -141,9 +144,11 @@ public class TestCoAPServer {
         claims.put("cti", CBORObject.FromObject("token1"));
         db.addToken(cti, claims);       
         
+        OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        
         rs = new CoapsAS("AS", db, 
                 KissPDP.getInstance("src/test/resources/acl.json", db), 
-                time, null);
+                time, asymmKey);
         rs.start();
         System.out.println("Server starting");
     }
