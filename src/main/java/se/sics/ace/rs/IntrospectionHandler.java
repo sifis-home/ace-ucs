@@ -35,6 +35,8 @@ import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
 
+import se.sics.ace.AceException;
+
 /**
  * An interface for classes handling introspection of tokens.
  * 
@@ -44,15 +46,17 @@ import com.upokecenter.cbor.CBORObject;
 public interface IntrospectionHandler {
 
 	/**
-	 * Get the parameters (claims) for a token reference (probably through introspection).
+	 * Get the parameters (claims) for a token reference 
+	 * (probably through introspection).
 	 * 
 	 * @param tokenReference  the token reference
 	 * 
-	 * @return  the map of claims (key to claim value) or null if there is no 
+	 * @return  the map of claims (key to claim value) or null if there is no
 	 *     such tokenReference
 	 *     
-	 * @throws RSException 
+	 * @throws AceException 
 	 */
-	public Map<String, CBORObject> getParams(String tokenReference);
+	public Map<String, CBORObject> getParams(String tokenReference) 
+	        throws AceException;
 	
 }
