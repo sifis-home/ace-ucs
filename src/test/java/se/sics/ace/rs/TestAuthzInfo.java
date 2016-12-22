@@ -141,7 +141,7 @@ public class TestAuthzInfo {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
-        TokenRepository tr = new TokenRepository(valid, resources);
+        TokenRepository tr = new TokenRepository(valid, resources, null);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 

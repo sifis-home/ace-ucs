@@ -169,8 +169,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    }
 	    	    
 		//2. Check if this client can request tokens
-	    //XXX: need trim at this time due to bad Californium implementation
-	    //of RPK identity (adds a newline)
+	    //XXX: need trim at this time due to bug in Californium
 		String id = msg.getSenderId().trim();  
 		if (!this.pdp.canAccessToken(id)) {
 		    CBORObject map = CBORObject.NewMap();

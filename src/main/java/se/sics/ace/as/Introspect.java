@@ -118,8 +118,7 @@ public class Introspect implements Endpoint, AutoCloseable {
 	            + msg.getParameters());
         	    
 	    //1. Check that this RS is allowed to introspect
-	    //XXX: need trim at this time due to bad Californium implementation
-        //of RPK identity (adds a newline)
+	    //XXX: need trim at this time due to bug in Californium
 	    String id = msg.getSenderId().trim();
         if (!this.pdp.canAccessIntrospect(id)) {
             CBORObject map = CBORObject.NewMap();

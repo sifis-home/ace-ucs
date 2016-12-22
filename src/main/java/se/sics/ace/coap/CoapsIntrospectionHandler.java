@@ -2,6 +2,10 @@ package se.sics.ace.coap;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.cert.CertificateException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -14,7 +18,6 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -77,18 +80,33 @@ public class CoapsIntrospectionHandler implements IntrospectionHandler {
      * 
      * @param psk  the pre-shared key
      * @param pskIdentity  the identity associated to the pre-shared key
+     * @param keystoreLocation 
+     * @param keystorePwd 
+     * @param addr2idFile 
+     * @param addr2id 
      * @param introspectAddress  the IP address of the introspect endpoint
      * 
      * 
      * @throws CoseException
      * @throws IOException 
+     * @throws NoSuchProviderException 
+     * @throws KeyStoreException 
+     * @throws CertificateException 
+     * @throws NoSuchAlgorithmException 
      * 
      */
     public CoapsIntrospectionHandler(byte[] psk, String pskIdentity,
-            String introspectAddress) throws CoseException, IOException {
+            String keystoreLocation, String keystorePwd, String addr2idFile,
+            Map<InetSocketAddress, String> addr2id,
+            String introspectAddress) throws CoseException, IOException,
+            NoSuchAlgorithmException, CertificateException, KeyStoreException,
+            NoSuchProviderException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore(pskIdentity, psk));
+        BksStore.init(keystoreLocation, keystorePwd, addr2idFile);
+        BksStore keystore = new BksStore(
+                keystoreLocation, keystorePwd, addr2idFile);
+        builder.setPskStore(keystore);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());

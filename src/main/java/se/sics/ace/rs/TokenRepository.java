@@ -31,11 +31,22 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Scanner;
 import java.util.Set;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -51,8 +62,6 @@ import se.sics.ace.TimeProvider;
  * Note that this class assumes that every token has a 'scope', 'sub',  
  * 'aud' and 'cti' (the token itself for a reference token).  Tokens that 
  * don't have these will lead to request failure.
- * 
- * XXX: Need to implement persistence for this data. Maybe some DB layer?
  *  
  * @author Ludwig Seitz
  *
@@ -85,18 +94,69 @@ public class TokenRepository {
 	private ScopeValidator scopeValidator;
 	
 	/**
-	 * Creates a new token repository.
+	 * The filename + path for the JSCON file in which the tokens are stored
+	 */
+	private String tokenFile;
+	
+	/**
+	 * Creates a new token repository and loads the existing tokens
+	 * from a JSON file is there is one.
+	 * 
+	 * The JSON file stores the tokens as a JSON array of JSON maps,
+	 * where each map represents the claims of a token, String mapped to
+	 * the Base64 encoded byte representation of the CBORObject.
 	 * 
 	 * @param scopeValidator  the application specific scope validator
 	 * @param resources  the resources this TokenRepository serves 
+	 * @param tokenFile  the file storing the existing tokens, if the file
+	 *     does not exist it is created
+	 * @throws IOException 
+	 * @throws AceException 
 	 */
 	public TokenRepository(ScopeValidator scopeValidator, 
-			Set<String> resources) {
+			Set<String> resources, String tokenFile) 
+			        throws IOException, AceException {
 	    this.resource2scope = new HashMap<>();
 	    this.scope2cti = new HashMap<>();
 	    this.cti2claims = new HashMap<>();
 	    this.resources = new HashSet<>(resources);
 	    this.scopeValidator = scopeValidator;
+	    if (tokenFile == null) {
+	        throw new IllegalArgumentException("Must provide a token file path");
+	    }
+	    this.tokenFile = tokenFile;
+	    File f = new File(this.tokenFile);
+	    if (!f.exists()) {
+	        return; //File will be created if tokens are added
+	    }
+	    FileInputStream fis = new FileInputStream(f);
+        Scanner scanner = new Scanner(fis, "UTF-8" );
+        Scanner s = scanner.useDelimiter("\\A");
+        String configStr = s.hasNext() ? s.next() : "";
+        s.close();
+        scanner.close();
+        fis.close();
+        JSONArray config = null;
+        if (!configStr.isEmpty()) {
+            config = new JSONArray(configStr);
+            Iterator<Object> iter = config.iterator();
+            while (iter.hasNext()) {
+                Object foo = iter.next();
+                if (!(foo instanceof JSONObject)) {
+                    throw new AceException("Token file is malformed");
+                }
+                JSONObject token =  (JSONObject)foo;
+                Iterator<String> iterToken = token.keys();
+                Map<String, CBORObject> params = new HashMap<>();
+                while (iterToken.hasNext()) {
+                    String key = iterToken.next();  
+                    params.put(key, CBORObject.DecodeFromBytes(
+                            Base64.getDecoder().decode(
+                                    token.getString((key)))));
+                }
+                this.addToken(params);
+            }
+        }
 	}
 	
 	/**
@@ -173,7 +233,7 @@ public class TokenRepository {
 	                this.resource2scope.put(resource, rscope);
 	            }
 	        }
-		    
+	        persist();
 		}
 		
 		//Store the mapping cti 2 claims, if a token with the same cti
@@ -225,6 +285,7 @@ public class TokenRepository {
 		        this.resource2scope.remove(foo.getKey());		        
 		    }
 		}
+		persist();
 	}
 	
 	/**
@@ -250,6 +311,7 @@ public class TokenRepository {
 				}
 			}
 		}
+		persist();
 	}
 	
 	/**
@@ -346,5 +408,30 @@ public class TokenRepository {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * Save the current tokens in a JSON file
+	 * @throws AceException 
+	 */
+	private void persist() throws AceException {
+	    JSONArray config = new JSONArray();
+	    for (String cti : this.cti2claims.keySet()) {
+	        Map<String, CBORObject> claims = this.cti2claims.get(cti);
+	        JSONObject token = new JSONObject();
+	        for (Entry<String,CBORObject> entry : claims.entrySet()) {
+	            token.put(entry.getKey(), 
+	                    Base64.getEncoder().encodeToString(
+	                            entry.getValue().EncodeToBytes()));
+	        }
+	        config.put(token);
+	    }
+
+        try (FileOutputStream fos 
+                = new FileOutputStream(this.tokenFile, false)) {
+            fos.write(config.toString(4).getBytes());
+        } catch (JSONException | IOException e) {
+            throw new AceException(e.getMessage());
+        }
 	}
 }

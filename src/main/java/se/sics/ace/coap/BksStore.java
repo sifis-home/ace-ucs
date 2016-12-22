@@ -28,6 +28,8 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  * 
  * This will retrieve keys from a BKS keystore.
  * 
+ * FIXME: Needs Junit tests
+ * 
  * @author Ludwig Seitz
  *
  */
@@ -47,7 +49,7 @@ public class BksStore implements PskStore {
     /**
      * The temporary variable to store a key password
      */
-    private String keyPass = null;
+    private String keyPwd = null;
     
     /**
      * The temporary variable to store a key identity
@@ -68,7 +70,7 @@ public class BksStore implements PskStore {
      * Constructor.
      * 
      * @param keystoreLocation  the location of the keystore file
-     * @param keystorePass  the password to the keystore
+     * @param keystorePwd the password to the keystore
      * @param addr2idFile  the location of the file mapping addresses to identities
      * 
      * @throws IOException 
@@ -77,13 +79,13 @@ public class BksStore implements PskStore {
      * @throws KeyStoreException 
      * @throws NoSuchProviderException 
      */
-    public BksStore(String keystoreLocation, String keystorePass, String addr2idFile) 
+    public BksStore(String keystoreLocation, String keystorePwd, String addr2idFile) 
             throws NoSuchAlgorithmException, CertificateException, 
             IOException, KeyStoreException, NoSuchProviderException {
 
         InputStream keystoreStream = new FileInputStream(keystoreLocation);
         this.keystore = KeyStore.getInstance("BKS", "BC");
-        this.keystore.load(keystoreStream, keystorePass.toCharArray());
+        this.keystore.load(keystoreStream, keystorePwd.toCharArray());
         keystoreStream.close();   
         BufferedReader in = new BufferedReader(new FileReader(addr2idFile));
         String line = "";
@@ -98,9 +100,9 @@ public class BksStore implements PskStore {
     /**
      * Create the initial keystore and address2identity mapping file.
      * 
-     * @param keystoreLocation
-     * @param keystorePass
-     * @param addr2idFile
+     * @param keystoreLocation  the location of the keystore file
+     * @param keystorePwd the password to the keystore
+     * @param addr2idFile  the location of the file mapping addresses to identities
      * 
      * @throws NoSuchProviderException 
      * @throws KeyStoreException 
@@ -109,14 +111,14 @@ public class BksStore implements PskStore {
      * @throws CertificateException 
      * @throws NoSuchAlgorithmException 
      */
-    public static void init(String keystoreLocation, String keystorePass,
+    public static void init(String keystoreLocation, String keystorePwd,
             String addr2idFile) throws KeyStoreException, 
             NoSuchProviderException, NoSuchAlgorithmException, 
             CertificateException, FileNotFoundException, IOException {
         KeyStore keyStore = KeyStore.getInstance("BKS", "BC");
-        keyStore.load(null, keystorePass.toCharArray());
+        keyStore.load(null, keystorePwd.toCharArray());
         FileOutputStream fo = new FileOutputStream(keystoreLocation);
-        keyStore.store(fo, keystorePass.toCharArray());
+        keyStore.store(fo, keystorePwd.toCharArray());
         fo.close();   
         File file = new File(addr2idFile);
         file.createNewFile();        
@@ -129,16 +131,16 @@ public class BksStore implements PskStore {
      * getIdentity().
      * 
      * @param identity  
-     * @param keyPass
+     * @param keyPwd
      */
-    public void setKeyPass(String identity, String keyPass) {
-        this.keyPass = keyPass;
+    public void setKeyPass(String identity, String keyPwd) {
+        this.keyPwd = keyPwd;
         this.keyId = identity;
     }
 
     @Override
     public byte[] getKey(String identity) {
-        if (this.keyPass == null || this.keyId == null) {
+        if (this.keyPwd == null || this.keyId == null) {
             return null;
         }
         try {
@@ -152,7 +154,7 @@ public class BksStore implements PskStore {
 
         Key key;
         try {
-            key = this.keystore.getKey(identity, this.keyPass.toCharArray());
+            key = this.keystore.getKey(identity, this.keyPwd.toCharArray());
         } catch (UnrecoverableKeyException | KeyStoreException
                 | NoSuchAlgorithmException e) {
             LOGGER.severe(e.getMessage());
