@@ -21,14 +21,14 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.crypto.spec.SecretKeySpec;
+
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 /**
  * A PskStore implementation based on BKS.
  * 
  * This will retrieve keys from a BKS keystore.
- * 
- * FIXME: Needs Junit tests
  * 
  * @author Ludwig Seitz
  *
@@ -42,7 +42,7 @@ public class BksStore implements PskStore {
         = Logger.getLogger(BksStore.class.getName());
 
     /**
-     * The underlying JCEKS keystore
+     * The underlying BKS keystore
      */
     private KeyStore keystore = null;
     
@@ -148,7 +148,7 @@ public class BksStore implements PskStore {
                 return null;
             }
         } catch (KeyStoreException e) {
-            LOGGER.severe(e.getMessage());
+            LOGGER.severe("KeyStoreException: " + e.getMessage());
             return null;
         }
 
@@ -157,7 +157,7 @@ public class BksStore implements PskStore {
             key = this.keystore.getKey(identity, this.keyPwd.toCharArray());
         } catch (UnrecoverableKeyException | KeyStoreException
                 | NoSuchAlgorithmException e) {
-            LOGGER.severe(e.getMessage());
+            LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
             return null;
         }
         return key.getEncoded();
@@ -168,5 +168,65 @@ public class BksStore implements PskStore {
         return this.addr2id.get(inetAddress);
                 
     }
+    
+    /**
+     * Add a new symmetric key to the keystore or overwrite the existing
+     * one associated to this identity.
+     * 
+     * @param key  the bytes of java.security.Key.getEncoded()
+     * @param identity  the key identity
+     * @param password  the password to protect this key entry
+     * @throws KeyStoreException 
+     */
+    public void addKey(byte[] key, String identity, String password) throws KeyStoreException {
+        if (identity == null || key == null) {
+            throw new KeyStoreException("Key and identity must not be null");
+        }
+        if (this.keystore != null) {
+            Key k = new SecretKeySpec(key, "");
+            this.keystore.setKeyEntry(identity, k, password.toCharArray(), null);
+        }
+    }
+    
+    /**
+     * Checks if a key for a certain identity is present.
+     * 
+     * @param identity  the key identity
+     * 
+     * @return  true if the identity is in the keystore, false otherwise
+     * 
+     * @throws KeyStoreException 
+     */
+    public boolean hasKey(String identity) throws KeyStoreException {
+        if (identity != null) {
+            if (this.keystore != null) {
+                return this.keystore.isKeyEntry(identity);
+            }
+            throw new KeyStoreException("No keystore loaded");
+        }
+        throw new KeyStoreException("Key identity can not be null");
+    }
+    
+    /**
+     * Remove a symmetric key from the keystore, will do nothing if the
+     * key doesn't exist.
+     * 
+     * @param identity  the key identity
+     * @throws KeyStoreException 
+     */
+    public void removeKey(String identity) throws KeyStoreException {
+        if (identity != null) {
+            if (this.keystore != null) {
+                if (this.keystore.isKeyEntry(identity)) {
+                    this.keystore.deleteEntry(identity);
+                }
+                return;
+            }
+            throw new KeyStoreException("No keystore loaded");
+        }
+        throw new KeyStoreException("Key identity can not be null");
+    }
+    
+    
 
 }

@@ -30,16 +30,18 @@ import se.sics.ace.rs.IntrospectionHandler;
 /**
  * An introspection handler using CoAPS (i.e. CoAP over DTLS) to connect to an AS.
  * 
+ * FIXME: Needs Junit tests
+ * 
  * @author Ludwig Seitz
  *
  */
-public class CoapsIntrospectionHandler implements IntrospectionHandler {
+public class CoapsIntrospection implements IntrospectionHandler {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(CoapsIntrospectionHandler.class.getName());
+        = Logger.getLogger(CoapsIntrospection.class.getName());
     
         /**
      * The CoAP client
@@ -57,7 +59,7 @@ public class CoapsIntrospectionHandler implements IntrospectionHandler {
      * @throws IOException 
      * 
      */
-    public CoapsIntrospectionHandler(OneKey rpk, String introspectAddress) 
+    public CoapsIntrospection(OneKey rpk, String introspectAddress) 
             throws CoseException, IOException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
@@ -95,7 +97,7 @@ public class CoapsIntrospectionHandler implements IntrospectionHandler {
      * @throws NoSuchAlgorithmException 
      * 
      */
-    public CoapsIntrospectionHandler(byte[] psk, String pskIdentity,
+    public CoapsIntrospection(byte[] psk, String pskIdentity,
             String keystoreLocation, String keystorePwd, String addr2idFile,
             Map<InetSocketAddress, String> addr2id,
             String introspectAddress) throws CoseException, IOException,
