@@ -1,14 +1,17 @@
 package se.sics.ace.rs;
 
-import java.net.URI;
-import java.net.URISyntaxException;
-
 import org.junit.Assert;
 import org.junit.Test;
 
 import se.sics.ace.AceException;
 import se.sics.ace.examples.RESTscope;
 
+/**
+ * Tests for the RESTscope class.
+ * 
+ * @author Ludwig Seitz
+ *
+ */
 public class TestRESTscope {
    
     /**

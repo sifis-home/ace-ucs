@@ -327,6 +327,7 @@ public class Token implements Endpoint, AutoCloseable {
             try {
                 KeyGenerator kg = KeyGenerator.getInstance("AES");
                 SecretKey key = kg.generateKey();
+                //FIXME: use the new OneKey class from COSE-Java
                 CBORObject psk = CBORObject.FromObject(key.getEncoded());
                 claims.put("cnf", psk);
             } catch (NoSuchAlgorithmException e) {

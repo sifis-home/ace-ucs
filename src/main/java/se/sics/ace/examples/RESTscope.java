@@ -54,7 +54,8 @@ import se.sics.ace.rs.ScopeValidator;
  *      the binary representations of all the numbers.
  *      
  *    o The final statement is the local-Uri concatenated with "|" concatenated with the
- *      number representing the permission set.
+ *      number representing the permission set (note that "|" is a valid character for scopes
+ *      but invalid in URI's, thus it is a safe separator)
  *
  * @author Ludwig Seitz
  *

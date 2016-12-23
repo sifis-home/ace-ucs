@@ -1037,6 +1037,7 @@ public class SQLConnector implements DBConnector {
                 key = result.getBytes(DBConnector.pskColumn);
             }
             result.close();
+            //FIXME: Use OneKey instead
             return key;
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
@@ -1075,6 +1076,7 @@ public class SQLConnector implements DBConnector {
                 key = result.getBytes(DBConnector.pskColumn);
             }
             result.close();
+            //FIXME: Use OneKey instead
             return key;
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
@@ -1107,7 +1109,9 @@ public class SQLConnector implements DBConnector {
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
             byte[] sharedKey, OneKey publicKey) throws AceException {
-
+        
+        //FIXME: Use OneKey for sharedKey as well
+        
         if (rs == null || rs.isEmpty()) {
             throw new AceException(
                     "RS must have non-null, non-empty identifier");
@@ -1251,6 +1255,7 @@ public class SQLConnector implements DBConnector {
             String defaultScope, String defaultAud, Set<String> keyTypes,
             byte[] sharedKey, OneKey publicKey) 
                     throws AceException {
+        //FIXME: Use OneKey for sharedKey as well
         try {
             if (sharedKey == null && publicKey == null) {
                 throw new AceException(

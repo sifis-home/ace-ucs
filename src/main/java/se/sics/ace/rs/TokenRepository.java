@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -68,6 +69,12 @@ import se.sics.ace.TimeProvider;
  */
 public class TokenRepository {
 	
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(TokenRepository.class.getName());
+    
     /**
      * Maps resource identifiers to matching scopes.
      */
@@ -433,5 +440,26 @@ public class TokenRepository {
         } catch (JSONException | IOException e) {
             throw new AceException(e.getMessage());
         }
+	}
+	
+	/**
+	 * Get the 'cnf' claim of a token identifier by its 'cti'.
+	 * 
+	 * @param cti  the cti of the token
+	 * @return  the cnf claim of the token or null if this cti is unknown
+	 * @throws AceException 
+	 */
+	public CBORObject getCnf(String cti) throws AceException {
+	    if (cti != null) {
+	        Map<String, CBORObject> claims = this.cti2claims.get(cti);
+	        if (claims != null) {
+	            LOGGER.finest("Retrieved 'cnf' for cti: " + cti);
+	            return claims.get("cnf");
+	        }
+	        LOGGER.finest("Token with cti: " + cti + " not found in getCnf()");
+	        return null;
+	    }
+        LOGGER.severe("getCnf() called with null cti");
+        throw new AceException("Must supply non-null cti to get cnf");
 	}
 }

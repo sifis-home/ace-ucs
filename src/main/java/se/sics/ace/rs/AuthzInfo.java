@@ -250,11 +250,28 @@ public class AuthzInfo implements Endpoint {
 	    return msg.successReply(Message.CREATED, claims.get("cti"));
 	}
 	
+	/**
+	 * Process a message containing a CWT.
+	 * 
+	 * @param msg  the message
+	 * 
+	 * @return  the claims of the CWT
+	 * 
+	 * @throws Exception
+	 */
 	private Map<String,CBORObject> processCWT(Message msg) throws Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
         return cwt.getClaims();
     }
     
+	/**
+	 * Process a message containing a reference token.
+	 * 
+	 * @param msg  the message
+	 * 
+	 * @return  the claims of the reference token
+	 * @throws AceException
+	 */
     private Map<String, CBORObject> processRefrenceToken(Message msg)
                 throws AceException {
         
@@ -275,6 +292,19 @@ public class AuthzInfo implements Endpoint {
        
         return params;
 	}
+    
+    /**
+     * Get the 'cnf' claim of a token identifier by its 'cti'.
+     * 
+     * @param cti  the cti of the token
+     * 
+     * @return  the cnf claim of the token or null if this cti is unknown
+     * 
+     * @throws AceException 
+     */
+    public CBORObject getCnf(String cti) throws AceException {
+        return this.tr.getCnf(cti);
+    }
 
     @Override
     public void close() throws AceException {

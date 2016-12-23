@@ -32,8 +32,17 @@
 package se.sics.ace.coap;
 
 import java.net.InetSocketAddress;
+import java.util.Base64;
+import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+
+import com.upokecenter.cbor.CBORObject;
+
+import se.sics.ace.AceException;
+import se.sics.ace.Message;
+import se.sics.ace.as.Message4Tests;
+import se.sics.ace.rs.AuthzInfo;
 
 /**
  * Implements the retrieval of the access token as defined in section 4.1. of 
@@ -45,25 +54,54 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  *
  */
 public class DTLSProfilePskStore implements PskStore {
-
     
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(DTLSProfilePskStore.class.getName());
+    
+    
+    /**
+     * This profile needs to access the authz-info endpoint.
+     */
+    private AuthzInfo authzInfo;
+
+    /**
+     * Constructor.
+     * 
+     * @param authzInfo  the authz-info used by this RS
+     */
+    public DTLSProfilePskStore(AuthzInfo authzInfo) {
+        this.authzInfo = authzInfo;
+    }
     
     
     @Override
     public byte[] getKey(String identity) {
-        // TODO: Implement
         
-        //Get the access token from the identity string
+        CBORObject payload = CBORObject.DecodeFromBytes(
+                Base64.getDecoder().decode(identity));
         
-        //Decrypt/verify the token
-        
-        //Save the token
-        
-        //Get the cnf element from the access token
-        
-        //Use the key from the cnf element.
-        
-        return null;
+            Message4Tests message = new Message4Tests(0, null, null, payload);
+            Message4Tests res
+                = (Message4Tests)this.authzInfo.processMessage(message);
+            if (res.getMessageCode() == Message.CREATED) {
+                CBORObject cti = CBORObject.DecodeFromBytes(
+                        Base64.getDecoder().decode(res.getRawPayload()));
+                
+                try {
+                    CBORObject cnf = this.authzInfo.getCnf(cti.AsString());
+                    
+                } catch (AceException e) {
+                    LOGGER.severe("DTLSProfilePskStore.getKey(" 
+                            + identity + ") threw: " + e.getClass().getName()
+                            + "with message: " 
+                            + e.getMessage());
+                   return null;
+                }
+            }
+            return null;
     }
 
     @Override
