@@ -46,9 +46,23 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
  */
 public class DTLSProfilePskStore implements PskStore {
 
+    
+    
+    
     @Override
     public byte[] getKey(String identity) {
-        // TODO Auto-generated method stub
+        // TODO: Implement
+        
+        //Get the access token from the identity string
+        
+        //Decrypt/verify the token
+        
+        //Save the token
+        
+        //Get the cnf element from the access token
+        
+        //Use the key from the cnf element.
+        
         return null;
     }
 

@@ -31,58 +31,116 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import org.eclipse.californium.core.coap.CoAP.Code;
+
 import se.sics.ace.AceException;
 import se.sics.ace.rs.ScopeValidator;
 
 /**
  * This class implements scope validation for RESTful resources as follows:
  * 
- * Each statement in the scope is a "mini-ACL" concatenating the RESTful action(s)
- * (encoded as g = GET, p = POST, u = PUT, d = DELETE), and underscore '_' 
- * and the resource-uri.
+ * Each statement in the scope is a capability, in a format inspired by 
+ * draft-bormann-core-ace-aif.
  * 
- * For example gpu_tempC  would allow GET, PUT, POST (but not DELETE) on the 
- * resource 'tempC'
- * 
- * 
+ *    o The entries in the table that specify the same local-part are
+ *      merged into a single entry that specifies the union of the
+ *      permission sets
+ *
+ *    o The methods in the permission sets are converted into their CoAP
+ *      method numbers, minus 1
+ *
+ *    o The set of numbers is converted into a single number by taking
+ *      each number to the power of two and computing the inclusive OR of
+ *      the binary representations of all the numbers.
+ *      
+ *    o The final statement is the local-Uri concatenated with ":" concatenated with the
+ *      number representing the permission set.
+ *
  * @author Ludwig Seitz
  *
  */
 public class RESTscope implements ScopeValidator {
+    
+    /**
+     * Constructor
+     */
+    public RESTscope() {
+        //Nothing to do
+    }
 
 	@Override
 	public boolean scopeMatchResource(String scope, String resourceId) 
 			throws AceException {
-		String parts[] = scope.split("_");
-		if (parts.length != 2) {
-			throw new AceException("Scope format not recognized");
+		String[] subscope = scope.split(" ");
+		for (int i=0; i<subscope.length; i++) {
+		    String parts[] = subscope[i].split(":");
+		    if (parts.length != 2) {
+		        throw new AceException("Scope format not recognized");
+		    }
+		    if (resourceId.equals(parts[0])) {
+		        return true;
+		    }
 		}
-		return resourceId.equals(parts[1]);
+		return false;
 	}
 
 	@Override
 	public boolean scopeMatch(String scope, String resource, String actionId) 
 			throws AceException {
-	    return scope.equals(actionId + "_" + resource);
+	    String[] subscope = scope.split(" ");
+	    for (int i=0; i<subscope.length; i++) {
+            String parts[] = subscope[i].split(":");
+            if (parts.length != 2) {
+                throw new AceException("Scope format not recognized");
+            }
+            if (resource.equals(parts[0])) {
+               int action = 1 << (actionTranslator(actionId)-1);
+               int permissions = Integer.parseInt(parts[1]);
+               if ((permissions | action) == permissions) {
+                   return true;
+               } 
+               //There should not be more than one subscope with 
+               //the same resource Uri part so we can abort here
+               return false;
+            }
+        }
+        return false;
 	}
 	
 	/**
-	 * Returns the <code>String</code> representing a coap Request code.
+	 * Calculate the scope substring for a resource and a set of permissions.
 	 * 
-	 * @param coapCode  the CoAP request code
-	 * 
-	 * @return  the action string for the scope
-	 * 
-	 * @throws AceException  thrown if the request code is unknown
+	 * @param resourceUri  the resource Uri
+	 * @param permission  the array of permissions (from 
+	 *     <code>org.eclipse.californium.core.coap.CoAP.Code</code>)
+	 *     
+	 * @return  the final substring for the scope
 	 */
-	public static String fromCoap(int coapCode) throws AceException {
-		switch (coapCode) {
-			case 1: return "g";
-			case 2: return "p";
-			case 3: return "u";
-			case 4: return "d";
-			default: throw new AceException(
-					"Unknwon CoAP request code " + coapCode);
-		}
+	public String generateScope(String resourceUri, Code[] permission) {
+	    int finalPermission = 0;
+	    for (int i=0; i<permission.length; i++) {
+	        int number = 1 << (permission[i].value-1);
+	        finalPermission |= number;
+	    }
+	    return resourceUri + ":" + finalPermission;
+	}
+	
+	/**
+	 * Translates an action String to the corresponding CoAP number.
+	 * @param action
+	 * @return  the action number from RFC7252
+	 * @throws AceException 
+	 */
+	public int actionTranslator(String action) throws AceException {
+	    if (action.equalsIgnoreCase("GET")) {
+	        return 1;
+	    } else if (action.equalsIgnoreCase("POST")) {
+	        return 2;
+	    } else if (action.equalsIgnoreCase("PUT")) {
+	        return 3;
+	    } else if (action.equalsIgnoreCase("DELETE")) {
+	        return 4;
+	    }
+	    throw new AceException("Unknown CoAP action name: " + action);
 	}
 }
