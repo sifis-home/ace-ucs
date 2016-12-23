@@ -42,8 +42,7 @@ to the lack of good introductory manuals for Maven).
 * Writing tests: Yes please! I'd be happy to support you if you have ideas about 
   which tests would be needed.
 * Code review: Yes please! Please use the Issue tracker and/or Pull requests.
-* Other guidelines: Follow the [Code Conventions for Java]
-  (http://www.oracle.com/technetwork/java/codeconvtoc-136057.html), don't add 
+* Other guidelines: Follow the [Code Conventions for Java](http://www.oracle.com/technetwork/java/codeconvtoc-136057.html), don't add 
   new dependencies unless there is a really good reason.
 
 ### Who do I talk to? ###
