@@ -31,16 +31,19 @@
  *******************************************************************************/
 package se.sics.ace.coap;
 
-
+import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Request;
 
+import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
@@ -50,58 +53,44 @@ import se.sics.ace.Message;
  * @author Ludwig Seitz
  *
  */
-public class CoapResponse implements Message {
-    
-    /**
-     * The parameters in the payload of this message as a Map for convenience.
-     * This is null if the payload is empty or not a CBOR Map.
-     */
-    private Map<String, CBORObject> parameters = null;
-    
-    
-    /**
-     * The underlying CoAP response from Californium.
-     */
-    private Response response;
-    
-    /**
-     * Constructor
-     * 
-     * @param code  the response code
-     * @param payload  the response payload, may be null
-     * @param request   the request this responds to
-     */
-    public CoapResponse(ResponseCode code, CBORObject payload) {
-        this.response = new Response(code);
-        if (payload != null) {
-            this.response.setPayload(payload.EncodeToBytes());
-        }
-    }
+public class CoapReq implements Message {
 
     /**
-     * Constructor
-     * 
-     * @param code  the response code
-     * @param parameters  the response parameters
-     * @param request   the request this responds to
+     * The parameters in the payload of this message as a Map for convenience
      */
-    public CoapResponse(ResponseCode code,
-            Map<String, CBORObject> parameters) {
-        this.response = new Response(code);
+    private Map<String, CBORObject> parameters;
+    
+    /**
+     * The underlying Request from Californium
+     */
+    private Request request;
+    
+    /**
+     * Create a request from an existing Californium request.
+     * 
+     * @param req
+     * @param parameters
+     */
+    public CoapReq(Request req, Map<String, CBORObject> parameters) {
+        this.request = req;
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        this.response.setPayload(
-                Constants.abbreviate(this.parameters).EncodeToBytes());   
+        this.request.setPayload(
+                Constants.abbreviate(this.parameters).EncodeToBytes());
     }
-    
+
     @Override
     public byte[] getRawPayload() {
-        return this.response.getPayload();
+        return this.request.getPayload();
     }
 
     @Override
     public String getSenderId() {
-        return null;
+        Principal p = this.request.getSenderIdentity();
+        if (p==null) {
+            return null;
+        }
+        return p.getName();
     }
 
     @Override
@@ -132,24 +121,70 @@ public class CoapResponse implements Message {
 
     @Override
     public Message successReply(int code, CBORObject payload) {
-        return null; //We don't generate a response to a response
+        ResponseCode coapCode = null;
+        switch (code) {
+        case Message.CREATED :
+            coapCode = ResponseCode.CREATED;
+            break;
+        default:
+            coapCode = ResponseCode._UNKNOWN_SUCCESS_CODE;
+            break;
+        }
+        CoapRes res = new CoapRes(coapCode, payload);
+        
+        return res;
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        return null; //We don't generate a response to a response
+        ResponseCode coapCode = null;
+        switch (failureReason) {
+        case Message.FAIL_UNAUTHORIZED :
+            coapCode = ResponseCode.UNAUTHORIZED;
+            break;
+        case Message.FAIL_BAD_REQUEST :
+            coapCode = ResponseCode.BAD_REQUEST;
+            break;
+        case Message.FAIL_FORBIDDEN :
+            coapCode = ResponseCode.FORBIDDEN;
+            break;
+        case Message.FAIL_INTERNAL_SERVER_ERROR :
+            coapCode = ResponseCode.INTERNAL_SERVER_ERROR;
+            break;
+        case Message.FAIL_NOT_IMPLEMENTED :
+            coapCode = ResponseCode.NOT_IMPLEMENTED;
+            break; 
+        default :
+        }
+        CoapRes res = new CoapRes(coapCode, payload);
+        return res;
+    }
+    
+    /**
+     * Create a CoAPRequest from a Californium <code>Request</code>.
+     * 
+     * @param req  the Californium Request
+     * @return  the ACE CoAP request
+     * @throws AceException 
+     */
+    public static CoapReq getInstance(Request req) throws AceException {
+        Map<String, CBORObject> parameters = null;
+        CBORObject cborPayload = null;
+        try {
+            cborPayload = CBORObject.DecodeFromBytes(req.getPayload());
+        } catch (CBORException ex) {
+            throw new AceException(ex.getMessage());
+        }
+        if (cborPayload == null || !cborPayload.getType().equals(CBORType.Map)) {
+            throw new AceException("Payload is empty or not encoded as CBOR Map");
+        }
+        parameters = Constants.unabbreviate(cborPayload);
+        CoapReq creq = new CoapReq(req, parameters);
+        return creq;
     }
 
     @Override
     public int getMessageCode() {
-        return this.response.getCode().value;
+        return this.request.getCode().value;
     }
-    
-    /**
-     * @return  the response code as a <code>ResponseCode</code> instance
-     */
-    public ResponseCode getCode() {
-        return this.response.getCode();
-    }
-
 }

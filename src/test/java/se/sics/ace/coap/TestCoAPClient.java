@@ -180,7 +180,7 @@ public class TestCoAPClient {
        
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();
-        params.put("access_token", at.encode());
+        params.put("token", at.encode());
         CoapResponse response = client.post(
                 Constants.abbreviate(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);

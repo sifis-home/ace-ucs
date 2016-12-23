@@ -102,9 +102,9 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
      */
     @Override
     public void handlePOST(CoapExchange exchange) {
-        CoapRequest req = null;
+        CoapReq req = null;
         try {
-            req = CoapRequest.getInstance(exchange.advanced().getRequest());
+            req = CoapReq.getInstance(exchange.advanced().getRequest());
         } catch (AceException e) {
             LOGGER.severe(e.getMessage());
             exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
@@ -113,8 +113,8 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
                 + ((req==null)?"null" : req.toString()));
         Message m = this.e.processMessage(req);
         
-        if (m instanceof CoapResponse) {
-            CoapResponse res = (CoapResponse)m;
+        if (m instanceof CoapRes) {
+            CoapRes res = (CoapRes)m;
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
             //XXX: Should the profile set the content format here?
             exchange.respond(res.getCode(), res.getRawPayload(), 

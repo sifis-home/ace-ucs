@@ -32,6 +32,7 @@
 package se.sics.ace.rs;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Connection;
@@ -141,7 +142,7 @@ public class TestAuthzInfo {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
-        TokenRepository tr = new TokenRepository(valid, resources, null);
+        TokenRepository tr = new TokenRepository(valid, resources, "src/test/resources/tokens.json");
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -176,6 +177,7 @@ public class TestAuthzInfo {
         rootConn.close();
         db.close();
         i.close();
+        new File("src/test/resources/tokens.json").delete();
     }
     
     /**

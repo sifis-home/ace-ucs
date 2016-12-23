@@ -234,7 +234,7 @@ public class TestIntrospect {
                 new Message4Tests(-1, "rs1", "TestAS", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, "Must provide 'access_token' parameter");
+        map.Add(Constants.ERROR, "Must provide 'token' parameter");
         Assert.assertArrayEquals(response.getRawPayload(), 
                 map.EncodeToBytes());
     }
@@ -248,7 +248,7 @@ public class TestIntrospect {
     public void testSuccessPurgedInactive() throws Exception {
         ReferenceToken purged = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("access_token", purged.encode());
+        params.put("token", purged.encode());
         Message response = i.processMessage(
                 new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -269,7 +269,7 @@ public class TestIntrospect {
     public void testSuccessNotExistInactive() throws Exception {
         CBORObject notExist = CBORObject.FromObject("notExist");
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("access_token", notExist);
+        params.put("token", notExist);
         Message response = i.processMessage(
                 new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -298,7 +298,7 @@ public class TestIntrospect {
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());
         params.clear();
-        params.put("access_token", token.encode(ctx));
+        params.put("token", token.encode(ctx));
         Message response = i.processMessage(
                 new Message4Tests(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -319,7 +319,7 @@ public class TestIntrospect {
     public void testSuccessRef() throws Exception {
         ReferenceToken t = new ReferenceToken("token2");
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("access_token", t.encode());
+        params.put("token", t.encode());
         String senderId = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
         Message response = i.processMessage(

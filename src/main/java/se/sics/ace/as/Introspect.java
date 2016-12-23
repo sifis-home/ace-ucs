@@ -137,12 +137,12 @@ public class Introspect implements Endpoint, AutoCloseable {
         }
 
 	    //Get the token from the payload
-        CBORObject cbor = msg.getParameter("access_token");
+        CBORObject cbor = msg.getParameter("token");
         if (cbor == null) {
             LOGGER.log(Level.INFO,
-                    "Request didn't provide 'access_token' parameter");
+                    "Request didn't provide 'token' parameter");
             CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, "Must provide 'access_token' parameter");
+            map.Add(Constants.ERROR, "Must provide 'token' parameter");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
               
