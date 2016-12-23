@@ -10,6 +10,8 @@ to the lack of good introductory manuals for Maven).
   server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://tools.ietf.org/html/draft-ietf-ace-oauth-authz). 
   The base libraries do not include network functionality, since it tries to be
   protocol agnostic. However we provide [CoAP](https://tools.ietf.org/html/rfc7252) client and server support as an example of a protocol specific adaptation based on [Californium](https://www.eclipse.org/californium).
+* Since this is a Java library, it is not intended for resource constrained devices, rather it is intended to be used on the "other end", by the resource rich nodes
+  talking to the resource constrained ones. We are planning to release code for constrained devices as well in the future.
 * Version: early_alpha
 
 
