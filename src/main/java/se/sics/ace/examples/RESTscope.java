@@ -53,7 +53,7 @@ import se.sics.ace.rs.ScopeValidator;
  *      each number to the power of two and computing the inclusive OR of
  *      the binary representations of all the numbers.
  *      
- *    o The final statement is the local-Uri concatenated with ":" concatenated with the
+ *    o The final statement is the local-Uri concatenated with "|" concatenated with the
  *      number representing the permission set.
  *
  * @author Ludwig Seitz
@@ -73,7 +73,7 @@ public class RESTscope implements ScopeValidator {
 			throws AceException {
 		String[] subscope = scope.split(" ");
 		for (int i=0; i<subscope.length; i++) {
-		    String parts[] = subscope[i].split(":");
+		    String parts[] = subscope[i].split("\\|");
 		    if (parts.length != 2) {
 		        throw new AceException("Scope format not recognized");
 		    }
@@ -89,7 +89,7 @@ public class RESTscope implements ScopeValidator {
 			throws AceException {
 	    String[] subscope = scope.split(" ");
 	    for (int i=0; i<subscope.length; i++) {
-            String parts[] = subscope[i].split(":");
+            String parts[] = subscope[i].split("\\|");
             if (parts.length != 2) {
                 throw new AceException("Scope format not recognized");
             }
@@ -122,7 +122,7 @@ public class RESTscope implements ScopeValidator {
 	        int number = 1 << (permission[i].value-1);
 	        finalPermission |= number;
 	    }
-	    return resourceUri + ":" + finalPermission;
+	    return resourceUri + "|" + finalPermission;
 	}
 	
 	/**

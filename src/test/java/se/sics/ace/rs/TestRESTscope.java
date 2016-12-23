@@ -1,5 +1,8 @@
 package se.sics.ace.rs;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -15,7 +18,7 @@ public class TestRESTscope {
      */
     @Test
     public void testNoResource() throws AceException {
-        String scope = "sensors/temp:1 config/security:5";
+        String scope = "sensors/temp|1 config/security|5";
         RESTscope s = new RESTscope();
         Assert.assertFalse(s.scopeMatchResource(scope, "sensors/co2"));
         Assert.assertFalse(s.scopeMatch(scope, "blah", "GET"));
@@ -29,7 +32,7 @@ public class TestRESTscope {
     @Test
     public void testNoPermission() throws AceException {
         // 1 = GET  5 = GET and PUT
-        String scope = "sensors/temp:1 config/security:5";
+        String scope = "sensors/temp|1 config/security|5";
         RESTscope s = new RESTscope();
         Assert.assertTrue(s.scopeMatchResource(scope, "sensors/temp"));
         Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", "DELETE"));
@@ -57,5 +60,5 @@ public class TestRESTscope {
         s.scopeMatch(scope, "sensors/temp", "PATCH");
         
     }
-    
 }
+    
