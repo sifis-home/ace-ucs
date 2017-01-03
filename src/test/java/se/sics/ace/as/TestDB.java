@@ -54,6 +54,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
@@ -113,6 +114,12 @@ public class TestDB {
         db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey skey = new OneKey(keyData);
+        
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
@@ -142,7 +149,7 @@ public class TestDB {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, publicKey);
+                expiration, skey, publicKey);
         
         profiles.remove("coap_oscoap");
         scopes.clear();
@@ -151,7 +158,7 @@ public class TestDB {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, key128, null);
+                expiration, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscoap");
@@ -184,7 +191,7 @@ public class TestDB {
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", keyTypes, 
-                key128, null);
+                skey, null);
         
         //Setup token entries
         String cid = "token1";
@@ -421,8 +428,9 @@ public class TestDB {
      */
     @Test
     public void testGetRsPSK() throws Exception {
-       byte[] key = db.getRsPSK("rs1");
-       Assert.assertArrayEquals(key128, key);
+       OneKey key = db.getRsPSK("rs1");
+       Assert.assertArrayEquals(key128, 
+               key.get(KeyKeys.Octet_K).GetByteString());
              
        key = db.getRsPSK("rs3");
        Assert.assertNull(key);
@@ -449,8 +457,9 @@ public class TestDB {
      */
     @Test
     public void testGetCPSK() throws Exception {
-        byte[] key = db.getCPSK("clientB");
-        Assert.assertArrayEquals(key128, key);
+        OneKey key = db.getCPSK("clientB");
+        Assert.assertArrayEquals(key128, 
+                key.get(KeyKeys.Octet_K).GetByteString());
         
         key  = db.getCPSK("clientA");
         Assert.assertNull(key);
@@ -486,10 +495,10 @@ public class TestDB {
         Set<Integer> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         Set<COSEparams> cose = new HashSet<>();      
-        byte[] key = {0x00, 0x01};
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         long expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key, null);  
+                expiration, null, key);  
         
         
         Set<String> present = db.getAudiences("rs4");
@@ -509,11 +518,16 @@ public class TestDB {
     public void testDeleteClient() throws Exception {
         Set<String> profiles = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
-        byte[] key = {0x00, 0x01};
+        byte[] keyBytes = {0x00, 0x01};
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(keyBytes));
+        OneKey key = new OneKey(keyData);
         db.addClient("clientC", profiles, null, null, keyTypes, key, null);
             
-       byte[] newKey = db.getCPSK("clientC");
-       Assert.assertArrayEquals(key, newKey);
+       OneKey newKey = db.getCPSK("clientC");
+       Assert.assertArrayEquals(key.EncodeToBytes(), newKey.EncodeToBytes());
 
        db.deleteClient("clientC");
        newKey = db.getCPSK("clientC");

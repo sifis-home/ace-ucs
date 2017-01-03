@@ -55,6 +55,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
@@ -121,6 +122,12 @@ public class TestIntrospect {
         db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey key = new OneKey(keyData);
+        
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
@@ -151,7 +158,7 @@ public class TestIntrospect {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, publicKey);
+                expiration, key, publicKey);
                 
         KissTime time = new KissTime();
         

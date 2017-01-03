@@ -34,33 +34,22 @@ package se.sics.ace.coap;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
-import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.AfterClass;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.DBConnector;
 
 /**

@@ -55,6 +55,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
@@ -117,6 +118,12 @@ public class TestKissPDP {
         db = new SQLConnector(null, null, null);
         db.init(dbPwd);
         
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey skey = new OneKey(keyData);
+        
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
@@ -146,7 +153,7 @@ public class TestKissPDP {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key128, publicKey);
+                expiration, skey, publicKey);
         
         profiles.remove("coap_oscoap");
         scopes.clear();
@@ -156,7 +163,7 @@ public class TestKissPDP {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, key128, null);
+                expiration, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscoap");
@@ -188,7 +195,7 @@ public class TestKissPDP {
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, key128, null);
+        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, skey, null);
         
         //Setup token entries
         String cid = "token1";

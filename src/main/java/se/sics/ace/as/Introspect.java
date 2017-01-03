@@ -252,7 +252,8 @@ public class Introspect implements Endpoint, AutoCloseable {
             return CwtCryptoCtx.encrypt(makeRecipient(cose, rsid), 
                    cose.getAlg().AsCBOR());
         case Encrypt0:
-            byte[] ekey = this.db.getRsPSK(rsid);
+            OneKey ek = this.db.getRsPSK(rsid);
+            byte[] ekey = ek.get(KeyKeys.Octet_K).GetByteString();
             if (ekey == null) {
                 return null;
             }
@@ -261,7 +262,8 @@ public class Introspect implements Endpoint, AutoCloseable {
             return CwtCryptoCtx.mac(makeRecipient(cose, rsid), 
                     cose.getAlg().AsCBOR());
         case MAC0:
-            byte[] mkey = this.db.getRsPSK(rsid);
+            OneKey mk = this.db.getRsPSK(rsid);
+            byte[] mkey = mk.get(KeyKeys.Octet_K).GetByteString();
             if (mkey == null) {
                 return null;
             }

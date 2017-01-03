@@ -595,7 +595,7 @@ public class SQLConnector implements DBConnector {
 		        + "." + DBConnector.rsTable + "(" 
 		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
                 + DBConnector.expColumn + " bigint NOT NULL, "
-		        + DBConnector.pskColumn + " varbinary(32), "
+		        + DBConnector.pskColumn + " varbinary(64), "
 		        + DBConnector.rpkColumn + " varbinary(255),"
 		        + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
@@ -604,7 +604,7 @@ public class SQLConnector implements DBConnector {
 		        + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
 		        + DBConnector.defaultAud + " varchar(255), "
 		        + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " varbinary(32), " 
+                + DBConnector.pskColumn + " varbinary(64), " 
                 + DBConnector.rpkColumn + " varbinary(255),"
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
@@ -1027,7 +1027,7 @@ public class SQLConnector implements DBConnector {
     }
 
     @Override
-    public synchronized byte[] getRsPSK(String rs) throws AceException {
+    public synchronized OneKey getRsPSK(String rs) throws AceException {
         try {
             this.selectRsPSK.setString(1, rs);
             ResultSet result = this.selectRsPSK.executeQuery();
@@ -1037,9 +1037,12 @@ public class SQLConnector implements DBConnector {
                 key = result.getBytes(DBConnector.pskColumn);
             }
             result.close();
-            //FIXME: Use OneKey instead
-            return key;
-        } catch (SQLException e) {
+            if (key != null) {
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
+            }
+            return null;
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1066,7 +1069,7 @@ public class SQLConnector implements DBConnector {
     }
     
     @Override
-    public synchronized byte[] getCPSK(String client) throws AceException {
+    public synchronized OneKey getCPSK(String client) throws AceException {
         try {
             this.selectCPSK.setString(1, client);
             ResultSet result = this.selectCPSK.executeQuery();
@@ -1076,9 +1079,12 @@ public class SQLConnector implements DBConnector {
                 key = result.getBytes(DBConnector.pskColumn);
             }
             result.close();
-            //FIXME: Use OneKey instead
-            return key;
-        } catch (SQLException e) {
+            if (key != null) {
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
+            }
+            return null;   
+        } catch (SQLException | CoseException e) {
             throw new AceException(e.getMessage());
         }
     }
@@ -1108,10 +1114,8 @@ public class SQLConnector implements DBConnector {
     public synchronized void addRS(String rs, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
-            byte[] sharedKey, OneKey publicKey) throws AceException {
-        
-        //FIXME: Use OneKey for sharedKey as well
-        
+            OneKey sharedKey, OneKey publicKey) throws AceException {
+       
         if (rs == null || rs.isEmpty()) {
             throw new AceException(
                     "RS must have non-null, non-empty identifier");
@@ -1153,7 +1157,11 @@ public class SQLConnector implements DBConnector {
                 
             this.insertRS.setString(1, rs);
             this.insertRS.setLong(2, expiration);
-            this.insertRS.setBytes(3, sharedKey);
+            if (sharedKey != null) {
+                this.insertRS.setBytes(3, sharedKey.EncodeToBytes());
+            } else {
+                this.insertRS.setBytes(3, null);
+            }
             if (publicKey != null) {
                 this.insertRS.setBytes(4, publicKey.EncodeToBytes());
             } else {
@@ -1253,9 +1261,8 @@ public class SQLConnector implements DBConnector {
     @Override
     public synchronized void addClient(String client, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            byte[] sharedKey, OneKey publicKey) 
+            OneKey sharedKey, OneKey publicKey) 
                     throws AceException {
-        //FIXME: Use OneKey for sharedKey as well
         try {
             if (sharedKey == null && publicKey == null) {
                 throw new AceException(
@@ -1264,7 +1271,11 @@ public class SQLConnector implements DBConnector {
             this.insertClient.setString(1, client);
             this.insertClient.setString(2, defaultAud);
             this.insertClient.setString(3, defaultScope);
-            this.insertClient.setBytes(4, sharedKey);
+            if (sharedKey != null) {
+                this.insertClient.setBytes(4, sharedKey.EncodeToBytes());
+            } else {
+                this.insertClient.setBytes(4, null);
+            }
             if (publicKey != null) {
                 this.insertClient.setBytes(5, publicKey.EncodeToBytes());
             } else {

@@ -45,6 +45,7 @@ import org.eclipse.californium.scandium.ScandiumLogger;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.COSEparams;
@@ -98,7 +99,7 @@ public class TestCoAPServer {
             br.close();
         }
 
-        OneKey key = new OneKey(
+        OneKey akey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
@@ -106,6 +107,12 @@ public class TestCoAPServer {
             
         db = new CoapDBConnector(null, null, null);
         db.init(dbPwd);
+        
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256));
+        OneKey skey = new OneKey(keyData);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
@@ -126,13 +133,13 @@ public class TestCoAPServer {
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, key256, key);
+                expiration, skey, akey);
         
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, keyTypes, key256, null);        
+        db.addClient("clientA", profiles, null, null, keyTypes, skey, null);        
         
         KissTime time = new KissTime();
         String cti = "token1";

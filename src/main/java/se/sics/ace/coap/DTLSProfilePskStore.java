@@ -92,7 +92,7 @@ public class DTLSProfilePskStore implements PskStore {
                 
                 try {
                     CBORObject cnf = this.authzInfo.getCnf(cti.AsString());
-                    
+                    //FIXME: do something and return it
                 } catch (AceException e) {
                     LOGGER.severe("DTLSProfilePskStore.getKey(" 
                             + identity + ") threw: " + e.getClass().getName()

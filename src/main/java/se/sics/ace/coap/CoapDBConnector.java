@@ -37,6 +37,11 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.examples.SQLConnector;
 
@@ -72,7 +77,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
 
     @Override
     public byte[] getKey(String identity) {
-        byte[] key = null;
+        OneKey key = null;
         try {
             key = super.getCPSK(identity);
         } catch (AceException e) {
@@ -87,7 +92,17 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
                 return null;
             }
         }
-        return key;
+        CBORObject val = key.get(KeyKeys.KeyType);
+        if (val.equals(KeyKeys.KeyType_Octet)) {
+            val = key.get(KeyKeys.Octet_K);
+            if ((val== null) || (val.getType() != CBORType.ByteString)) {
+                return null; //Malformed key
+            }
+            return val.GetByteString();
+        }
+        return null; //Wrong KeyType
+          
+        
     }
 
     @Override

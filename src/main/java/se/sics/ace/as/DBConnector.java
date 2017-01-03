@@ -353,7 +353,7 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public byte[] getRsPSK(String rs)
+    public OneKey getRsPSK(String rs)
         throws AceException;
     
     /**
@@ -377,7 +377,7 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public byte[] getCPSK(String client)
+    public OneKey getCPSK(String client)
         throws AceException;
     
     /**
@@ -415,7 +415,7 @@ public interface DBConnector {
 	 */
 	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
-            Set<COSEparams> cose, long expiration, byte[] sharedKey, 
+            Set<COSEparams> cose, long expiration, OneKey sharedKey, 
             OneKey publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
@@ -444,7 +444,7 @@ public interface DBConnector {
 	 */
 	public void addClient(String client, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
-	        byte[] sharedKey, OneKey publicKey) 
+	        OneKey sharedKey, OneKey publicKey) 
 	                throws AceException;
 	
 	/**
