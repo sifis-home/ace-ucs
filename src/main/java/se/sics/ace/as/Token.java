@@ -589,6 +589,6 @@ public class Token implements Endpoint, AutoCloseable {
     @Override
     public void close() throws AceException {
         this.db.saveCtiCounter(this.cti);
-        //this.db.close();
+        this.db.close();
     }
 }

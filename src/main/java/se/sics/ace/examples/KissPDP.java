@@ -265,7 +265,7 @@ public class KissPDP implements PDP, AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        //this.db.close();
+       this.db.close();
     }
 
 }

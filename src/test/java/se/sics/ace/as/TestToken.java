@@ -112,7 +112,7 @@ public class TestToken {
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey();        
         
-        db = new SQLConnector(null, null, null);
+        db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();

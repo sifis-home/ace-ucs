@@ -60,7 +60,7 @@ import se.sics.ace.as.DBConnector;
  * @author Ludwig Seitz
  *
  */
-public class SQLConnector implements DBConnector {
+public class SQLConnector implements DBConnector, AutoCloseable {
 
 	/**
 	 * The default user of the database
@@ -85,6 +85,11 @@ public class SQLConnector implements DBConnector {
 	 * A prepared connection.
 	 */
 	private Connection conn = null;
+	
+	/**
+	 * Records if the singleton connector is connected or disconnected
+	 */
+	private static boolean isConnected = false;
 	
 	/**
 	 * A prepared INSERT statement to add a new Resource Server.
@@ -355,6 +360,31 @@ public class SQLConnector implements DBConnector {
      */
     private PreparedStatement updateCtiCtr;
 
+    /**
+     * The singleton instance of this connector
+     */
+    private static SQLConnector connector = null;
+    
+    /**
+     * Gets the singleton instance of this connector.
+     * 
+     * @param dbUrl  the database URL, if null the default will be used
+     * @param user   the database user, if null the default will be used
+     * @param pwd    the database user's password, if null the default 
+     * 
+     * @return  the singleton instance
+     * 
+     * @throws SQLException
+     */
+    public static SQLConnector getInstance(String dbUrl, String user, String pwd) 
+            throws SQLException {
+        if (SQLConnector.connector == null) {
+            SQLConnector.connector = new SQLConnector(dbUrl, user, pwd);
+        }
+        return SQLConnector.connector;
+    }
+    
+    
 	/**
 	 * Create a new database connector either from given values or the 
 	 * defaults.
@@ -365,7 +395,7 @@ public class SQLConnector implements DBConnector {
 	 * 				 will be used
 	 * @throws SQLException 
 	 */
-	public SQLConnector(String dbUrl, String user, String pwd) 
+	protected SQLConnector(String dbUrl, String user, String pwd) 
 			throws SQLException {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
@@ -382,6 +412,7 @@ public class SQLConnector implements DBConnector {
 		connectionProps.put("password", this.defaultPassword);
 		this.conn = DriverManager.getConnection(this.defaultDbUrl, 
 		        connectionProps);
+		SQLConnector.isConnected = true;
 	        
 		this.insertRS = this.conn.prepareStatement("INSERT INTO "
 		        + DBConnector.dbName + "." + DBConnector.rsTable
@@ -693,11 +724,16 @@ public class SQLConnector implements DBConnector {
 	 */
 	@Override
 	public synchronized void close() throws AceException {
-		try {
-            this.conn.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
+	    if (SQLConnector.isConnected) {
+	        try {
+	            this.conn.close();
+	            SQLConnector.connector = null;
+	            SQLConnector.isConnected = false;
+	        } catch (SQLException e) {
+	            SQLConnector.isConnected = false;
+	            throw new AceException(e.getMessage());
+	        }	        
+	    }
 	}
 	
 	/**

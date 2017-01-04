@@ -119,7 +119,7 @@ public class TestIntrospect {
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
-        db = new SQLConnector(null, null, null);
+        db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();

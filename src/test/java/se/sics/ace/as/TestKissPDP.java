@@ -115,7 +115,7 @@ public class TestKissPDP {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
-        db = new SQLConnector(null, null, null);
+        db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
