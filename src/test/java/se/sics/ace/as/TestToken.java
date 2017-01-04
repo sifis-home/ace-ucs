@@ -297,7 +297,7 @@ public class TestToken {
         db.addToken(cti, claims);
         t = new Token("AS", 
                 KissPDP.getInstance("src/test/resources/acl.json", db), db,
-                new KissTime(), privateKey, 4); 
+                new KissTime(), privateKey); 
     }
     
     /**

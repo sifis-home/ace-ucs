@@ -104,7 +104,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
         } else {
             this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
         }
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, 4); 
+        this.t = new Token(asId, pdp, db, time, asymmetricKey); 
     
         this.token = new CoapAceEndpoint(this.t);
         this.introspect = new CoapAceEndpoint(this.i);
