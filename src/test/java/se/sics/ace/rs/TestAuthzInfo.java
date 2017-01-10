@@ -56,6 +56,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
@@ -142,7 +143,8 @@ public class TestAuthzInfo {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
-        TokenRepository tr = new TokenRepository(valid, resources, "src/test/resources/tokens.json");
+        TokenRepository tr = new TokenRepository(valid, resources, 
+                "src/test/resources/tokens.json", null);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -150,8 +152,10 @@ public class TestAuthzInfo {
         i = new Introspect(
                 KissPDP.getInstance("src/test/resources/acl.json", db), db, 
                 new KissTime(), key);
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), new KissTime(), 
-                new IntrospectionHandler4Tests(i, "rs1", "TestAS"), valid, ctx);        
+        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
+                new KissTime(), 
+                new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
+                valid, ctx);      
     }
     
     /**
@@ -529,6 +533,13 @@ public class TestAuthzInfo {
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject("token2".getBytes()));
         params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes());
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        params.put("cnf", key.AsCBOR());
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);

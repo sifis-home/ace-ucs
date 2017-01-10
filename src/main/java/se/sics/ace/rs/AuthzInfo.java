@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
@@ -239,14 +240,14 @@ public class AuthzInfo implements Endpoint {
 
 	    //6. Store the claims of this token
 	    try {
-            this.tr.addToken(claims);
+            this.tr.addToken(claims, this.ctx);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
 	    //9. Create success message
-	    //XXX: Ok to return cti ?
+	    //XXX: Ok to return cti ? Might be null
 	    return msg.successReply(Message.CREATED, claims.get("cti"));
 	}
 	
@@ -294,16 +295,16 @@ public class AuthzInfo implements Endpoint {
 	}
     
     /**
-     * Get the 'cnf' claim of a token identifier by its 'cti'.
+     * Get the proof-of-possession key of a token identified by its 'cti'.
      * 
      * @param cti  the cti of the token
      * 
-     * @return  the cnf claim of the token or null if this cti is unknown
+     * @return  the pop key or null if this cti is unknown
      * 
      * @throws AceException 
      */
-    public CBORObject getCnf(String cti) throws AceException {
-        return this.tr.getCnf(cti);
+    public OneKey getPoP(String cti) throws AceException {
+        return this.tr.getPoP(cti);
     }
 
     @Override

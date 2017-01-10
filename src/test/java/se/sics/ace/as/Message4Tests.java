@@ -164,6 +164,9 @@ public class Message4Tests implements Message {
     
     @Override
     public String toString() {
+        if (this.payload == null && this.params == null) {
+            return "SenderId: " + this.senderId;
+        }
         return "SenderId: " + this.senderId + " Parameters: "
                 + ((this.params == null)? 
                         this.payload.toString() : this.params.toString());

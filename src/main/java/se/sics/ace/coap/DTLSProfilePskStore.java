@@ -37,14 +37,23 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
+import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.as.Message4Tests;
 import se.sics.ace.rs.AuthzInfo;
 
 /**
+ * A store for Pre-Shared-Keys (PSK) at the RS.
+ * 
  * Implements the retrieval of the access token as defined in section 4.1. of 
  * draft-gerdes-ace-dtls-authorize.
  * 
@@ -63,10 +72,11 @@ public class DTLSProfilePskStore implements PskStore {
     
     
     /**
-     * This profile needs to access the authz-info endpoint.
+     * This component needs to access the authz-info endpoint.
      */
     private AuthzInfo authzInfo;
-
+        
+    
     /**
      * Constructor.
      * 
@@ -79,29 +89,36 @@ public class DTLSProfilePskStore implements PskStore {
     
     @Override
     public byte[] getKey(String identity) {
-        
-        CBORObject payload = CBORObject.DecodeFromBytes(
-                Base64.getDecoder().decode(identity));
-        
-            Message4Tests message = new Message4Tests(0, null, null, payload);
-            Message4Tests res
-                = (Message4Tests)this.authzInfo.processMessage(message);
-            if (res.getMessageCode() == Message.CREATED) {
-                CBORObject cti = CBORObject.DecodeFromBytes(
-                        Base64.getDecoder().decode(res.getRawPayload()));
-                
-                try {
-                    CBORObject cnf = this.authzInfo.getCnf(cti.AsString());
-                    //FIXME: do something and return it
-                } catch (AceException e) {
-                    LOGGER.severe("DTLSProfilePskStore.getKey(" 
-                            + identity + ") threw: " + e.getClass().getName()
-                            + "with message: " 
-                            + e.getMessage());
-                   return null;
-                }
-            }
+        CBORObject payload = null;
+        try {
+            payload = CBORObject.DecodeFromBytes(
+                    Base64.getDecoder().decode(identity));
+        } catch (NullPointerException | CBORException e) {
+            LOGGER.severe("Error decoding the psk_identity: " 
+                    + e.getMessage());
             return null;
+        }
+
+        Message4Tests message = new Message4Tests(0, null, null, payload);
+        Message4Tests res
+            = (Message4Tests)this.authzInfo.processMessage(message);
+        //XXX: assumes the token has a cti
+        if (res.getMessageCode() == Message.CREATED) {
+            CBORObject cti = CBORObject.DecodeFromBytes(
+                    Base64.getDecoder().decode(res.getRawPayload()));
+            //XXX: assumes cti was generated from String
+            String ctiStr = new String(cti.GetByteString());
+            OneKey key = null;
+            try {
+                 key = this.authzInfo.getPoP(ctiStr);
+                 return key.get(KeyKeys.Octet_K).GetByteString();
+            } catch (AceException e) {
+                LOGGER.severe("Error: " + e.getMessage());
+                return null;
+            }
+        }
+        LOGGER.severe("Error: Token in psk_identity not valid");  
+        return null;
     }
 
     @Override

@@ -45,6 +45,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -52,8 +53,13 @@ import org.json.JSONObject;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * This class is used to store valid access tokens and 
@@ -61,8 +67,8 @@ import se.sics.ace.TimeProvider;
  * responsibility of the request handler to call this class. 
  * 
  * Note that this class assumes that every token has a 'scope', 'sub',  
- * 'aud' and 'cti' (the token itself for a reference token).  Tokens that 
- * don't have these will lead to request failure.
+ * 'aud', 'cnf', and 'cti' (the token itself for a reference token).  Tokens
+ * that don't have these will lead to request failure.
  *  
  * @author Ludwig Seitz
  *
@@ -96,6 +102,12 @@ public class TokenRepository {
 	private Set<String> resources;
 	
 	/**
+	 * Map key identifiers collected from the access tokens to keys
+	 * FIXME: Test this
+	 */
+	private Map<String,OneKey> kid2key;
+	
+	/**
 	 * The scope validator
 	 */
 	private ScopeValidator scopeValidator;
@@ -117,16 +129,18 @@ public class TokenRepository {
 	 * @param resources  the resources this TokenRepository serves 
 	 * @param tokenFile  the file storing the existing tokens, if the file
 	 *     does not exist it is created
+	 * @param ctx  the crypto context for reading encrypted tokens
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
 	public TokenRepository(ScopeValidator scopeValidator, 
-			Set<String> resources, String tokenFile) 
+			Set<String> resources, String tokenFile, CwtCryptoCtx ctx) 
 			        throws IOException, AceException {
 	    this.resource2scope = new HashMap<>();
 	    this.scope2cti = new HashMap<>();
 	    this.cti2claims = new HashMap<>();
 	    this.resources = new HashSet<>(resources);
+	    this.kid2key = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -161,7 +175,7 @@ public class TokenRepository {
                             Base64.getDecoder().decode(
                                     token.getString((key)))));
                 }
-                this.addToken(params);
+                this.addToken(params, ctx);
             }
         }
 	}
@@ -199,9 +213,12 @@ public class TokenRepository {
 	 * check the validity of the token.
 	 * 
 	 * @param claims  the claims of the token
+	 * @param ctx  the crypto context of this RS  
 	 * @throws AceException 
+	 * @throws CoseException 
 	 */
-	public void addToken(Map<String, CBORObject> claims) throws AceException {
+	public void addToken(Map<String, CBORObject> claims, CwtCryptoCtx ctx) 
+	        throws AceException {
 		CBORObject so = claims.get("scope");
 		if (so == null) {
 			throw new AceException("Token has no scope");
@@ -251,7 +268,72 @@ public class TokenRepository {
 
 		this.cti2claims.put(cti, claims);
 
-		
+		//Store the pop-key
+		CBORObject cnf = claims.get("cnf");
+        if (cnf == null) {
+            throw new AceException("Token has no cnf");
+        } 
+        if (cnf.getType().equals(CBORType.Map)) {
+            //This is either a kid or a COSE_Key
+            String kidStr = fetchKid(cnf);
+            if (cnf.size() == 1) {//this is a kid only
+                if (!this.kid2key.containsKey(kidStr)) {
+                    LOGGER.info("Token refers to unknown kid");
+                    throw new AceException("Token refers to unknown kid");
+                }
+                return; //We have this key
+            }
+            //This should be a COSE_Key
+            try {
+                OneKey key = new OneKey(cnf);
+                this.kid2key.put(kidStr, key);
+            } catch (CoseException e) {
+                LOGGER.severe("Error while parsing cnf element: " 
+                        + e.getMessage());
+                throw new AceException("Invalid cnf element: " 
+                        + e.getMessage());
+            }
+        } else { //assume this is a COSE Encrypt0
+            Encrypt0Message msg = new Encrypt0Message();
+            try {
+                msg.DecodeFromCBORObject(cnf);
+                msg.decrypt(ctx.getKey());
+                CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
+                OneKey key = new OneKey(keyData);
+                String kid = fetchKid(keyData);
+                this.kid2key.put(kid, key);
+            } catch (CoseException | InvalidCipherTextException e) {
+                LOGGER.severe("Error while decrypting a cnf claim: "
+                        + e.getMessage());
+                throw new AceException("Error while decrypting a cnf claim");
+            }
+        }     
+	}
+	
+	/**
+	 * Fetch the kid from a cnf element in a token.
+	 * 
+	 * @param cnf  the cnf element
+	 * 
+	 * @return the String representation of the kid
+	 * 
+	 * @throws AceException
+	 */
+	private static String fetchKid(CBORObject cnf) throws AceException {
+	    CBORObject kid = cnf.get("kid"); //Unabbreviated
+        if (kid == null) {
+            kid = cnf.get(KeyKeys.KeyId.AsCBOR()); //Abbreviated 
+            if (kid == null) {
+                LOGGER.severe("kid not found in cnf claim");
+                throw new AceException("Cnf claim is missing kid");
+            }
+        }
+        if (kid.getType().equals(CBORType.ByteString)) {
+            //XXX: assumes kid bytes generated from a String
+           return new String(kid.GetByteString());
+        }
+        LOGGER.severe("kid is not a byte string");
+        throw new AceException("cnf contains invalid kid");
 	}
 
 	/**
@@ -443,23 +525,24 @@ public class TokenRepository {
 	}
 	
 	/**
-	 * Get the 'cnf' claim of a token identifier by its 'cti'.
+	 * Get the proof-of-possession key of a token identified by its 'cti'.
 	 * 
 	 * @param cti  the cti of the token
-	 * @return  the cnf claim of the token or null if this cti is unknown
+	 * 
+	 * @return  the pop-key the token or null if this cti is unknown
 	 * @throws AceException 
 	 */
-	public CBORObject getCnf(String cti) throws AceException {
+	public OneKey getPoP(String cti) throws AceException {
 	    if (cti != null) {
-	        Map<String, CBORObject> claims = this.cti2claims.get(cti);
-	        if (claims != null) {
-	            LOGGER.finest("Retrieved 'cnf' for cti: " + cti);
-	            return claims.get("cnf");
+	        OneKey key = this.kid2key.get(cti);
+	        if (key == null) {
+	            LOGGER.finest("Token with cti: " + cti + " not found in getCnf()");
+	            return null;
 	        }
-	        LOGGER.finest("Token with cti: " + cti + " not found in getCnf()");
-	        return null;
+	        return key;
 	    }
         LOGGER.severe("getCnf() called with null cti");
         throw new AceException("Must supply non-null cti to get cnf");
 	}
 }
+
