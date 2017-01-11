@@ -103,7 +103,6 @@ public class TokenRepository {
 	
 	/**
 	 * Map key identifiers collected from the access tokens to keys
-	 * FIXME: Test this
 	 */
 	private Map<String,OneKey> kid2key;
 	
@@ -187,6 +186,7 @@ public class TokenRepository {
 	 * @throws AceException 
 	 */
 	public void addResource(String resourceId) throws AceException {
+	    this.resources.add(resourceId);
 		//Fetch all matching scopes
 		Set<String> scopes = new HashSet<>();
 		for (String scope : this.scope2cti.keySet()) {
@@ -234,32 +234,6 @@ public class TokenRepository {
 		
 		String cti = new String(claims.get("cti").GetByteString());
 		
-		String[] scopes = scope.split(" ");
-		
-		//Store the mapping scope 2 cti
-		for (int i=0; i<scopes.length; i++) {
-		    Set<String> ctis = this.scope2cti.get(scopes[i]);
-		    if (ctis == null) {
-		        ctis = new HashSet<>();
-		    }
-		    ctis.add(cti);
-		    this.scope2cti.put(scopes[i], ctis);
-		    
-	        //Store the mapping resource 2 scope
-	        for (String resource : this.resources) {
-	            if (this.scopeValidator.scopeMatchResource(scopes[i], resource)) {
-	                Set<String> rscope = this.resource2scope.get(resource);
-	                if (rscope == null) {
-	                    rscope = new HashSet<>();
-
-	                }
-	                rscope.add(scopes[i]);
-	                this.resource2scope.put(resource, rscope);
-	            }
-	        }
-	        persist();
-		}
-		
 		//Store the mapping cti 2 claims, if a token with the same cti
 		//already exists, this leads to an exception
 		if (this.cti2claims.containsKey(cti)) {
@@ -276,22 +250,21 @@ public class TokenRepository {
         if (cnf.getType().equals(CBORType.Map)) {
             //This is either a kid or a COSE_Key
             String kidStr = fetchKid(cnf);
-            if (cnf.size() == 1) {//this is a kid only
+            if (cnf.size() == 1) {//This is a kid only
                 if (!this.kid2key.containsKey(kidStr)) {
                     LOGGER.info("Token refers to unknown kid");
                     throw new AceException("Token refers to unknown kid");
                 }
-                return; //We have this key
-            }
-            //This should be a COSE_Key
-            try {
-                OneKey key = new OneKey(cnf);
-                this.kid2key.put(kidStr, key);
-            } catch (CoseException e) {
-                LOGGER.severe("Error while parsing cnf element: " 
-                        + e.getMessage());
-                throw new AceException("Invalid cnf element: " 
-                        + e.getMessage());
+            } else { //This should be a COSE_Key
+                try {
+                    OneKey key = new OneKey(cnf);
+                    this.kid2key.put(kidStr, key);
+                } catch (CoseException e) {
+                    LOGGER.severe("Error while parsing cnf element: " 
+                            + e.getMessage());
+                    throw new AceException("Invalid cnf element: " 
+                            + e.getMessage());
+                }
             }
         } else { //assume this is a COSE Encrypt0
             Encrypt0Message msg = new Encrypt0Message();
@@ -307,7 +280,32 @@ public class TokenRepository {
                         + e.getMessage());
                 throw new AceException("Error while decrypting a cnf claim");
             }
-        }     
+        }  
+        
+        String[] scopes = scope.split(" ");
+        //Store the mapping scope 2 cti
+        for (int i=0; i<scopes.length; i++) {
+            Set<String> ctis = this.scope2cti.get(scopes[i]);
+            if (ctis == null) {
+                ctis = new HashSet<>();
+            }
+            ctis.add(cti);
+            this.scope2cti.put(scopes[i], ctis);
+            
+            //Store the mapping resource 2 scope
+            for (String resource : this.resources) {
+                if (this.scopeValidator.scopeMatchResource(scopes[i], resource)) {
+                    Set<String> rscope = this.resource2scope.get(resource);
+                    if (rscope == null) {
+                        rscope = new HashSet<>();
+
+                    }
+                    rscope.add(scopes[i]);
+                    this.resource2scope.put(resource, rscope);
+                }
+            }
+            persist();
+        }
 	}
 	
 	/**

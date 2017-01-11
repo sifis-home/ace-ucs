@@ -39,14 +39,11 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
-import COSE.CoseException;
-import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.as.Message4Tests;
 import se.sics.ace.rs.AuthzInfo;
@@ -57,7 +54,7 @@ import se.sics.ace.rs.AuthzInfo;
  * Implements the retrieval of the access token as defined in section 4.1. of 
  * draft-gerdes-ace-dtls-authorize.
  * 
- * TODO: Implement this.
+ * TODO: Test this.
  * 
  * @author Ludwig Seitz
  *
@@ -123,7 +120,7 @@ public class DTLSProfilePskStore implements PskStore {
 
     @Override
     public String getIdentity(InetSocketAddress inetAddress) {
-        // TODO Auto-generated method stub
+        // Not needed here, this PskStore is for servers only
         return null;
     }
 
