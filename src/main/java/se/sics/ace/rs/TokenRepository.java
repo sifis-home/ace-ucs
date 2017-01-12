@@ -66,7 +66,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * provides methods to check them against an incoming request.  It is the 
  * responsibility of the request handler to call this class. 
  * 
- * Note that this class assumes that every token has a 'scope', 'sub',  
+ * Note that this class assumes that every token has a 'scope',
  * 'aud', 'cnf', and 'cti' (the token itself for a reference token).  Tokens
  * that don't have these will lead to request failure.
  *  
@@ -94,7 +94,7 @@ public class TokenRepository {
 	/**
 	 * Maps cti to the claims of the corresponding token
 	 */
-	private Map<String, Map<String,CBORObject>> cti2claims;
+	private Map<String, Map<String, CBORObject>> cti2claims;
 	
 	/**
 	 * The resources handled by this repository
@@ -104,7 +104,12 @@ public class TokenRepository {
 	/**
 	 * Map key identifiers collected from the access tokens to keys
 	 */
-	private Map<String,OneKey> kid2key;
+	private Map<String, OneKey> kid2key;
+	
+	/**
+	 * Map cti to pop-key kid
+	 */
+	private Map<String, String> cti2kid;
 	
 	/**
 	 * The scope validator
@@ -140,6 +145,7 @@ public class TokenRepository {
 	    this.cti2claims = new HashMap<>();
 	    this.resources = new HashSet<>(resources);
 	    this.kid2key = new HashMap<>();
+	    this.cti2kid = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -234,10 +240,9 @@ public class TokenRepository {
 		
 		String cti = new String(claims.get("cti").GetByteString());
 		
-		//Store the mapping cti 2 claims, if a token with the same cti
-		//already exists, this leads to an exception
+		//Check for duplicate cti
 		if (this.cti2claims.containsKey(cti)) {
-		    throw new AceException("Duplicate token identifier");
+		    throw new AceException("Duplicate cti");
 		}
 
 		this.cti2claims.put(cti, claims);
@@ -249,16 +254,17 @@ public class TokenRepository {
         } 
         if (cnf.getType().equals(CBORType.Map)) {
             //This is either a kid or a COSE_Key
-            String kidStr = fetchKid(cnf);
+            String kid = fetchKid(cnf);
             if (cnf.size() == 1) {//This is a kid only
-                if (!this.kid2key.containsKey(kidStr)) {
+                if (!this.kid2key.containsKey(kid)) {
                     LOGGER.info("Token refers to unknown kid");
                     throw new AceException("Token refers to unknown kid");
                 }
             } else { //This should be a COSE_Key
                 try {
                     OneKey key = new OneKey(cnf);
-                    this.kid2key.put(kidStr, key);
+                    this.cti2kid.put(cti, kid);
+                    this.kid2key.put(kid, key);
                 } catch (CoseException e) {
                     LOGGER.severe("Error while parsing cnf element: " 
                             + e.getMessage());
@@ -274,6 +280,7 @@ public class TokenRepository {
                 CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
                 OneKey key = new OneKey(keyData);
                 String kid = fetchKid(keyData);
+                this.cti2kid.put(cti, kid);
                 this.kid2key.put(kid, key);
             } catch (CoseException | InvalidCipherTextException e) {
                 LOGGER.severe("Error while decrypting a cnf claim: "
@@ -372,6 +379,18 @@ public class TokenRepository {
 		        this.resource2scope.remove(foo.getKey());		        
 		    }
 		}
+		
+		//Remove unused keys
+		Set<String> remove = new HashSet<>();
+		for (String kid : this.kid2key.keySet()) {
+		    if (!this.cti2kid.containsValue(kid)) {
+		        remove.add(kid);
+		    }
+		}
+		for (String kid : remove) {
+		    this.kid2key.remove(kid);
+		}
+		
 		persist();
 	}
 	
@@ -403,8 +422,9 @@ public class TokenRepository {
 	
 	/**
 	 * Check if there is a token allowing access.
-	 * 
-	 * @param subject  the authenticated subject.
+     *
+	 * @param kid  the key identifier used for proof-of-possession.
+	 * @param subject  the authenticated subject if there is any, can be null
 	 * @param resource  the resource that is accessed
 	 * @param action  the RESTful action on that resource
 	 * @param time  the time provider
@@ -413,9 +433,22 @@ public class TokenRepository {
 	 * 	with the given action, false if not.
 	 * @throws AceException 
 	 */
-	public boolean canAccess(String subject, String resource, String action, 
-			TimeProvider time, IntrospectionHandler intro) 
+	public boolean canAccess(String kid, String subject, String resource, 
+	        String action, TimeProvider time, IntrospectionHandler intro) 
 			        throws AceException {
+	    //Check if we have tokens for this pop-key
+	    if (!this.cti2kid.containsValue(kid)) {
+	        return false; //No tokens for this pop-key
+	    }
+	    
+	    //Collect the token id's of matching tokens
+	    Set<String> ctis = new HashSet<>();
+	    for (String cti : this.cti2kid.keySet()) {
+	        if (this.cti2kid.get(cti).equals(kid)) {
+	            ctis.add(cti);
+	        }
+	    }
+	    
 		//Check if we have a token that is in scope for this resource
 		for (String scope : this.resource2scope.get(resource)) {
 			//Check if the scope matches
@@ -424,6 +457,10 @@ public class TokenRepository {
 				continue;
 			}
 			for (String cti : this.scope2cti.get(scope)) {
+			    if (!ctis.contains(cti)) {
+			        continue; //This token does not match the pop key
+			    }
+			    
 			    //Get the claims
 			    Map<String, CBORObject> claims = this.cti2claims.get(cti);
 			    if (claims == null || claims.isEmpty()) {
@@ -433,12 +470,15 @@ public class TokenRepository {
 			    
 				//Check if the subject matches
 				CBORObject subO = claims.get("sub");
-				if (subO == null) {
-					throw new AceException("Token has no 'sub' claim");
-				}
-				if (!subO.AsString().equals(subject)) {
-					//Token doesn't match subject
-					continue;
+				if (subO != null) {
+				    if (subject == null) {
+				        //Token requires subject, but none provided
+				        continue;
+				    }
+				    if (!subO.AsString().equals(subject)) {
+				        //Token doesn't match subject
+				        continue;
+				    }
 				}
 				
 				//Check if the token is expired
@@ -532,9 +572,10 @@ public class TokenRepository {
 	 */
 	public OneKey getPoP(String cti) throws AceException {
 	    if (cti != null) {
-	        OneKey key = this.kid2key.get(cti);
+	        String kid = this.cti2kid.get(cti);
+	        OneKey key = this.kid2key.get(kid);
 	        if (key == null) {
-	            LOGGER.finest("Token with cti: " + cti + " not found in getCnf()");
+	            LOGGER.finest("Token with cti: " + cti + " not found in getPoP()");
 	            return null;
 	        }
 	        return key;

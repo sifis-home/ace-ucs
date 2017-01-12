@@ -9,15 +9,22 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -38,8 +45,14 @@ public class TestTokenRepository {
     static OneKey symmetricKey;
     static OneKey otherKey;
     static CwtCryptoCtx ctx;
-
+    static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static TokenRepository tr; 
+    
+    /**
+     * Expected exception
+     */
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
     
     /**
      * Set up tests.
@@ -56,19 +69,18 @@ public class TestTokenRepository {
         asymmetricKey.add(KeyKeys.KeyId, CBORObject.FromObject("rpk".getBytes()));
         
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        
+               
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes());
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
         symmetricKey = new OneKey(keyData);
         
-        keyData.Remove(KeyKeys.KeyId.AsCBOR());
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), "otherKey".getBytes());
-        keyData.Remove(KeyKeys.Octet_K.AsCBOR());
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128a);
-        otherKey = new OneKey(keyData);
+        CBORObject otherKeyData = CBORObject.NewMap();
+        otherKeyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        otherKeyData.Add(KeyKeys.KeyId.AsCBOR(), "otherKey".getBytes());
+        otherKeyData.Add(KeyKeys.Octet_K.AsCBOR(), key128a);
+        otherKey = new OneKey(otherKeyData);
         
         Set<String> actions = new HashSet<>();
         actions.add("GET");
@@ -106,6 +118,7 @@ public class TestTokenRepository {
         new File("src/test/resources/tokens.json").delete();
     }
     
+ 
     /**
      * Test add and remove resources
      *
@@ -121,41 +134,220 @@ public class TestTokenRepository {
     }
     
     /**
-     * Test add and remove tokens
+     * Test add token without scope
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenNoScope() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Token has no scope");
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token without cti
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenNoCti() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Token has no cti");
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token with invalid cti
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenInvalidCti() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        params.put("cti", CBORObject.FromObject("token1"));
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Cti has invalid format");
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token with duplicate cti
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenDuplicateCti() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Duplicate cti");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        tr.addToken(params, ctx);
+        
+        params.clear();
+        params.put("scope", CBORObject.FromObject("r_co2"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", asymmetricKey.PublicKey().AsCBOR());
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token without cnf
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenNoCnf() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Token has no cnf");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token with unknown kid
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenUnknownKid() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Token refers to unknown kid");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("kid", CBORObject.FromObject("blah".getBytes()));
+        params.put("cnf", cnf);
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token with invalid cnf
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenInvalidCnf() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Invalid cnf element:");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("kid", CBORObject.FromObject("blah".getBytes()));
+        cnf.Add("blubb", CBORObject.FromObject("blah".getBytes()));
+        params.put("cnf", cnf);
+        tr.addToken(params, ctx);
+    }
+    
+    /**
+     * Test add token with invalid Encrypt0
+     * 
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testTokenCnfInvalidEncrypt0() throws AceException, CoseException,
+            IllegalStateException, InvalidCipherTextException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Error while decrypting a cnf claim");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        Encrypt0Message cnf = new Encrypt0Message();
+        cnf.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
+                Attribute.PROTECTED);
+        cnf.SetContent(symmetricKey.EncodeToBytes());
+        cnf.encrypt(key128a);
+        
+        params.put("cnf", cnf.EncodeToCBORObject());
+        tr.addToken(params, ctx);
+    }
+    
+    
+    /**
+     * Test add token with cnf without kid
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenNoKid() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("Cnf claim is missing kid");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("blubb", CBORObject.FromObject("blah".getBytes()));
+        params.put("cnf", cnf);
+        tr.addToken(params, ctx);
+    }
+    
+    
+    /**
+     * Test add token with cnf with invalid kid
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenInvalidKid() throws AceException {
+        this.thrown.expect(AceException.class);
+        this.thrown.expectMessage("cnf contains invalid kid");
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("kid", CBORObject.FromObject("blah"));
+        params.put("cnf", cnf);
+        tr.addToken(params, ctx);
+    }
+    
+    
+    
+    /**
+     * Test add token with cnf containing COSE_Key
      *
      * @throws AceException 
      */
     @Test
-    public void testToken() throws AceException {
-        
-        //Test token without scope
-        
-        //Test token without cti
-        
-        //Test token with invalid cti format (integer)
-        
-        //Test token with duplicate cti
-        
-        //Test token without cnf
-        
-        //Test token with only kid referring to unknown kid
-        
-        //Test token with invalid cnf element
-        
-        //Test token with Encrypt0 but false key
-        
-        //Test token with only kid referring to known kid
-        
-        //Test token with cnf containing a COSE_Key
-        
-        //Test token with cnf containing a Encrypt0 containing a
-        //COSE_Key
-        
-        //Test token with cnf element not containing a kid
-        
-        //Test token with cnf element containing a kid 
-        //that is not a bytestring
-        
+    public void testTokenCnfCoseKey() throws AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -171,7 +363,65 @@ public class TestTokenRepository {
         params.put("iss", CBORObject.FromObject("TestAS"));
         params.put("cnf", asymmetricKey.PublicKey().AsCBOR());
         tr.addToken(params, ctx);
+        
+        //FIXME: Assert something
     }
+    
+    
+    /**
+     * Test add token with cnf containing known kid
+     *
+     * @throws AceException 
+     */
+    @Test
+    public void testTokenCnfKid() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        tr.addToken(params, ctx);
+        
+        params.clear();
+        params.put("scope", CBORObject.FromObject("r_co2"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("kid", CBORObject.FromObject("ourKey".getBytes()));
+        params.put("cnf", cnf);
+        tr.addToken(params, ctx);
+        
+        //FIXME: Assert something
+    }
+    
+    /**
+     * Test add token with cnf containing valid Encrypt0
+     *
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testTokenCnfEncrypt0() throws AceException, CoseException,
+            IllegalStateException, InvalidCipherTextException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        Encrypt0Message cnf = new Encrypt0Message();
+        cnf.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
+                Attribute.PROTECTED);
+        cnf.SetContent(symmetricKey.EncodeToBytes());
+        cnf.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());        
+        params.put("cnf", cnf.EncodeToCBORObject());
+        tr.addToken(params, ctx);
+        
+    }
+    
     
     /**
      * Test pollTokens()
@@ -216,4 +466,16 @@ public class TestTokenRepository {
     public void testGetPoP() throws AceException {
         //TODO:
     }
+    
+    
+    /**
+     * Remove lingering token1 entries
+     * @throws AceException 
+     */
+    @After
+    public void cleanup() throws AceException {
+        tr.removeToken(CBORObject.FromObject("token1".getBytes()));
+        tr.removeToken(CBORObject.FromObject("token2".getBytes()));
+    }
+    
 }
