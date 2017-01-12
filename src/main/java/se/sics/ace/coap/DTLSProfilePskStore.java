@@ -45,7 +45,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Message;
-import se.sics.ace.as.Message4Tests;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
 
 /**
@@ -96,9 +96,9 @@ public class DTLSProfilePskStore implements PskStore {
             return null;
         }
 
-        Message4Tests message = new Message4Tests(0, null, null, payload);
-        Message4Tests res
-            = (Message4Tests)this.authzInfo.processMessage(message);
+        LocalMessage message = new LocalMessage(0, null, null, payload);
+        LocalMessage res
+            = (LocalMessage)this.authzInfo.processMessage(message);
         //XXX: assumes the token has a cti
         if (res.getMessageCode() == Message.CREATED) {
             CBORObject cti = CBORObject.DecodeFromBytes(

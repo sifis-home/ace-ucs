@@ -66,12 +66,12 @@ import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
-import se.sics.ace.as.Message4Tests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -198,10 +198,10 @@ public class TestAuthzInfo {
     public void testRefInactive() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         ReferenceToken token = new ReferenceToken(20);
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode());
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -238,10 +238,10 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
 
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 cwt.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -263,10 +263,10 @@ public class TestAuthzInfo {
     public void testInvalidTokenFormat() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         CBORObject token = CBORObject.False;
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                token);
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -303,10 +303,10 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
 
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 cwt.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -336,10 +336,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
@@ -370,10 +370,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);  
+        LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
@@ -403,10 +403,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
@@ -437,10 +437,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);  
+        LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
@@ -470,9 +470,9 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no scope");
@@ -503,10 +503,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
         map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
@@ -545,10 +545,10 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        Message4Tests request = new Message4Tests(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 token.encode(ctx));
                 
-        Message4Tests response = (Message4Tests)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
         Assert.assertArrayEquals(response.getRawPayload(), 

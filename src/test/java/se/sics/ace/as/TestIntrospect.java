@@ -68,6 +68,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -219,7 +220,7 @@ public class TestIntrospect {
     @Test
     public void testFailUnauthorized() throws Exception {
         Message response = i.processMessage(
-                new Message4Tests(
+                new LocalMessage(
                         -1, "unauthorizedRS", "TestAS", CBORObject.Null));
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject cbor = CBORObject.NewMap();
@@ -238,7 +239,7 @@ public class TestIntrospect {
     public void testFailNoTokenSent() throws Exception {
         CBORObject nullObj = null;
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", "TestAS", nullObj));
+                new LocalMessage(-1, "rs1", "TestAS", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, "Must provide 'token' parameter");
@@ -257,7 +258,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", purged.encode());
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", "TestAS", params));
+                new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -278,7 +279,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", notExist);
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", "TestAS", params));
+                new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -307,7 +308,7 @@ public class TestIntrospect {
         params.clear();
         params.put("token", token.encode(ctx));
         Message response = i.processMessage(
-                new Message4Tests(-1, "rs1", "TestAS", params));
+                new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
@@ -330,7 +331,7 @@ public class TestIntrospect {
         String senderId = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
         Message response = i.processMessage(
-                new Message4Tests(-1, senderId, "TestAS", params));
+                new LocalMessage(-1, senderId, "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

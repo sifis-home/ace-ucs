@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.examples;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -45,7 +45,7 @@ import se.sics.ace.Message;
  * @author Ludwig Seitz
  *
  */
-public class Message4Tests implements Message {
+public class LocalMessage implements Message {
 
     /**
      * The authenticated id of the sender
@@ -79,7 +79,7 @@ public class Message4Tests implements Message {
      * @param recipientId 
      * @param parameters
      */
-    public Message4Tests(int code, String senderId, 
+    public LocalMessage(int code, String senderId, 
             String recipientId, Map<String, CBORObject> parameters) {
         this.code = code;
         this.senderId = senderId;
@@ -96,7 +96,7 @@ public class Message4Tests implements Message {
      * @param recipientId 
      * @param payload
      */
-    public Message4Tests(int code, String senderId, 
+    public LocalMessage(int code, String senderId, 
             String recipientId, CBORObject payload) {
         this.code = code;
         this.senderId = senderId;
@@ -109,13 +109,13 @@ public class Message4Tests implements Message {
     
     @Override
     public Message successReply(int code, CBORObject payload) {
-        return new Message4Tests(
+        return new LocalMessage(
                 code, this.recipientId, this.senderId, payload);
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        return new Message4Tests(
+        return new LocalMessage(
                 failureReason, this.recipientId, this.senderId, payload);
     }
 

@@ -37,7 +37,7 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.as.Introspect;
-import se.sics.ace.as.Message4Tests;
+import se.sics.ace.examples.LocalMessage;
 
 /**
  * An introspection handler that directly uses a se.sics.as.Introspect instance
@@ -75,8 +75,8 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
                 CBORObject.FromObject(tokenReference));
         params.put("token_type_hint", 
                 CBORObject.FromObject("pop"));
-        Message4Tests req = new Message4Tests(0, this.rsId, this.asId, params);
-        Message4Tests res = (Message4Tests)this.i.processMessage(req);
+        LocalMessage req = new LocalMessage(0, this.rsId, this.asId, params);
+        LocalMessage res = (LocalMessage)this.i.processMessage(req);
         return res.getParameters();
     }
 
