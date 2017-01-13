@@ -51,3 +51,6 @@ to the lack of good introductory manuals for Maven).
 
 * This code is owned by SICS Swedish ICT AB and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
 * Please contact ludwig at sics dot se if you have questions or suggestions.
+
+### Acknowledgments ###
+This code is in the framework of the [CelticPlus](https://www.celticplus.eu/) project [CyberWI](http://www.cyberwi.eu/), with funding from [Vinnova](http://www.vinnova.se/sv/).
