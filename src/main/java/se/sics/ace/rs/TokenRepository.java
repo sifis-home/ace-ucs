@@ -260,6 +260,8 @@ public class TokenRepository {
                     LOGGER.info("Token refers to unknown kid");
                     throw new AceException("Token refers to unknown kid");
                 }
+                //Store the association between token and known key
+                this.cti2kid.put(cti, kid);  
             } else { //This should be a COSE_Key
                 try {
                     OneKey key = new OneKey(cnf);
@@ -447,6 +449,10 @@ public class TokenRepository {
 	        if (this.cti2kid.get(cti).equals(kid)) {
 	            ctis.add(cti);
 	        }
+	    }
+	    
+	    if (this.resource2scope.get(resource) == null) {
+	        return false; //No scope covers this resource
 	    }
 	    
 		//Check if we have a token that is in scope for this resource

@@ -31,6 +31,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 
 /**
@@ -89,9 +90,9 @@ public class TestTokenRepository {
         Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        myResource.clear();
-        myResource.put("co2", actions);
-        myScopes.put("r_co2", myResource);
+        Map<String, Set<String>> otherResource = new HashMap<>();
+        otherResource.put("co2", actions);
+        myScopes.put("r_co2", otherResource);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
@@ -364,7 +365,11 @@ public class TestTokenRepository {
         params.put("cnf", asymmetricKey.PublicKey().AsCBOR());
         tr.addToken(params, ctx);
         
-        //FIXME: Assert something
+        Assert.assertTrue(tr.canAccess("rpk", null, "co2", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("ourKey", null, "co2", "POST", new KissTime(), null));
+        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
     }
     
     
@@ -393,7 +398,12 @@ public class TestTokenRepository {
         params.put("cnf", cnf);
         tr.addToken(params, ctx);
         
-        //FIXME: Assert something
+        
+        Assert.assertTrue(tr.canAccess("ourKey", null, "co2", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
+        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
     }
     
     /**
@@ -419,7 +429,7 @@ public class TestTokenRepository {
         cnf.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());        
         params.put("cnf", cnf.EncodeToCBORObject());
         tr.addToken(params, ctx);
-        
+       //FIXME: Assert something
     }
     
     
