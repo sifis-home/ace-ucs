@@ -245,7 +245,10 @@ public class TokenRepository {
 		    throw new AceException("Duplicate cti");
 		}
 
-		this.cti2claims.put(cti, claims);
+		//Need deep copy here
+		Map<String, CBORObject> foo = new HashMap<>();
+		foo.putAll(claims);
+		this.cti2claims.put(cti, foo);
 
 		//Store the pop-key
 		CBORObject cnf = claims.get("cnf");
@@ -382,6 +385,9 @@ public class TokenRepository {
 		    }
 		}
 		
+		//Remove the mapping to the pop key
+		this.cti2kid.remove(ctiStr);
+		
 		//Remove unused keys
 		Set<String> remove = new HashSet<>();
 		for (String kid : this.kid2key.keySet()) {
@@ -404,6 +410,7 @@ public class TokenRepository {
 	 */
 	public void pollTokens(TimeProvider time) 
 				throws AceException {
+	    HashSet<CBORObject> tokenToRemove = new HashSet<>();
 		for (Entry<String, Map<String, CBORObject>> foo 
 		        : this.cti2claims.entrySet()) {
 		    if (foo.getValue() != null) {
@@ -415,9 +422,12 @@ public class TokenRepository {
 		            throw new AceException("Expiration time is in wrong format");
 		        }
 		        if (exp.AsInt64() > time.getCurrentTime()) {
-					removeToken(foo.getValue().get("cti"));
+		            tokenToRemove.add(foo.getValue().get("cti"));
 				}
 			}
+		}
+		for (CBORObject cti : tokenToRemove) {
+		    removeToken(cti);
 		}
 		persist();
 	}
@@ -462,6 +472,11 @@ public class TokenRepository {
 				//Action does not match this scope, net iteration
 				continue;
 			}
+
+			if (this.scope2cti.get(scope) == null) {
+			    continue; //We don't have a token for this scope
+			}
+			
 			for (String cti : this.scope2cti.get(scope)) {
 			    if (!ctis.contains(cti)) {
 			        continue; //This token does not match the pop key

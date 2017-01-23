@@ -429,7 +429,12 @@ public class TestTokenRepository {
         cnf.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());        
         params.put("cnf", cnf.EncodeToCBORObject());
         tr.addToken(params, ctx);
-       //FIXME: Assert something
+
+        Assert.assertFalse(tr.canAccess("ourKey", null, "co2", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
+        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
     }
     
     
@@ -440,19 +445,78 @@ public class TestTokenRepository {
      */
     @Test
     public void testPollToken() throws AceException {
-        //TODO:
+        KissTime time = new KissTime();
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        params.put("exp", CBORObject.FromObject(time.getCurrentTime()-1000));
+        tr.addToken(params, ctx);
+        
+        params.clear();
+        params.put("scope", CBORObject.FromObject("r_co2"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add("kid", CBORObject.FromObject("ourKey".getBytes()));
+        params.put("cnf", cnf);
+        params.put("exp", CBORObject.FromObject(time.getCurrentTime()+1000000));
+        tr.addToken(params, ctx);
+        
+        OneKey key1 = tr.getPoP("token1");
+        OneKey key2 = tr.getPoP("token2");
+        Assert.assertNotNull(key1);
+        Assert.assertNotNull(key2);
+        
+        tr.pollTokens(time);
+
+        key1 = tr.getPoP("token1");
+        key2 = tr.getPoP("token2");
+        
+        Assert.assertNotNull(key1);
+        Assert.assertNull(key2);
     }
     
     /**
-     * Test canAccess()
-     *
-     * @throws AceException 
+     * Test loading an existing token file
+     * 
+     * @throws AceException
+     * @throws IOException 
      */
     @Test
-    public void testCanAccess() throws AceException {
-        //TODO:
+    public void testLoad() throws AceException, IOException {
+        Set<String> resources = new HashSet<>();
+        resources.add("temp");
+        resources.add("co2");
+        
+        Set<String> actions = new HashSet<>();
+        actions.add("GET");
+        Map<String, Set<String>> myResource = new HashMap<>();
+        myResource.put("temp", actions);
+        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        myScopes.put("r_temp", myResource);
+        
+        Map<String, Set<String>> otherResource = new HashMap<>();
+        otherResource.put("co2", actions);
+        myScopes.put("r_co2", otherResource);
+        
+        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+                myScopes);
+        
+        TokenRepository tr2 = new TokenRepository(valid, resources, 
+                "src/test/resources/testTokens.json" , ctx);
+        
+        Assert.assertTrue(tr2.canAccess("rpk", null, "co2", "GET", new KissTime(), null));
+        Assert.assertTrue(tr2.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));  
+        Assert.assertFalse(tr2.canAccess("otherKey", null, "co2", "GET", new KissTime(), null));
+        Assert.assertFalse(tr2.canAccess("ourKey", null, "temp", "POST", new KissTime(), null)); 
+        Assert.assertFalse(tr2.canAccess("ourKey", null, "co2", "GET", new KissTime(), null)); 
     }
     
+      
     /**
      * Test inScope()
      *
@@ -474,7 +538,30 @@ public class TestTokenRepository {
      */
     @Test
     public void testGetPoP() throws AceException {
-        //TODO:
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token1".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        tr.addToken(params, ctx);
+        
+        params.clear();
+        params.put("scope", CBORObject.FromObject("r_co2"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", asymmetricKey.PublicKey().AsCBOR());
+        tr.addToken(params, ctx);
+        
+        OneKey key1 = tr.getPoP("token1");
+        OneKey key2 = tr.getPoP("token2");
+        
+        Assert.assertArrayEquals(symmetricKey.EncodeToBytes(), 
+                key1.EncodeToBytes());
+        Assert.assertArrayEquals(
+                asymmetricKey.PublicKey().EncodeToBytes(),
+                key2.EncodeToBytes());
     }
     
     
