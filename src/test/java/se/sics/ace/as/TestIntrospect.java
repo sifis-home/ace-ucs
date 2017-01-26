@@ -299,7 +299,8 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);

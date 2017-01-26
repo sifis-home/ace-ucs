@@ -285,7 +285,8 @@ public class Token implements Endpoint, AutoCloseable {
 		claims.put("iat", CBORObject.FromObject(now));
 		String ctiStr = Long.toHexString(this.cti);
 		this.cti++;
-		claims.put("cti", CBORObject.FromObject(ctiStr.getBytes()));
+		claims.put("cti", CBORObject.FromObject(
+		        ctiStr.getBytes(Constants.charset)));
 		claims.put("scope", CBORObject.FromObject(allowedScopes));
 
 		//Find supported profile
@@ -333,7 +334,7 @@ public class Token implements Endpoint, AutoCloseable {
                 keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                         CBORObject.FromObject(key.getEncoded()));
                 //Note: kid is the same as cti 
-                byte[] kid = ctiStr.getBytes();                
+                byte[] kid = ctiStr.getBytes(Constants.charset);                
                 keyData.Add(KeyKeys.KeyId, kid);
 
                 OneKey psk = new OneKey(keyData);

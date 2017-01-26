@@ -58,6 +58,7 @@ import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -67,8 +68,11 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * responsibility of the request handler to call this class. 
  * 
  * Note that this class assumes that every token has a 'scope',
- * 'aud', 'cnf', and 'cti' (the token itself for a reference token).  Tokens
+ * 'aud', and 'cnf'.  Tokens
  * that don't have these will lead to request failure.
+ * 
+ * If the token has no cti, this class will use the hashCode() of the claims
+ * Map as local cti.
  *  
  * @author Ludwig Seitz
  *
@@ -232,13 +236,15 @@ public class TokenRepository {
 		String scope = so.AsString();
 
 		CBORObject cticb = claims.get("cti");
+		String cti = null;
 		if (cticb == null) {
-			throw new AceException("Token has no cti");
+			cti = String.valueOf(claims.hashCode());
 		} else if (!cticb.getType().equals(CBORType.ByteString)) {
-		    throw new AceException("Cti has invalid format");
+		    LOGGER.info("Token's cti in not a ByteString");
+            throw new AceException("Cti has invalid format");
+        } else {		
+		    cti = new String(claims.get("cti").GetByteString());
 		}
-		
-		String cti = new String(claims.get("cti").GetByteString());
 		
 		//Check for duplicate cti
 		if (this.cti2claims.containsKey(cti)) {
@@ -577,7 +583,7 @@ public class TokenRepository {
 
         try (FileOutputStream fos 
                 = new FileOutputStream(this.tokenFile, false)) {
-            fos.write(config.toString(4).getBytes());
+            fos.write(config.toString(4).getBytes(Constants.charset));
         } catch (JSONException | IOException e) {
             throw new AceException(e.getMessage());
         }

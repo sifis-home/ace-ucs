@@ -57,7 +57,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * 
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
- *  
+ * 
  * @author Ludwig Seitz
  *
  */
@@ -247,8 +247,8 @@ public class AuthzInfo implements Endpoint {
         }
 
 	    //9. Create success message
-	    //XXX: Ok to return cti ? Might be null
-	    return msg.successReply(Message.CREATED, claims.get("cti"));
+	    //Return the cti or null if there is no cti
+        return msg.successReply(Message.CREATED, claims.get("cti"));
 	}
 	
 	/**

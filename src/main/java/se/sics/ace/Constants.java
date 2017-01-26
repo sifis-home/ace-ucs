@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace;
 
+import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -46,6 +47,11 @@ import com.upokecenter.cbor.CBORType;
  */
 public class Constants {
 	
+    /**
+     * Charset for this library
+     */
+    public static Charset charset = Charset.forName("UTF-8");
+    
 	/** 
 	 * General OAuth related abbreviations
 	 */

@@ -330,7 +330,8 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -363,7 +364,8 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("FalseAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -396,7 +398,8 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -430,7 +433,8 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("blah"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -463,7 +467,8 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -496,7 +501,8 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("blah"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -531,12 +537,14 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject("token2".getBytes()));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(kidStr.getBytes());
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         params.put("cnf", key.AsCBOR());
@@ -552,7 +560,8 @@ public class TestAuthzInfo {
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
         Assert.assertArrayEquals(response.getRawPayload(), 
-                CBORObject.FromObject("token2".getBytes()).EncodeToBytes());
+                CBORObject.FromObject(
+                        "token2".getBytes(Constants.charset)).EncodeToBytes());
     }
     
     
