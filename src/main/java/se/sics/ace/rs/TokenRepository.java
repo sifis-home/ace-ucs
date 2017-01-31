@@ -224,11 +224,14 @@ public class TokenRepository {
 	 * 
 	 * @param claims  the claims of the token
 	 * @param ctx  the crypto context of this RS  
+	 * 
+	 * @return  the cti or the local id given to this token
+	 * 
 	 * @throws AceException 
 	 * @throws CoseException 
 	 */
-	public void addToken(Map<String, CBORObject> claims, CwtCryptoCtx ctx) 
-	        throws AceException {
+	public CBORObject addToken(Map<String, CBORObject> claims, 
+	        CwtCryptoCtx ctx) throws AceException {
 		CBORObject so = claims.get("scope");
 		if (so == null) {
 			throw new AceException("Token has no scope");
@@ -324,6 +327,7 @@ public class TokenRepository {
             }
             persist();
         }
+        return CBORObject.FromObject(cti.getBytes());
 	}
 	
 	/**
@@ -345,7 +349,7 @@ public class TokenRepository {
             }
         }
         if (kid.getType().equals(CBORType.ByteString)) {
-            //XXX: assumes kid bytes generated from a String
+            //Note that kid bytes my not be generated from a String
            return new String(kid.GetByteString());
         }
         LOGGER.severe("kid is not a byte string");

@@ -239,16 +239,17 @@ public class AuthzInfo implements Endpoint {
 
 
 	    //6. Store the claims of this token
+	    CBORObject cti = null;
 	    try {
-            this.tr.addToken(claims, this.ctx);
+            cti = this.tr.addToken(claims, this.ctx);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
 	    //9. Create success message
-	    //Return the cti or null if there is no cti
-        return msg.successReply(Message.CREATED, claims.get("cti"));
+	    //Return the cti or the local identifier assigned to the token
+        return msg.successReply(Message.CREATED, cti);
 	}
 	
 	/**

@@ -99,11 +99,11 @@ public class DTLSProfilePskStore implements PskStore {
         LocalMessage message = new LocalMessage(0, null, null, payload);
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
-        //XXX: assumes the token has a cti
         if (res.getMessageCode() == Message.CREATED) {
-            CBORObject cti = CBORObject.DecodeFromBytes(
-                    Base64.getDecoder().decode(res.getRawPayload()));
-            //XXX: assumes cti was generated from String
+            //Note that this is either the token's cti or the internal
+            //id that the AuthzInfo endpoint assigned to it 
+            CBORObject cti = CBORObject.DecodeFromBytes(res.getRawPayload());
+            //Note that the cti bytes may not come from a String originally
             String ctiStr = new String(cti.GetByteString());
             OneKey key = null;
             try {
