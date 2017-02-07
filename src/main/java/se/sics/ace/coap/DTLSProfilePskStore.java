@@ -54,8 +54,6 @@ import se.sics.ace.rs.AuthzInfo;
  * Implements the retrieval of the access token as defined in section 4.1. of 
  * draft-gerdes-ace-dtls-authorize.
  * 
- * TODO: Test this.
- * 
  * @author Ludwig Seitz
  *
  */
@@ -86,6 +84,19 @@ public class DTLSProfilePskStore implements PskStore {
     
     @Override
     public byte[] getKey(String identity) {
+        //First try if we have that key
+        OneKey key = null;
+        try {
+            key = this.authzInfo.getKey(identity);
+            if (key != null) {
+                return key.get(KeyKeys.Octet_K).GetByteString();
+            }
+        } catch (AceException e) {
+            LOGGER.severe("Error: " + e.getMessage());
+            return null;
+        }  
+
+        //We don't have that key, try if identity is an access token
         CBORObject payload = null;
         try {
             payload = CBORObject.DecodeFromBytes(
@@ -105,7 +116,6 @@ public class DTLSProfilePskStore implements PskStore {
             CBORObject cti = CBORObject.DecodeFromBytes(res.getRawPayload());
             //Note that the cti bytes may not come from a String originally
             String ctiStr = new String(cti.GetByteString());
-            OneKey key = null;
             try {
                  key = this.authzInfo.getPoP(ctiStr);
                  return key.get(KeyKeys.Octet_K).GetByteString();

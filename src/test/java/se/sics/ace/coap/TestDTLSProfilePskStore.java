@@ -44,6 +44,10 @@ public class TestDTLSProfilePskStore {
     private static DTLSProfilePskStore store = null;
    
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
+    private static AuthzInfo ai;
+
+    private static TokenRepository tr;
     
     
     /**
@@ -79,12 +83,13 @@ public class TestDTLSProfilePskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        TokenRepository tr = new TokenRepository(valid, resources, 
+        tr = new TokenRepository(valid, resources, 
                 "src/test/resources/tokens.json", ctx);
-        AuthzInfo authzInfo =  new AuthzInfo(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx);
         
-        store = new DTLSProfilePskStore(authzInfo);
+        ai = new AuthzInfo(tr, 
+                Collections.singletonList("TestAS"), new KissTime(), null, 
+                valid, ctx);
+        store = new DTLSProfilePskStore(ai);
     }
     
     /**
@@ -94,7 +99,9 @@ public class TestDTLSProfilePskStore {
      * @throws AceException 
      */
     @AfterClass
-    public static void tearDown()  {
+    public static void tearDown() throws AceException  {
+        tr.close();
+        ai.close();
         new File("src/test/resources/tokens.json").delete();
     }  
     

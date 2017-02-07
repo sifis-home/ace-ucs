@@ -61,7 +61,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * @author Ludwig Seitz
  *
  */
-public class AuthzInfo implements Endpoint {
+public class AuthzInfo implements Endpoint, AutoCloseable{
 	
     /**
      * The logger
@@ -97,8 +97,7 @@ public class AuthzInfo implements Endpoint {
 	/**
 	 * The crypto context to use with the AS
 	 */
-	private CwtCryptoCtx ctx;
-	
+	private CwtCryptoCtx ctx;	
 	
 	/**
 	 * Constructor.
@@ -307,10 +306,24 @@ public class AuthzInfo implements Endpoint {
     public OneKey getPoP(String cti) throws AceException {
         return this.tr.getPoP(cti);
     }
+    
+    /**
+     * Get a key identified by it's 'kid'.
+     * 
+     * @param kid  the kid of the key
+     * 
+     * @return  the key identified by this kid of null if we don't have it
+     * 
+     * @throws AceException 
+     */
+    public OneKey getKey(String kid) throws AceException {
+        return this.tr.getKey(kid);
+    }
+    
 
     @Override
     public void close() throws AceException {
-        // Nothing to do.
+        this.tr.close();
         
     }	
 }

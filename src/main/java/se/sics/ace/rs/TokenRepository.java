@@ -77,13 +77,19 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * @author Ludwig Seitz
  *
  */
-public class TokenRepository {
+public class TokenRepository implements AutoCloseable {
 	
     /**
      * The logger
      */
     private static final Logger LOGGER 
         = Logger.getLogger(TokenRepository.class.getName());
+    
+    
+    /**
+     * Is this closed?
+     */
+    private boolean closed = true;
     
     /**
      * Maps resource identifiers to matching scopes.
@@ -108,12 +114,12 @@ public class TokenRepository {
 	/**
 	 * Map key identifiers collected from the access tokens to keys
 	 */
-	private Map<String, OneKey> kid2key;
+	protected Map<String, OneKey> kid2key;
 	
 	/**
 	 * Map cti to pop-key kid
 	 */
-	private Map<String, String> cti2kid;
+	protected Map<String, String> cti2kid;
 	
 	/**
 	 * The scope validator
@@ -121,9 +127,10 @@ public class TokenRepository {
 	private ScopeValidator scopeValidator;
 	
 	/**
-	 * The filename + path for the JSCON file in which the tokens are stored
+	 * The filename + path for the JSON file in which the tokens are stored
 	 */
 	private String tokenFile;
+
 	
 	/**
 	 * Creates a new token repository and loads the existing tokens
@@ -144,6 +151,7 @@ public class TokenRepository {
 	public TokenRepository(ScopeValidator scopeValidator, 
 			Set<String> resources, String tokenFile, CwtCryptoCtx ctx) 
 			        throws IOException, AceException {
+	    this.closed = false;
 	    this.resource2scope = new HashMap<>();
 	    this.scope2cti = new HashMap<>();
 	    this.cti2claims = new HashMap<>();
@@ -606,7 +614,8 @@ public class TokenRepository {
 	        String kid = this.cti2kid.get(cti);
 	        OneKey key = this.kid2key.get(kid);
 	        if (key == null) {
-	            LOGGER.finest("Token with cti: " + cti + " not found in getPoP()");
+	            LOGGER.finest("Token with cti: " + cti 
+	                    + " not found in getPoP()");
 	            return null;
 	        }
 	        return key;
@@ -614,5 +623,38 @@ public class TokenRepository {
         LOGGER.severe("getCnf() called with null cti");
         throw new AceException("Must supply non-null cti to get cnf");
 	}
+
+	/**
+	 * Get a key identified by it's 'kid'.
+     * 
+     * @param kid  the kid of the key
+     * 
+     * @return  the key identified by this kid of null if we don't have it
+     * 
+     * @throws AceException 
+     */
+	public OneKey getKey(String kid) throws AceException {
+        if (kid != null) {
+            OneKey key = this.kid2key.get(kid);
+            if (key == null) {
+                LOGGER.finest("Key with kid: " + kid 
+                        + " not found in getKey()");
+                return null;
+            }
+            return key;
+        }
+        LOGGER.severe("getKey() called with null kid");
+        throw new AceException("Must supply non-null kid to get key");     
+    }
+	
+    @Override
+    public synchronized void close() throws AceException {
+        if (!this.closed) {
+            this.closed = true;   
+            persist();
+        }
+    }
+
+    
 }
 
