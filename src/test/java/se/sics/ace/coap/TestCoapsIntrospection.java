@@ -51,6 +51,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
+import se.sics.ace.coap.rs.CoapsIntrospection;
 
 /**
  * Test for the CoapsIntrospection class.

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.rs;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -56,6 +56,7 @@ import COSE.CoseException;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.coap.BksStore;
 import se.sics.ace.rs.IntrospectionHandler;
 
 /**

@@ -29,84 +29,108 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.rs;
 
 import java.net.InetSocketAddress;
-import java.sql.SQLException;
+import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
+import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.KeyKeys;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
-import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.Message;
+import se.sics.ace.examples.LocalMessage;
+import se.sics.ace.rs.AuthzInfo;
 
 /**
- * A SQLConnector for CoAP, implementing the PskStore interface.
+ * A store for Pre-Shared-Keys (PSK) at the RS.
+ * 
+ * Implements the retrieval of the access token as defined in section 4.1. of 
+ * draft-gerdes-ace-dtls-authorize.
  * 
  * @author Ludwig Seitz
  *
  */
-public class CoapDBConnector extends SQLConnector implements PskStore {
+public class DTLSProfilePskStore implements PskStore {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(CoapDBConnector.class.getName() );
+        = Logger.getLogger(DTLSProfilePskStore.class.getName());
+    
+    
+    /**
+     * This component needs to access the authz-info endpoint.
+     */
+    private AuthzInfo authzInfo;
+        
     
     /**
      * Constructor.
-     *  
-     * @param dbUrl  the database URL, if null the default will be used
-     * @param user   the database user, if null the default will be used
-     * @param pwd    the database user's password, if null the default 
-     *               will be used
-     *
-     * @throws SQLException
+     * 
+     * @param authzInfo  the authz-info used by this RS
      */
-    public CoapDBConnector(String dbUrl, String user, String pwd)
-            throws SQLException {
-        super(dbUrl, user, pwd);
-
+    public DTLSProfilePskStore(AuthzInfo authzInfo) {
+        this.authzInfo = authzInfo;
     }
-
+    
+    
     @Override
     public byte[] getKey(String identity) {
+        //First try if we have that key
         OneKey key = null;
         try {
-            key = super.getCPSK(identity);
+            key = this.authzInfo.getKey(identity);
+            if (key != null) {
+                return key.get(KeyKeys.Octet_K).GetByteString();
+            }
         } catch (AceException e) {
-            LOGGER.severe(e.getMessage());
+            LOGGER.severe("Error: " + e.getMessage());
+            return null;
+        }  
+
+        //We don't have that key, try if identity is an access token
+        CBORObject payload = null;
+        try {
+            payload = CBORObject.DecodeFromBytes(
+                    Base64.getDecoder().decode(identity));
+        } catch (NullPointerException | CBORException e) {
+            LOGGER.severe("Error decoding the psk_identity: " 
+                    + e.getMessage());
             return null;
         }
-        if (key == null) {
+
+        LocalMessage message = new LocalMessage(0, null, null, payload);
+        LocalMessage res
+            = (LocalMessage)this.authzInfo.processMessage(message);
+        if (res.getMessageCode() == Message.CREATED) {
+            //Note that this is either the token's cti or the internal
+            //id that the AuthzInfo endpoint assigned to it 
+            CBORObject cti = CBORObject.DecodeFromBytes(res.getRawPayload());
+            //Note that the cti bytes may not come from a String originally
+            String ctiStr = new String(cti.GetByteString());
             try {
-                key = super.getRsPSK(identity);
+                 key = this.authzInfo.getPoP(ctiStr);
+                 return key.get(KeyKeys.Octet_K).GetByteString();
             } catch (AceException e) {
-                LOGGER.severe(e.getMessage());
+                LOGGER.severe("Error: " + e.getMessage());
                 return null;
             }
         }
-        CBORObject val = key.get(KeyKeys.KeyType);
-        if (val.equals(KeyKeys.KeyType_Octet)) {
-            val = key.get(KeyKeys.Octet_K);
-            if ((val== null) || (val.getType() != CBORType.ByteString)) {
-                return null; //Malformed key
-            }
-            return val.GetByteString();
-        }
-        return null; //Wrong KeyType
-          
-        
+        LOGGER.severe("Error: Token in psk_identity not valid");  
+        return null;
     }
 
     @Override
     public String getIdentity(InetSocketAddress inetAddress) {
+        // Not needed here, this PskStore is for servers only
         return null;
     }
 

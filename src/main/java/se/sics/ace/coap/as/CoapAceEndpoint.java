@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.as;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -44,6 +44,8 @@ import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.Token;
+import se.sics.ace.coap.CoapReq;
+import se.sics.ace.coap.CoapRes;
 
 /**
  * This class implements the ACE endpoints/resources 

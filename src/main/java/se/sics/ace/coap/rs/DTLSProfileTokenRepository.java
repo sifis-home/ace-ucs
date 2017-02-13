@@ -1,4 +1,4 @@
-package se.sics.ace.coap;
+package se.sics.ace.coap.rs;
 
 import java.io.IOException;
 import java.util.HashMap;

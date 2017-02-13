@@ -50,6 +50,8 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.coap.as.CoapDBConnector;
+import se.sics.ace.coap.as.CoapsAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.SQLConnector;

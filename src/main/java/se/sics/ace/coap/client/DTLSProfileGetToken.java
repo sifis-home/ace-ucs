@@ -1,4 +1,4 @@
-package se.sics.ace.coap;
+package se.sics.ace.coap.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -38,22 +38,6 @@ public class DTLSProfileGetToken {
      */
     private static final Logger LOGGER 
         = Logger.getLogger(DTLSProfileGetToken.class.getName() ); 
-    
-    /**
-     * The AS address.
-     */
-    String asAddr;
-    
-    /**
-     * Constructor.
-     * 
-     * @param  asAddr  the address of the /token endpoint at the 
-     *  Authorization Server (full URI including scheme, host and port if
-     *  not default).
-     */
-    public DTLSProfileGetToken(String asAddr) {
-        this.asAddr = asAddr;
-    }
 
     /**
      * Sends a GET request to the /token endpoint of the AS.
@@ -68,7 +52,7 @@ public class DTLSProfileGetToken {
      * @throws CoseException 
      * @throws AceException 
      */
-    public CBORObject getToken(CBORObject payload, OneKey key) 
+    public static CBORObject getToken(String asAddr, CBORObject payload, OneKey key) 
             throws IOException, CoseException, AceException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
@@ -92,7 +76,7 @@ public class DTLSProfileGetToken {
         dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
                 NetworkConfig.getStandard());
-        CoapClient client = new CoapClient(this.asAddr);
+        CoapClient client = new CoapClient(asAddr);
         client.setEndpoint(e);   
         CoapResponse response = client.post(
                 payload.EncodeToBytes(), 
