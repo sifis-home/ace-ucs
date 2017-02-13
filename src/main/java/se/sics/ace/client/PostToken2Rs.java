@@ -36,5 +36,5 @@ package se.sics.ace.client;
  *
  */
 public class PostToken2Rs {
-    //TODO: Implement this
+    //TODO: Implement this, requires a profile
 }
