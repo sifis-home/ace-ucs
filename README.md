@@ -1,8 +1,6 @@
 # README #
 
-This is a mavenized Java project. You should be able to compile and run these
-classes if you manage to figure out how Maven works (which is non-trivial due 
-to the lack of good introductory manuals for Maven).
+This is a mavenized Java 1.8 project. You should be able to compile and run these classes if you manage to figure out how Maven works (which is non-trivial due to the lack of good introductory manuals for Maven).
 
 ### What is this repository for? ###
 
