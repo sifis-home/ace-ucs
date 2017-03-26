@@ -74,7 +74,7 @@ public class TestCoAPServer {
     
     private static CoapDBConnector db = null;
     private static String dbPwd = null;
-    private static CoapsAS rs = null; 
+    private static CoapsAS as = null; 
     
     
 
@@ -155,10 +155,10 @@ public class TestCoAPServer {
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
-        rs = new CoapsAS("AS", db, 
+        as = new CoapsAS("AS", db, 
                 KissPDP.getInstance("src/test/resources/acl.json", db), 
                 time, asymmKey);
-        rs.start();
+        as.start();
         System.out.println("Server starting");
     }
 }
