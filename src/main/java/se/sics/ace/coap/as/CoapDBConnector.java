@@ -92,6 +92,9 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
                 return null;
             }
         }
+        if (key == null) { //Key not found
+           return null;
+        }
         CBORObject val = key.get(KeyKeys.KeyType);
         if (val.equals(KeyKeys.KeyType_Octet)) {
             val = key.get(KeyKeys.Octet_K);
