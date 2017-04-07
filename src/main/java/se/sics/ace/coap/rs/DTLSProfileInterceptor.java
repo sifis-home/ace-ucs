@@ -68,8 +68,9 @@ public class DTLSProfileInterceptor implements MessageInterceptor {
     public void receiveRequest(Request request) {
         String subject = request.getSenderIdentity().getName();
         String resource = request.getOptions().getUriPathString();
-        String action = request.getCode().toString();    
-//        
+        String action = request.getCode().toString();  
+        
+//        FIXME: continue here
 //        if (!this.tr.canAccess(kid, subject, resource, action, 
 //                new KissTime(), this.i)) {
 //            request.cancel();

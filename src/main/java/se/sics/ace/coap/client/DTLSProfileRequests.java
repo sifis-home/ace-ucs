@@ -146,4 +146,6 @@ public class DTLSProfileRequests {
                 MediaTypeRegistry.APPLICATION_CBOR);
         return CBORObject.DecodeFromBytes(response.getPayload());
     }
+    
+    //FIXME: Implement passing key through psk-identity
 }

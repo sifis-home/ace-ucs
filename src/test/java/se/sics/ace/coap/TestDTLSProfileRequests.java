@@ -5,7 +5,7 @@ package se.sics.ace.coap;
  * 
  * NOTE: You have to run TestCoAPServer first to start the server. 
  * 
- * FIXME:"Implement this
+ * FIXME: Implement this
  * 
  * @author Ludwig Seitz
  *

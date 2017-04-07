@@ -86,7 +86,7 @@ public class DTLSProfilePskStore implements PskStore {
     public byte[] getKey(String identity) {
         //First try if we have that key
         OneKey key = null;
-        try {
+        try {//FIXME: parse the structure Olaf has defined
             key = this.authzInfo.getKey(identity);
             if (key != null) {
                 return key.get(KeyKeys.Octet_K).GetByteString();
