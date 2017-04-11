@@ -410,201 +410,201 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		Properties connectionProps = new Properties();      
 		connectionProps.put("user", this.defaultUser);
 		connectionProps.put("password", this.defaultPassword);
-		this.conn = DriverManager.getConnection(this.defaultDbUrl, 
+		this.conn = DriverManager.getConnection(this.defaultDbUrl + "/" + DBConnector.dbName,
 		        connectionProps);
 		SQLConnector.isConnected = true;
 	        
 		this.insertRS = this.conn.prepareStatement("INSERT INTO "
-		        + DBConnector.dbName + "." + DBConnector.rsTable
+		         + DBConnector.rsTable
 		        + " VALUES (?,?,?,?);");
 		
 		this.deleteRS = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.rsTable
+                 + DBConnector.rsTable
                 + " WHERE " + DBConnector.rsIdColumn + "=?;");
 		
 		this.selectRS = this.conn.prepareStatement("SELECT "
                 + DBConnector.rsIdColumn
-                + " FROM " + DBConnector.dbName + "." 
+                + " FROM "
                 + DBConnector.audiencesTable
                 + " WHERE " + DBConnector.audColumn + "=? ORDER BY "
                         + DBConnector.rsIdColumn + ";");
 		        
 		this.insertProfile = this.conn.prepareStatement("INSERT INTO "
-		        + DBConnector.dbName + "." + DBConnector.profilesTable
+		         + DBConnector.profilesTable
 		        + " VALUES (?,?)");
 		
 		this.deleteProfiles = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.profilesTable
+                 + DBConnector.profilesTable
                 + " WHERE " + DBConnector.idColumn + "=?;");
 		
 		this.selectProfiles = this.conn.prepareStatement("SELECT * FROM " 
-		        + DBConnector.dbName + "." + DBConnector.profilesTable
+		         + DBConnector.profilesTable
                 + " WHERE " + DBConnector.idColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
-                    + DBConnector.dbName + "." + DBConnector.audiencesTable 
+                     + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn
                     + "=?) UNION SELECT * FROM " 
-                    + DBConnector.dbName + "." + DBConnector.profilesTable
+                     + DBConnector.profilesTable
                     + " WHERE " + DBConnector.idColumn + "=? ORDER BY "
                     + DBConnector.idColumn + ";"); 
 			
 		this.insertKeyType = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.keyTypesTable
+                 + DBConnector.keyTypesTable
                 + " VALUES (?,?)");
 		
 		this.deleteKeyTypes = this.conn.prepareStatement("DELETE FROM "
-	                + DBConnector.dbName + "." + DBConnector.keyTypesTable
+	                 + DBConnector.keyTypesTable
 	                + " WHERE " + DBConnector.idColumn + "=?;");
 		
 		this.selectKeyTypes =  this.conn.prepareStatement("SELECT * FROM " 
-                + DBConnector.dbName + "." + DBConnector.keyTypesTable
+                 + DBConnector.keyTypesTable
                 + " WHERE " + DBConnector.idColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
-                    + DBConnector.dbName + "." + DBConnector.audiencesTable
+                     + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?)"
-                    + " UNION SELECT * FROM " + DBConnector.dbName + "." 
+                    + " UNION SELECT * FROM "
                     + DBConnector.keyTypesTable + " WHERE " 
                     + DBConnector.idColumn + "=? ORDER BY "
                     + DBConnector.idColumn + ";");             
 		          
 		this.insertScope = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.scopesTable
+                 + DBConnector.scopesTable
                 + " VALUES (?,?)");
 		
 		this.deleteScopes = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.scopesTable
+                 + DBConnector.scopesTable
                 + " WHERE " + DBConnector.rsIdColumn + "=?;");
 
 		this.selectScopes = this.conn.prepareStatement("SELECT * FROM " 
-                + DBConnector.dbName + "." + DBConnector.scopesTable
+                 + DBConnector.scopesTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
-                    + DBConnector.dbName + "." + DBConnector.audiencesTable
+                     + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
                     + DBConnector.rsIdColumn + ";");          
 		
 		this.insertAudience = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.audiencesTable
+                 + DBConnector.audiencesTable
                 + " VALUES (?,?)");
 		
 		this.deleteAudiences = this.conn.prepareStatement("DELETE FROM "
-	                + DBConnector.dbName + "." + DBConnector.audiencesTable
+	                 + DBConnector.audiencesTable
 	                + " WHERE " + DBConnector.rsIdColumn + "=?;");
 		
 		this.selectAudiences = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.audColumn + " FROM "
-		        + DBConnector.dbName + "." + DBConnector.audiencesTable
+		         + DBConnector.audiencesTable
                 + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
                 + DBConnector.audColumn + ";");          
 		
 		this.insertTokenType = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.tokenTypesTable
+                 + DBConnector.tokenTypesTable
                 + " VALUES (?,?)");
 		
 		this.deleteTokenTypes = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.tokenTypesTable
+                 + DBConnector.tokenTypesTable
                 + " WHERE " + DBConnector.rsIdColumn + "=?;");
 		
 		this.selectTokenTypes = this.conn.prepareStatement("SELECT * FROM " 
-                + DBConnector.dbName + "." + DBConnector.tokenTypesTable
+                 + DBConnector.tokenTypesTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
-                    + DBConnector.dbName + "." + DBConnector.audiencesTable 
+                     + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
                     + DBConnector.rsIdColumn + ";");
 		
 		this.insertClient = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.cTable
+                 + DBConnector.cTable
                 + " VALUES (?,?,?,?,?)");
 	
 		this.deleteClient = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.cTable
+                 + DBConnector.cTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		
 		this.selectDefaultAudience = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.defaultAud + " FROM " 
-                + DBConnector.dbName + "." + DBConnector.cTable
+                 + DBConnector.cTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		  
 		this.selectDefaultScope = this.conn.prepareStatement("SELECT " 
 	                + DBConnector.defaultScope + " FROM " 
-	                + DBConnector.dbName + "." + DBConnector.cTable
+	                 + DBConnector.cTable
 	                + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		
 		this.insertCose = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.coseTable
+                 + DBConnector.coseTable
                 + " VALUES (?,?)");
 		
 		this.deleteCose = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.coseTable
+                 + DBConnector.coseTable
                 + " WHERE " + DBConnector.rsIdColumn + "=?;");
 		
 		this.selectCOSE = this.conn.prepareStatement("SELECT * "
-                + " FROM " + DBConnector.dbName + "." + DBConnector.coseTable
+                + " FROM "  + DBConnector.coseTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
-                    + DBConnector.dbName + "." + DBConnector.audiencesTable 
+                     + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
                     + DBConnector.rsIdColumn + ";");
 	      
 		this.selectExpiration = this.conn.prepareStatement("SELECT "
 	                + DBConnector.expColumn 
-	                + " FROM " + DBConnector.dbName + "." + DBConnector.rsTable
+	                + " FROM "  + DBConnector.rsTable
 	                + " WHERE " + DBConnector.rsIdColumn + "=?;");
 		        
 		this.selectRsPSK = this.conn.prepareStatement("SELECT "
 		        + DBConnector.pskColumn
-		        + " FROM " + DBConnector.dbName + "." + DBConnector.rsTable
+		        + " FROM "  + DBConnector.rsTable
 		        + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
 		            + DBConnector.rsIdColumn + " FROM " 
-		            + DBConnector.dbName + "." + DBConnector.audiencesTable
+		             + DBConnector.audiencesTable
 		            + " WHERE " + DBConnector.audColumn + "=?);");
 
 		this.selectRsRPK = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.rpkColumn
-		        + " FROM " + DBConnector.dbName + "." + DBConnector.rsTable
+		        + " FROM "  + DBConnector.rsTable
 		        + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
 		            + DBConnector.rsIdColumn + " FROM " 
-		            + DBConnector.dbName + "." + DBConnector.audiencesTable 
+		             + DBConnector.audiencesTable
 		            + " WHERE " + DBConnector.audColumn + "=?);");
 
 		this.selectCPSK = this.conn.prepareStatement("SELECT "
 		        + DBConnector.pskColumn
-		        + " FROM " + DBConnector.dbName + "." + DBConnector.cTable
+		        + " FROM "  + DBConnector.cTable
 		        + " WHERE " + DBConnector.clientIdColumn + "=?;");
 
 		this.selectCRPK = this.conn.prepareStatement("SELECT " 
 		        + DBConnector.rpkColumn
-		        + " FROM " + DBConnector.dbName + "." + DBConnector.cTable
+		        + " FROM "  + DBConnector.cTable
 		        + " WHERE "  + DBConnector.clientIdColumn + "=?;");
 
 		this.selectExpirationTime = this.conn.prepareStatement("SELECT "
 		        + DBConnector.cidColumn + "," + DBConnector.claimValueColumn
-		        + " FROM "  + DBConnector.dbName + "." 
+		        + " FROM "
 		        + DBConnector.claimsTable
 		        + " WHERE " + DBConnector.claimNameColumn + "='exp';");
 		        
 		this.insertClaim = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.claimsTable
+                 + DBConnector.claimsTable
                 + " VALUES (?,?,?)");
         
         this.deleteClaims = this.conn.prepareStatement("DELETE FROM "
-                + DBConnector.dbName + "." + DBConnector.claimsTable
+                 + DBConnector.claimsTable
                 + " WHERE " + DBConnector.cidColumn + "=?;");
     
         this.selectClaims = this.conn.prepareStatement("SELECT "
                 + DBConnector.claimNameColumn + ","
                 + DBConnector.claimValueColumn + " FROM " 
-                + DBConnector.dbName + "." + DBConnector.claimsTable
+                 + DBConnector.claimsTable
                 + " WHERE " + DBConnector.cidColumn + "=?;");  	
         
         this.selectCtiCtr = this.conn.prepareStatement("SELECT "
                 + DBConnector.ctiCounterColumn + " FROM "
-                + DBConnector.dbName + "." + DBConnector.ctiCounterTable 
+                 + DBConnector.ctiCounterTable
                 + ";");
         
         this.updateCtiCtr = this.conn.prepareStatement("UPDATE "
-                + DBConnector.dbName + "." + DBConnector.ctiCounterTable
+                 + DBConnector.ctiCounterTable
                 + " SET " + DBConnector.ctiCounterColumn + "=?;");
 	}
 	

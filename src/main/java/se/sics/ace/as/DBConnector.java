@@ -52,7 +52,7 @@ public interface DBConnector {
 	/**
 	 * The default database name
 	 */
-	public String dbName = "AceASdb";
+	public String dbName = "aceasdb";
 	
 	//******************New table********************************	
 
