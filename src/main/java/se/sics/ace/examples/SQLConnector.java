@@ -90,6 +90,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * Records if the singleton connector is connected or disconnected
 	 */
 	private static boolean isConnected = false;
+
+    /**
+     * Specific creator for different databases.
+     */
+    private SQLDBCreator dbCreator;
 	
 	/**
 	 * A prepared INSERT statement to add a new Resource Server.
@@ -364,38 +369,70 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * The singleton instance of this connector
      */
     private static SQLConnector connector = null;
-    
+
+	/**
+	 * Gets the singleton instance of this connector. Defaults to MySQL.
+	 *
+	 * @param dbUrl     the database URL, if null the default will be used
+	 * @param user      the database user, if null the default will be used
+	 * @param pwd       the database user's password, if null the default
+	 *
+	 * @return  the singleton instance
+	 *
+	 * @throws SQLException
+	 */
+	public static SQLConnector getInstance(String dbUrl, String user, String pwd)
+			throws SQLException {
+		return SQLConnector.getInstance(new MySQLDBCreator(), dbUrl, user, pwd);
+	}
+
     /**
      * Gets the singleton instance of this connector.
      * 
-     * @param dbUrl  the database URL, if null the default will be used
-     * @param user   the database user, if null the default will be used
-     * @param pwd    the database user's password, if null the default 
+     * @param dbCreator a creator instance for the specific DB type being used.
+     * @param dbUrl     the database URL, if null the default will be used
+     * @param user      the database user, if null the default will be used
+     * @param pwd       the database user's password, if null the default
      * 
      * @return  the singleton instance
      * 
      * @throws SQLException
      */
-    public static SQLConnector getInstance(String dbUrl, String user, String pwd) 
+    public static SQLConnector getInstance(SQLDBCreator dbCreator, String dbUrl, String user, String pwd)
             throws SQLException {
         if (SQLConnector.connector == null) {
-            SQLConnector.connector = new SQLConnector(dbUrl, user, pwd);
+            SQLConnector.connector = new SQLConnector(dbCreator, dbUrl, user, pwd);
         }
         return SQLConnector.connector;
     }
-    
+
+	/**
+	 * Create a new database connector either from given values or the
+	 * defaults. Defaults to MySQL for the DB creation.
+	 *
+	 * @param dbUrl     the database URL, if null the default will be used
+	 * @param user      the database user, if null the default will be used
+	 * @param pwd       the database user's password, if null the default
+	 * 				    will be used
+	 * @throws SQLException
+	 */
+	protected SQLConnector(String dbUrl, String user, String pwd)
+			throws SQLException {
+		this(new MySQLDBCreator(), dbUrl, user, pwd);
+	}
     
 	/**
 	 * Create a new database connector either from given values or the 
 	 * defaults.
-	 * 
-	 * @param dbUrl  the database URL, if null the default will be used
-	 * @param user   the database user, if null the default will be used
-	 * @param pwd    the database user's password, if null the default 
-	 * 				 will be used
+	 *
+     * @param dbCreator a creator instance for the specific DB type being used.
+	 * @param dbUrl     the database URL, if null the default will be used
+	 * @param user      the database user, if null the default will be used
+	 * @param pwd       the database user's password, if null the default
+	 * 				    will be used
 	 * @throws SQLException 
 	 */
-	protected SQLConnector(String dbUrl, String user, String pwd) 
+	protected SQLConnector(SQLDBCreator dbCreator, String dbUrl, String user, String pwd)
 			throws SQLException {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
@@ -406,6 +443,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		if (pwd != null) {
 			this.defaultPassword = pwd;
 		}
+
+        this.dbCreator = dbCreator;
+        dbCreator.setParams(this.defaultUser, this.defaultPassword, DBConnector.dbName, this.defaultDbUrl);
 
 		Properties connectionProps = new Properties();      
 		connectionProps.put("user", this.defaultUser);
@@ -617,103 +657,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	@Override
 	public synchronized void init(String rootPwd) throws AceException {
-				
-		String createDB = "CREATE DATABASE IF NOT EXISTS " + DBConnector.dbName
-		        + " CHARACTER SET utf8 COLLATE utf8_bin;";
-	
-		//rs id, cose encoding, default expiration time, psk, rpk
-		String createRs = "CREATE TABLE IF NOT EXISTS " + DBConnector.dbName 
-		        + "." + DBConnector.rsTable + "(" 
-		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
-                + DBConnector.expColumn + " bigint NOT NULL, "
-		        + DBConnector.pskColumn + " varbinary(64), "
-		        + DBConnector.rpkColumn + " varbinary(255),"
-		        + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
-
-		String createC = "CREATE TABLE IF NOT EXISTS " + DBConnector.dbName
-		        + "." + DBConnector.cTable + " ("
-		        + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
-		        + DBConnector.defaultAud + " varchar(255), "
-		        + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " varbinary(64), " 
-                + DBConnector.rpkColumn + " varbinary(255),"
-                + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
-
-		String createProfiles = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.profilesTable + "(" 
-		        + DBConnector.idColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.profileColumn + " varchar(255) NOT NULL);";
-		
-		String createKeyTypes = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.keyTypesTable + "(" 
-		        + DBConnector.idColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.keyTypeColumn + " enum('PSK', 'RPK', 'TST'));";
-
-		String createScopes = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.scopesTable + "(" 
-		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.scopeColumn + " varchar(255) NOT NULL);";
-	      
-		String createTokenTypes = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.tokenTypesTable + "(" 
-		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.tokenTypeColumn + " enum('CWT', 'REF', 'TST'));";
-
-		String createAudiences = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.audiencesTable + "(" 
-		        + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
-		        + DBConnector.audColumn + " varchar(255) NOT NULL);";
-
-		String createCose =  "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-                + DBConnector.coseTable + "(" 
-                + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
-                + DBConnector.coseColumn + " varchar(255) NOT NULL);";
-				
-		String createClaims = "CREATE TABLE IF NOT EXISTS " 
-		        + DBConnector.dbName + "."
-		        + DBConnector.claimsTable + "(" 
-		        + DBConnector.cidColumn + " varchar(255) NOT NULL, " 
-		        + DBConnector.claimNameColumn + " varchar(8) NOT NULL," 
-		        + DBConnector.claimValueColumn + " varbinary(255));";
-		
-		String createCtiCtr = "CREATE TABLE IF NOT EXISTS " 
-                + DBConnector.dbName + "."
-                + DBConnector.ctiCounterTable + "(" 
-                + DBConnector.ctiCounterColumn + " int unsigned);";
-		
-		String initCtiCtr = "INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.ctiCounterTable
-                + " VALUES (0);";
-		
-		Properties connectionProps = new Properties();
-		connectionProps.put("user", "root");
-		connectionProps.put("password", rootPwd);
-		try (Connection rootConn = DriverManager.getConnection(
-		        this.defaultDbUrl, connectionProps);
-		        Statement stmt = rootConn.createStatement();) {
-		    stmt.execute(createDB);
-		    stmt.execute(createRs);
-		    stmt.execute(createC);
-		    stmt.execute(createProfiles);
-            stmt.execute(createKeyTypes);
-            stmt.execute(createScopes);
-            stmt.execute(createTokenTypes);
-            stmt.execute(createAudiences);
-            stmt.execute(createCose);
-            stmt.execute(createClaims);
-            stmt.execute(createCtiCtr);
-            stmt.execute(initCtiCtr);
-            rootConn.close();
-            stmt.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
+        dbCreator.createDBAndTables(rootPwd);
 	}
 	
 	/**
@@ -1449,10 +1393,26 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }    
     }
+
+	/**
+	 * Creates the user that manages this database. Defaults to MySQL.
+	 *
+	 * @param rootPwd  the database root password
+	 * @param username  the name of the user
+	 * @param userPwd   the password for the user
+	 * @param dbUrl  the URL of the database
+	 *
+	 * @throws AceException
+	 */
+	public synchronized static void createUser(String rootPwd, String username,
+											   String userPwd, String dbUrl) throws AceException {
+		SQLConnector.createUser(new MySQLDBCreator(), rootPwd, username, userPwd, dbUrl);
+	}
     
     /**
      * Creates the user that manages this database.
-     * 
+     *
+	 * @param dbCreator a creator instance for the specific DB type being used.
      * @param rootPwd  the database root password
      * @param username  the name of the user
      * @param userPwd   the password for the user
@@ -1460,25 +1420,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * @throws AceException 
      */
-    public synchronized static void createUser(String rootPwd, String username, 
+    public synchronized static void createUser(SQLDBCreator dbCreator, String rootPwd, String username,
             String userPwd, String dbUrl) throws AceException {
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", rootPwd);
-        String cUser = "CREATE USER '" + username 
-                + "'@'localhost' IDENTIFIED BY '" + userPwd 
-                + "';";
-        String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE ON "
-               + DBConnector.dbName + ".* TO '" + username + "'@'localhost';";
-        try (Connection rootConn = DriverManager.getConnection(
-                dbUrl, connectionProps);
-                Statement stmt = rootConn.createStatement();) {
-            stmt.execute(cUser);
-            stmt.execute(authzUser);
-            stmt.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
+        dbCreator.setParams(username, userPwd, DBConnector.dbName, dbUrl);
+        dbCreator.createUser(rootPwd);
     }
     
 }

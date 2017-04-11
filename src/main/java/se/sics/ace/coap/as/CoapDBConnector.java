@@ -44,6 +44,7 @@ import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.examples.SQLDBCreator;
 
 /**
  * A SQLConnector for CoAP, implementing the PskStore interface.
@@ -73,6 +74,22 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
             throws SQLException {
         super(dbUrl, user, pwd);
 
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param dbCreator a creator instance for the specific DB type being used.
+     * @param dbUrl     the database URL, if null the default will be used
+     * @param user      the database user, if null the default will be used
+     * @param pwd       the database user's password, if null the default
+     *                  will be used
+     *
+     * @throws SQLException
+     */
+    public CoapDBConnector(SQLDBCreator dbCreator, String dbUrl, String user, String pwd)
+            throws SQLException {
+        super(dbCreator, dbUrl, user, pwd);
     }
 
     @Override
