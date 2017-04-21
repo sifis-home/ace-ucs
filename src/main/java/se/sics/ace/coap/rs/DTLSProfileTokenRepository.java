@@ -59,7 +59,7 @@ public class DTLSProfileTokenRepository extends TokenRepository {
     public DTLSProfileTokenRepository(ScopeValidator scopeValidator,
             Set<String> resources, String tokenFile, CwtCryptoCtx ctx)
             throws IOException, AceException {
-        super(scopeValidator, resources, tokenFile, ctx);
+        super(scopeValidator, tokenFile, ctx);
         this.sid2kid = new HashMap<>();
     }
     

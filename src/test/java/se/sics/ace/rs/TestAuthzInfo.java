@@ -139,11 +139,8 @@ public class TestAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
-        TokenRepository tr = new TokenRepository(valid, resources, 
+
+        TokenRepository tr = new TokenRepository(valid, 
                 "src/test/resources/tokens.json", null);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -155,7 +152,8 @@ public class TestAuthzInfo {
         ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);      
+                valid, ctx);
+        tr.close();
     }
     
     /**

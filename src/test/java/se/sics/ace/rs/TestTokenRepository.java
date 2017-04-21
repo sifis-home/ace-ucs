@@ -101,10 +101,7 @@ public class TestTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
-        tr = new TokenRepository(valid, resources, 
+        tr = new TokenRepository(valid, 
                 "src/test/resources/tokens.json", null);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -121,21 +118,6 @@ public class TestTokenRepository {
     @AfterClass
     public static void tearDown() throws SQLException, AceException {
         new File("src/test/resources/tokens.json").delete();
-    }
-    
- 
-    /**
-     * Test add and remove resources
-     *
-     * @throws AceException 
-     */
-    @Test
-    public void testResource() throws AceException {
-        Assert.assertTrue(tr.inScope("r_co2"));
-        tr.removeResource("co2");
-        Assert.assertFalse(tr.inScope("r_co2"));
-        tr.addResource("co2");
-        Assert.assertTrue(tr.inScope("r_co2")); 
     }
     
     /**
@@ -385,11 +367,21 @@ public class TestTokenRepository {
         params.put("cnf", asymmetricKey.PublicKey().AsCBOR());
         tr.addToken(params, ctx);
         
-        Assert.assertTrue(tr.canAccess("rpk", null, "co2", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("ourKey", null, "co2", "POST", new KissTime(), null));
-        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess("rpk", null, "co2", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.METHODNA, 
+                tr.canAccess("rpk", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.FORBID,
+                tr.canAccess("ourKey", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess("ourKey", null, "temp", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "temp", "GET", 
+                        new KissTime(), null));
     }
     
     
@@ -422,11 +414,21 @@ public class TestTokenRepository {
         tr.addToken(params, ctx);
         
         
-        Assert.assertTrue(tr.canAccess("ourKey", null, "co2", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
-        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess("ourKey", null, "co2", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("rpk", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("rpk", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess("ourKey", null, "temp", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "temp", "GET", 
+                        new KissTime(), null));
     }
     
     /**
@@ -454,11 +456,21 @@ public class TestTokenRepository {
         params.put("cnf", cnf.EncodeToCBORObject());
         tr.addToken(params, ctx);
 
-        Assert.assertFalse(tr.canAccess("ourKey", null, "co2", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("rpk", null, "co2", "POST", new KissTime(), null));
-        Assert.assertTrue(tr.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));
-        Assert.assertFalse(tr.canAccess("otherKey", null, "temp", "GET", new KissTime(), null));
+        Assert.assertEquals(TokenRepository.FORBID,
+                tr.canAccess("ourKey", null, "co2", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("rpk", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("rpk", null, "co2", "POST", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess("ourKey", null, "temp", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "temp", "GET", 
+                        new KissTime(), null));
     }
     
     
@@ -533,30 +545,27 @@ public class TestTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        TokenRepository tr2 = new TokenRepository(valid, resources, 
+        TokenRepository tr2 = new TokenRepository(valid,
                 "src/test/resources/testTokens.json" , ctx);
         
-        Assert.assertTrue(tr2.canAccess("rpk", null, "co2", "GET", new KissTime(), null));
-        Assert.assertTrue(tr2.canAccess("ourKey", null, "temp", "GET", new KissTime(), null));  
-        Assert.assertFalse(tr2.canAccess("otherKey", null, "co2", "GET", new KissTime(), null));
-        Assert.assertFalse(tr2.canAccess("ourKey", null, "temp", "POST", new KissTime(), null)); 
-        Assert.assertFalse(tr2.canAccess("ourKey", null, "co2", "GET", new KissTime(), null)); 
+        Assert.assertEquals(TokenRepository.OK,
+                tr2.canAccess("rpk", null, "co2", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.OK,
+                tr2.canAccess("ourKey", null, "temp", "GET", 
+                        new KissTime(), null));  
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr2.canAccess("otherKey", null, "co2", "GET", 
+                        new KissTime(), null));
+        Assert.assertEquals(TokenRepository.METHODNA,
+                tr2.canAccess("ourKey", null, "temp", "POST", 
+                        new KissTime(), null)); 
+        Assert.assertEquals(TokenRepository.FORBID,
+                tr2.canAccess("ourKey", null, "co2", "GET", 
+                        new KissTime(), null)); 
+        tr2.close();
     }
     
-      
-    /**
-     * Test inScope()
-     *
-     * @throws AceException 
-     */
-    @Test
-    public void testInScope() throws AceException {
-        Assert.assertTrue(tr.inScope("r_co2"));
-        Assert.assertTrue(tr.inScope("r_temp"));
-        Assert.assertFalse(tr.inScope("w_temp"));
-        Assert.assertFalse(tr.inScope("rs1"));
-        Assert.assertFalse(tr.inScope("temp"));
-    }
     
     /**
      * Test getPoP()

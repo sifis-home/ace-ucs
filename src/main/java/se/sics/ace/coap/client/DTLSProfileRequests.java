@@ -107,10 +107,9 @@ public class DTLSProfileRequests {
      * Sends a POST request to the /authz-info endpoint of the RS to submit an
      * access token.
      * 
-     * @param asAddr  the full address of the /token endpoint
+     * @param rsAddr  the full address of the /authz-info endpoint
      *  (including scheme and hostname, and port if not default)
-     * @param payload  the payload of the request.  Use the GetToken 
-     *  class to construct this payload
+     * @param payload  the token received from the getToken() method
      * @param useDTLS  use DTLS without client authentication to transfer 
      *  the token or use plain CoAP. Note that this does NOT work with pre-shared
      *  keys or with an RS that requires client authentication
@@ -119,7 +118,7 @@ public class DTLSProfileRequests {
      *
      * @throws AceException 
      */
-    public static CBORObject postToken(String asAddr, CBORObject payload, boolean useDTLS) 
+    public static CBORObject postToken(String rsAddr, CBORObject payload, boolean useDTLS) 
             throws AceException {
         Connector c = null;
         if (useDTLS) {
@@ -139,7 +138,7 @@ public class DTLSProfileRequests {
             c = new UDPConnector(); 
         }
         CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
-        CoapClient client = new CoapClient(asAddr);
+        CoapClient client = new CoapClient(rsAddr);
         client.setEndpoint(e);   
         CoapResponse response = client.post(
                 payload.EncodeToBytes(), 

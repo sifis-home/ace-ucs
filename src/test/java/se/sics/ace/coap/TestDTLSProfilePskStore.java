@@ -75,17 +75,13 @@ public class TestDTLSProfilePskStore {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
        
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        tr = new TokenRepository(valid, resources, 
-                "src/test/resources/tokens.json", ctx);
+        tr = new TokenRepository(valid, "src/test/resources/tokens.json", ctx);
         
         ai = new AuthzInfo(tr, 
                 Collections.singletonList("TestAS"), new KissTime(), null, 

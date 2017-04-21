@@ -80,36 +80,51 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 public class TokenRepository implements AutoCloseable {
 	
     /**
+     * Return codes of the canAccess() method
+     */
+    public static int OK = 1;
+    
+    /**
+     * Return codes of the canAccess() method. 4.01 Unauthorized
+     */
+    public static int UNAUTHZ = 0;
+    
+    /**
+     * Return codes of the canAccess() method. 4.03 Forbidden
+     */ 
+    public static int FORBID = -1;
+    
+    /**
+     * Return codes of the canAccess() method. 4.05 Method Not Allowed
+     */
+    public static int METHODNA = -2;
+    
+    
+    /**
+     * Return codes of the canAccess() method
+     */
+    
+    /**
+     * Return codes of the canAccess() method
+     */
+    
+    
+    /**
      * The logger
      */
     private static final Logger LOGGER 
         = Logger.getLogger(TokenRepository.class.getName());
-    
-    
+     
     /**
      * Is this closed?
      */
     private boolean closed = true;
     
-    /**
-     * Maps resource identifiers to matching scopes.
-     */
-	private Map<String, Set<String>> resource2scope;
-	
-	/**
-	 * Maps scopes to token identifiers (cti).
-	 */
-	private Map<String, Set<String>> scope2cti;
-	
 	/**
 	 * Maps cti to the claims of the corresponding token
 	 */
 	private Map<String, Map<String, CBORObject>> cti2claims;
 	
-	/**
-	 * The resources handled by this repository
-	 */
-	private Set<String> resources;
 	
 	/**
 	 * Map key identifiers collected from the access tokens to keys
@@ -117,9 +132,9 @@ public class TokenRepository implements AutoCloseable {
 	protected Map<String, OneKey> kid2key;
 	
 	/**
-	 * Map cti to pop-key kid
+	 * Map the  token identifier to the corresponding pop-key kid
 	 */
-	protected Map<String, String> cti2kid;
+	protected Map<String, String>cti2kid;
 	
 	/**
 	 * The scope validator
@@ -141,7 +156,6 @@ public class TokenRepository implements AutoCloseable {
 	 * the Base64 encoded byte representation of the CBORObject.
 	 * 
 	 * @param scopeValidator  the application specific scope validator
-	 * @param resources  the resources this TokenRepository serves 
 	 * @param tokenFile  the file storing the existing tokens, if the file
 	 *     does not exist it is created
 	 * @param ctx  the crypto context for reading encrypted tokens
@@ -149,13 +163,10 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws AceException 
 	 */
 	public TokenRepository(ScopeValidator scopeValidator, 
-			Set<String> resources, String tokenFile, CwtCryptoCtx ctx) 
+	        String tokenFile, CwtCryptoCtx ctx) 
 			        throws IOException, AceException {
 	    this.closed = false;
-	    this.resource2scope = new HashMap<>();
-	    this.scope2cti = new HashMap<>();
 	    this.cti2claims = new HashMap<>();
-	    this.resources = new HashSet<>(resources);
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
@@ -196,36 +207,7 @@ public class TokenRepository implements AutoCloseable {
             }
         }
 	}
-	
-	/**
-	 * Add a new resource to the set of resources managed by this repository.
-	 * 
-	 * @param resourceId  the identifier of the new resource. 
-	 * @throws AceException 
-	 */
-	public void addResource(String resourceId) throws AceException {
-	    this.resources.add(resourceId);
-		//Fetch all matching scopes
-		Set<String> scopes = new HashSet<>();
-		for (String scope : this.scope2cti.keySet()) {
-			if (this.scopeValidator.scopeMatchResource(scope, resourceId)) {
-				scopes.add(scope);
-			}
-		}
-		//Add the matching scopes to the map.
-		this.resource2scope.put(resourceId, scopes);
-	}
-	
-	/**
-	 * Remove an existing resource from the set of managed resources.
-	 * 
-	 * @param resourceId  the identifier of the resource to be removed.
-	 */
-	public void removeResource(String resourceId) {
-		this.resources.remove(resourceId);
-		this.resource2scope.remove(resourceId);
-	}
-	
+
 	/**
 	 * Add a new Access Token to the repo.  Note that this method DOES NOT 
 	 * check the validity of the token.
@@ -244,7 +226,6 @@ public class TokenRepository implements AutoCloseable {
 		if (so == null) {
 			throw new AceException("Token has no scope");
 		}
-		String scope = so.AsString();
 
 		CBORObject cticb = claims.get("cti");
 		String cti = null;
@@ -311,30 +292,6 @@ public class TokenRepository implements AutoCloseable {
             }
         }  
         
-        String[] scopes = scope.split(" ");
-        //Store the mapping scope 2 cti
-        for (int i=0; i<scopes.length; i++) {
-            Set<String> ctis = this.scope2cti.get(scopes[i]);
-            if (ctis == null) {
-                ctis = new HashSet<>();
-            }
-            ctis.add(cti);
-            this.scope2cti.put(scopes[i], ctis);
-            
-            //Store the mapping resource 2 scope
-            for (String resource : this.resources) {
-                if (this.scopeValidator.scopeMatchResource(scopes[i], resource)) {
-                    Set<String> rscope = this.resource2scope.get(resource);
-                    if (rscope == null) {
-                        rscope = new HashSet<>();
-
-                    }
-                    rscope.add(scopes[i]);
-                    this.resource2scope.put(resource, rscope);
-                }
-            }
-            persist();
-        }
         return CBORObject.FromObject(cti.getBytes());
 	}
 	
@@ -378,31 +335,10 @@ public class TokenRepository implements AutoCloseable {
         }
         
         String ctiStr = new String(cti.GetByteString());
+        
+        //Remove the claims
         this.cti2claims.remove(ctiStr);
-        Set<String> removableScopes = new HashSet<>();
-		for(Entry<String, Set<String>> foo : this.scope2cti.entrySet()) {
-		    if (foo.getValue() == null) {
-		        removableScopes.add(foo.getKey());
-		    } else {
-		        foo.getValue().remove(ctiStr);
-		        if (foo.getValue().isEmpty()) {
-		            removableScopes.add(foo.getKey());
-		        }
-			}
-		}
-		
-		//Now remove the empty scopes
-		for (String scope : removableScopes) {
-		    this.scope2cti.remove(scope);
-		}
-		
-		//Now clean the resource 2 scope mappings
-		for (Entry<String, Set<String>> foo : this.scope2cti.entrySet()) {
-		    if (foo.getValue() == null || foo.getValue().isEmpty()) {
-		        this.resource2scope.remove(foo.getKey());		        
-		    }
-		}
-		
+ 
 		//Remove the mapping to the pop key
 		this.cti2kid.remove(ctiStr);
 		
@@ -459,16 +395,18 @@ public class TokenRepository implements AutoCloseable {
 	 * @param action  the RESTful action on that resource
 	 * @param time  the time provider
 	 * @param intro  the introspection handler, can be null
-	 * @return  true if the subject can access the resource 
-	 * 	with the given action, false if not.
+	 * @return  1 if there is a token giving access, 0 if there is no token 
+	 * for this resource and user,-1 if the existing token(s) do not authorize 
+	 * the action requested.
 	 * @throws AceException 
 	 */
-	public boolean canAccess(String kid, String subject, String resource, 
+	public int canAccess(String kid, String subject, String resource, 
 	        String action, TimeProvider time, IntrospectionHandler intro) 
 			        throws AceException {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
-	        return false; //No tokens for this pop-key
+	        return UNAUTHZ; //No tokens for this pop-key
+	        //FIXME: need info about AS?
 	    }
 	    
 	    //Collect the token id's of matching tokens
@@ -478,102 +416,83 @@ public class TokenRepository implements AutoCloseable {
 	            ctis.add(cti);
 	        }
 	    }
+	 
 	    
-	    if (this.resource2scope.get(resource) == null) {
-	        return false; //No scope covers this resource
-	    }
-	    
-		//Check if we have a token that is in scope for this resource
-		for (String scope : this.resource2scope.get(resource)) {
-			//Check if the scope matches
-			if (!this.scopeValidator.scopeMatch(scope, resource, action)) {
-				//Action does not match this scope, net iteration
-				continue;
-			}
+	    boolean methodNA = false;   
+	    for (String cti : ctis) { //All tokens linked to that pop key
+	        //Check if we have the claims for that cti
+	        //Get the claims
+            Map<String, CBORObject> claims = this.cti2claims.get(cti);
+            if (claims == null || claims.isEmpty()) {
+                //No claims found
+                continue;
+            }
+	        
+          //Check if the subject matches
+            CBORObject subO = claims.get("sub");
+            if (subO != null) {
+                if (subject == null) {
+                    //Token requires subject, but none provided
+                    continue;
+                }
+                if (!subO.AsString().equals(subject)) {
+                    //Token doesn't match subject
+                    continue;
+                }
+            }
+            
+            //Check if the token is expired
+            CBORObject exp = claims.get("exp"); 
+             if (exp != null && !exp.isIntegral()) {
+                    throw new AceException("Expiration time is in wrong format");
+             }
+             if (exp != null && exp.AsInt64() < time.getCurrentTime()) {
+                 //Token is expired
+                 continue;
+             }
+            
+             //Check nbf
+             CBORObject nbf = claims.get("nbf");
+             if (nbf != null &&  !nbf.isIntegral()) {
+                 throw new AceException("NotBefore time is in wrong format");
+             }
+             if (nbf != null && nbf.AsInt64() > time.getCurrentTime()) {
+                 //Token not valid yet
+                 continue;
+             }   
+            
+	        //Check the scope
+             CBORObject scope = claims.get("scope");
+             if (scope == null) {
+                 LOGGER.severe("Token: " + cti + " has no scope");
+                 throw new AceException("Token: " + cti + " has no scope");
+                 
+             }
+             
+             String[] scopes = scope.AsString().split(" ");
+             for (String subscope : scopes) {
+                 if (this.scopeValidator.scopeMatchResource(subscope, resource)) {
+                     if (this.scopeValidator.scopeMatch(subscope, resource, action)) {
+                       //Check if we should introspect this token
+                         if (intro != null) {
+                             Map<String,CBORObject> introspect = intro.getParams(cti);
+                             if (introspect != null && introspect.get("active") == null) {
+                                 throw new AceException("Token introspection didn't "
+                                         + "return an 'active' parameter");
+                             }
+                             if (introspect != null && introspect.get("active").isTrue()) {
+                                 return OK; // Token is active and passed all other tests
+                             }
 
-			if (this.scope2cti.get(scope) == null) {
-			    continue; //We don't have a token for this scope
-			}
-			
-			for (String cti : this.scope2cti.get(scope)) {
-			    if (!ctis.contains(cti)) {
-			        continue; //This token does not match the pop key
-			    }
-			    
-			    //Get the claims
-			    Map<String, CBORObject> claims = this.cti2claims.get(cti);
-			    if (claims == null || claims.isEmpty()) {
-			        //No claims found
-			        continue;
-			    }
-			    
-				//Check if the subject matches
-				CBORObject subO = claims.get("sub");
-				if (subO != null) {
-				    if (subject == null) {
-				        //Token requires subject, but none provided
-				        continue;
-				    }
-				    if (!subO.AsString().equals(subject)) {
-				        //Token doesn't match subject
-				        continue;
-				    }
-				}
-				
-				//Check if the token is expired
-				CBORObject exp = claims.get("exp"); 
-				 if (exp != null && !exp.isIntegral()) {
-	                    throw new AceException("Expiration time is in wrong format");
-				 }
-				 if (exp != null && exp.AsInt64() < time.getCurrentTime()) {
-				     //Token is expired
-				     continue;
-				 }
-				
-                 //Check nbf
-                 CBORObject nbf = claims.get("nbf");
-                 if (nbf != null &&  !nbf.isIntegral()) {
-                     throw new AceException("NotBefore time is in wrong format");
+                         }
+                        return OK; //We didn't introspect, but the token is ok otherwise
+                     }
+                    methodNA = true; //scope did match resource but not action
                  }
-                 if (nbf != null && nbf.AsInt64() > time.getCurrentTime()) {
-                     //Token not valid yet
-                     continue;
-                 }   
-
-				//Check if we should introspect this token
-				if (intro != null) {
-				    Map<String,CBORObject> introspect = intro.getParams(cti);
-					if (introspect != null && introspect.get("active") == null) {
-						throw new AceException("Token introspection didn't "
-								+ "return an 'active' parameter");
-					}
-					if (introspect != null && introspect.get("active").isTrue()) {
-						return true;
-					}
-				} else { //We didn't introspect but everything else checked out
-					return true;
-				}
-			}
-		}
-		
-		//No matching token found
-		return false;
-	}
-	
-	/**
-	 * Checks if this scope applies to any resource.
-	 * 
-	 * @param scope  the scope
-	 * @return  true if the scope applies to any resource, false if not
-	 * @throws AceException 
-	 */
-	public boolean inScope(String scope) throws AceException {
-		for (String resource : this.resources) {
-			if (this.scopeValidator.scopeMatchResource(scope, resource)) {
-				return true;
-			}
-		}
-		return false;
+             }
+	    }
+	    return ((methodNA) ? METHODNA : FORBID);
+	   
 	}
 
 	/**
