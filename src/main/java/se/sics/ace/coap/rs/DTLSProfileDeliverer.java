@@ -1,23 +1,16 @@
 package se.sics.ace.coap.rs;
 
-import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
 
 import se.sics.ace.AceException;
-import se.sics.ace.TimeProvider;
-import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.rs.AudienceValidator;
-import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
@@ -47,20 +40,27 @@ public class DTLSProfileDeliverer extends ServerMessageDeliverer {
     private DTLSProfileTokenRepository tr;
     
     /**
-     * The instrospection handler
+     * The introspection handler
      */
     private IntrospectionHandler i;
+    
+    /**
+     * The AS information message sent back to unauthorized requesters
+     */
+    private DTLSProfileAsInfo asInfo;
     
     /**
      * Constructor. 
      * @param root  the root of the resources that this deliverer controls
      * @param tr  the token repository.
      * @param i  the introspection handler or null if there isn't any.
+     * @param asInfo  the AS information to send for client authz errors.
      */
     public DTLSProfileDeliverer(Resource root, DTLSProfileTokenRepository tr, 
-            IntrospectionHandler i) {
+            IntrospectionHandler i, DTLSProfileAsInfo asInfo) {
         super(root);
         this.tr = tr;
+        this.asInfo = asInfo;
     }
     
     @Override
@@ -75,17 +75,35 @@ public class DTLSProfileDeliverer extends ServerMessageDeliverer {
         try {
             int res = this.tr.canAccess(kid, subject, resource, action, 
                     new KissTime(), this.i);
-           //     ex.sendResponse(new Response(ResponseCode.FORBIDDEN));
-            //    ex.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED));
-                //FIXME: Send a response
-                //DOUBLE FIXME: Find out how to distinguish 4.03 and 4.05 duh!
+            Response r = null;
+            switch (res) {
+            case TokenRepository.OK :
+                super.deliverRequest(ex);
+                break;
+            case TokenRepository.UNAUTHZ :
+                r = new Response(ResponseCode.UNAUTHORIZED);
+                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+                ex.sendResponse(r);
+                break;
+            case TokenRepository.FORBID :
+                r = new Response(ResponseCode.FORBIDDEN);
+                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+                ex.sendResponse(r);
+                break;
+            case TokenRepository.METHODNA :
+                r = new Response(ResponseCode.METHOD_NOT_ALLOWED);
+                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+                ex.sendResponse(r);
+                break;
+            default :
+                LOGGER.severe("Error during scope evaluation,"
+                        + " unknown result: " + res);
+               ex.sendResponse(new Response(
+                       ResponseCode.INTERNAL_SERVER_ERROR));
+            }
         } catch (AceException e) {
-            //FIXME: request.cancel();
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
-                    + e.getMessage());
-            
+                    + e.getMessage());    
         }
-        super.deliverRequest(ex);
     }
-
 }
