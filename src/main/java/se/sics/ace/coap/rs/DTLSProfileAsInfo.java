@@ -82,7 +82,9 @@ public class DTLSProfileAsInfo {
                     + "with null or empty asUri field");
         }
         this.asUri = asUri;
-        this.nonce = Arrays.copyOf(nonce, nonce.length);
+        if (nonce != null) {
+            this.nonce = Arrays.copyOf(nonce, nonce.length);
+        }
     }
     
     /**
