@@ -34,7 +34,6 @@ package se.sics.ace.coap.rs;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -154,7 +153,7 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * @throws CoseException 
      */
     @Override
-    public CBORObject addToken(Map<String, CBORObject> claims, 
+    public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
             CwtCryptoCtx ctx) throws AceException {
                 CBORObject ret = super.addToken(claims, ctx);
                 String cti = new String(ret.GetByteString());
@@ -174,7 +173,7 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * 
      * @throws AceException
      */
-    private static String makeSid(OneKey key) throws AceException {
+    public static String makeSid(OneKey key) throws AceException {
         if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
             //We have a symmetric key, assume kid == Sid
             CBORObject kid = key.get(KeyKeys.KeyId);

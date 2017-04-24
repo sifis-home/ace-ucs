@@ -31,8 +31,17 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
+/**
+ * Implements the OSCOAP profile of ACE
+ * 
+ * @author Ludwig Seitz
+ *
+ */
 public class OscoapProfile {
 
+    /**
+     * Constructor
+     */
     public OscoapProfile() {
         // TODO Auto-generated constructor stub
     }

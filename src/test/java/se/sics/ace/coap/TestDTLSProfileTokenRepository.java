@@ -31,7 +31,32 @@
  *******************************************************************************/
 package se.sics.ace.coap;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+
+import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Test;
+
+import com.upokecenter.cbor.CBORObject;
+
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
+import se.sics.ace.AceException;
+import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
+import se.sics.ace.coap.rs.DTLSProfileTokenRepository;
+import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.KissValidator;
 
 /**
  * Test the DTLSProfileTokenRepository class.
@@ -42,15 +67,114 @@ import org.junit.BeforeClass;
 public class TestDTLSProfileTokenRepository {
 
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static OneKey symmetricKey;
+    private static OneKey asymmetricKey;
+    private static DTLSProfileTokenRepository tr;
+    private static CwtCryptoCtx ctx;
+    
     
     /**
      * Set up tests.
+     * 
+     * @throws CoseException 
+     * @throws IOException 
+     * @throws AceException 
      */
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() 
+            throws CoseException, AceException, IOException {
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
+                "psk".getBytes(Constants.charset));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
+        symmetricKey = new OneKey(keyData); 
+        
+        asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        asymmetricKey.add(KeyKeys.KeyId, 
+                CBORObject.FromObject("rpk".getBytes(Constants.charset)));
+        
+        Set<String> actions = new HashSet<>();
+        actions.add("GET");
+        Map<String, Set<String>> myResource = new HashMap<>();
+        myResource.put("temp", actions);
+        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        myScopes.put("r_temp", myResource);
+        
+        Map<String, Set<String>> otherResource = new HashMap<>();
+        otherResource.put("co2", actions);
+        myScopes.put("r_co2", otherResource);
+        
+        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+                myScopes);
+        
+        DTLSProfileTokenRepository.create(
+                valid, "src/test/resources/tokens.json", null);
+        tr = DTLSProfileTokenRepository.getInstance();
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
     }
     
+    /**
+     * Deletes the test file after the tests
+     */
+    @AfterClass
+    public static void tearDown() {
+        new File("src/test/resources/tokens.json").delete();
+    }
+    
+    /**
+     * Test adding a token with a symmetric cnf key
+     * 
+     * @throws AceException
+     */
+    @Test
+    public void testTokenPSK() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", symmetricKey.AsCBOR());
+        tr.addToken(params, ctx);
+        
+        OneKey key = tr.getKey("psk");
+        Assert.assertArrayEquals(key128, key.get(KeyKeys.Octet_K).GetByteString());
+        
+        String sid = DTLSProfileTokenRepository.makeSid(symmetricKey);
+        Assert.assertEquals("psk", sid);
+        
+        Assert.assertEquals("psk",tr.getKid(sid));
+        
+    }
+    
+    /**
+     * Test adding a token with a asymmetric cnf key
+     * 
+     * @throws AceException
+     */
+    @Test
+    public void testTokenRPK() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put("cnf", asymmetricKey.AsCBOR());
+        tr.addToken(params, ctx);
+        
+        OneKey key = tr.getKey("rpk");
+        Assert.assertArrayEquals(asymmetricKey.EncodeToBytes(), 
+                key.EncodeToBytes());
+        
+        String sid = DTLSProfileTokenRepository.makeSid(asymmetricKey);     
+        Assert.assertEquals("rpk", tr.getKid(sid));
+        
+    }
     
 
 }

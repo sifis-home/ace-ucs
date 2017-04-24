@@ -271,7 +271,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws AceException 
 	 * @throws CoseException 
 	 */
-	public CBORObject addToken(Map<String, CBORObject> claims, 
+	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
 	        CwtCryptoCtx ctx) throws AceException {
 		CBORObject so = claims.get("scope");
 		if (so == null) {
@@ -378,7 +378,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @param cti  the cti of the token to be removed.
 	 * @throws AceException 
 	 */
-	public void removeToken(CBORObject cti) throws AceException {
+	public synchronized void removeToken(CBORObject cti) throws AceException {
 	    if (cti == null) {
             throw new AceException("Cti is null");
         } else if (!cti.getType().equals(CBORType.ByteString)) {
@@ -413,7 +413,7 @@ public class TokenRepository implements AutoCloseable {
      *
 	 * @throws AceException 
 	 */
-	public void pollTokens(TimeProvider time) 
+	public synchronized void pollTokens(TimeProvider time) 
 				throws AceException {
 	    HashSet<CBORObject> tokenToRemove = new HashSet<>();
 		for (Entry<String, Map<String, CBORObject>> foo 

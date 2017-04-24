@@ -33,7 +33,6 @@ package se.sics.ace.rs;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -59,6 +58,7 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -132,8 +132,8 @@ public class TestTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        tr = new TokenRepository(valid, 
-                "src/test/resources/tokens.json", null);
+        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
@@ -142,12 +142,9 @@ public class TestTokenRepository {
     
     /**
      * Deletes the test file after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, AceException {
+    public static void tearDown() {
         new File("src/test/resources/tokens.json").delete();
     }
     
