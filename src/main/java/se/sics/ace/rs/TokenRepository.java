@@ -457,7 +457,6 @@ public class TokenRepository implements AutoCloseable {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
 	        return UNAUTHZ; //No tokens for this pop-key
-	        //FIXME: need info about AS?
 	    }
 	    
 	    //Collect the token id's of matching tokens
