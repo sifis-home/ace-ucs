@@ -29,39 +29,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.coap;
 
-import se.sics.ace.AceException;
+public class TestDTLSProfileAuthzInfo {
 
-/**
- * The interface for scope validators.  These should be implemented for the specific applications.
- * 
- * @author Ludwig Seitz
- *
- */
-public interface ScopeValidator {
-	
-	/**
-	 * Does the given scope match the given resource and action
-	 * 
-	 * @param scope  the scope
-	 * @param resourceId  the resource
-	 * @param actionId  the action on the resource
-	 * @return  true if the scope includes the resource and the action, false if not.
-	 * @throws AceException 
-	 */
-	boolean scopeMatch(String scope, String resourceId, String actionId)
-	        throws AceException;
-	
-    /**
-     * Does the given scope match the given resource
-     * 
-     * @param scope  the scope
-     * @param resourceId  the resource
-     * @return  true if the scope includes the resource, false if not.
-     * @throws AceException 
-     */
-    boolean scopeMatchResource(String scope, String resourceId)
-            throws AceException;
-	
+    public TestDTLSProfileAuthzInfo() {
+        // TODO Auto-generated constructor stub
+    }
+
 }

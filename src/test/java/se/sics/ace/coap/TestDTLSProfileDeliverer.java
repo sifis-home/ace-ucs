@@ -29,39 +29,22 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
-
-import se.sics.ace.AceException;
+package se.sics.ace.coap;
 
 /**
- * The interface for scope validators.  These should be implemented for the specific applications.
+ * Test the DTLSProfileRequests class. 
+ * 
+ * NOTE: You have to run TestCoAPServer first to start the server. 
+ * 
+ * FIXME: Implement this
  * 
  * @author Ludwig Seitz
  *
  */
-public interface ScopeValidator {
-	
-	/**
-	 * Does the given scope match the given resource and action
-	 * 
-	 * @param scope  the scope
-	 * @param resourceId  the resource
-	 * @param actionId  the action on the resource
-	 * @return  true if the scope includes the resource and the action, false if not.
-	 * @throws AceException 
-	 */
-	boolean scopeMatch(String scope, String resourceId, String actionId)
-	        throws AceException;
-	
-    /**
-     * Does the given scope match the given resource
-     * 
-     * @param scope  the scope
-     * @param resourceId  the resource
-     * @return  true if the scope includes the resource, false if not.
-     * @throws AceException 
-     */
-    boolean scopeMatchResource(String scope, String resourceId)
-            throws AceException;
-	
+public class TestDTLSProfileDeliverer {
+
+    public TestDTLSProfileDeliverer() {
+        // TODO Auto-generated constructor stub
+    }
+
 }

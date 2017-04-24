@@ -29,39 +29,28 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.coap;
 
-import se.sics.ace.AceException;
+import org.junit.BeforeClass;
 
 /**
- * The interface for scope validators.  These should be implemented for the specific applications.
+ * Test the DTLSProfileTokenRepository class.
  * 
  * @author Ludwig Seitz
  *
  */
-public interface ScopeValidator {
-	
-	/**
-	 * Does the given scope match the given resource and action
-	 * 
-	 * @param scope  the scope
-	 * @param resourceId  the resource
-	 * @param actionId  the action on the resource
-	 * @return  true if the scope includes the resource and the action, false if not.
-	 * @throws AceException 
-	 */
-	boolean scopeMatch(String scope, String resourceId, String actionId)
-	        throws AceException;
-	
+public class TestDTLSProfileTokenRepository {
+
+    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    
     /**
-     * Does the given scope match the given resource
-     * 
-     * @param scope  the scope
-     * @param resourceId  the resource
-     * @return  true if the scope includes the resource, false if not.
-     * @throws AceException 
+     * Set up tests.
      */
-    boolean scopeMatchResource(String scope, String resourceId)
-            throws AceException;
-	
+    @BeforeClass
+    public static void setUp() {
+        
+    }
+    
+    
+
 }
