@@ -81,7 +81,8 @@ public class TestDTLSProfilePskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        tr = new TokenRepository(valid, "src/test/resources/tokens.json", ctx);
+        TokenRepository.create(valid, "src/test/resources/tokens.json", ctx);
+        tr = TokenRepository.getInstance();
         
         ai = new AuthzInfo(tr, 
                 Collections.singletonList("TestAS"), new KissTime(), null, 

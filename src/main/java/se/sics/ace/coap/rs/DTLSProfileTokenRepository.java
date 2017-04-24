@@ -38,6 +38,54 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * The mapping of SenderIdentity to kid
      */
     private Map<String, String> sid2kid;
+    
+    /**
+     * The singleton instance of this repo
+     */
+    private static DTLSProfileTokenRepository singleton;
+    
+    /**
+     * The singleton getter
+     * @return  the singleton repository
+     * @throws AceException  if the repository is not initialized
+     */
+    public static DTLSProfileTokenRepository getInstance() 
+            throws AceException {
+        if (singleton == null) {
+            throw new AceException("Token repository not created");
+        }
+        return singleton;
+    }
+    
+    /**
+     * Creates the one and only instance of the token repo and loads the 
+     * existing tokens from a JSON file is there is one.
+     * 
+     * The JSON file stores the tokens as a JSON array of JSON maps,
+     * where each map represents the claims of a token, String mapped to
+     * the Base64 encoded byte representation of the CBORObject.
+     * 
+     * @param scopeValidator  the application specific scope validator
+     * @param tokenFile  the file storing the existing tokens, if the file
+     *     does not exist it is created
+     * @param ctx  the crypto context for reading encrypted tokens
+     * 
+     * @param scopeValidator
+     * @param tokenFile
+     * @param ctx
+     * @throws AceException
+     * @throws IOException
+     */
+    public static void create(ScopeValidator scopeValidator, 
+            String tokenFile, CwtCryptoCtx ctx) 
+                    throws AceException, IOException {
+        if (singleton != null) {
+            throw new AceException("Token repository already exists");
+        }
+        singleton = new DTLSProfileTokenRepository(
+                scopeValidator, tokenFile, ctx);
+    }
+   
 
     /**
      * Creates the token repository and loads the existing tokens
@@ -48,7 +96,6 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * the Base64 encoded byte representation of the CBORObject.
      * 
      * @param scopeValidator  the application specific scope validator
-     * @param resources  the resources this TokenRepository serves 
      * @param tokenFile  the file storing the existing tokens, if the file
      *     does not exist it is created
      * @param ctx  the crypto context for reading encrypted tokens
@@ -56,8 +103,8 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * @throws IOException 
      * @throws AceException 
      */
-    public DTLSProfileTokenRepository(ScopeValidator scopeValidator,
-            Set<String> resources, String tokenFile, CwtCryptoCtx ctx)
+    protected DTLSProfileTokenRepository(ScopeValidator scopeValidator, 
+            String tokenFile, CwtCryptoCtx ctx)
             throws IOException, AceException {
         super(scopeValidator, tokenFile, ctx);
         this.sid2kid = new HashMap<>();

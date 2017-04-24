@@ -57,6 +57,7 @@ import COSE.CoseException;
 import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
@@ -73,6 +74,10 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * 
  * If the token has no cti, this class will use the hashCode() of the claims
  * Map as local cti.
+ * 
+ * This class is implemented as a singleton to ensure that all users see
+ * the same repository (and yes I know that parameterized singletons are bad 
+ * style, go ahead and suggest a better solution).
  *  
  * @author Ludwig Seitz
  *
@@ -82,22 +87,22 @@ public class TokenRepository implements AutoCloseable {
     /**
      * Return codes of the canAccess() method
      */
-    public static int OK = 1;
+    public static final int OK = 1;
     
     /**
      * Return codes of the canAccess() method. 4.01 Unauthorized
      */
-    public static int UNAUTHZ = 0;
+    public static final int UNAUTHZ = 0;
     
     /**
      * Return codes of the canAccess() method. 4.03 Forbidden
      */ 
-    public static int FORBID = -1;
+    public static final int FORBID = -1;
     
     /**
      * Return codes of the canAccess() method. 4.05 Method Not Allowed
      */
-    public static int METHODNA = -2;
+    public static final int METHODNA = -2;
     
     
     /**
@@ -148,6 +153,52 @@ public class TokenRepository implements AutoCloseable {
 
 	
 	/**
+	 * The singleton instance
+	 */
+	private static TokenRepository singleton = null;
+	
+	
+	/**
+	 * The singleton getter
+	 * @return  the singleton repository
+	 * @throws AceException  if the repository is not initialized
+	 */
+	public static TokenRepository getInstance() throws AceException {
+	    if (singleton == null) {
+	        throw new AceException("Token repository not created");
+	    }
+	    return singleton;
+	}
+	
+	/**
+	 * Creates the one and only instance of the token repo and loads the 
+	 * existing tokens from a JSON file is there is one.
+     * 
+     * The JSON file stores the tokens as a JSON array of JSON maps,
+     * where each map represents the claims of a token, String mapped to
+     * the Base64 encoded byte representation of the CBORObject.
+     * 
+     * @param scopeValidator  the application specific scope validator
+     * @param tokenFile  the file storing the existing tokens, if the file
+     *     does not exist it is created
+     * @param ctx  the crypto context for reading encrypted tokens
+	 * 
+	 * @param scopeValidator
+	 * @param tokenFile
+	 * @param ctx
+	 * @throws AceException
+	 * @throws IOException
+	 */
+	public static void create(ScopeValidator scopeValidator, 
+            String tokenFile, CwtCryptoCtx ctx) 
+                    throws AceException, IOException {
+	    if (singleton != null) {
+	        throw new AceException("Token repository already exists");
+	    }
+	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx);
+	}
+	
+	/**
 	 * Creates a new token repository and loads the existing tokens
 	 * from a JSON file is there is one.
 	 * 
@@ -162,7 +213,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
-	public TokenRepository(ScopeValidator scopeValidator, 
+	protected TokenRepository(ScopeValidator scopeValidator, 
 	        String tokenFile, CwtCryptoCtx ctx) 
 			        throws IOException, AceException {
 	    this.closed = false;
