@@ -56,7 +56,8 @@ import se.sics.ace.Message;
 public class CoapReq implements Message {
 
     /**
-     * The parameters in the payload of this message as a Map for convenience
+     * The parameters in the payload of this message as a Map for convenience,
+     * if the payload is a CBOR Map.
      */
     private Map<String, CBORObject> parameters;
     
@@ -65,19 +66,29 @@ public class CoapReq implements Message {
      */
     private Request request;
     
+    
     /**
-     * Create a request from an existing Californium request.
+     * Create a request from an underlying Californium request.
+     * Payload if any MUST be in CBOR.
      * 
-     * @param req
-     * @param parameters
+     * @param req  the underlying Californium request
+     * @throws AceException 
      */
-    public CoapReq(Request req, Map<String, CBORObject> parameters) {
+    protected CoapReq(Request req) throws AceException {
         this.request = req;
-        this.parameters = new HashMap<>();
-        this.parameters.putAll(parameters);
-        this.request.setPayload(
-                Constants.abbreviate(this.parameters).EncodeToBytes());
+        CBORObject cborPayload = null;
+        if (req.getPayload() != null) {
+            try {
+                cborPayload = CBORObject.DecodeFromBytes(req.getPayload());
+            } catch (CBORException ex) {
+                throw new AceException(ex.getMessage());
+            }
+            if (cborPayload != null && cborPayload.getType().equals(CBORType.Map)) {
+                this.parameters = Constants.unabbreviate(cborPayload);
+            }
+        }
     }
+    
 
     @Override
     public byte[] getRawPayload() {
@@ -168,19 +179,7 @@ public class CoapReq implements Message {
      * @throws AceException 
      */
     public static CoapReq getInstance(Request req) throws AceException {
-        Map<String, CBORObject> parameters = null;
-        CBORObject cborPayload = null;
-        try {
-            cborPayload = CBORObject.DecodeFromBytes(req.getPayload());
-        } catch (CBORException ex) {
-            throw new AceException(ex.getMessage());
-        }
-        if (cborPayload == null || !cborPayload.getType().equals(CBORType.Map)) {
-            throw new AceException("Payload is empty or not encoded as CBOR Map");
-        }
-        parameters = Constants.unabbreviate(cborPayload);
-        CoapReq creq = new CoapReq(req, parameters);
-        return creq;
+        return new CoapReq(req);
     }
 
     @Override
