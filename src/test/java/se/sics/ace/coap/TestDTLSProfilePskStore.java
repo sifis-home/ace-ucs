@@ -100,9 +100,9 @@ public class TestDTLSProfilePskStore {
         Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        myResource.clear();
-        myResource.put("co2", actions);
-        myScopes.put("r_co2", myResource);
+        Map<String, Set<String>> myResource2 = new HashMap<>();
+        myResource2.put("co2", actions);
+        myScopes.put("r_co2", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
