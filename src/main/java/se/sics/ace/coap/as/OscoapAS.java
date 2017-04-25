@@ -31,8 +31,17 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
+/**
+ * An Authorization Server that offers secure connections and authentication via OSCOAP.
+ * 
+ * @author Ludwig Seitz
+ *
+ */
 public class OscoapAS {
 
+    /**
+     * FIXME: Implement this
+     */
     public OscoapAS() {
         // TODO Auto-generated constructor stub
     }
