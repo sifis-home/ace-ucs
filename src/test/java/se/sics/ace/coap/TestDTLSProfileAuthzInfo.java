@@ -92,7 +92,6 @@ public class TestDTLSProfileAuthzInfo {
     
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static OneKey symmetricKey;
     private static DTLSProfileTokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfo ai;
@@ -112,14 +111,6 @@ public class TestDTLSProfileAuthzInfo {
     public static void setUp() 
             throws CoseException, AceException, IOException, 
             IllegalStateException, InvalidCipherTextException {
-        
-        //Set up key
-        CBORObject keyData = CBORObject.NewMap();
-        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "psk".getBytes(Constants.charset));
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128a);
-        symmetricKey = new OneKey(keyData); 
         
         //Set up DTLSProfileTokenRepository
         Set<String> actions = new HashSet<>();
