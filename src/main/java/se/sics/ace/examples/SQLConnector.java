@@ -101,21 +101,21 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * 
 	 * Parameters: rs id, cose encoding, default expiration time, psk, rpk
 	 */
-	private PreparedStatement insertRS;
+	protected PreparedStatement insertRS;
 	
 	/**
      * A prepared DELETE statement to remove a Resource Server
      * 
      * Parameter: rs id.
      */
-    private PreparedStatement deleteRS;
+	protected PreparedStatement deleteRS;
     
     /**
      * A prepared SELECT statement to get a set of RS for an audience
      * 
      * Parameter: audience name
      */
-    private PreparedStatement selectRS;
+	protected PreparedStatement selectRS;
     
 	/**
 	 * A prepared INSERT statement to add a profile supported
@@ -123,7 +123,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * 
 	 * Parameters: id, profile name
 	 */
-	private PreparedStatement insertProfile;
+	protected PreparedStatement insertProfile;
 	
 	/**
      * A prepared DELETE statement to remove the profiles supported
@@ -131,7 +131,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: id
      */
-    private PreparedStatement deleteProfiles;
+	protected PreparedStatement deleteProfiles;
 	
     /**
      * A prepared SELECT statement to get all profiles for 
@@ -139,7 +139,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: audience name, client id
      */
-    private PreparedStatement selectProfiles;
+	protected PreparedStatement selectProfiles;
     
 	/**
 	 * A prepared INSERT statement to add the key types supported
@@ -147,7 +147,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: id, key type
 	 */
-	private PreparedStatement insertKeyType;
+	protected PreparedStatement insertKeyType;
 	 
 	/**
      * A prepared DELETE statement to remove the key types supported
@@ -155,14 +155,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: id
      */
-    private PreparedStatement deleteKeyTypes;
+	protected PreparedStatement deleteKeyTypes;
     
     /**
      * A prepared SELECT statement to get a set of key types
      * 
      * Parameters: audience name, client id
      */
-    private PreparedStatement selectKeyTypes;
+	protected PreparedStatement selectKeyTypes;
 	
 	/**
      * A prepared INSERT statement to add the scopes supported
@@ -170,7 +170,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: rs id, scope name
      */
-    private PreparedStatement insertScope;
+	protected PreparedStatement insertScope;
     
     /**
      * A prepared DELETE statement to remove the scopes supported
@@ -178,14 +178,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: rs id
      */
-    private PreparedStatement deleteScopes;   
+	protected PreparedStatement deleteScopes;
     
     /**
      * A prepared SELECT statement to get a set of Scopes for a specific RS
      * 
      * Parameter: rs id
      */
-    private PreparedStatement selectScopes;
+	protected PreparedStatement selectScopes;
     
     /**
      * A prepared INSERT statement to add an audience a 
@@ -193,7 +193,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: rs id, audience name
      */
-    private PreparedStatement insertAudience;
+	protected PreparedStatement insertAudience;
 	
     /**
      * A prepared DELETE statement to remove the audiences
@@ -201,14 +201,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: rs id
      */
-    private PreparedStatement deleteAudiences;   
+	protected PreparedStatement deleteAudiences;
     
     /**
      * A prepared SELECT statement to get a set of audiences for an RS
      * 
      * Parameter: rs id
      */
-    private PreparedStatement selectAudiences;
+	protected PreparedStatement selectAudiences;
     
     /**
      * A prepared INSERT statement to add a token type a 
@@ -216,7 +216,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: rs id, token type
      */
-    private PreparedStatement insertTokenType;
+	protected PreparedStatement insertTokenType;
     
     /**
      * A prepared DELETE statement to remove the token types a
@@ -224,42 +224,42 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: rs id
      */
-    private PreparedStatement deleteTokenTypes;   
+	protected PreparedStatement deleteTokenTypes;
 
     /**
      * A prepared SELECT statement to get a set of token types for an audience
      * 
      * Parameter: audience name
      */
-    private PreparedStatement selectTokenTypes;
+	protected PreparedStatement selectTokenTypes;
     
 	/**
 	 * A prepared INSERT statement to add a new client
 	 * 
 	 * Parameters: client id, default audience, default scope, psk, rpk
 	 */
-	private PreparedStatement insertClient;
+	protected PreparedStatement insertClient;
 	
 	/**
 	 * A prepared DELETE statement to remove a client
 	 * 
 	 * Parameter: client id
 	 */
-	private PreparedStatement deleteClient;
+	protected PreparedStatement deleteClient;
 	
 	/**
 	 * A prepared SELECT statement to get the default audience for a client.
 	 * 
 	 *  Parameter: client id
 	 */
-	private PreparedStatement selectDefaultAudience;
+	protected PreparedStatement selectDefaultAudience;
 	
 	/**
      * A prepared SELECT statement to get the default scope for a client.
      * 
      *  Parameter: client id
      */
-    private PreparedStatement selectDefaultScope;
+	protected PreparedStatement selectDefaultScope;
 
     
     /**
@@ -268,14 +268,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: rs id, cose config
      */
-    private PreparedStatement insertCose;
+	protected PreparedStatement insertCose;
     
     /**
      * A prepared DELETE statement to remove a cose configuration
      * 
      * Parameter: rs id
      */
-    private PreparedStatement deleteCose;
+	protected PreparedStatement deleteCose;
     
 	/**
 	 * A prepared SELECT statement to get the COSE configurations for
@@ -283,7 +283,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * 
 	 * Parameter: audience name
 	 */
-	private PreparedStatement selectCOSE;
+	protected PreparedStatement selectCOSE;
 	
 	/**
      * A prepared SELECT statement to get the default expiration time for
@@ -291,7 +291,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      *     
      * Parameter: audience name
      */
-    private PreparedStatement selectExpiration;
+	protected PreparedStatement selectExpiration;
 	
     /**
      * A prepared SELECT statement to get a the pre-shared keys for
@@ -299,14 +299,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      *     
      * Parameter: audience name
      */
-    private PreparedStatement selectRsPSK;
+	protected PreparedStatement selectRsPSK;
     
     /**
      * A prepared SELECT statement to get the public keys of an audience.
      * 
      * Parameter: audience name
      */
-    private PreparedStatement selectRsRPK;
+	protected PreparedStatement selectRsRPK;
     
     /**
      * A prepared SELECT statement to get a the pre-shared key for
@@ -314,20 +314,20 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: client id
      */
-    private PreparedStatement selectCPSK;
+	protected PreparedStatement selectCPSK;
     
     /**
      * A prepared SELECT statement to get the public key of a client.
      * 
      * Parameter: client id
      */
-    private PreparedStatement selectCRPK;
+	protected PreparedStatement selectCRPK;
     
     /**
      * A prepared SELECT statement to fetch token ids and their
      * expiration time form the claims table.
      */
-    private PreparedStatement selectExpirationTime;
+	protected PreparedStatement selectExpirationTime;
     
     /**
      * A prepared INSERT statement to add a claim of a token 
@@ -335,7 +335,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: token cid, claim name, claim value
      */
-    private PreparedStatement insertClaim;
+	protected PreparedStatement insertClaim;
     
     /**
      * A prepared DELETE statement to remove the claims of a token 
@@ -343,7 +343,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameters: token cid
      */
-    private PreparedStatement deleteClaims;
+	protected PreparedStatement deleteClaims;
     
     /**
      * A prepared SELECT statement to select the claims of a token from
@@ -351,19 +351,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * Parameter: token cid
      */
-    private PreparedStatement selectClaims;
+	protected PreparedStatement selectClaims;
     
     /**
      * A prepared SELECT statement to select the cti counter value from the 
      * cti counter table.
      */
-    private PreparedStatement selectCtiCtr;
+	protected PreparedStatement selectCtiCtr;
     
     /**
      * A prepared UPDATE statement to update the saved cti counter value in the
      * cti counter table.
      */
-    private PreparedStatement updateCtiCtr;
+	protected PreparedStatement updateCtiCtr;
 
     /**
      * The singleton instance of this connector
@@ -490,7 +490,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 			
 		this.insertKeyType = this.conn.prepareStatement("INSERT INTO "
                  + DBConnector.keyTypesTable
-                + " VALUES (?,?)");
+                + " VALUES (?,?::keytype)");
 		
 		this.deleteKeyTypes = this.conn.prepareStatement("DELETE FROM "
 	                 + DBConnector.keyTypesTable
