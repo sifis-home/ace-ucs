@@ -105,9 +105,24 @@ public class Introspect implements Endpoint, AutoCloseable {
      */
     public Introspect(PDP pdp, DBConnector db, 
             TimeProvider time, OneKey publicKey) throws AceException {
+        if (pdp == null) {
+            LOGGER.severe("Introspect endpoint's PDP was null");
+            throw new AceException(
+                    "Introspect endpoint's PDP must be non-null");
+        }
+        if (db == null) {
+            LOGGER.severe("Introspect endpoint's DBConnector was null");
+            throw new AceException(
+                    "Introspect endpoint's DBConnector must be non-null");
+        }
+        if (time == null) {
+            LOGGER.severe("Introspect endpoint received a null TimeProvider");
+            throw new AceException(
+                    "Introspect endpoint requires a non-null TimeProvider");
+        }
         this.pdp = pdp;
         this.db = db;
-        this.time = time;
+        this.time = time;  
         this.publicKey = publicKey;
     }
     

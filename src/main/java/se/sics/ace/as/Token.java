@@ -145,6 +145,28 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
 	        TimeProvider time, OneKey privateKey) throws AceException {
+	    //Time for checks
+	    if (asId == null || asId.isEmpty()) {
+	        LOGGER.severe("Token endpoint's AS identifier was null or empty");
+            throw new AceException(
+                    "AS identifier must be non-null and non-empty");
+	    }
+	    if (pdp == null) {
+	        LOGGER.severe("Token endpoint's PDP was null");
+            throw new AceException(
+                    "Token endpoint's PDP must be non-null");
+	    }
+	    if (db == null) {
+            LOGGER.severe("Token endpoint's DBConnector was null");
+            throw new AceException(
+                    "Token endpoint's DBConnector must be non-null");
+        }
+	    if (time == null) {
+            LOGGER.severe("Token endpoint's TimeProvider was null");
+            throw new AceException("Token endpoint's TimeProvider "
+                    + "must be non-null");
+        }
+	    //All checks passed
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.db = db;
