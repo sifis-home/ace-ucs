@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.util.Arrays;
 
@@ -46,7 +46,7 @@ import se.sics.ace.AceException;
  * @author Ludwig Seitz
  *
  */
-public class DTLSProfileAsInfo {
+public class AsInfo {
 
     /**
      * The nonce for replay protection
@@ -75,7 +75,7 @@ public class DTLSProfileAsInfo {
      * @param asUri  the absolute URI of the AS
      * @param nonce  the nonce for time synchronization
      */
-    public DTLSProfileAsInfo(String asUri, byte[] nonce) {
+    public AsInfo(String asUri, byte[] nonce) {
         if (asUri == null || asUri.isEmpty()) {
             throw new IllegalArgumentException(
                     "Cannot create an DTLSProfileAsInfo object "
@@ -92,7 +92,7 @@ public class DTLSProfileAsInfo {
      * 
      * @param asUri  the absolute URI of the AS
      */
-    public DTLSProfileAsInfo(String asUri) {
+    public AsInfo(String asUri) {
         this(asUri, null);
     }
 
@@ -131,7 +131,7 @@ public class DTLSProfileAsInfo {
      * @return  the resulting DTLSProfileAsInfo object
      * @throws AceException 
      */
-    public static DTLSProfileAsInfo parse(byte[] raw) throws AceException {
+    public static AsInfo parse(byte[] raw) throws AceException {
        CBORObject cbor = CBORObject.DecodeFromBytes(raw);
        if (!cbor.getType().equals(CBORType.Map)) {
            throw new AceException("Malformed AS-info object");
@@ -149,7 +149,7 @@ public class DTLSProfileAsInfo {
            }
            nonce = nonceC.GetByteString();
        }
-       return new DTLSProfileAsInfo(asUri, nonce);
+       return new AsInfo(asUri, nonce);
     }
 
 }

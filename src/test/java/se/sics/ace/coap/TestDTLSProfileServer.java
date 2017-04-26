@@ -51,9 +51,9 @@ import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.DTLSProfileAsInfo;
-import se.sics.ace.coap.rs.DTLSProfileDeliverer;
-import se.sics.ace.coap.rs.DTLSProfileTokenRepository;
+import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissValidator;
 
@@ -120,10 +120,10 @@ public class TestDTLSProfileServer {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        DTLSProfileTokenRepository.create(
+        DtlspTokenRepository.create(
                 valid, "src/test/resources/tokens.json", null);
-        DTLSProfileTokenRepository tr 
-            = DTLSProfileTokenRepository.getInstance();
+        DtlspTokenRepository tr 
+            = DtlspTokenRepository.getInstance();
        
         byte[] key128 
             = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -155,10 +155,10 @@ public class TestDTLSProfileServer {
         params.put("cnf", key.AsCBOR());
         tr.addToken(params, ctx);
         
-        DTLSProfileAsInfo ai 
-            = new DTLSProfileAsInfo("coaps://blah/authz-info/");
-        DTLSProfileDeliverer dpd 
-            = new DTLSProfileDeliverer(new HelloWorldResource(), tr, null, ai); 
+        AsInfo ai 
+            = new AsInfo("coaps://blah/authz-info/");
+        DtlspDeliverer dpd 
+            = new DtlspDeliverer(new HelloWorldResource(), tr, null, ai); 
         
         CoapServer server = new CoapServer();
         

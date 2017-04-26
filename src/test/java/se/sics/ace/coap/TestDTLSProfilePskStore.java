@@ -56,7 +56,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.DTLSProfilePskStore;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -73,7 +73,7 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDTLSProfilePskStore {
 
-    private static DTLSProfilePskStore store = null;
+    private static DtlspPskStore store = null;
    
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -118,7 +118,7 @@ public class TestDTLSProfilePskStore {
         ai = new AuthzInfo(tr, 
                 Collections.singletonList("TestAS"), new KissTime(), null, 
                 valid, ctx);
-        store = new DTLSProfilePskStore(ai);
+        store = new DtlspPskStore(ai);
     }
     
     /**

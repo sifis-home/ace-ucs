@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.util.logging.Logger;
 
@@ -57,18 +57,18 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class DTLSProfileDeliverer extends ServerMessageDeliverer {
+public class DtlspDeliverer extends ServerMessageDeliverer {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DTLSProfileDeliverer.class.getName());
+        = Logger.getLogger(DtlspDeliverer.class.getName());
     
     /**
      * The token repository
      */
-    private DTLSProfileTokenRepository tr;
+    private DtlspTokenRepository tr;
     
     /**
      * The introspection handler
@@ -78,7 +78,7 @@ public class DTLSProfileDeliverer extends ServerMessageDeliverer {
     /**
      * The AS information message sent back to unauthorized requesters
      */
-    private DTLSProfileAsInfo asInfo;
+    private AsInfo asInfo;
     
     /**
      * Constructor. 
@@ -87,8 +87,8 @@ public class DTLSProfileDeliverer extends ServerMessageDeliverer {
      * @param i  the introspection handler or null if there isn't any.
      * @param asInfo  the AS information to send for client authz errors.
      */
-    public DTLSProfileDeliverer(Resource root, DTLSProfileTokenRepository tr, 
-            IntrospectionHandler i, DTLSProfileAsInfo asInfo) {
+    public DtlspDeliverer(Resource root, DtlspTokenRepository tr, 
+            IntrospectionHandler i, AsInfo asInfo) {
         super(root);
         this.tr = tr;
         this.asInfo = asInfo;

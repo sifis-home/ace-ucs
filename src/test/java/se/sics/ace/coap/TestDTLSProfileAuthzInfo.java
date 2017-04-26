@@ -68,8 +68,8 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.DTLSProfileAuthzInfo;
-import se.sics.ace.coap.rs.DTLSProfileTokenRepository;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -92,10 +92,10 @@ public class TestDTLSProfileAuthzInfo {
     
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static DTLSProfileTokenRepository tr;
+    private static DtlspTokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfo ai;
-    private static DTLSProfileAuthzInfo dai;
+    private static DtlspAuthzInfo dai;
     private static CBORObject payload;
     
     /**
@@ -130,9 +130,9 @@ public class TestDTLSProfileAuthzInfo {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        DTLSProfileTokenRepository.create(
+        DtlspTokenRepository.create(
                 valid, "src/test/resources/tokens.json", null);
-        tr = DTLSProfileTokenRepository.getInstance();
+        tr = DtlspTokenRepository.getInstance();
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -146,7 +146,7 @@ public class TestDTLSProfileAuthzInfo {
                 valid, ctx);
         
         //Set up the DTLS authz-info resource
-        dai = new DTLSProfileAuthzInfo(ai);
+        dai = new DtlspAuthzInfo(ai);
         
         //Set up a token to use
         Map<String, CBORObject> params = new HashMap<>(); 

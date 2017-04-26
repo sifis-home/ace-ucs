@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.net.InetSocketAddress;
 import java.util.Base64;
@@ -57,13 +57,13 @@ import se.sics.ace.rs.AuthzInfo;
  * @author Ludwig Seitz
  *
  */
-public class DTLSProfilePskStore implements PskStore {
+public class DtlspPskStore implements PskStore {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DTLSProfilePskStore.class.getName());
+        = Logger.getLogger(DtlspPskStore.class.getName());
     
     
     /**
@@ -77,7 +77,7 @@ public class DTLSProfilePskStore implements PskStore {
      * 
      * @param authzInfo  the authz-info used by this RS
      */
-    public DTLSProfilePskStore(AuthzInfo authzInfo) {
+    public DtlspPskStore(AuthzInfo authzInfo) {
         this.authzInfo = authzInfo;
     }
     

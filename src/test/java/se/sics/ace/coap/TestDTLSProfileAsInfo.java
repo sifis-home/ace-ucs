@@ -39,7 +39,7 @@ import org.junit.rules.ExpectedException;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
-import se.sics.ace.coap.rs.DTLSProfileAsInfo;
+import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 
 /**
  * Tests the DTLSProfileAsInfo class.
@@ -64,7 +64,7 @@ public class TestDTLSProfileAsInfo {
         this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
                     + "with null or empty asUri field");
         @SuppressWarnings("unused")
-        DTLSProfileAsInfo ai = new DTLSProfileAsInfo(null);
+        AsInfo ai = new AsInfo(null);
     }
     
     /**
@@ -76,7 +76,7 @@ public class TestDTLSProfileAsInfo {
         this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
                     + "with null or empty asUri field");
         @SuppressWarnings("unused")
-        DTLSProfileAsInfo ai = new DTLSProfileAsInfo("");
+        AsInfo ai = new AsInfo("");
     }
     
     /**
@@ -86,16 +86,16 @@ public class TestDTLSProfileAsInfo {
      */
     @Test 
     public void testRoundTrip() throws AceException {
-        DTLSProfileAsInfo ai = new DTLSProfileAsInfo("coaps://blah/authz-info/");
+        AsInfo ai = new AsInfo("coaps://blah/authz-info/");
         CBORObject cbor = ai.getCBOR();
-        DTLSProfileAsInfo ai2 = DTLSProfileAsInfo.parse(cbor.EncodeToBytes());
+        AsInfo ai2 = AsInfo.parse(cbor.EncodeToBytes());
         Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
         Assert.assertNull(ai.getNonce());
         
         byte[] nonce = {0x00, 0x01, 0x02};
-        ai = new DTLSProfileAsInfo("blah", nonce);
+        ai = new AsInfo("blah", nonce);
         cbor = ai.getCBOR();
-        ai2 = DTLSProfileAsInfo.parse(cbor.EncodeToBytes());
+        ai2 = AsInfo.parse(cbor.EncodeToBytes());
         Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
         Assert.assertArrayEquals(nonce, ai2.getNonce());
     }

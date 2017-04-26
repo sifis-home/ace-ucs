@@ -54,7 +54,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.DTLSProfileTokenRepository;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissValidator;
 
@@ -69,7 +69,7 @@ public class TestDTLSProfileTokenRepository {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static OneKey symmetricKey;
     private static OneKey asymmetricKey;
-    private static DTLSProfileTokenRepository tr;
+    private static DtlspTokenRepository tr;
     private static CwtCryptoCtx ctx;
     
     
@@ -108,9 +108,9 @@ public class TestDTLSProfileTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        DTLSProfileTokenRepository.create(
+        DtlspTokenRepository.create(
                 valid, "src/test/resources/tokens.json", null);
-        tr = DTLSProfileTokenRepository.getInstance();
+        tr = DtlspTokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
@@ -144,7 +144,7 @@ public class TestDTLSProfileTokenRepository {
         OneKey key = tr.getKey("psk");
         Assert.assertArrayEquals(key128, key.get(KeyKeys.Octet_K).GetByteString());
         
-        String sid = DTLSProfileTokenRepository.makeSid(symmetricKey);
+        String sid = DtlspTokenRepository.makeSid(symmetricKey);
         Assert.assertEquals("psk", sid);
         
         Assert.assertEquals("psk",tr.getKid(sid));
@@ -171,7 +171,7 @@ public class TestDTLSProfileTokenRepository {
         Assert.assertArrayEquals(asymmetricKey.EncodeToBytes(), 
                 key.EncodeToBytes());
         
-        String sid = DTLSProfileTokenRepository.makeSid(asymmetricKey);     
+        String sid = DtlspTokenRepository.makeSid(asymmetricKey);     
         Assert.assertEquals("rpk", tr.getKid(sid));
         
     }

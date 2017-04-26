@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.io.IOException;
 import java.util.HashMap;
@@ -56,13 +56,13 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class DTLSProfileTokenRepository extends TokenRepository {
+public class DtlspTokenRepository extends TokenRepository {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DTLSProfileTokenRepository.class.getName());
+        = Logger.getLogger(DtlspTokenRepository.class.getName());
     
     /**
      * The mapping of SenderIdentity to kid
@@ -72,14 +72,14 @@ public class DTLSProfileTokenRepository extends TokenRepository {
     /**
      * The singleton instance of this repo
      */
-    private static DTLSProfileTokenRepository singleton;
+    private static DtlspTokenRepository singleton;
     
     /**
      * The singleton getter
      * @return  the singleton repository
      * @throws AceException  if the repository is not initialized
      */
-    public static DTLSProfileTokenRepository getInstance() 
+    public static DtlspTokenRepository getInstance() 
             throws AceException {
         if (singleton == null) {
             throw new AceException("Token repository not created");
@@ -112,7 +112,7 @@ public class DTLSProfileTokenRepository extends TokenRepository {
         if (singleton != null) {
             throw new AceException("Token repository already exists");
         }
-        singleton = new DTLSProfileTokenRepository(
+        singleton = new DtlspTokenRepository(
                 scopeValidator, tokenFile, ctx);
     }
    
@@ -133,7 +133,7 @@ public class DTLSProfileTokenRepository extends TokenRepository {
      * @throws IOException 
      * @throws AceException 
      */
-    protected DTLSProfileTokenRepository(ScopeValidator scopeValidator, 
+    protected DtlspTokenRepository(ScopeValidator scopeValidator, 
             String tokenFile, CwtCryptoCtx ctx)
             throws IOException, AceException {
         super(scopeValidator, tokenFile, ctx);
