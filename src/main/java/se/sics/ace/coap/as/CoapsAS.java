@@ -88,11 +88,12 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
     /**
      * Constructor.
      * 
-     * @param asId 
-     * @param db 
-     * @param pdp 
-     * @param time 
-     * @param asymmetricKey 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
+     *   can be null if the AS only ever does PSK handshakes
      * @throws AceException 
      * @throws CoseException 
      * 
