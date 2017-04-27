@@ -131,7 +131,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
            config.setIdentity(asymmetricKey.AsPrivateKey(), 
                    asymmetricKey.AsPublicKey());
        }
-      
+       config.setClientAuthenticationRequired(true);
        DTLSConnector connector = new DTLSConnector(config.build());
        addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
     }
