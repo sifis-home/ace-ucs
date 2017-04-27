@@ -539,7 +539,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		
 		this.insertTokenType = this.conn.prepareStatement("INSERT INTO "
                  + DBConnector.tokenTypesTable
-                + " VALUES (?,?)");
+                + " VALUES (?,?::tokentype)");
 		
 		this.deleteTokenTypes = this.conn.prepareStatement("DELETE FROM "
                  + DBConnector.tokenTypesTable
