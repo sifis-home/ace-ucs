@@ -37,12 +37,12 @@ import java.sql.Statement;
 import java.util.Properties;
 
 /**
- * This class creates a proper PostgreSQL Db for the Attribute Authority.
+ * This class handles proper PostgreSQL Db SQL.
  *
  * @author Sebastian Echeverria
  *
  */
-public class PostgreSQLDBCreator implements SQLDBCreator{
+public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
     private static final String ROOT_USER = "postgres";
     private static final String BASE_DB = "postgres";
@@ -71,7 +71,7 @@ public class PostgreSQLDBCreator implements SQLDBCreator{
             this.baseDbUrl = DEFAULT_DB_URL;
         }
 
-        this.internalDbURL = this.baseDbUrl + "/" + PostgreSQLDBCreator.BASE_DB;
+        this.internalDbURL = this.baseDbUrl + "/" + PostgreSQLDBAdapter.BASE_DB;
         this.actualDbUrl = this.baseDbUrl + "/" + this.dbName;
     }
 
@@ -91,7 +91,7 @@ public class PostgreSQLDBCreator implements SQLDBCreator{
                 "$body$;";
 
         Properties connectionProps = new Properties();
-        connectionProps.put("user", PostgreSQLDBCreator.ROOT_USER);
+        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
         try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
              Statement stmt = rootConn.createStatement())
@@ -114,7 +114,7 @@ public class PostgreSQLDBCreator implements SQLDBCreator{
                 "LC_COLLATE = 'Spanish_Spain.1252' LC_CTYPE = 'Spanish_Spain.1252' CONNECTION LIMIT = -1;";
 
         Properties connectionProps = new Properties();
-        connectionProps.put("user", PostgreSQLDBCreator.ROOT_USER);
+        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
         try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
              Statement stmt = rootConn.createStatement())
@@ -217,5 +217,19 @@ public class PostgreSQLDBCreator implements SQLDBCreator{
             e.printStackTrace();
             throw new AceException(e.getMessage());
         }
-    }    
+    }
+
+    @Override
+    public String updateEngineSpecificSQL(String sqlQuery)
+    {
+        // In PostgreSQL, enums need casting.
+        if(sqlQuery.contains("INSERT") && sqlQuery.contains(DBConnector.keyTypesTable)) {
+            return "INSERT INTO " + DBConnector.keyTypesTable + " VALUES (?,?::keytype)";
+        }
+        if(sqlQuery.contains("INSERT") && sqlQuery.contains(DBConnector.tokenTypesTable)) {
+            return "INSERT INTO " + DBConnector.tokenTypesTable + " VALUES (?,?::tokentype)";
+        }
+
+        return sqlQuery;
+    }
 }

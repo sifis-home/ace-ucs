@@ -34,7 +34,7 @@ import se.sics.ace.AceException;
  *
  * @author Sebastian Echeverria
  */
-public interface SQLDBCreator {
+public interface SQLDBAdapter {
     /**
      * Sets basic params for user and DB creation.
      *
@@ -60,4 +60,9 @@ public interface SQLDBCreator {
      * @throws AceException
      */
     void createDBAndTables(String rootPwd) throws AceException;
+
+    /**
+     * Updates any SQL queries that need to be specific for each DB engine.
+     */
+    String updateEngineSpecificSQL(String sqlQuery);
 }

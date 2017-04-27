@@ -36,7 +36,6 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -94,7 +93,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     /**
      * Specific creator for different databases.
      */
-    private SQLDBCreator dbCreator;
+    private SQLDBAdapter dbAdapter;
 	
 	/**
 	 * A prepared INSERT statement to add a new Resource Server.
@@ -383,7 +382,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	public static SQLConnector getInstance(String dbUrl, String user, String pwd)
 			throws SQLException {
-		return SQLConnector.getInstance(new MySQLDBCreator(), dbUrl, user, pwd);
+		return SQLConnector.getInstance(new MySQLDBAdapter(), dbUrl, user, pwd);
 	}
 
     /**
@@ -398,7 +397,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * @throws SQLException
      */
-    public static SQLConnector getInstance(SQLDBCreator dbCreator, String dbUrl, String user, String pwd)
+    public static SQLConnector getInstance(SQLDBAdapter dbCreator, String dbUrl, String user, String pwd)
             throws SQLException {
         if (SQLConnector.connector == null) {
             SQLConnector.connector = new SQLConnector(dbCreator, dbUrl, user, pwd);
@@ -418,21 +417,21 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	protected SQLConnector(String dbUrl, String user, String pwd)
 			throws SQLException {
-		this(new MySQLDBCreator(), dbUrl, user, pwd);
+		this(new MySQLDBAdapter(), dbUrl, user, pwd);
 	}
     
 	/**
 	 * Create a new database connector either from given values or the 
 	 * defaults.
 	 *
-     * @param dbCreator a creator instance for the specific DB type being used.
+     * @param dbAdapter handler for engine-db specific commands.
 	 * @param dbUrl     the database URL, if null the default will be used
 	 * @param user      the database user, if null the default will be used
 	 * @param pwd       the database user's password, if null the default
 	 * 				    will be used
 	 * @throws SQLException 
 	 */
-	protected SQLConnector(SQLDBCreator dbCreator, String dbUrl, String user, String pwd)
+	protected SQLConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, String pwd)
 			throws SQLException {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
@@ -444,8 +443,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 			this.defaultPassword = pwd;
 		}
 
-        this.dbCreator = dbCreator;
-        dbCreator.setParams(this.defaultUser, this.defaultPassword, DBConnector.dbName, this.defaultDbUrl);
+        this.dbAdapter = dbAdapter;
+        dbAdapter.setParams(this.defaultUser, this.defaultPassword, DBConnector.dbName, this.defaultDbUrl);
 
 		Properties connectionProps = new Properties();      
 		connectionProps.put("user", this.defaultUser);
@@ -454,30 +453,30 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        connectionProps);
 		SQLConnector.isConnected = true;
 	        
-		this.insertRS = this.conn.prepareStatement("INSERT INTO "
+		this.insertRS = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		         + DBConnector.rsTable
-		        + " VALUES (?,?,?,?);");
+		        + " VALUES (?,?,?,?);"));
 		
-		this.deleteRS = this.conn.prepareStatement("DELETE FROM "
+		this.deleteRS = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.rsTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		this.selectRS = this.conn.prepareStatement("SELECT "
+		this.selectRS = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.rsIdColumn
                 + " FROM "
                 + DBConnector.audiencesTable
                 + " WHERE " + DBConnector.audColumn + "=? ORDER BY "
-                        + DBConnector.rsIdColumn + ";");
+                        + DBConnector.rsIdColumn + ";"));
 		        
-		this.insertProfile = this.conn.prepareStatement("INSERT INTO "
+		this.insertProfile = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		         + DBConnector.profilesTable
-		        + " VALUES (?,?)");
+		        + " VALUES (?,?)"));
 		
-		this.deleteProfiles = this.conn.prepareStatement("DELETE FROM "
+		this.deleteProfiles = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.profilesTable
-                + " WHERE " + DBConnector.idColumn + "=?;");
+                + " WHERE " + DBConnector.idColumn + "=?;"));
 		
-		this.selectProfiles = this.conn.prepareStatement("SELECT * FROM " 
+		this.selectProfiles = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
 		         + DBConnector.profilesTable
                 + " WHERE " + DBConnector.idColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
@@ -486,17 +485,17 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     + "=?) UNION SELECT * FROM " 
                      + DBConnector.profilesTable
                     + " WHERE " + DBConnector.idColumn + "=? ORDER BY "
-                    + DBConnector.idColumn + ";"); 
+                    + DBConnector.idColumn + ";"));
 			
-		this.insertKeyType = this.conn.prepareStatement("INSERT INTO "
+		this.insertKeyType = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.keyTypesTable
-                + " VALUES (?,?::keytype)");
+                + " VALUES (?,?)"));
 		
-		this.deleteKeyTypes = this.conn.prepareStatement("DELETE FROM "
+		this.deleteKeyTypes = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
 	                 + DBConnector.keyTypesTable
-	                + " WHERE " + DBConnector.idColumn + "=?;");
+	                + " WHERE " + DBConnector.idColumn + "=?;"));
 		
-		this.selectKeyTypes =  this.conn.prepareStatement("SELECT * FROM " 
+		this.selectKeyTypes =  this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
                  + DBConnector.keyTypesTable
                 + " WHERE " + DBConnector.idColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
@@ -505,147 +504,147 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     + " UNION SELECT * FROM "
                     + DBConnector.keyTypesTable + " WHERE " 
                     + DBConnector.idColumn + "=? ORDER BY "
-                    + DBConnector.idColumn + ";");             
+                    + DBConnector.idColumn + ";"));
 		          
-		this.insertScope = this.conn.prepareStatement("INSERT INTO "
+		this.insertScope = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.scopesTable
-                + " VALUES (?,?)");
+                + " VALUES (?,?)"));
 		
-		this.deleteScopes = this.conn.prepareStatement("DELETE FROM "
+		this.deleteScopes = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.scopesTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 
-		this.selectScopes = this.conn.prepareStatement("SELECT * FROM " 
+		this.selectScopes = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
                  + DBConnector.scopesTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                      + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
-                    + DBConnector.rsIdColumn + ";");          
+                    + DBConnector.rsIdColumn + ";"));
 		
-		this.insertAudience = this.conn.prepareStatement("INSERT INTO "
+		this.insertAudience = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.audiencesTable
-                + " VALUES (?,?)");
+                + " VALUES (?,?)"));
 		
-		this.deleteAudiences = this.conn.prepareStatement("DELETE FROM "
+		this.deleteAudiences = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
 	                 + DBConnector.audiencesTable
-	                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+	                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		this.selectAudiences = this.conn.prepareStatement("SELECT " 
+		this.selectAudiences = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.audColumn + " FROM "
 		         + DBConnector.audiencesTable
                 + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
-                + DBConnector.audColumn + ";");          
+                + DBConnector.audColumn + ";"));
 		
-		this.insertTokenType = this.conn.prepareStatement("INSERT INTO "
+		this.insertTokenType = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.tokenTypesTable
-                + " VALUES (?,?::tokentype)");
+                + " VALUES (?,?)"));
 		
-		this.deleteTokenTypes = this.conn.prepareStatement("DELETE FROM "
+		this.deleteTokenTypes = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.tokenTypesTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		this.selectTokenTypes = this.conn.prepareStatement("SELECT * FROM " 
+		this.selectTokenTypes = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
                  + DBConnector.tokenTypesTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                      + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
-                    + DBConnector.rsIdColumn + ";");
+                    + DBConnector.rsIdColumn + ";"));
 		
-		this.insertClient = this.conn.prepareStatement("INSERT INTO "
+		this.insertClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.cTable
-                + " VALUES (?,?,?,?,?)");
+                + " VALUES (?,?,?,?,?)"));
 	
-		this.deleteClient = this.conn.prepareStatement("DELETE FROM "
+		this.deleteClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.cTable
-                + " WHERE " + DBConnector.clientIdColumn + "=?;");
+                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 		
-		this.selectDefaultAudience = this.conn.prepareStatement("SELECT " 
+		this.selectDefaultAudience = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.defaultAud + " FROM " 
                  + DBConnector.cTable
-                + " WHERE " + DBConnector.clientIdColumn + "=?;");
+                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 		  
-		this.selectDefaultScope = this.conn.prepareStatement("SELECT " 
+		this.selectDefaultScope = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 	                + DBConnector.defaultScope + " FROM " 
 	                 + DBConnector.cTable
-	                + " WHERE " + DBConnector.clientIdColumn + "=?;");
+	                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 		
-		this.insertCose = this.conn.prepareStatement("INSERT INTO "
+		this.insertCose = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.coseTable
-                + " VALUES (?,?)");
+                + " VALUES (?,?)"));
 		
-		this.deleteCose = this.conn.prepareStatement("DELETE FROM "
+		this.deleteCose = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.coseTable
-                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		this.selectCOSE = this.conn.prepareStatement("SELECT * "
+		this.selectCOSE = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT * "
                 + " FROM "  + DBConnector.coseTable
                 + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
                     + DBConnector.rsIdColumn + " FROM " 
                      + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
-                    + DBConnector.rsIdColumn + ";");
+                    + DBConnector.rsIdColumn + ";"));
 	      
-		this.selectExpiration = this.conn.prepareStatement("SELECT "
+		this.selectExpiration = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 	                + DBConnector.expColumn 
 	                + " FROM "  + DBConnector.rsTable
-	                + " WHERE " + DBConnector.rsIdColumn + "=?;");
+	                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		        
-		this.selectRsPSK = this.conn.prepareStatement("SELECT "
+		this.selectRsPSK = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.pskColumn
 		        + " FROM "  + DBConnector.rsTable
 		        + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
 		            + DBConnector.rsIdColumn + " FROM " 
 		             + DBConnector.audiencesTable
-		            + " WHERE " + DBConnector.audColumn + "=?);");
+		            + " WHERE " + DBConnector.audColumn + "=?);"));
 
-		this.selectRsRPK = this.conn.prepareStatement("SELECT " 
+		this.selectRsRPK = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.rpkColumn
 		        + " FROM "  + DBConnector.rsTable
 		        + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT " 
 		            + DBConnector.rsIdColumn + " FROM " 
 		             + DBConnector.audiencesTable
-		            + " WHERE " + DBConnector.audColumn + "=?);");
+		            + " WHERE " + DBConnector.audColumn + "=?);"));
 
-		this.selectCPSK = this.conn.prepareStatement("SELECT "
+		this.selectCPSK = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.pskColumn
 		        + " FROM "  + DBConnector.cTable
-		        + " WHERE " + DBConnector.clientIdColumn + "=?;");
+		        + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 
-		this.selectCRPK = this.conn.prepareStatement("SELECT " 
+		this.selectCRPK = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.rpkColumn
 		        + " FROM "  + DBConnector.cTable
-		        + " WHERE "  + DBConnector.clientIdColumn + "=?;");
+		        + " WHERE "  + DBConnector.clientIdColumn + "=?;"));
 
-		this.selectExpirationTime = this.conn.prepareStatement("SELECT "
+		this.selectExpirationTime = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
 		        + DBConnector.cidColumn + "," + DBConnector.claimValueColumn
 		        + " FROM "
 		        + DBConnector.claimsTable
-		        + " WHERE " + DBConnector.claimNameColumn + "='exp';");
+		        + " WHERE " + DBConnector.claimNameColumn + "='exp';"));
 		        
-		this.insertClaim = this.conn.prepareStatement("INSERT INTO "
+		this.insertClaim = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.claimsTable
-                + " VALUES (?,?,?)");
+                + " VALUES (?,?,?)"));
         
-        this.deleteClaims = this.conn.prepareStatement("DELETE FROM "
+        this.deleteClaims = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.claimsTable
-                + " WHERE " + DBConnector.cidColumn + "=?;");
+                + " WHERE " + DBConnector.cidColumn + "=?;"));
     
-        this.selectClaims = this.conn.prepareStatement("SELECT "
+        this.selectClaims = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.claimNameColumn + ","
                 + DBConnector.claimValueColumn + " FROM " 
                  + DBConnector.claimsTable
-                + " WHERE " + DBConnector.cidColumn + "=?;");  	
+                + " WHERE " + DBConnector.cidColumn + "=?;"));
         
-        this.selectCtiCtr = this.conn.prepareStatement("SELECT "
+        this.selectCtiCtr = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.ctiCounterColumn + " FROM "
                  + DBConnector.ctiCounterTable
-                + ";");
+                + ";"));
         
-        this.updateCtiCtr = this.conn.prepareStatement("UPDATE "
+        this.updateCtiCtr = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("UPDATE "
                  + DBConnector.ctiCounterTable
-                + " SET " + DBConnector.ctiCounterColumn + "=?;");
+                + " SET " + DBConnector.ctiCounterColumn + "=?;"));
 	}
 	
 	/**
@@ -657,7 +656,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	@Override
 	public synchronized void init(String rootPwd) throws AceException {
-        dbCreator.createDBAndTables(rootPwd);
+        dbAdapter.createDBAndTables(rootPwd);
 	}
 	
 	/**
@@ -1406,7 +1405,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	public synchronized static void createUser(String rootPwd, String username,
 											   String userPwd, String dbUrl) throws AceException {
-		SQLConnector.createUser(new MySQLDBCreator(), rootPwd, username, userPwd, dbUrl);
+		SQLConnector.createUser(new MySQLDBAdapter(), rootPwd, username, userPwd, dbUrl);
 	}
     
     /**
@@ -1420,8 +1419,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * @throws AceException 
      */
-    public synchronized static void createUser(SQLDBCreator dbCreator, String rootPwd, String username,
-            String userPwd, String dbUrl) throws AceException {
+    public synchronized static void createUser(SQLDBAdapter dbCreator, String rootPwd, String username,
+											   String userPwd, String dbUrl) throws AceException {
         dbCreator.setParams(username, userPwd, DBConnector.dbName, dbUrl);
         dbCreator.createUser(rootPwd);
     }

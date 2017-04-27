@@ -37,12 +37,12 @@ import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 
 /**
- * This class creates a proper MySQL Db for the Attribute Authority.
+ * This class handles proper MySQL Db SQL.
  *
  * @author Sebastian Echeverria
  *
  */
-public class MySQLDBCreator implements SQLDBCreator {
+public class MySQLDBAdapter implements SQLDBAdapter {
     private static final String ROOT_USER = "root";
 
     /**
@@ -70,7 +70,7 @@ public class MySQLDBCreator implements SQLDBCreator {
     @Override
     public synchronized void createUser(String rootPwd) throws AceException {
         Properties connectionProps = new Properties();
-        connectionProps.put("user", MySQLDBCreator.ROOT_USER);
+        connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
         String cUser = "CREATE USER '" + this.user
                 + "'@'localhost' IDENTIFIED BY '" + this.password
@@ -166,7 +166,7 @@ public class MySQLDBCreator implements SQLDBCreator {
                 + " VALUES (0);";
 
         Properties connectionProps = new Properties();
-        connectionProps.put("user", MySQLDBCreator.ROOT_USER);
+        connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
         try (Connection rootConn = DriverManager.getConnection(
                 dbUrl, connectionProps);
@@ -188,5 +188,12 @@ public class MySQLDBCreator implements SQLDBCreator {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
+    }
+
+    @Override
+    public String updateEngineSpecificSQL(String sqlQuery)
+    {
+        // Nothing to do here, as the default SQL statements in is compatible with MySQL.
+        return sqlQuery;
     }
 }
