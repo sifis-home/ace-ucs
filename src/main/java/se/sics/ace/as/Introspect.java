@@ -132,9 +132,8 @@ public class Introspect implements Endpoint, AutoCloseable {
 	    LOGGER.log(Level.INFO, "Introspect received message: " 
 	            + msg.getParameters());
         	    
-	    //1. Check that this RS is allowed to introspect
-	    //XXX: need trim at this time due to bug in Californium
-	    String id = msg.getSenderId().trim();
+	    //1. Check that this RS is allowed to introspect	    
+	    String id = msg.getSenderId();
         if (!this.pdp.canAccessIntrospect(id)) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
