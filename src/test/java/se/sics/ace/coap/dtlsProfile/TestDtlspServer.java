@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.dtlsProfile;
 
 import java.util.Collections;
 import java.util.HashMap;
@@ -66,7 +66,7 @@ import se.sics.ace.examples.KissValidator;
  * @author Ludwig Seitz
  *
  */
-public class TestDTLSProfileServer {
+public class TestDtlspServer {
 
 
     /**

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.dtlsProfile;
 
 import org.junit.Assert;
 import org.junit.Rule;
@@ -47,7 +47,7 @@ import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
  * @author Ludwig Seitz
  *
  */
-public class TestDTLSProfileAsInfo {
+public class TestAsInfo {
     
     /**
      * Expected exception

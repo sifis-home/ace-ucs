@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.dtlsProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -64,7 +64,7 @@ import se.sics.ace.examples.KissValidator;
  * @author Ludwig Seitz
  *
  */
-public class TestDTLSProfileTokenRepository {
+public class TestDtlspTokenRepository {
 
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static OneKey symmetricKey;

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.dtlsProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -71,7 +71,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class TestDTLSProfilePskStore {
+public class TestDtlspPskStore {
 
     private static DtlspPskStore store = null;
    
