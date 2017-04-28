@@ -156,7 +156,7 @@ public class TestDtlspPskStore {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+                "token1".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -172,7 +172,9 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        CBORObject cbor = token.encode(ctx);
+        CBORObject tokenCB = token.encode(ctx);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
         String psk_identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes()); 
 
@@ -207,7 +209,44 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        CBORObject cbor = token.encode(ctx);
+        CBORObject tokenCB = token.encode(ctx);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
+        String psk_identity = Base64.getEncoder().encodeToString(
+                cbor.EncodeToBytes()); 
+
+        byte[] psk = store.getKey(psk_identity);
+        Assert.assertArrayEquals(key128 ,psk);
+    }
+    
+    /**
+     * Test with only a kid in the CBOR structure
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testKid() throws Exception {
+        Map<String, CBORObject> claims = new HashMap<>(); 
+        claims.put("scope", CBORObject.FromObject("r_temp"));
+        claims.put("aud", CBORObject.FromObject("rs1"));
+        claims.put("cti", CBORObject.FromObject(
+                "token3".getBytes(Constants.charset)));
+        claims.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        claims.put("cnf", key.AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        tr.addToken(claims, ctx);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         String psk_identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes()); 
 
