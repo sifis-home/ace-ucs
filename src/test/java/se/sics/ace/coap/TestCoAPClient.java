@@ -54,6 +54,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -115,6 +116,35 @@ public class TestCoAPClient {
         stmt.close();
         rootConn.close();   
     }
+    
+    /**
+     * Test connecting with RPK without authenticating the client.
+     * The Server shgould reject that.
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testNoClientAuthN() throws Exception {
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
+                new InetSocketAddress(0));
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setClientOnly();
+        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        dtlsConnector.start();
+        CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
+        CoapClient client = new CoapClient("coaps://localhost/introspect");
+        client.setEndpoint(e);        
+       
+        ReferenceToken at = new ReferenceToken("token1");
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("token", at.encode());
+        CoapResponse response = client.post(
+                Constants.abbreviate(params).EncodeToBytes(), 
+                MediaTypeRegistry.APPLICATION_CBOR);
+        Assert.assertNull(response);        
+    }
+    
     
     /**
      * Test CoapToken using PSK
