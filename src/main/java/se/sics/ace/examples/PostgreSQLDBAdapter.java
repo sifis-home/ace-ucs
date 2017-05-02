@@ -111,7 +111,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
         String createDB = "CREATE DATABASE " + this.dbName
                 + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
-                "LC_COLLATE = 'Spanish_Spain.1252' LC_CTYPE = 'Spanish_Spain.1252' CONNECTION LIMIT = -1;";
+                " CONNECTION LIMIT = -1;";
 
         Properties connectionProps = new Properties();
         connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
