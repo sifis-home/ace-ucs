@@ -1411,7 +1411,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     /**
      * Creates the user that manages this database.
      *
-	 * @param dbCreator a creator instance for the specific DB type being used.
+	 * @param dbAdapter an adapter instance for the specific DB type being used.
      * @param rootPwd  the database root password
      * @param username  the name of the user
      * @param userPwd   the password for the user
@@ -1419,10 +1419,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * 
      * @throws AceException 
      */
-    public synchronized static void createUser(SQLDBAdapter dbCreator, String rootPwd, String username,
+    public synchronized static void createUser(SQLDBAdapter dbAdapter, String rootPwd, String username,
 											   String userPwd, String dbUrl) throws AceException {
-        dbCreator.setParams(username, userPwd, DBConnector.dbName, dbUrl);
-        dbCreator.createUser(rootPwd);
+		dbAdapter.setParams(username, userPwd, DBConnector.dbName, dbUrl);
+		dbAdapter.createUser(rootPwd);
     }
     
 }
