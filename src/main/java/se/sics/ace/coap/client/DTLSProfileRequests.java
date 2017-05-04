@@ -33,6 +33,7 @@ package se.sics.ace.coap.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
@@ -45,6 +46,7 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
 import com.upokecenter.cbor.CBORObject;
@@ -52,8 +54,9 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
-
+import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -177,5 +180,81 @@ public class DTLSProfileRequests {
         return CBORObject.DecodeFromBytes(response.getPayload());
     }
     
-    //FIXME: Implement passing key through psk-identity
+    
+    /**
+     * Generates a Coap client for sending requests to an RS that will pass the access token
+     * through psk-identity in the DTLS handshake.
+     * @param serverAddress  the address of the server and resource this client should talk to
+     * @param token  the access token this client should use towards the server
+     * @param key  the pre-shared key for use with this server.
+     * 
+     * @return  a CoAP client configured to pass the access token through the psk-identity in the
+     *  handshake 
+     */
+    public static CoapClient getPskClient(InetSocketAddress serverAddress,
+            AccessToken token, OneKey key) {
+        if (serverAddress == null || serverAddress.getHostName() == null) {
+            throw new IllegalArgumentException(
+                    "Client requires a non-null server address");
+        }
+        if (token == null) {
+            throw new IllegalArgumentException(
+                    "PSK client requires a non-null access token");
+        }
+        if (key == null || key.get(KeyKeys.Octet_K) == null) {
+            throw new IllegalArgumentException(
+                    "PSK  client requires a non-null symmetric key");
+        }
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
+                new InetSocketAddress(0));
+        builder.setClientOnly();
+        builder.setClientAuthenticationRequired(true);
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        
+        InMemoryPskStore store = new InMemoryPskStore();
+        
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), 
+                token.encode());
+        String identity = Base64.getEncoder().encodeToString(
+                cbor.EncodeToBytes());
+        store.addKnownPeer(serverAddress, identity, 
+                key.get(KeyKeys.Octet_K).GetByteString());
+        builder.setPskStore(store);
+        Connector c = new DTLSConnector(builder.build());
+        CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
+        CoapClient client = new CoapClient(serverAddress.getHostName());
+        client.setEndpoint(e);   
+
+        return client;    
+    }
+    
+    
+    /**
+     * Generates a Coap client for sending requests to an RS that will use
+     * a raw public key to connect to the server.
+     * @param clientKey  the raw public key of the client
+     * @return   the CoAP client
+     * @throws CoseException 
+     */
+    public static CoapClient getRpkClient(OneKey clientKey) 
+            throws CoseException {
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
+                new InetSocketAddress(0));
+        builder.setClientOnly();
+        builder.setClientAuthenticationRequired(true);
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
+
+        Connector c = new DTLSConnector(builder.build());
+        CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
+        CoapClient client = new CoapClient();
+        client.setEndpoint(e);   
+
+        return client;    
+    }
+    
 }
