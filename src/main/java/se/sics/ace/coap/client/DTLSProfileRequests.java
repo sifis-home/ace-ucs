@@ -177,6 +177,9 @@ public class DTLSProfileRequests {
         CoapResponse response = client.post(
                 payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
+        if (response == null) {
+            return null;
+        }
         return CBORObject.DecodeFromBytes(response.getPayload());
     }
     

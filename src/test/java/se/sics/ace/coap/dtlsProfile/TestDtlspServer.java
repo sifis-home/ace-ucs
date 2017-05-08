@@ -31,16 +31,35 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointObserver;
+import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -52,16 +71,19 @@ import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
+import se.sics.ace.rs.AuthzInfo;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
  * 
- * The Junit tests are in TestDTLSProfileDeliverer, but you MUST
- * run this server first for the tests to worl.
+ * The Junit tests are in TestDtlspClient, but you MUST
+ * run this server first for the tests to work.
  * 
  * @author Ludwig Seitz
  *
@@ -124,19 +146,28 @@ public class TestDtlspServer {
                 valid, "src/test/resources/tokens.json", null);
         DtlspTokenRepository tr 
             = DtlspTokenRepository.getInstance();
-       
+
         byte[] key128 
             = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
+        OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
             = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+
+        
+      //Set up the inner Authz-Info library
+      AuthzInfo  ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
+                new KissTime(), 
+                null,
+                valid, ctx);
+       
         
         //Set up a token to use
         Map<String, CBORObject> params = new HashMap<>(); 
@@ -155,16 +186,32 @@ public class TestDtlspServer {
         params.put("cnf", key.AsCBOR());
         tr.addToken(params, ctx);
         
-        AsInfo ai 
+        AsInfo asi 
             = new AsInfo("coaps://blah/authz-info/");
-        DtlspDeliverer dpd 
-            = new DtlspDeliverer(new HelloWorldResource(), tr, null, ai); 
-        
+        Resource hello = new HelloWorldResource();
+     
+        Resource authzInfo = new DtlspAuthzInfo(ai);
+
         CoapServer server = new CoapServer();
+        server.add(hello);
+        server.add(authzInfo);     
         
-        Resource resource = new HelloWorldResource();
-        
-        server.add(resource);
+        DtlspDeliverer dpd 
+            = new DtlspDeliverer(server.getRoot(), tr, null, asi); 
+          
+        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
+                new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+        config.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        InMemoryPskStore psk = new InMemoryPskStore();
+        psk.setKey("ourKey", key128);
+        config.setPskStore(psk);
+        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
+        config.setClientAuthenticationRequired(false);
+        DTLSConnector connector = new DTLSConnector(config.build());
+        server.addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
+
         server.setMessageDeliverer(dpd);
         server.start();
         System.out.println("Server starting");

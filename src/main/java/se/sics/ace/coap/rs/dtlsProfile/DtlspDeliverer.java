@@ -97,6 +97,19 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
     @Override
     public void deliverRequest(final Exchange ex) {
         Request request = ex.getCurrentRequest();
+        Response r = null;
+        if (request.getSenderIdentity() == null) {
+            //Make an exception for "authz-info"
+            if (request.getURI().endsWith("authz-info")) {
+                super.deliverRequest(ex);
+                return;
+            }
+            LOGGER.warning("Unauthenticated client tried to get access");
+            r = new Response(ResponseCode.UNAUTHORIZED);
+            r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+            ex.sendResponse(r);
+            return;
+        }
         String subject = request.getSenderIdentity().getName();
         String kid = this.tr.getKid(subject);
                
@@ -106,7 +119,6 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
         try {
             int res = this.tr.canAccess(kid, subject, resource, action, 
                     new KissTime(), this.i);
-            Response r = null;
             switch (res) {
             case TokenRepository.OK :
                 super.deliverRequest(ex);
