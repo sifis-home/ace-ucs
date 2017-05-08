@@ -47,6 +47,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -305,6 +306,21 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
      */
     public OneKey getKey(String kid) throws AceException {
         return this.tr.getKey(kid);
+    }
+    
+    /**
+     * Manually set a subject id for a key id.
+     * 
+     * XXX: This is a foul hack, need to find a better solution in the future.
+     * 
+     * @param sid  the subject Id
+     * @param kid  the key Id
+     */
+    public void setSid(String sid, String kid) {
+        if (this.tr instanceof DtlspTokenRepository) {
+            DtlspTokenRepository dtr = (DtlspTokenRepository)this.tr;
+            dtr.setSid2Kid(sid, kid);
+        }
     }
     
 

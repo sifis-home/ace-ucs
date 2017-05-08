@@ -154,6 +154,9 @@ public class DtlspPskStore implements PskStore {
             String ctiStr = new String(cti.GetByteString());
             try {
                  key = this.authzInfo.getPoP(ctiStr);
+                 //XXX: Foul hack, need better solution in the future
+                 this.authzInfo.setSid(identity, 
+                         new String(key.get(KeyKeys.KeyId).GetByteString()));
                  return key.get(KeyKeys.Octet_K).GetByteString();
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());

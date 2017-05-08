@@ -73,6 +73,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -128,9 +129,9 @@ public class TestDtlspServer {
         Set<String> actions = new HashSet<>();
         actions.add("GET");
         Map<String, Set<String>> myResource = new HashMap<>();
-        myResource.put("temp", actions);
+        myResource.put("helloWorld", actions);
         Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
-        myScopes.put("r_temp", myResource);
+        myScopes.put("r_helloWorld", myResource);
         
         Set<String> actions2 = new HashSet<>();
         actions.add("GET");
@@ -167,25 +168,7 @@ public class TestDtlspServer {
                 new KissTime(), 
                 null,
                 valid, ctx);
-       
-        
-        //Set up a token to use
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
-        key.add(KeyKeys.KeyId, kid);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
-        tr.addToken(params, ctx);
-        
+               
         AsInfo asi 
             = new AsInfo("coaps://blah/authz-info/");
         Resource hello = new HelloWorldResource();
@@ -204,8 +187,7 @@ public class TestDtlspServer {
         config.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        InMemoryPskStore psk = new InMemoryPskStore();
-        psk.setKey("ourKey", key128);
+        DtlspPskStore psk = new DtlspPskStore(ai);
         config.setPskStore(psk);
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(false);

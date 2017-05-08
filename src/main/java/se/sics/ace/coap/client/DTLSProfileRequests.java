@@ -195,7 +195,7 @@ public class DTLSProfileRequests {
      *  handshake 
      */
     public static CoapClient getPskClient(InetSocketAddress serverAddress,
-            AccessToken token, OneKey key) {
+            CBORObject token, OneKey key) {
         if (serverAddress == null || serverAddress.getHostName() == null) {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
@@ -214,15 +214,16 @@ public class DTLSProfileRequests {
         builder.setClientOnly();
         builder.setClientAuthenticationRequired(true);
         builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
         
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), 
-                token.encode());
+                token);
         String identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes());
+        LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());
         builder.setPskStore(store);

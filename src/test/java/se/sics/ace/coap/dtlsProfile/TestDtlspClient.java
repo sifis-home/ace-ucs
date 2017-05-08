@@ -32,17 +32,22 @@
 package se.sics.ace.coap.dtlsProfile;
 
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.wso2.balana.attr.IPv6AddressAttribute;
 
+import com.mysql.fabric.Response;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
@@ -75,7 +80,7 @@ public class TestDtlspClient {
 
     private static String rsAddr;
     
-    private static CBORObject payload;
+    private static CwtCryptoCtx ctx;
     
     /**
      * Set up tests.
@@ -88,32 +93,12 @@ public class TestDtlspClient {
      * @throws IOException 
      */
     @BeforeClass
-    public static void setUp() throws UnknownHostException, 
-            IllegalStateException, InvalidCipherTextException, 
-            CoseException, AceException {
+    public static void setUp() {
         rsAddr = "coaps://localhost/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
-        
-        
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
-                "token4".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
-        key.add(KeyKeys.KeyId, kid);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
-        CWT token = new CWT(params);
-        payload = token.encode(ctx);
+        ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
     }
     
     /**
@@ -130,21 +115,68 @@ public class TestDtlspClient {
     /**
      * Tests POSTing a token to authz-info
      * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
      */
     @Test
-    public void testPostAuthzInfo() throws AceException {
+    public void testPostAuthzInfo() throws AceException, IllegalStateException,
+            InvalidCipherTextException, CoseException {        
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        params.put("cnf", key.AsCBOR());
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
         CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, true);
         Assert.assertNotNull(cbor);
-        Assert.assertArrayEquals("token4".getBytes(Constants.charset), 
+        Assert.assertArrayEquals("token2".getBytes(Constants.charset), 
                 cbor.GetByteString());
     }
     
     /**
      * Tests connecting to the server, passing the token through 
      * psk-identity
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
      */
     @Test
-    public void testTokenPskId() {
+    public void testTokenPskId() throws CoseException, IllegalStateException,
+            InvalidCipherTextException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_helloWorld"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token3".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        params.put("cnf", key.AsCBOR());
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
+                CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r = c.get();
+        System.out.println(r.getCode().name());
+        System.out.println(r.getResponseText());
         
     }
     

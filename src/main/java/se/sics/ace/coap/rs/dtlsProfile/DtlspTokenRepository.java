@@ -210,4 +210,14 @@ public class DtlspTokenRepository extends TokenRepository {
     public String getKid(String sid) {
         return this.sid2kid.get(sid);
     }
+    
+    /**
+     * Manually set the sid to kid relation.
+     * 
+     * @param sid
+     * @param kid
+     */
+    public void setSid2Kid(String sid, String kid) {
+        this.sid2kid.put(sid, kid);
+    }
 }

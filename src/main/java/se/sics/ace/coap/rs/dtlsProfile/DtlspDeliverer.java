@@ -111,6 +111,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             return;
         }
         String subject = request.getSenderIdentity().getName();
+        //FIXME:could be a token in the subject if passing by psk was done
         String kid = this.tr.getKid(subject);
                
         String resource = request.getOptions().getUriPathString();
