@@ -31,54 +31,38 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.EmptyMessage;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointObserver;
-import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
-import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-
-import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
-import se.sics.ace.Constants;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
@@ -143,13 +127,8 @@ public class TestDtlspServer {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        DtlspTokenRepository.create(
-                valid, "src/test/resources/tokens.json", null);
-        DtlspTokenRepository tr 
-            = DtlspTokenRepository.getInstance();
-
-        byte[] key128 
-            = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        TokenRepository tr = TokenRepository.getInstance();
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};

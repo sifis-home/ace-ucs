@@ -42,12 +42,12 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -227,8 +227,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    
 	    //6. Store the claims of this token
 	    CBORObject cti = null;
+	    //Check if we have a sid
+	    String sid = msg.getSenderId();
 	    try {
-            cti = this.tr.addToken(claims, this.ctx);
+            cti = this.tr.addToken(claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -307,22 +309,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
     public OneKey getKey(String kid) throws AceException {
         return this.tr.getKey(kid);
     }
-    
-    /**
-     * Manually set a subject id for a key id.
-     * 
-     * XXX: This is a foul hack, need to find a better solution in the future.
-     * 
-     * @param sid  the subject Id
-     * @param kid  the key Id
-     */
-    public void setSid(String sid, String kid) {
-        if (this.tr instanceof DtlspTokenRepository) {
-            DtlspTokenRepository dtr = (DtlspTokenRepository)this.tr;
-            dtr.setSid2Kid(sid, kid);
-        }
-    }
-    
 
     @Override
     public void close() throws AceException {

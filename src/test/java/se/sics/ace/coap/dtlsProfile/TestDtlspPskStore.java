@@ -244,7 +244,7 @@ public class TestDtlspPskStore {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx);
+        tr.addToken(claims, ctx, null);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         String psk_identity = Base64.getEncoder().encodeToString(

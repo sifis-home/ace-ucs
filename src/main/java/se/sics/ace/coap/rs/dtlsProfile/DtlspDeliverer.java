@@ -68,7 +68,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
     /**
      * The token repository
      */
-    private DtlspTokenRepository tr;
+    private TokenRepository tr;
     
     /**
      * The introspection handler
@@ -87,7 +87,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
      * @param i  the introspection handler or null if there isn't any.
      * @param asInfo  the AS information to send for client authz errors.
      */
-    public DtlspDeliverer(Resource root, DtlspTokenRepository tr, 
+    public DtlspDeliverer(Resource root, TokenRepository tr, 
             IntrospectionHandler i, AsInfo asInfo) {
         super(root);
         this.tr = tr;
@@ -111,7 +111,8 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             return;
         }
         String subject = request.getSenderIdentity().getName();
-        //FIXME:could be a token in the subject if passing by psk was done
+       //Note that the subject string could be the base64 encoded token
+       //if passing the token through psk-identity was used
         String kid = this.tr.getKid(subject);
                
         String resource = request.getOptions().getUriPathString();

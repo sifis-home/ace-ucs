@@ -141,6 +141,12 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	protected Map<String, String>cti2kid;
 	
+	
+	/**
+	 * Map a subject identity to the kid they use
+	 */
+	private Map<String, String>sid2kid;
+	
 	/**
 	 * The scope validator
 	 */
@@ -220,6 +226,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.cti2claims = new HashMap<>();
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
+	    this.sid2kid = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -254,7 +261,7 @@ public class TokenRepository implements AutoCloseable {
                             Base64.getDecoder().decode(
                                     token.getString((key)))));
                 }
-                this.addToken(params, ctx);
+                this.addToken(params, ctx, null);
             }
         }
 	}
@@ -265,6 +272,8 @@ public class TokenRepository implements AutoCloseable {
 	 * 
 	 * @param claims  the claims of the token
 	 * @param ctx  the crypto context of this RS  
+	 * @param sid  the subject identity of the user of this token, or null
+	 *     if not needed
 	 * 
 	 * @return  the cti or the local id given to this token
 	 * 
@@ -272,7 +281,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws CoseException 
 	 */
 	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
-	        CwtCryptoCtx ctx) throws AceException {
+	        CwtCryptoCtx ctx, String sid) throws AceException {
 		CBORObject so = claims.get("scope");
 		if (so == null) {
 			throw new AceException("Token has no scope");
@@ -314,11 +323,18 @@ public class TokenRepository implements AutoCloseable {
                 }
                 //Store the association between token and known key
                 this.cti2kid.put(cti, kid);  
+                // ... and between subject id and key if sid was given
+                if (sid != null) {
+                    this.sid2kid.put(sid, kid);
+                }
             } else { //This should be a COSE_Key
                 try {
                     OneKey key = new OneKey(cnf);
                     this.cti2kid.put(cti, kid);
                     this.kid2key.put(kid, key);
+                    if (sid != null) {
+                        this.sid2kid.put(sid, kid);
+                    }
                 } catch (CoseException e) {
                     LOGGER.severe("Error while parsing cnf element: " 
                             + e.getMessage());
@@ -336,13 +352,15 @@ public class TokenRepository implements AutoCloseable {
                 String kid = fetchKid(keyData);
                 this.cti2kid.put(cti, kid);
                 this.kid2key.put(kid, key);
+                if (sid != null) {
+                    this.sid2kid.put(sid, kid);
+                }
             } catch (CoseException | InvalidCipherTextException e) {
                 LOGGER.severe("Error while decrypting a cnf claim: "
                         + e.getMessage());
                 throw new AceException("Error while decrypting a cnf claim");
             }
         }  
-        
         return CBORObject.FromObject(cti.getBytes());
 	}
 	
@@ -615,6 +633,22 @@ public class TokenRepository implements AutoCloseable {
         LOGGER.severe("getKey() called with null kid");
         throw new AceException("Must supply non-null kid to get key");     
     }
+	
+	
+	/**
+	 * Get the kid by the subject id.
+	 * 
+	 * @param sid  the subject id
+	 * 
+	 * @return  the kid this subject uses
+	 */
+	public String getKid(String sid) {
+	    if (sid != null) {
+	        return this.sid2kid.get(sid);
+	    }
+	    LOGGER.finest("Key-Id for Subject-Id: " + sid + " not found");
+	    return null;
+	}
 	
     @Override
     public synchronized void close() throws AceException {

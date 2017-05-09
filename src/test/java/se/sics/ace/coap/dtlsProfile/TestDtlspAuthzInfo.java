@@ -65,11 +65,11 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspTokenRepository;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -92,7 +92,7 @@ public class TestDtlspAuthzInfo {
     
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static DtlspTokenRepository tr;
+    private static TokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfo ai;
     private static DtlspAuthzInfo dai;
@@ -130,9 +130,9 @@ public class TestDtlspAuthzInfo {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        DtlspTokenRepository.create(
+        TokenRepository.create(
                 valid, "src/test/resources/tokens.json", null);
-        tr = DtlspTokenRepository.getInstance();
+        tr = TokenRepository.getInstance();
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
