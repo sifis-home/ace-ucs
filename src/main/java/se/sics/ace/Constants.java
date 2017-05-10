@@ -341,7 +341,44 @@ public class Constants {
 	public static final String[] RESTactionS 
 	    = {"GET", "POST", "PUT", "DELETE"};
 
-		
+	
+	/**
+	 * Abbreviations for the cnf parameter/claim
+	 */
+	
+	/**
+	 * A cnf containing a COSE_Key
+	 */
+	public static final short COSE_KEY = 1;
+	
+    /**
+     * ... same as above as CBORObject
+     */
+    public static final CBORObject COSE_KEY_CBOR 
+        = CBORObject.FromObject(COSE_KEY);	
+	
+	/**
+	 * A cnf containing a COSE_Encrypted wrapping a COSE_Key
+	 */
+	public static final short COSE_ENCRYPTED = 2;
+	
+	/**
+     * ... same as above as CBORObject
+     */
+    public static final CBORObject COSE_ENCRYPTED_CBOR 
+        = CBORObject.FromObject(COSE_ENCRYPTED);
+	
+	/**
+	 * A cnf containing just a key identifier
+	 */
+	public static final short COSE_KID = 3;
+	
+    /**
+     * ... same as above as CBORObject
+     */
+    public static final CBORObject COSE_KID_CBOR 
+        = CBORObject.FromObject(COSE_KID);
+    
 	
 	/**
 	 * Searches an array of strings for the index of the given string.

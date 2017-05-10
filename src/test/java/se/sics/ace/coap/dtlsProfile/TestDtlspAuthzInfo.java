@@ -162,7 +162,9 @@ public class TestDtlspAuthzInfo {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
         CWT token = new CWT(params);
         payload = token.encode(ctx);
         

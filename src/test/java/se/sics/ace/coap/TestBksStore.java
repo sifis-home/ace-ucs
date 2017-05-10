@@ -48,6 +48,9 @@ import org.junit.Assert;
  * Tests for the Bouncy Castle Key Store backed implementation of 
  * Californium's PskStore Interface.
  * 
+ * NOTE: You need to have the Java Cryptography Extension (JCE) Unlimited 
+ * Strength Jurisdiction Policy Files installed for this test to work.
+ * 
  * @author Ludwig Seitz
  *
  */

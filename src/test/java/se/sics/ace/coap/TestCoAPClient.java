@@ -68,7 +68,9 @@ import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Token;
 
 /**
- * Test the coap classes, you have to run TestCoAPServer first to start the server.
+ * Test the coap classes.
+ * 
+ * NOTE: You have to run a fresh instance of TestCoAPServer first to run this tests!
  * 
  * @author Ludwig Seitz
  *

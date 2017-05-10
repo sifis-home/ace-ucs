@@ -54,7 +54,7 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
-import se.sics.ace.AccessToken;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
@@ -185,14 +185,15 @@ public class DTLSProfileRequests {
     
     
     /**
-     * Generates a Coap client for sending requests to an RS that will pass the access token
-     * through psk-identity in the DTLS handshake.
-     * @param serverAddress  the address of the server and resource this client should talk to
+     * Generates a Coap client for sending requests to an RS that will pass the
+     *  access token through psk-identity in the DTLS handshake.
+     * @param serverAddress  the address of the server and resource this client
+     *  should talk to
      * @param token  the access token this client should use towards the server
      * @param key  the pre-shared key for use with this server.
      * 
-     * @return  a CoAP client configured to pass the access token through the psk-identity in the
-     *  handshake 
+     * @return  a CoAP client configured to pass the access token through the
+     *  psk-identity in the handshake 
      */
     public static CoapClient getPskClient(InetSocketAddress serverAddress,
             CBORObject token, OneKey key) {
@@ -235,6 +236,58 @@ public class DTLSProfileRequests {
         return client;    
     }
     
+    
+    /**
+     * Generates a Coap client for sending requests to an RS that will pass the
+     *  kid of a known access token through psk-identity in the DTLS handshake.
+     * @param serverAddress  the address of the server and resource this client
+     *  should talk to
+     * @param kid  the access token this client should use towards the server
+     * @param key  the pre-shared key for use with this server.
+     * 
+     * @return  a CoAP client configured to pass the access token through the
+     *  psk-identity in the
+     *  handshake 
+     */
+    public static CoapClient getPskClient(InetSocketAddress serverAddress,
+            String kid, OneKey key) {
+        if (serverAddress == null || serverAddress.getHostName() == null) {
+            throw new IllegalArgumentException(
+                    "Client requires a non-null server address");
+        }
+        if (kid == null) {
+            throw new IllegalArgumentException(
+                    "PSK client requires a non-null kid");
+        }
+        if (key == null || key.get(KeyKeys.Octet_K) == null) {
+            throw new IllegalArgumentException(
+                    "PSK  client requires a non-null symmetric key");
+        }
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
+                new InetSocketAddress(0));
+        builder.setClientOnly();
+        builder.setClientAuthenticationRequired(true);
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        
+        InMemoryPskStore store = new InMemoryPskStore();
+        
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(KeyKeys.KeyId.AsCBOR(), kid.getBytes(Constants.charset));
+        String identity = Base64.getEncoder().encodeToString(
+                cbor.EncodeToBytes());
+        LOGGER.finest("Adding key for: " + serverAddress.toString());
+        store.addKnownPeer(serverAddress, identity, 
+                key.get(KeyKeys.Octet_K).GetByteString());
+        builder.setPskStore(store);
+        Connector c = new DTLSConnector(builder.build());
+        CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
+        CoapClient client = new CoapClient(serverAddress.getHostName());
+        client.setEndpoint(e);   
+
+        return client;    
+    }
     
     /**
      * Generates a Coap client for sending requests to an RS that will use

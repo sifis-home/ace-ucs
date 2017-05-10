@@ -31,9 +31,10 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
-import java.net.InetAddress;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -45,9 +46,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.wso2.balana.attr.IPv6AddressAttribute;
 
-import com.mysql.fabric.Response;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
@@ -55,6 +54,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -102,14 +102,14 @@ public class TestDtlspClient {
     }
     
     /**
-     * Deletes the test file after the tests
+     * Cleans up after the tests
      * 
      * @throws SQLException 
      * @throws AceException 
      */
     @AfterClass
     public static void tearDown() {
-        
+        //Nothing to do yet
     }
     
     /**
@@ -135,7 +135,9 @@ public class TestDtlspClient {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
         CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, true);
@@ -168,7 +170,9 @@ public class TestDtlspClient {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
@@ -180,23 +184,33 @@ public class TestDtlspClient {
         
     }
     
-    private final static char[] hexArray = "0123456789ABCDEF".toCharArray();
+    //TODO: More tests with failure conditions
+    
     
     /**
-     * Print byte arrays in hex for visual debugging
-     * 
-     * @param bytes  the byte array
-     * @return  the hex String
+     *  Test passing a kid through psk-identity
      */
-    public static String bytesToHex(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        for ( int j = 0; j < bytes.length; j++ ) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
+    @Test
+    public void testKidPskId() {
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
+                CoAP.DEFAULT_COAP_SECURE_PORT), "ourKey", key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r = c.get();
+        System.out.println(r.getCode().name());
+        CBORObject resPayload = CBORObject.DecodeFromBytes(r.getPayload());
+        System.out.println(resPayload.toString());
     }
-
-    //TODO: More tests with failure conditions
+    
+    // Test post to authz-info then request RPK/PSK
+    // Test passing some random string through psk-identity
+    // Test passing a valid token through psk-identity that doesn't match the request
+    // Test passing a valid token through psk-identity that doesn't match and a token that does
+    // with the same key through POST to /authz-info
 }

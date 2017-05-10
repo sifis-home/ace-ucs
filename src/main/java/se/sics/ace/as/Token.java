@@ -359,7 +359,9 @@ public class Token implements Endpoint, AutoCloseable {
                 keyData.Add(KeyKeys.KeyId, kid);
 
                 OneKey psk = new OneKey(keyData);
-                claims.put("cnf", psk.AsCBOR());
+                CBORObject coseKey = CBORObject.NewMap();
+                coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
+                claims.put("cnf", coseKey);
             } catch (NoSuchAlgorithmException | CoseException e) {
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
@@ -368,6 +370,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    break;
 		case "RPK":
 		    CBORObject crpk = msg.getParameter("cnf");
+		    //FIXME: check COSE_Key, COSE_Encrypted and kid here.
 		    OneKey rpk = null;
 		    if (crpk == null) {
 		        //Try to get the RPK from the DB
@@ -398,7 +401,9 @@ public class Token implements Endpoint, AutoCloseable {
 	                    + "Client failed to provide RPK");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    claims.put("cnf", crpk);
+		    CBORObject coseKey = CBORObject.NewMap();
+            coseKey.Add(Constants.COSE_KEY, crpk);
+		    claims.put("cnf", coseKey);
 		    break;
 		default :
             CBORObject map = CBORObject.NewMap();

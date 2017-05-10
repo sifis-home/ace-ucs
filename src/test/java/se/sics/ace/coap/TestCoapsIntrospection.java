@@ -54,7 +54,9 @@ import se.sics.ace.as.DBConnector;
 import se.sics.ace.coap.rs.CoapsIntrospection;
 
 /**
- * Test for the CoapsIntrospection class.
+ * Test for the CoapsIntrospection class. 
+ * 
+ * NOTE: You need to run a fresh instance of TestCoAPServer to run this test!
  * 
  * @author Ludwig Seitz
  *

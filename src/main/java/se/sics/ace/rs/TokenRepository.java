@@ -311,83 +311,101 @@ public class TokenRepository implements AutoCloseable {
 		//Store the pop-key
 		CBORObject cnf = claims.get("cnf");
         if (cnf == null) {
+            LOGGER.severe("Token has not cnf");
             throw new AceException("Token has no cnf");
-        } 
-        if (cnf.getType().equals(CBORType.Map)) {
-            //This is either a kid or a COSE_Key
-            String kid = fetchKid(cnf);
-            if (cnf.size() == 1) {//This is a kid only
-                if (!this.kid2key.containsKey(kid)) {
-                    LOGGER.info("Token refers to unknown kid");
-                    throw new AceException("Token refers to unknown kid");
-                }
-                //Store the association between token and known key
-                this.cti2kid.put(cti, kid);  
-                // ... and between subject id and key if sid was given
-                if (sid != null) {
-                    this.sid2kid.put(sid, kid);
-                }
-            } else { //This should be a COSE_Key
-                try {
-                    OneKey key = new OneKey(cnf);
-                    this.cti2kid.put(cti, kid);
-                    this.kid2key.put(kid, key);
-                    if (sid != null) {
-                        this.sid2kid.put(sid, kid);
-                    }
-                } catch (CoseException e) {
-                    LOGGER.severe("Error while parsing cnf element: " 
-                            + e.getMessage());
-                    throw new AceException("Invalid cnf element: " 
-                            + e.getMessage());
-                }
-            }
-        } else { //assume this is a COSE Encrypt0
-            Encrypt0Message msg = new Encrypt0Message();
+        }
+        if (!cnf.getType().equals(CBORType.Map)) {
+            LOGGER.severe("Malformed cnf in token");
+            throw new AceException("cnf claim malformed in token");
+        }
+        
+        if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
+            CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {
-                msg.DecodeFromCBORObject(cnf);
-                msg.decrypt(ctx.getKey());
-                CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
-                OneKey key = new OneKey(keyData);
-                String kid = fetchKid(keyData);
-                this.cti2kid.put(cti, kid);
-                this.kid2key.put(kid, key);
-                if (sid != null) {
-                    this.sid2kid.put(sid, kid);
+              OneKey key = new OneKey(ckey);
+              String kid = null;
+              CBORObject kidC = key.get(KeyKeys.KeyId);
+              if (kidC == null) {
+                  LOGGER.severe("kid not found in COSE_Key");
+                  throw new AceException("COSE_Key is missing kid");
+              } else if (kidC.getType().equals(CBORType.ByteString)) {
+                  kid = new String(kidC.GetByteString(), Constants.charset);
+              } else {
+                  LOGGER.severe("kid is not a byte string");
+                  throw new AceException("COSE_Key contains invalid kid");
+              }
+              this.cti2kid.put(cti, kid);
+              this.kid2key.put(kid, key);
+              if (sid != null) {
+                  this.sid2kid.put(sid, kid);
+              }
+          } catch (CoseException e) {
+              LOGGER.severe("Error while parsing cnf element: " 
+                      + e.getMessage());
+              throw new AceException("Invalid cnf element: " 
+                      + e.getMessage());
+          }
+        } else if (cnf.getKeys().contains(Constants.COSE_ENCRYPTED_CBOR)) {
+            Encrypt0Message msg = new Encrypt0Message();
+            CBORObject encC = cnf.get(Constants.COSE_ENCRYPTED_CBOR);
+          try {
+              msg.DecodeFromCBORObject(encC);
+              msg.decrypt(ctx.getKey());
+              CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
+              OneKey key = new OneKey(keyData);
+              String kid = null;
+              CBORObject kidC = key.get(KeyKeys.KeyId);
+              if (kidC == null) {
+                  LOGGER.severe("kid not found in encrypted COSE_Key");
+                  throw new AceException("Encrypted COSE_Key is missing kid");
+              } else if (kidC.getType().equals(CBORType.ByteString)) {
+                  kid = new String(kidC.GetByteString(), Constants.charset);
+              } else {
+                  LOGGER.severe("kid is not a byte string");
+                  throw new AceException(
+                          "Encrypted COSE_Key contains invalid kid");
+              }  
+              this.cti2kid.put(cti, kid);
+              this.kid2key.put(kid, key);
+              if (sid != null) {
+                  this.sid2kid.put(sid, kid);
+              }
+          } catch (CoseException | InvalidCipherTextException e) {
+              LOGGER.severe("Error while decrypting a cnf claim: "
+                      + e.getMessage());
+              throw new AceException("Error while decrypting a cnf claim");
+          }
+        } else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
+            String kid = null;
+            CBORObject kidC = cnf.get("kid"); //Unabbreviated
+            if (kidC == null) {
+                kidC = cnf.get(Constants.COSE_KID_CBOR); //Abbreviated 
+                if (kidC == null) {
+                    LOGGER.severe("kid not found in cnf claim");
+                    throw new AceException("Cnf claim is missing kid");
                 }
-            } catch (CoseException | InvalidCipherTextException e) {
-                LOGGER.severe("Error while decrypting a cnf claim: "
-                        + e.getMessage());
-                throw new AceException("Error while decrypting a cnf claim");
             }
-        }  
+            if (kidC.getType().equals(CBORType.ByteString)) {
+                kid = new String(kidC.GetByteString(), Constants.charset);
+            } else {
+                LOGGER.severe("kid is not a byte string");
+                throw new AceException("cnf contains invalid kid");
+            }
+            if (!this.kid2key.containsKey(kid)) {
+                LOGGER.info("Token refers to unknown kid");
+                throw new AceException("Token refers to unknown kid");
+            }
+            //Store the association between token and known key
+            this.cti2kid.put(cti, kid);  
+            // ... and between subject id and key if sid was given
+            if (sid != null) {
+                this.sid2kid.put(sid, kid);
+            }
+        } else {
+            LOGGER.severe("Malformed cnf claim in token");
+            throw new AceException("Malformed cnf claim in token");
+        }
         return CBORObject.FromObject(cti.getBytes());
-	}
-	
-	/**
-	 * Fetch the kid from a cnf element in a token.
-	 * 
-	 * @param cnf  the cnf element
-	 * 
-	 * @return the String representation of the kid
-	 * 
-	 * @throws AceException
-	 */
-	private static String fetchKid(CBORObject cnf) throws AceException {
-	    CBORObject kid = cnf.get("kid"); //Unabbreviated
-        if (kid == null) {
-            kid = cnf.get(KeyKeys.KeyId.AsCBOR()); //Abbreviated 
-            if (kid == null) {
-                LOGGER.severe("kid not found in cnf claim");
-                throw new AceException("Cnf claim is missing kid");
-            }
-        }
-        if (kid.getType().equals(CBORType.ByteString)) {
-            //Note that kid bytes my not be generated from a String
-           return new String(kid.GetByteString());
-        }
-        LOGGER.severe("kid is not a byte string");
-        throw new AceException("cnf contains invalid kid");
 	}
 
 	/**
