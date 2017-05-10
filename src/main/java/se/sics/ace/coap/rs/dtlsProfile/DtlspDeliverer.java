@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs.dtlsProfile;
 
+import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -40,7 +41,13 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
 
+import com.upokecenter.cbor.CBORException;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import COSE.KeyKeys;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
@@ -111,9 +118,29 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             return;
         }
         String subject = request.getSenderIdentity().getName();
-       //Note that the subject string could be the base64 encoded token
-       //if passing the token through psk-identity was used
+
         String kid = this.tr.getKid(subject);
+        if (kid == null) {//Check if this was the Base64 encoded kid map
+            try {
+                CBORObject cbor = CBORObject.DecodeFromBytes(
+                        Base64.getDecoder().decode(subject));
+                if (cbor.getType().equals(CBORType.Map)) {
+                   CBORObject ckid = cbor.get(KeyKeys.KeyId.AsCBOR());
+                   if (ckid != null && ckid.getType().equals(CBORType.ByteString)) {
+                      kid = new String(ckid.GetByteString(), Constants.charset);
+                   } else { //No kid in that CBOR map or it isn't a bstr
+                       failUnauthz(ex);
+                   }
+                } else {//Some weird CBOR that is not a map here
+                   failUnauthz(ex);
+                }                
+            } catch (CBORException e) {//Really no kid found for that subject
+                LOGGER.finest("Error while trying to parse some "
+                        + "subject identity to CBOR: " + e.getMessage());
+               failUnauthz(ex);
+            }
+           
+        }
                
         String resource = request.getOptions().getUriPathString();
         String action = request.getCode().toString();  
@@ -126,9 +153,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
                 super.deliverRequest(ex);
                 break;
             case TokenRepository.UNAUTHZ :
-                r = new Response(ResponseCode.UNAUTHORIZED);
-                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
-                ex.sendResponse(r);
+               failUnauthz(ex);
                 break;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
@@ -150,5 +175,16 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
                     + e.getMessage());    
         }
+    }
+    
+    /**
+     * Fail a request with 4.01 Unauthorized.
+     * 
+     * @param ex  the exchange
+     */
+    private void failUnauthz(final Exchange ex) {
+        Response r = new Response(ResponseCode.UNAUTHORIZED);
+        r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+        ex.sendResponse(r);
     }
 }

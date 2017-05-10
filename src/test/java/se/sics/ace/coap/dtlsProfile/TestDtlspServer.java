@@ -101,6 +101,30 @@ public class TestDtlspServer {
         }
     }
     
+    /**
+     * Definition of the Temp Resource
+     */
+    public static class TempResource extends CoapResource {
+        
+        /**
+         * Constructor
+         */
+        public TempResource() {
+            
+            // set resource identifier
+            super("temp");
+            
+            // set display name
+            getAttributes().setTitle("Temp Resource");
+        }
+
+        @Override
+        public void handleGET(CoapExchange exchange) {
+            
+            // respond to the request
+            exchange.respond("19.0 C");
+        }
+    }
     
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -118,11 +142,10 @@ public class TestDtlspServer {
         myScopes.put("r_helloWorld", myResource);
         
         Set<String> actions2 = new HashSet<>();
-        actions.add("GET");
-        actions.add("POST");
+        actions2.add("GET");
         Map<String, Set<String>> myResource2 = new HashMap<>();
-        myResource.put("co2", actions2);
-        myScopes.put("rw_co2", myResource2);
+        myResource2.put("temp", actions2);
+        myScopes.put("r_temp", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
@@ -151,11 +174,12 @@ public class TestDtlspServer {
         AsInfo asi 
             = new AsInfo("coaps://blah/authz-info/");
         Resource hello = new HelloWorldResource();
-     
+        Resource temp = new TempResource();
         Resource authzInfo = new DtlspAuthzInfo(ai);
 
         CoapServer server = new CoapServer();
         server.add(hello);
+        server.add(temp);
         server.add(authzInfo);     
         
         DtlspDeliverer dpd 

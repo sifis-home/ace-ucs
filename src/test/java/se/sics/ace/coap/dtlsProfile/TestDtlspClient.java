@@ -183,10 +183,7 @@ public class TestDtlspClient {
         System.out.println(r.getResponseText());
         
     }
-    
-    //TODO: More tests with failure conditions
-    
-    
+        
     /**
      *  Test passing a kid through psk-identity
      */
@@ -201,14 +198,16 @@ public class TestDtlspClient {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
                 CoAP.DEFAULT_COAP_SECURE_PORT), "ourKey", key);
-        c.setURI("coaps://localhost/helloWorld");
+        c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         System.out.println(r.getCode().name());
-        CBORObject resPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        System.out.println(resPayload.toString());
+        System.out.println(r.getResponseText());
     }
     
+    
     // Test post to authz-info then request RPK/PSK
+    
+    //TODO: More tests with failure conditions
     // Test passing some random string through psk-identity
     // Test passing a valid token through psk-identity that doesn't match the request
     // Test passing a valid token through psk-identity that doesn't match and a token that does
