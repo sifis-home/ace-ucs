@@ -296,12 +296,17 @@ public class Constants {
 	public static final short INVALID_SCOPE = 5;
 	
 	/**
+	 * The RS does not support the requestest pop key type
+	 */
+	public static final short UNSUPPORTED_POP_KEY = 6;
+	
+	/**
      * The string values for these abbreviations
      */
     public static final String[] ERROR_CODES 
         = {"invalid_request", "invalid_client", "invalid_grant", 
                 "unauthorized_client", "unsupported_grant_type", 
-                "invalid_scope"};
+                "invalid_scope", "unsupported_pop_key"};
     
 	/**
 	 * Abbreviations for OAuth grant types

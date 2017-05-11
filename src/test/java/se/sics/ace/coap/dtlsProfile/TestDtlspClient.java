@@ -179,9 +179,8 @@ public class TestDtlspClient {
                 CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r = c.get();
-        System.out.println(r.getCode().name());
-        System.out.println(r.getResponseText());
-        
+        Assert.assertEquals("CONTENT", r.getCode().name());
+        Assert.assertEquals("Hello World!", r.getResponseText());        
     }
         
     /**
@@ -200,12 +199,12 @@ public class TestDtlspClient {
                 CoAP.DEFAULT_COAP_SECURE_PORT), "ourKey", key);
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
-        System.out.println(r.getCode().name());
-        System.out.println(r.getResponseText());
+        Assert.assertEquals("CONTENT", r.getCode().name());
+        Assert.assertEquals("19.0 C", r.getResponseText()); 
     }
     
     
-    // Test post to authz-info then request RPK/PSK
+    // Test post to authz-info with RPK then request
     
     //TODO: More tests with failure conditions
     // Test passing some random string through psk-identity
