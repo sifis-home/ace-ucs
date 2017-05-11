@@ -1,4 +1,35 @@
-package se.sics.ace.coap;
+/*******************************************************************************
+ * Copyright (c) 2017, RISE SICS AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
+package se.sics.ace.coap.dtlsProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -25,7 +56,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.DTLSProfilePskStore;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -40,9 +71,9 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class TestDTLSProfilePskStore {
+public class TestDtlspPskStore {
 
-    private static DTLSProfilePskStore store = null;
+    private static DtlspPskStore store = null;
    
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -69,28 +100,25 @@ public class TestDTLSProfilePskStore {
         Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        myResource.clear();
-        myResource.put("co2", actions);
-        myScopes.put("r_co2", myResource);
+        Map<String, Set<String>> myResource2 = new HashMap<>();
+        myResource2.put("co2", actions);
+        myScopes.put("r_co2", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
        
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        tr = new TokenRepository(valid, resources, 
-                "src/test/resources/tokens.json", ctx);
+        TokenRepository.create(valid, "src/test/resources/tokens.json", ctx);
+        tr = TokenRepository.getInstance();
         
         ai = new AuthzInfo(tr, 
                 Collections.singletonList("TestAS"), new KissTime(), null, 
                 valid, ctx);
-        store = new DTLSProfilePskStore(ai);
+        store = new DtlspPskStore(ai);
     }
     
     /**
@@ -128,7 +156,7 @@ public class TestDTLSProfilePskStore {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+                "token1".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -137,14 +165,18 @@ public class TestDTLSProfilePskStore {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        CBORObject cbor = token.encode(ctx);
+        CBORObject tokenCB = token.encode(ctx);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
         String psk_identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes()); 
 
@@ -172,14 +204,56 @@ public class TestDTLSProfilePskStore {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
+        
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        CBORObject cbor = token.encode(ctx);
+        CBORObject tokenCB = token.encode(ctx);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
+        String psk_identity = Base64.getEncoder().encodeToString(
+                cbor.EncodeToBytes()); 
+
+        byte[] psk = store.getKey(psk_identity);
+        Assert.assertArrayEquals(key128 ,psk);
+    }
+    
+    /**
+     * Test with only a kid in the CBOR structure
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testKid() throws Exception {
+        Map<String, CBORObject> claims = new HashMap<>(); 
+        claims.put("scope", CBORObject.FromObject("r_temp"));
+        claims.put("aud", CBORObject.FromObject("rs1"));
+        claims.put("cti", CBORObject.FromObject(
+                "token3".getBytes(Constants.charset)));
+        claims.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        claims.put("cnf", cnf);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        tr.addToken(claims, ctx, null);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         String psk_identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes()); 
 

@@ -29,108 +29,68 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.as;
+package se.sics.ace.coap.rs.dtlsProfile;
 
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
-import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
-import se.sics.ace.as.Introspect;
-import se.sics.ace.as.Token;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.CoapRes;
+import se.sics.ace.rs.AuthzInfo;
+
 
 /**
- * This class implements the ACE endpoints/resources 
- * (OAuth lingo vs CoAP lingo) token and introspect.
+ * A CoAP resource implementing the authz-info endpoint at the RS 
+ * for the DTLS profile.
  * 
  * @author Ludwig Seitz
  *
  */
-public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
-    
+public class DtlspAuthzInfo extends CoapResource {
+
     /**
      * The logger
      */
-    private static final Logger LOGGER = Logger.getLogger(CoapAceEndpoint.class.getName() );
+    private static final Logger LOGGER 
+        = Logger.getLogger(DtlspAuthzInfo.class.getName());
     
     /**
-     * The token library
+     * The underlying authz-info library
      */
-    private Endpoint e;
+    private AuthzInfo ai;
     
-    /**
-     * Constructor.
-     * 
-     * @param name  the resource name (should be "introspect" or "token")
-     * @param e  the endpoint library instance
-     */
-    public CoapAceEndpoint(String name, Endpoint e) {
-        super(name);
-        this.e = e;        
+   /**
+    * Constructor.
+    * 
+    * @param ai  the internal authorization information handler 
+    */ 
+    public DtlspAuthzInfo(AuthzInfo ai) {
+        super("authz-info");
+        this.ai = ai;
     }
     
-    /**
-     * Default constructor.
-     * 
-     * @param e  the endpoint library instance
-     */
-    public CoapAceEndpoint(Introspect e) {
-        super("introspect");
-        this.e = e;
-    }
-    
-    /**
-     * Default constructor.
-     * 
-     * @param e  the endpoint library instance
-     */
-    public CoapAceEndpoint(Token e) {
-        super("token");
-        this.e = e;
-    }
-     
-    /**
-     * Handles the POST request in the given CoAPExchange.
-     *
-     * @param exchange the CoapExchange for the simple API
-     */
     @Override
     public void handlePOST(CoapExchange exchange) {
-        CoapReq req = null;
+        exchange.accept();
+        Request req = new Request(exchange.getRequestCode());
+        req.setPayload(exchange.getRequestPayload());
         try {
-            req = CoapReq.getInstance(exchange.advanced().getRequest());
-        } catch (AceException e) {
-            LOGGER.severe(e.getMessage());
-            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
-        }
-        LOGGER.log(Level.FINEST, "Received request: " 
-                + ((req==null)?"null" : req.toString()));
-        Message m = this.e.processMessage(req);
-        
-        if (m instanceof CoapRes) {
-            CoapRes res = (CoapRes)m;
-            LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
-            //XXX: Should the profile set the content format here?
-            exchange.respond(res.getCode(), res.getRawPayload(), 
+            CoapReq msg = CoapReq.getInstance(req);
+            Message reply = this.ai.processMessage(msg);
+            //Safe to cast, since CoapReq only ever renders a CoapRes
+            CoapRes response = (CoapRes)reply; 
+            exchange.respond(response.getCode(), response.getRawPayload(),
                     MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (AceException e) {
+            LOGGER.severe("Error while handling incoming POST: " 
+                    + e.getMessage());
             return;
-        }
-        LOGGER.severe(this.e.getClass().getName() 
-                + " library produced wrong response type");
-        exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        }  
     }
-
-    @Override
-    public void close() throws Exception {
-        this.e.close();
-    }
-
 }

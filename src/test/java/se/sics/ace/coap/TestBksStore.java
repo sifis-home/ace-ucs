@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -47,6 +47,9 @@ import org.junit.Assert;
 /**
  * Tests for the Bouncy Castle Key Store backed implementation of 
  * Californium's PskStore Interface.
+ * 
+ * NOTE: You need to have the Java Cryptography Extension (JCE) Unlimited 
+ * Strength Jurisdiction Policy Files installed for this test to work.
  * 
  * @author Ludwig Seitz
  *

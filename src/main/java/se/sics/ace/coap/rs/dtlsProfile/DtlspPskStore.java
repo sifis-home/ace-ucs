@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.net.InetSocketAddress;
 import java.util.Base64;
@@ -39,11 +39,13 @@ import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.KeyKeys;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
@@ -57,13 +59,13 @@ import se.sics.ace.rs.AuthzInfo;
  * @author Ludwig Seitz
  *
  */
-public class DTLSProfilePskStore implements PskStore {
+public class DtlspPskStore implements PskStore {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DTLSProfilePskStore.class.getName());
+        = Logger.getLogger(DtlspPskStore.class.getName());
     
     
     /**
@@ -77,7 +79,7 @@ public class DTLSProfilePskStore implements PskStore {
      * 
      * @param authzInfo  the authz-info used by this RS
      */
-    public DTLSProfilePskStore(AuthzInfo authzInfo) {
+    public DtlspPskStore(AuthzInfo authzInfo) {
         this.authzInfo = authzInfo;
     }
     
@@ -86,7 +88,7 @@ public class DTLSProfilePskStore implements PskStore {
     public byte[] getKey(String identity) {
         //First try if we have that key
         OneKey key = null;
-        try {//FIXME: parse the structure Olaf has defined
+        try {
             key = this.authzInfo.getKey(identity);
             if (key != null) {
                 return key.get(KeyKeys.Octet_K).GetByteString();
@@ -94,9 +96,10 @@ public class DTLSProfilePskStore implements PskStore {
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
             return null;
-        }  
+        }          
 
-        //We don't have that key, try if identity is an access token
+        //We don't have that key, try if the identity is an access token
+        //or a structure referring to a kid
         CBORObject payload = null;
         try {
             payload = CBORObject.DecodeFromBytes(
@@ -107,7 +110,40 @@ public class DTLSProfilePskStore implements PskStore {
             return null;
         }
 
-        LocalMessage message = new LocalMessage(0, null, null, payload);
+        if (!payload.getType().equals(CBORType.Map)) {
+            LOGGER.severe("Error decoding the psk_identity: "
+                    + "No CBOR Map found");
+            return null;
+        }
+        CBORObject kidCB = payload.get(KeyKeys.KeyId.AsCBOR());
+        if (kidCB != null) {//We have a kid: 
+            String kid = new String(kidCB.GetByteString(), Constants.charset);
+            try {
+                key = this.authzInfo.getKey(kid);
+                if (key != null) {
+                    return key.get(KeyKeys.Octet_K).GetByteString();
+                }
+                //Couldn't find a key for that kid
+                LOGGER.warning("Coudln't find a key for kid: " + kid);
+                return null;
+            } catch (AceException e) {
+                LOGGER.severe("Error fetching a key for kid: " + kid
+                        + " Message: " + e.getMessage());
+                return null;
+            }
+            
+        } 
+        //Do we have an access-token?
+        payload = payload.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
+        if (payload == null) {
+            //We have something unknown
+            LOGGER.severe("Error decoding the psk_identity: "
+                    + "No kid or access-token found in the CBOR Map");
+            return null;
+        }
+        
+        //We have an access token, continue processing it        
+        LocalMessage message = new LocalMessage(0, identity, null, payload);
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
         if (res.getMessageCode() == Message.CREATED) {

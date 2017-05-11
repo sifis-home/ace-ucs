@@ -29,69 +29,75 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.coap.dtlsProfile;
 
-import java.util.Map;
+import org.junit.Assert;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
-import se.sics.ace.ReferenceToken;
-import se.sics.ace.cwt.CWT;
+import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 
 /**
- * Factory that creates different types of access tokens.
+ * Tests the DTLSProfileAsInfo class.
  * 
  * @author Ludwig Seitz
  *
  */
-public class AccessTokenFactory {
-	
-	/**
-	 * The type identifier for CWTs
-	 */
-	public static final int CWT_TYPE = 0;
-	
-	/**
-	 * The type identifier for reference tokens
-	 */
-	public static final int REF_TYPE = 1;
-	
-	/**
-     * The type identifier for test tokens
-     */
-    public static final int TEST_TYPE = 2;
+public class TestAsInfo {
     
-	
-	/**
-     * Array of String values for the token type
+    /**
+     * Expected exception
      */
-    public static final String[] ABBREV = {"CWT", "REF", "TST"};
-	
-	/**
-	 * Generate an access token.
-	 * 
-	 * @param type  the type of token you want to generate
-	 * @param claims  the claims associated with this token
-	 * @return  the generated token
-	 * @throws AceException
-	 */
-	public static AccessToken generateToken(
-			int type, Map<String, CBORObject> claims) throws AceException {
-		switch (type) {
-		case CWT_TYPE :
-			return new CWT(claims);
-		case REF_TYPE :
-		    CBORObject cti = claims.get("cti");
-	        if (cti == null) {
-	            throw new AceException("Token has no cti");
-	        }
-			return new ReferenceToken(
-			        new String(cti.GetByteString()));	
-		default: 
-			throw new AceException("Unsupported token type");
-		}
-	}
+    @Rule
+    public ExpectedException thrown = ExpectedException.none();
+    
+    /**
+     * Test creating an AS info with null as AS uri.
+     */
+    @Test
+    public void testNullUri() {
+        this.thrown.expect(IllegalArgumentException.class);
+        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
+                    + "with null or empty asUri field");
+        @SuppressWarnings("unused")
+        AsInfo ai = new AsInfo(null);
+    }
+    
+    /**
+     * Test creating an AS info with empty AS uri.
+     */
+    @Test
+    public void testEmptyUri() {
+        this.thrown.expect(IllegalArgumentException.class);
+        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
+                    + "with null or empty asUri field");
+        @SuppressWarnings("unused")
+        AsInfo ai = new AsInfo("");
+    }
+    
+    /**
+     * Test round trips with creating and parsing AS information
+     * 
+     * @throws AceException
+     */
+    @Test 
+    public void testRoundTrip() throws AceException {
+        AsInfo ai = new AsInfo("coaps://blah/authz-info/");
+        CBORObject cbor = ai.getCBOR();
+        AsInfo ai2 = AsInfo.parse(cbor.EncodeToBytes());
+        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
+        Assert.assertNull(ai.getNonce());
+        
+        byte[] nonce = {0x00, 0x01, 0x02};
+        ai = new AsInfo("blah", nonce);
+        cbor = ai.getCBOR();
+        ai2 = AsInfo.parse(cbor.EncodeToBytes());
+        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
+        Assert.assertArrayEquals(nonce, ai2.getNonce());
+    }
 
 }

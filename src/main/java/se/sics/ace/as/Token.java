@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -47,10 +47,12 @@ import javax.crypto.SecretKey;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
@@ -145,6 +147,28 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
 	        TimeProvider time, OneKey privateKey) throws AceException {
+	    //Time for checks
+	    if (asId == null || asId.isEmpty()) {
+	        LOGGER.severe("Token endpoint's AS identifier was null or empty");
+            throw new AceException(
+                    "AS identifier must be non-null and non-empty");
+	    }
+	    if (pdp == null) {
+	        LOGGER.severe("Token endpoint's PDP was null");
+            throw new AceException(
+                    "Token endpoint's PDP must be non-null");
+	    }
+	    if (db == null) {
+            LOGGER.severe("Token endpoint's DBConnector was null");
+            throw new AceException(
+                    "Token endpoint's DBConnector must be non-null");
+        }
+	    if (time == null) {
+            LOGGER.severe("Token endpoint's TimeProvider was null");
+            throw new AceException("Token endpoint's TimeProvider "
+                    + "must be non-null");
+        }
+	    //All checks passed
 	    this.asId = asId;
 	    this.pdp = pdp;
 	    this.db = db;
@@ -170,8 +194,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    }
 	    	    
 		//2. Check if this client can request tokens
-	    //XXX: need trim at this time due to bug in Californium
-		String id = msg.getSenderId().trim();  
+		String id = msg.getSenderId();  
 		if (!this.pdp.canAccessToken(id)) {
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -338,7 +361,9 @@ public class Token implements Endpoint, AutoCloseable {
                 keyData.Add(KeyKeys.KeyId, kid);
 
                 OneKey psk = new OneKey(keyData);
-                claims.put("cnf", psk.AsCBOR());
+                CBORObject coseKey = CBORObject.NewMap();
+                coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
+                claims.put("cnf", coseKey);
             } catch (NoSuchAlgorithmException | CoseException e) {
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
@@ -346,28 +371,24 @@ public class Token implements Endpoint, AutoCloseable {
             }	    
 		    break;
 		case "RPK":
-		    CBORObject crpk = msg.getParameter("cnf");
-		    OneKey rpk = null;
-		    if (crpk == null) {
-		        //Try to get the RPK from the DB
-		        try {
-                    rpk = this.db.getCRPK(id);
-                } catch (AceException e) {
-                    LOGGER.severe("Message processing aborted: "
-                            + e.getMessage());
-                    return msg.failReply(
-                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                }
-		    } else {
-		        try {
-                    rpk = new OneKey(crpk);
-                } catch (CoseException e) {
-                    LOGGER.severe("Message processing aborted: "
-                            + e.getMessage());
-                    return msg.failReply(
-                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                }
+		    CBORObject cnf = msg.getParameter("cnf");
+		    if (cnf == null) {
+		        CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "Client failed to provide RPK");
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "Client failed to provide RPK");
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
+		    OneKey rpk = null;
+            try {
+                rpk = getKey(cnf, id);
+            } catch (AceException | CoseException e) {
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		    if (rpk == null) {
 		        CBORObject map = CBORObject.NewMap();
 		        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -377,14 +398,16 @@ public class Token implements Endpoint, AutoCloseable {
 	                    + "Client failed to provide RPK");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    claims.put("cnf", crpk);
+		    CBORObject coseKey = CBORObject.NewMap();
+            coseKey.Add(Constants.COSE_KEY, rpk.AsCBOR());
+		    claims.put("cnf", coseKey);
 		    break;
 		default :
             CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, "Unsupported key type");
+            map.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
             LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "Unsupported key type");
-		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
+                    + "Unsupported pop key");
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
 		AccessToken token = null;
@@ -445,6 +468,62 @@ public class Token implements Endpoint, AutoCloseable {
 	}
 	
 	/**
+	 * Retrieves a key from a cnf structure.
+	 * 
+	 * @param cnf  the cnf structure
+	 * 
+	 * @return  the key
+	 * 
+	 * @throws AceException 
+	 * @throws CoseException 
+	 */
+	private OneKey getKey(CBORObject cnf, String id) 
+	        throws AceException, CoseException {
+	    CBORObject crpk = null; 
+	    if (cnf.ContainsKey(Constants.COSE_KEY_CBOR)) {
+	        crpk = cnf.get(Constants.COSE_KEY_CBOR);
+	        return new OneKey(crpk);
+	    } else if (cnf.ContainsKey(Constants.COSE_ENCRYPTED_CBOR)) {
+	        Encrypt0Message msg = new Encrypt0Message();
+            CBORObject encC = cnf.get(Constants.COSE_ENCRYPTED_CBOR);
+          try {
+              msg.DecodeFromCBORObject(encC);
+              OneKey psk = this.db.getCPSK(id);
+              if (psk == null) {
+                  LOGGER.severe("Couldn't find a key to decrypt cnf parameter");
+                  throw new AceException(
+                          "No key found to decrypt cnf parameter");
+              }
+              CBORObject key = psk.get(KeyKeys.Octet_K);
+              if (key == null || !key.getType().equals(CBORType.ByteString)) {
+                  LOGGER.severe("Corrupt key retrieved from database");
+                  throw new AceException("Key error in the database");  
+              }
+              msg.decrypt(key.GetByteString());
+              CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
+              return new OneKey(keyData);
+          } catch (CoseException | InvalidCipherTextException e) {
+              LOGGER.severe("Error while decrypting a cnf claim: "
+                      + e.getMessage());
+              throw new AceException("Error while decrypting a cnf parameter");
+          }
+	    } else if (cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
+	        //Note: This code does not support multiple asymmetric
+	        //keys per client. The workaround would be to define
+	        //several client identities for the same client and add
+	        //them to the AS database separately
+	        CBORObject ckid = cnf.get(Constants.COSE_KID_CBOR);
+	        OneKey rpk = this.db.getCRPK(id);
+	        CBORObject kidCbor = rpk.get(KeyKeys.KeyId);
+	        if (ckid.equals(kidCbor)) {
+	            return rpk;
+	        } 
+	        return null;
+	    }
+	    throw new AceException("Malformed cnf structure");
+    }
+
+    /**
 	 * Remove expired tokens from the storage.
 	 * 
 	 * @throws AceException 

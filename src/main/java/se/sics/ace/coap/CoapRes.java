@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -69,7 +69,6 @@ public class CoapRes implements Message {
      * 
      * @param code  the response code
      * @param payload  the response payload, may be null
-     * @param request   the request this responds to
      */
     public CoapRes(ResponseCode code, CBORObject payload) {
         this.response = new Response(code);
@@ -83,7 +82,6 @@ public class CoapRes implements Message {
      * 
      * @param code  the response code
      * @param parameters  the response parameters
-     * @param request   the request this responds to
      */
     public CoapRes(ResponseCode code,
             Map<String, CBORObject> parameters) {

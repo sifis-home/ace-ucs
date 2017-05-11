@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -133,17 +133,14 @@ public class TestAuthzInfo {
         Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        myResource.clear();
-        myResource.put("co2", actions);
-        myScopes.put("r_co2", myResource);
+        Map<String, Set<String>> myResource2 = new HashMap<>();
+        myResource2.put("co2", actions);
+        myScopes.put("r_co2", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
-        TokenRepository tr = new TokenRepository(valid, resources, 
+
+        TokenRepository tr = new TokenRepository(valid, 
                 "src/test/resources/tokens.json", null);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -155,7 +152,8 @@ public class TestAuthzInfo {
         ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);      
+                valid, ctx);
+        tr.close();
     }
     
     /**
@@ -486,41 +484,6 @@ public class TestAuthzInfo {
     }
     
     /**
-     * Test CWT with scope that does not apply submission to AuthzInfo
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
-     */
-    @Test
-    public void testScopeNotApplicable() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("blah"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
-                
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
-        map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
-    }
-    
-    /**
      * Test successful submission to AuthzInfo
      * 
      * @throws IllegalStateException 
@@ -547,7 +510,9 @@ public class TestAuthzInfo {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        params.put("cnf", key.AsCBOR());
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cbor);
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);

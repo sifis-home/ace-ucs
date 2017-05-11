@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -42,6 +42,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
@@ -213,7 +214,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }
 
-	    //5. Check if the scope is meaningful to us
+	    //5. Check if the token has a scope
 	    CBORObject scope = claims.get("scope");
 	    if (scope == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -224,23 +225,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    try {
-            if (!this.tr.inScope(scope.AsString())) {
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
-                map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
-            }
-        } catch (AceException e) {
-            LOGGER.severe("Message processing aborted: " + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
-
-
 	    //6. Store the claims of this token
 	    CBORObject cti = null;
+	    //Check if we have a sid
+	    String sid = msg.getSenderId();
 	    try {
-            cti = this.tr.addToken(claims, this.ctx);
+            cti = this.tr.addToken(claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -319,7 +309,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
     public OneKey getKey(String kid) throws AceException {
         return this.tr.getKey(kid);
     }
-    
 
     @Override
     public void close() throws AceException {

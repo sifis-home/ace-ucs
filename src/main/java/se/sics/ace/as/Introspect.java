@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2016, SICS Swedish ICT AB
+ * Copyright (c) 2017, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -105,9 +105,24 @@ public class Introspect implements Endpoint, AutoCloseable {
      */
     public Introspect(PDP pdp, DBConnector db, 
             TimeProvider time, OneKey publicKey) throws AceException {
+        if (pdp == null) {
+            LOGGER.severe("Introspect endpoint's PDP was null");
+            throw new AceException(
+                    "Introspect endpoint's PDP must be non-null");
+        }
+        if (db == null) {
+            LOGGER.severe("Introspect endpoint's DBConnector was null");
+            throw new AceException(
+                    "Introspect endpoint's DBConnector must be non-null");
+        }
+        if (time == null) {
+            LOGGER.severe("Introspect endpoint received a null TimeProvider");
+            throw new AceException(
+                    "Introspect endpoint requires a non-null TimeProvider");
+        }
         this.pdp = pdp;
         this.db = db;
-        this.time = time;
+        this.time = time;  
         this.publicKey = publicKey;
     }
     
@@ -117,9 +132,8 @@ public class Introspect implements Endpoint, AutoCloseable {
 	    LOGGER.log(Level.INFO, "Introspect received message: " 
 	            + msg.getParameters());
         	    
-	    //1. Check that this RS is allowed to introspect
-	    //XXX: need trim at this time due to bug in Californium
-	    String id = msg.getSenderId().trim();
+	    //1. Check that this RS is allowed to introspect	    
+	    String id = msg.getSenderId();
         if (!this.pdp.canAccessIntrospect(id)) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
