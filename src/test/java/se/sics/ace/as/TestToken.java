@@ -44,6 +44,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -52,7 +53,10 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
+import COSE.Attribute;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -531,9 +535,9 @@ public class TestToken {
         Message response = t.processMessage(msg);
         System.out.println(Constants.unabbreviate(CBORObject.DecodeFromBytes(
                 response.getRawPayload())));
-        assert(response.getMessageCode() == Message.FAIL_NOT_IMPLEMENTED);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, "Unsupported key type");
+        cbor.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }
@@ -646,6 +650,54 @@ public class TestToken {
         assert(claims.get("scope").AsString().contains("r_pressure"));
         assert(!claims.get("scope").AsString().contains("foobar"));
     }
+    
+    
+    /**
+     * Test with COSE_Encrypt in cnf parameter
+     * TODO:
+     * 
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testSucceedCE() throws AceException, CoseException, 
+            IllegalStateException, InvalidCipherTextException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
+        params.put("scope", 
+                CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put("aud", CBORObject.FromObject("rs3"));
+        CBORObject rpk = CBORObject.NewMap();
+        Encrypt0Message enc = new Encrypt0Message();
+        enc.addAttribute(HeaderKeys.Algorithm, 
+                AlgorithmID.AES_CCM_16_128_128.AsCBOR(), 
+                Attribute.PROTECTED);
+        enc.SetContent(publicKey.EncodeToBytes());
+        enc.encrypt(key128);
+        rpk.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
+        params.put("cnf", rpk);
+        Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get("access_token");
+        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        System.out.println(claims.toString());
+        assert(claims.get("scope").AsString().contains("rw_valve"));
+        assert(claims.get("scope").AsString().contains("r_pressure"));
+        assert(!claims.get("scope").AsString().contains("foobar"));
+    }
+    
+    /**
+     * TODO: Add test with kid only in cnf parameter
+     */
+    
     
     /**
      * Test the token endpoint. Test purging expired tokens.

@@ -372,6 +372,15 @@ public class Token implements Endpoint, AutoCloseable {
 		    break;
 		case "RPK":
 		    CBORObject cnf = msg.getParameter("cnf");
+		    if (cnf == null) {
+		        CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "Client failed to provide RPK");
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "Client failed to provide RPK");
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		    }
 		    OneKey rpk = null;
             try {
                 rpk = getKey(cnf, id);
@@ -470,7 +479,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	private OneKey getKey(CBORObject cnf, String id) 
 	        throws AceException, CoseException {
-	    CBORObject crpk = null;
+	    CBORObject crpk = null; 
 	    if (cnf.ContainsKey(Constants.COSE_KEY_CBOR)) {
 	        crpk = cnf.get(Constants.COSE_KEY_CBOR);
 	        return new OneKey(crpk);
