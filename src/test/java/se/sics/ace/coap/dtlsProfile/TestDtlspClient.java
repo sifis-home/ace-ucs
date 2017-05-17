@@ -42,6 +42,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -241,9 +242,103 @@ public class TestDtlspClient {
         Assert.assertEquals("Hello World!", r.getResponseText());  
     }
     
-    //TODO: More tests with failure conditions
-    // Test passing some random string through psk-identity
-    // Test passing a valid token through psk-identity that doesn't match the request
-    // Test passing a valid token through psk-identity that doesn't match and a token that does
-    // with the same key through POST to /authz-info
+    /**
+     * Test with a erroneous psk-identity
+     */
+    @Test
+    public void testFailPskId() {
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "someKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
+                CoAP.DEFAULT_COAP_SECURE_PORT), "randomStuff", key);
+        c.setURI("coaps://localhost/temp");
+        CoapResponse r = c.get();
+        //Server should terminate handshake
+        Assert.assertNull(r);
+    }
+    
+    
+    /**
+     * Test  passing a valid token through psk-identity
+     * that doesn't match the request
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     
+     */
+    @Test
+    public void testFailTokenNoMatch() throws IllegalStateException,
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_helloWorld"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token5".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "otherKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128a));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
+                CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
+        c.setURI("coaps://localhost/temp");
+        CoapResponse r = c.get();
+        Assert.assertEquals("FORBIDDEN", r.getCode().name());
+        CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
+        Assert.assertEquals("{0: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+    }
+    
+    /**
+     * Test  passing a valid token through psk-identity
+     * that doesn't match the requested action.
+     * 
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     
+     */
+    @Test
+    public void testFailActionNoMatch() throws IllegalStateException,
+            InvalidCipherTextException, CoseException, AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_helloWorld"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token6".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "yetAnotherKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128a));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
+                CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r = c.post("blah", MediaTypeRegistry.APPLICATION_JSON);
+        Assert.assertEquals("METHOD_NOT_ALLOWED", r.getCode().name());
+        CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
+        Assert.assertEquals("{0: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+    }
 }
