@@ -263,26 +263,30 @@ public class TestToken {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient(
-                "clientA", profiles, null, null, keyTypes, null, publicKey);
+                "clientA", profiles, null, null, 
+                keyTypes, null, publicKey, false);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "rs1", keyTypes, skey, null);
+        db.addClient("clientB", profiles, "co2", "rs1", 
+                keyTypes, skey, null, false);
         
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("TST");        
-        db.addClient("clientC", profiles, "co2", "sensors", keyTypes, skey, null);
+        db.addClient("clientC", profiles, "co2", "sensors", 
+                keyTypes, skey, null, false);
         
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
-        db.addClient("clientD", profiles, null, null, keyTypes, skey, null);
+        db.addClient("clientD", profiles, null, null, 
+                keyTypes, skey, null, false);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -290,7 +294,8 @@ public class TestToken {
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
-        db.addClient("clientE", profiles, null, null, keyTypes, skey, publicKey);
+        db.addClient("clientE", profiles, null, null, 
+                keyTypes, skey, publicKey, false);
         
         //Setup token entries
         String cti = "token1";
