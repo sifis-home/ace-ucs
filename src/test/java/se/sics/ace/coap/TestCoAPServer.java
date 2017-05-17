@@ -141,7 +141,8 @@ public class TestCoAPServer {
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, keyTypes, skey, null);        
+        db.addClient("clientA", profiles, null, null, 
+                keyTypes, skey, null, false);        
         
         KissTime time = new KissTime();
         String cti = "token1";
