@@ -94,7 +94,7 @@ public class TestDtlspClient {
      */
     @BeforeClass
     public static void setUp() {
-        rsAddr = "coaps://localhost/authz-info";
+        rsAddr = "coap://localhost/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -140,7 +140,7 @@ public class TestDtlspClient {
         params.put("cnf", cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, true);
+        CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, false);
         Assert.assertNotNull(cbor);
         Assert.assertArrayEquals("token2".getBytes(Constants.charset), 
                 cbor.GetByteString());
@@ -180,7 +180,7 @@ public class TestDtlspClient {
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
-        Assert.assertEquals("Hello World!", r.getResponseText());        
+        Assert.assertEquals("Hello World!", r.getResponseText());    
     }
         
     /**
@@ -204,7 +204,42 @@ public class TestDtlspClient {
     }
     
     
-    // Test post to authz-info with RPK then request
+    /** Test post to authz-info with RPK then request
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testPostRPK() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException {
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourRPK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("scope", CBORObject.FromObject("r_helloWorld"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("cti", CBORObject.FromObject(
+                "token4".getBytes(Constants.charset)));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, false);
+        Assert.assertNotNull(cbor);
+        
+        CoapClient c = DTLSProfileRequests.getRpkClient(key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r = c.get();
+        Assert.assertEquals("CONTENT", r.getCode().name());
+        Assert.assertEquals("Hello World!", r.getResponseText());  
+    }
     
     //TODO: More tests with failure conditions
     // Test passing some random string through psk-identity

@@ -138,6 +138,10 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
                 LOGGER.finest("Error while trying to parse some "
                         + "subject identity to CBOR: " + e.getMessage());
                failUnauthz(ex);
+            } catch (IllegalArgumentException e) {//Text was not Base64 encoded
+                LOGGER.finest("Error: " + e.getMessage() 
+                + " while trying to Base64 decode this: " + subject);
+                failUnauthz(ex);
             }
            
         }

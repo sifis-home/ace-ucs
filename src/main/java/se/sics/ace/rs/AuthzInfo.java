@@ -123,7 +123,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	}
 
 	@Override
-	public Message processMessage(Message msg) {
+	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    
 		//1. Check whether it is a CWT or REF type
@@ -238,6 +238,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 
 	    //9. Create success message
 	    //Return the cti or the local identifier assigned to the token
+	    //TODO: support for client token
         return msg.successReply(Message.CREATED, cti);
 	}
 	
