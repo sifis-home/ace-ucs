@@ -184,14 +184,14 @@ public class TestDB {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient("clientA", profiles, null, null, keyTypes, null,
-                publicKey, true);
+                publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", keyTypes, 
-                skey, null, false);
+                skey, null);
         
         //Setup token entries
         String cid = "token1";
@@ -269,8 +269,7 @@ public class TestDB {
     public void testAddDuplicateClient() throws Exception {
         Set<String> profiles = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, null, null, false);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, null);
         Assert.fail("Duplicate client was added to DB");
     }
     
@@ -371,18 +370,6 @@ public class TestDB {
                
         aud = db.getDefaultAudience("clientA");
         Assert.assertNull(aud);
-    }
-    
-    /**
-     * Test the needsClientToken() function.
-     * @throws Exception 
-     */
-    @Test
-    public void testNeedsClientToken() throws Exception {
-        boolean nCT = db.needsClientToken("clientB");
-        assert(!nCT);
-        nCT = db.needsClientToken("clientA");
-        assert(nCT);
     }
     
     /**
@@ -537,8 +524,7 @@ public class TestDB {
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(keyBytes));
         OneKey key = new OneKey(keyData);
-        db.addClient("clientC", profiles, null, null, 
-                keyTypes, key, null, false);
+        db.addClient("clientC", profiles, null, null, keyTypes, key, null);
             
        OneKey newKey = db.getCPSK("clientC");
        Assert.assertArrayEquals(key.EncodeToBytes(), newKey.EncodeToBytes());

@@ -189,15 +189,13 @@ public class TestKissPDP {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, null, publicKey, false);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", 
-                keyTypes, skey, null, false);
+        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, skey, null);
         
         //Setup token entries
         String cid = "token1";

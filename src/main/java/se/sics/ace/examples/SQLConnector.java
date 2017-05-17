@@ -243,14 +243,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	private PreparedStatement deleteClient;
 	
 	/**
-     * A prepared SELECT statement to read whether the client needs a
-     * client token.
-     * 
-     * Parameter: client id
-     */
-    private PreparedStatement needClientToken;
-	
-	/**
 	 * A prepared SELECT statement to get the default audience for a client.
 	 * 
 	 *  Parameter: client id
@@ -523,15 +515,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		
 		this.insertClient = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.dbName + "." + DBConnector.cTable
-                + " VALUES (?,?,?,?,?,?)");
+                + " VALUES (?,?,?,?,?)");
 	
 		this.deleteClient = this.conn.prepareStatement("DELETE FROM "
                 + DBConnector.dbName + "." + DBConnector.cTable
-                + " WHERE " + DBConnector.clientIdColumn + "=?;");
-		
-		this.needClientToken = this.conn.prepareStatement("SELECT "
-		        + DBConnector.needClientToken + " FROM "
-		        + DBConnector.dbName + "." + DBConnector.cTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;");
 		
 		this.selectDefaultAudience = this.conn.prepareStatement("SELECT " 
@@ -649,8 +636,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        + DBConnector.defaultAud + " varchar(255), "
 		        + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " varbinary(64), " 
-                + DBConnector.rpkColumn + " varbinary(255), "
-                + DBConnector.needClientToken + " tinyint(1), "
+                + DBConnector.rpkColumn + " varbinary(255),"
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
 		String createProfiles = "CREATE TABLE IF NOT EXISTS " 
@@ -1311,7 +1297,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     @Override
     public synchronized void addClient(String client, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            OneKey sharedKey, OneKey publicKey, boolean needsClientToken) 
+            OneKey sharedKey, OneKey publicKey) 
                     throws AceException {
         try {
             if (sharedKey == null && publicKey == null) {
@@ -1331,7 +1317,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             } else {
                 this.insertClient.setBytes(5, null);
             }
-            this.insertClient.setBoolean(6, needsClientToken);
             this.insertClient.execute();
             this.insertClient.clearParameters();
 
@@ -1370,26 +1355,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }   
-    }
-    
-    @Override
-    public synchronized boolean needsClientToken(String client) throws AceException {
-        try {
-            this.needClientToken.setString(1, client);
-            ResultSet result = this.needClientToken.executeQuery();
-            this.needClientToken.clearParameters();
-            if (result.next()) {
-                boolean needCT = result.getBoolean(DBConnector.needClientToken);
-                result.close();
-                return needCT;
-            }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
-        //This should never happen
-        throw new AceException("Information about the need "
-                + "for client token is missing");
     }
     
     @Override
@@ -1514,5 +1479,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
-    }    
+    }
+    
 }
