@@ -41,6 +41,7 @@ import java.util.logging.Logger;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.CoseException;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
@@ -136,15 +137,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
-	        CBORObject active = claims.get("active");
-	        if (active.isFalse()) {
-	            CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-	            map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
-	            LOGGER.log(Level.INFO, "Message processing aborted: "
-	                    + "Token is not active");
-	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
-	        }
 	    } else if (cbor.getType().equals(CBORType.Array)) {
 	        try {
 	            claims = processCWT(msg);
@@ -164,8 +156,20 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	                + "invalid reuqest");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
+	    
+	    //2. Check if the token is active, this will only be present if we 
+	    // did introspect
+	    CBORObject active = claims.get("active");
+        if (active != null && active.isFalse()) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+            map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token is not active");
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+        }
 
-	    //2. Check that the token is not expired (exp)
+	    //3. Check that the token is not expired (exp)
 	    CBORObject exp = claims.get("exp");
 	    if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) { 
 	        CBORObject map = CBORObject.NewMap();
@@ -176,7 +180,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }   
       
-	    //3. Check if we accept the issuer (iss)
+	    //4. Check if we accept the issuer (iss)
 	    CBORObject iss = claims.get("iss");
 	    if (iss == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -195,7 +199,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }
 
-	    //4. Check if we are the audience (aud)
+	    //5. Check if we are the audience (aud)
 	    CBORObject aud = claims.get("aud");
 	    if (aud == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -214,7 +218,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }
 
-	    //5. Check if the token has a scope
+	    //6. Check if the token has a scope
 	    CBORObject scope = claims.get("scope");
 	    if (scope == null) {
 	        CBORObject map = CBORObject.NewMap();
@@ -225,7 +229,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //6. Store the claims of this token
+	    //7. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
@@ -236,7 +240,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    //9. Create success message
+	    //8. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    //TODO: support for client token
         return msg.successReply(Message.CREATED, cti);
@@ -248,12 +252,28 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * @param msg  the message
 	 * 
 	 * @return  the claims of the CWT
+	 * @throws AceException 
+	 * @throws CoseException 
 	 * 
 	 * @throws Exception
 	 */
 	private Map<String,CBORObject> processCWT(Message msg) throws Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
-        return cwt.getClaims();
+	    //Check if we can introspect this token
+	    Map<String, CBORObject> claims = cwt.getClaims();
+	   if (this.intro != null) {
+	       CBORObject ctiCB = claims.get("cti");
+	       if (ctiCB != null && ctiCB.getType().equals(CBORType.ByteString)) {
+	           String cti = new String(ctiCB.GetByteString(), 
+	                   Constants.charset);
+	           Map<String, CBORObject> introClaims = this.intro.getParams(cti);
+	           if (introClaims != null) {
+	               //FIXME: parameters are abbreviated here?
+	               claims.putAll(introClaims);
+	           }
+	       }
+	   }
+	   return claims;
     }
     
 	/**
@@ -274,6 +294,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
         }
         
         // Try to introspect the token
+        if (this.intro == null) {
+            throw new AceException("Introspection handler not found");
+        }
         Map<String, CBORObject> params 
             = this.intro.getParams(token.AsString());
         
