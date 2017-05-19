@@ -36,6 +36,8 @@ import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
 
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.examples.LocalMessage;
 
@@ -69,15 +71,20 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
   
     
     @Override
-    public Map<String, CBORObject> getParams(String tokenReference) {
+    public Map<String, CBORObject> getParams(String tokenReference) throws AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token", 
                 CBORObject.FromObject(tokenReference));
         params.put("token_type_hint", 
                 CBORObject.FromObject("pop"));
-        LocalMessage req = new LocalMessage(0, this.rsId, this.asId, params);
+        
+        LocalMessage req = new LocalMessage(0, this.rsId, this.asId,
+                Constants.abbreviate(params));
         LocalMessage res = (LocalMessage)this.i.processMessage(req);
-        return res.getParameters();
+        CBORObject resC = CBORObject.DecodeFromBytes(res.getRawPayload());
+        Map<String, CBORObject> map = Constants.unabbreviate(resC);
+        return map;
+
     }
 
 }

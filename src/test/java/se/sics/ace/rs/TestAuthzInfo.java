@@ -286,21 +286,24 @@ public class TestAuthzInfo {
     public void testExpiredCWT() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
-        claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
-        claims.put("sub", CBORObject.FromObject("erikw"));
-        claims.put("exp", CBORObject.FromObject(10000));
-        claims.put("nbf", CBORObject.FromObject(1443944944));
-        claims.put("iat", CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
+       
+        //Make introspection succeed
+        db.addToken(new String(cti, Constants.charset), claims);
+        
         claims.put("cks", 
                 CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
         claims.put("scope", CBORObject.FromObject(
-                "r+/s/light rwx+/a/led w+/dtls"));
+                "r+/s/light rwx+/a/led w+/dtls")); 
+        claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
+        claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
+        claims.put("sub", CBORObject.FromObject("erikw"));
+        claims.put("nbf", CBORObject.FromObject(1443944944));
+        claims.put("iat", CBORObject.FromObject(1443944944));        
+        claims.put("exp", CBORObject.FromObject(10000));
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
-
         LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
                 cwt.encode(ctx));
                 
@@ -310,6 +313,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken(new String(cti, Constants.charset));
     }
     
     /**
@@ -330,6 +334,11 @@ public class TestAuthzInfo {
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+        
+        //Make introspection succeed
+        db.addToken("token2", params);
+        
+        
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -344,6 +353,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken("token2");
     }
     
     /**
@@ -360,10 +370,14 @@ public class TestAuthzInfo {
     public void testIssuerNotRecognized() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+        
+        //Make introspection succeed
+        db.addToken("token2", params);
+        
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
         params.put("iss", CBORObject.FromObject("FalseAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -379,6 +393,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken("token2");
     }
     
     /**
@@ -394,10 +409,14 @@ public class TestAuthzInfo {
     @Test
     public void testNoAudience() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
+        Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+        
+        //Make introspection succeed
+        db.addToken("token2", params);
+        
+        params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -413,6 +432,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken("token2");
     }
     
     /**
@@ -428,11 +448,15 @@ public class TestAuthzInfo {
     @Test
     public void testNoAudienceMatch() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("blah"));
+        Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+                
+        //Make introspection succeed
+        db.addToken("token2", params);
+        
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("blah"));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -447,7 +471,8 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());      
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());   
+        db.deleteToken("token2");
     }  
     
     /**
@@ -463,10 +488,14 @@ public class TestAuthzInfo {
     @Test
     public void testNoScope() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("aud", CBORObject.FromObject("rs1"));
+        Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+
+        //Make introspection succeed
+        db.addToken("token2", params);
+
+        params.put("aud", CBORObject.FromObject("rs1"));
         params.put("iss", CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -481,6 +510,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no scope");
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken("token2");
     }
     
     /**
@@ -497,11 +527,15 @@ public class TestAuthzInfo {
     public void testSuccess() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
+        Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
+        
+        //Make introspection succeed
+        db.addToken("token2", params);
+        
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -527,6 +561,7 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(response.getRawPayload(), 
                 CBORObject.FromObject(
                         "token2".getBytes(Constants.charset)).EncodeToBytes());
+        db.deleteToken("token2");
     }
     
     
