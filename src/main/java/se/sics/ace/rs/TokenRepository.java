@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -323,28 +324,13 @@ public class TokenRepository implements AutoCloseable {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {
               OneKey key = new OneKey(ckey);
-              String kid = null;
-              CBORObject kidC = key.get(KeyKeys.KeyId);
-              if (kidC == null) {
-                  LOGGER.severe("kid not found in COSE_Key");
-                  throw new AceException("COSE_Key is missing kid");
-              } else if (kidC.getType().equals(CBORType.ByteString)) {
-                  kid = new String(kidC.GetByteString(), Constants.charset);
-              } else {
-                  LOGGER.severe("kid is not a byte string");
-                  throw new AceException("COSE_Key contains invalid kid");
-              }
-              this.cti2kid.put(cti, kid);
-              this.kid2key.put(kid, key);
-              if (sid != null) {
-                  this.sid2kid.put(sid, kid);
-              }
-          } catch (CoseException e) {
-              LOGGER.severe("Error while parsing cnf element: " 
-                      + e.getMessage());
-              throw new AceException("Invalid cnf element: " 
-                      + e.getMessage());
-          }
+              processKey(key, sid, cti);
+            } catch (CoseException e) {
+                LOGGER.severe("Error while parsing cnf element: " 
+                        + e.getMessage());
+                throw new AceException("Invalid cnf element: " 
+                        + e.getMessage());
+            } 
         } else if (cnf.getKeys().contains(Constants.COSE_ENCRYPTED_CBOR)) {
             Encrypt0Message msg = new Encrypt0Message();
             CBORObject encC = cnf.get(Constants.COSE_ENCRYPTED_CBOR);
@@ -353,23 +339,7 @@ public class TokenRepository implements AutoCloseable {
               msg.decrypt(ctx.getKey());
               CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
               OneKey key = new OneKey(keyData);
-              String kid = null;
-              CBORObject kidC = key.get(KeyKeys.KeyId);
-              if (kidC == null) {
-                  LOGGER.severe("kid not found in encrypted COSE_Key");
-                  throw new AceException("Encrypted COSE_Key is missing kid");
-              } else if (kidC.getType().equals(CBORType.ByteString)) {
-                  kid = new String(kidC.GetByteString(), Constants.charset);
-              } else {
-                  LOGGER.severe("kid is not a byte string");
-                  throw new AceException(
-                          "Encrypted COSE_Key contains invalid kid");
-              }  
-              this.cti2kid.put(cti, kid);
-              this.kid2key.put(kid, key);
-              if (sid != null) {
-                  this.sid2kid.put(sid, kid);
-              }
+              processKey(key, sid, cti);
           } catch (CoseException | InvalidCipherTextException e) {
               LOGGER.severe("Error while decrypting a cnf claim: "
                       + e.getMessage());
@@ -408,7 +378,35 @@ public class TokenRepository implements AutoCloseable {
         return CBORObject.FromObject(cti.getBytes());
 	}
 
-	/**
+	private void processKey(OneKey key, String sid, String cti) 
+	        throws AceException, CoseException {
+	    String kid = null;
+        CBORObject kidC = key.get(KeyKeys.KeyId);
+        if (kidC == null) {
+            LOGGER.severe("kid not found in COSE_Key");
+            throw new AceException("COSE_Key is missing kid");
+        } else if (kidC.getType().equals(CBORType.ByteString)) {
+            kid = new String(kidC.GetByteString(), Constants.charset);
+        } else {
+            LOGGER.severe("kid is not a byte string");
+            throw new AceException("COSE_Key contains invalid kid");
+        }
+        this.cti2kid.put(cti, kid);
+        this.kid2key.put(kid, key);
+        if (sid != null) {
+            this.sid2kid.put(sid, kid);
+        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2)) {
+            //Scandium needs a special mapping for raw public keys
+            RawPublicKeyIdentity rpk 
+                = new RawPublicKeyIdentity(key.AsPublicKey());
+            this.sid2kid.put(rpk.getName(), kid);
+        } else { //Take the kid as sid
+            this.sid2kid.put(kid, kid);
+        }
+        
+    }
+
+    /**
 	 * Remove an existing token from the repository.
 	 * 
 	 * @param cti  the cti of the token to be removed.

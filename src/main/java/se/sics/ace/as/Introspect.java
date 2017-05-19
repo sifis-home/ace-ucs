@@ -211,6 +211,7 @@ public class Introspect implements Endpoint, AutoCloseable {
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
         }
+        //TODO: Support for client token
         
         return msg.successReply(Message.CREATED, payload);
 	}

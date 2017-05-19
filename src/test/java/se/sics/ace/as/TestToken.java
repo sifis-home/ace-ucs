@@ -115,7 +115,9 @@ public class TestToken {
                 "jdbc:mysql://localhost:3306");
         
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        publicKey = privateKey.PublicKey();        
+        publicKey = privateKey.PublicKey(); 
+        publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
+                "myKey".getBytes(Constants.charset)));
         
         db = SQLConnector.getInstance(null, null, null);
         db.init(dbPwd);
@@ -275,13 +277,20 @@ public class TestToken {
         keyTypes.add("TST");        
         db.addClient("clientC", profiles, "co2", "sensors", keyTypes, skey, null);
         
-        //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
         db.addClient("clientD", profiles, null, null, keyTypes, skey, null);
+        
+        profiles.clear();
+        profiles.add("coap_dtls");
+        profiles.add("coap_oscoap");
+        keyTypes.clear();
+        keyTypes.add("RPK");
+        keyTypes.add("PSK");
+        db.addClient("clientE", profiles, null, null, keyTypes, skey, publicKey);
         
         //Setup token entries
         String cti = "token1";
@@ -654,8 +663,7 @@ public class TestToken {
     
     /**
      * Test with COSE_Encrypt in cnf parameter
-     * TODO:
-     * 
+     *
      * @throws AceException 
      * @throws CoseException 
      * @throws InvalidCipherTextException 
@@ -667,7 +675,7 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         params.put("scope", 
-                CBORObject.FromObject("rw_valve r_pressure foobar"));
+                CBORObject.FromObject("rw_valve"));
         params.put("aud", CBORObject.FromObject("rs3"));
         CBORObject rpk = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
@@ -690,13 +698,38 @@ public class TestToken {
         Map<String, CBORObject> claims = db.getClaims(token.AsString());
         System.out.println(claims.toString());
         assert(claims.get("scope").AsString().contains("rw_valve"));
-        assert(claims.get("scope").AsString().contains("r_pressure"));
-        assert(!claims.get("scope").AsString().contains("foobar"));
     }
     
     /**
-     * TODO: Add test with kid only in cnf parameter
-     */
+     * Test with kid only in cnf parameter
+     *
+     * @throws AceException  
+     */        
+    @Test
+    public void testSucceedCnfKid() throws AceException {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
+        params.put("scope", 
+                CBORObject.FromObject("r_pressure"));
+        params.put("aud", CBORObject.FromObject("rs3"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
+        params.put("cnf", cnf);
+        Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params.clear();
+        params = Constants.unabbreviate(rparams);
+        System.out.println(params.toString());
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get("access_token");
+        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        System.out.println(claims.toString());
+        assert(claims.get("scope").AsString().contains("r_pressure"));
+        CBORObject cnf2 = claims.get("cnf");
+        assert(cnf.equals(cnf2));
+    }
     
     
     /**

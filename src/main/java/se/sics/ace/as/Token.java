@@ -338,76 +338,104 @@ public class Token implements Endpoint, AutoCloseable {
 		    return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
 		}
 		
-		//Find supported key type for proof-of-possession
-		String keyType = "";
-        try {
-            keyType = this.db.getSupportedPopKeyType(id, aud);
-        } catch (AceException e) {
-            LOGGER.severe("Message processing aborted: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
-		switch (keyType) {
-		case "PSK":
-            try {
-                KeyGenerator kg = KeyGenerator.getInstance("AES");
-                SecretKey key = kg.generateKey();
-                CBORObject keyData = CBORObject.NewMap();
-                keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-                keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                        CBORObject.FromObject(key.getEncoded()));
-                //Note: kid is the same as cti 
-                byte[] kid = ctiStr.getBytes(Constants.charset);                
-                keyData.Add(KeyKeys.KeyId, kid);
-
-                OneKey psk = new OneKey(keyData);
-                CBORObject coseKey = CBORObject.NewMap();
-                coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
-                claims.put("cnf", coseKey);
-            } catch (NoSuchAlgorithmException | CoseException e) {
-                LOGGER.severe("Message processing aborted: "
-                        + e.getMessage());
-                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-            }	    
-		    break;
-		case "RPK":
-		    CBORObject cnf = msg.getParameter("cnf");
-		    if (cnf == null) {
+		//Check if client requested a specific kid,
+		// if so, assume the client knows what it's doing
+		// i.e. that the RS has that key and can process it
+		CBORObject cnf = msg.getParameter("cnf");
+		if (cnf != null && cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
+		    //Check that the kid is well-formed
+		    CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
+		    if (!kidC.getType().equals(CBORType.ByteString)) {
+		        LOGGER.info("Message processing aborted: "
+		               + " Malformed kid in request parameter 'cnf'");
 		        CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 map.Add(Constants.ERROR_DESCRIPTION, 
-                        "Client failed to provide RPK");
-                LOGGER.log(Level.INFO, "Message processing aborted: "
-                        + "Client failed to provide RPK");
+                        "Malformed kid in 'cnf' parameter");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    OneKey rpk = null;
-            try {
-                rpk = getKey(cnf, id);
-            } catch (AceException | CoseException e) {
-                LOGGER.severe("Message processing aborted: "
-                        + e.getMessage());
-                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-            }
-		    if (rpk == null) {
+		    claims.put("cnf", cnf);
+		} else {	
+		    //Find supported key type for proof-of-possession
+		    String keyType = "";
+		    try {
+		        keyType = this.db.getSupportedPopKeyType(id, aud);
+		    } catch (AceException e) {
+		        LOGGER.severe("Message processing aborted: "
+		                + e.getMessage());
+		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		    }
+		    switch (keyType) {
+		    case "PSK":
+		        try {
+		            KeyGenerator kg = KeyGenerator.getInstance("AES");
+		            SecretKey key = kg.generateKey();
+		            CBORObject keyData = CBORObject.NewMap();
+		            keyData.Add(KeyKeys.KeyType.AsCBOR(), 
+		                    KeyKeys.KeyType_Octet);
+		            keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+		                    CBORObject.FromObject(key.getEncoded()));
+		            //Note: kid is the same as cti 
+		            byte[] kid = ctiStr.getBytes(Constants.charset);                
+		            keyData.Add(KeyKeys.KeyId, kid);
+
+		            OneKey psk = new OneKey(keyData);
+		            CBORObject coseKey = CBORObject.NewMap();
+		            coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
+		            claims.put("cnf", coseKey);
+		        } catch (NoSuchAlgorithmException | CoseException e) {
+		            LOGGER.severe("Message processing aborted: "
+		                    + e.getMessage());
+		            return msg.failReply(
+		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		        }	    
+		        break;
+		    case "RPK":
+		        if (cnf == null) {
+		            CBORObject map = CBORObject.NewMap();
+		            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		            map.Add(Constants.ERROR_DESCRIPTION, 
+		                    "Client failed to provide RPK");
+		            LOGGER.log(Level.INFO, "Message processing aborted: "
+		                    + "Client failed to provide RPK");
+		            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		        }
+		        OneKey rpk = null;
+		        try {
+		            rpk = getKey(cnf, id);
+		        } catch (AceException | CoseException e) {
+		            LOGGER.severe("Message processing aborted: "
+		                    + e.getMessage());
+		            if (e.getMessage().startsWith("Malformed")) {
+		                CBORObject map = CBORObject.NewMap();
+	                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	                    map.Add(Constants.ERROR_DESCRIPTION, 
+	                            "Malformed 'cnf' parameter in request");
+	                    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		            } 
+		            return msg.failReply(
+		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		        }
+		        if (rpk == null) {
+		            CBORObject map = CBORObject.NewMap();
+		            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		            map.Add(Constants.ERROR_DESCRIPTION, 
+		                    "Client failed to provide RPK");
+		            LOGGER.log(Level.INFO, "Message processing aborted: "
+		                    + "Client failed to provide RPK");
+		            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		        }
+		        CBORObject coseKey = CBORObject.NewMap();
+		        coseKey.Add(Constants.COSE_KEY, rpk.AsCBOR());
+		        claims.put("cnf", coseKey);
+		        break;
+		    default :
 		        CBORObject map = CBORObject.NewMap();
-		        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-		        map.Add(Constants.ERROR_DESCRIPTION, 
-		                "Client failed to provide RPK");
+		        map.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
 		        LOGGER.log(Level.INFO, "Message processing aborted: "
-	                    + "Client failed to provide RPK");
+		                + "Unsupported pop key");
 		        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    CBORObject coseKey = CBORObject.NewMap();
-            coseKey.Add(Constants.COSE_KEY, rpk.AsCBOR());
-		    claims.put("cnf", coseKey);
-		    break;
-		default :
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "Unsupported pop key");
-		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
 		AccessToken token = null;
@@ -482,6 +510,9 @@ public class Token implements Endpoint, AutoCloseable {
 	    CBORObject crpk = null; 
 	    if (cnf.ContainsKey(Constants.COSE_KEY_CBOR)) {
 	        crpk = cnf.get(Constants.COSE_KEY_CBOR);
+	        if (crpk == null) {
+	            return null;
+	        }
 	        return new OneKey(crpk);
 	    } else if (cnf.ContainsKey(Constants.COSE_ENCRYPTED_CBOR)) {
 	        Encrypt0Message msg = new Encrypt0Message();
@@ -507,19 +538,7 @@ public class Token implements Endpoint, AutoCloseable {
                       + e.getMessage());
               throw new AceException("Error while decrypting a cnf parameter");
           }
-	    } else if (cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
-	        //Note: This code does not support multiple asymmetric
-	        //keys per client. The workaround would be to define
-	        //several client identities for the same client and add
-	        //them to the AS database separately
-	        CBORObject ckid = cnf.get(Constants.COSE_KID_CBOR);
-	        OneKey rpk = this.db.getCRPK(id);
-	        CBORObject kidCbor = rpk.get(KeyKeys.KeyId);
-	        if (ckid.equals(kidCbor)) {
-	            return rpk;
-	        } 
-	        return null;
-	    }
+	    } //Note: We checked the COSE_KID_CBOR case before 
 	    throw new AceException("Malformed cnf structure");
     }
 

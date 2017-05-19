@@ -45,6 +45,8 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.ConnectorBase;
+import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -180,7 +182,7 @@ public class TestDtlspServer {
         CoapServer server = new CoapServer();
         server.add(hello);
         server.add(temp);
-        server.add(authzInfo);     
+        //server.add(authzInfo);
         
         DtlspDeliverer dpd 
             = new DtlspDeliverer(server.getRoot(), tr, null, asi); 
@@ -193,13 +195,21 @@ public class TestDtlspServer {
         DtlspPskStore psk = new DtlspPskStore(ai);
         config.setPskStore(psk);
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(false);
+        config.setClientAuthenticationRequired(true);
         DTLSConnector connector = new DTLSConnector(config.build());
-        server.addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
+        server.addEndpoint(
+                new CoapEndpoint(connector, NetworkConfig.getStandard()));
 
         server.setMessageDeliverer(dpd);
         server.start();
         System.out.println("Server starting");
+        
+        CoapServer server2 = new CoapServer();
+        server2.add(authzInfo);
+        UDPConnector conn2 = new UDPConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT));    
+        server2.addEndpoint(new CoapEndpoint(conn2, NetworkConfig.getStandard()));
+        server2.start();
+
     }
     
 

@@ -99,6 +99,8 @@ public class DTLSProfileRequests {
             throws AceException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
+        builder.setClientAuthenticationRequired(true);
+        builder.setClientOnly();
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
             String keyId = new String(key.get(KeyKeys.KeyId).GetByteString());
@@ -158,6 +160,7 @@ public class DTLSProfileRequests {
         if (useDTLS) {
             DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                     new InetSocketAddress(0));
+            builder.setClientAuthenticationRequired(true);
             builder.setClientOnly();
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
@@ -212,8 +215,8 @@ public class DTLSProfileRequests {
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
-        builder.setClientOnly();
         builder.setClientAuthenticationRequired(true);
+        builder.setClientOnly();
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
@@ -266,8 +269,8 @@ public class DTLSProfileRequests {
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
-        builder.setClientOnly();
         builder.setClientAuthenticationRequired(true);
+        builder.setClientOnly();
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
@@ -300,8 +303,8 @@ public class DTLSProfileRequests {
             throws CoseException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
-        builder.setClientOnly();
         builder.setClientAuthenticationRequired(true);
+        builder.setClientOnly();
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());

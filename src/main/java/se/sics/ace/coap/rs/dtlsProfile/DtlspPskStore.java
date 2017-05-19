@@ -149,6 +149,7 @@ public class DtlspPskStore implements PskStore {
         if (res.getMessageCode() == Message.CREATED) {
             //Note that this is either the token's cti or the internal
             //id that the AuthzInfo endpoint assigned to it 
+            //FIXME: the payload could be a client token instead of the cti
             CBORObject cti = CBORObject.DecodeFromBytes(res.getRawPayload());
             //Note that the cti bytes may not come from a String originally
             String ctiStr = new String(cti.GetByteString());
