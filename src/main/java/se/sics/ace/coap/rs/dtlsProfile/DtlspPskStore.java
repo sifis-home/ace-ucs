@@ -147,10 +147,14 @@ public class DtlspPskStore implements PskStore {
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
         if (res.getMessageCode() == Message.CREATED) {
+            CBORObject resPayl = CBORObject.DecodeFromBytes(res.getRawPayload());
+            if (!resPayl.getType().equals(CBORType.Map)) {
+                LOGGER.severe("Authz-Info returned non-CBOR-Map payload");
+                return null;
+            }
             //Note that this is either the token's cti or the internal
             //id that the AuthzInfo endpoint assigned to it 
-            //FIXME: the payload could be a client token instead of the cti
-            CBORObject cti = CBORObject.DecodeFromBytes(res.getRawPayload());
+            CBORObject cti = resPayl.get(CBORObject.FromObject(Constants.CTI));
             //Note that the cti bytes may not come from a String originally
             String ctiStr = new String(cti.GetByteString());
             try {

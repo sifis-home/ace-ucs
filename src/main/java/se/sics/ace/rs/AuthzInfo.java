@@ -242,8 +242,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 
 	    //8. Create success message
 	    //Return the cti or the local identifier assigned to the token
-	    //TODO: support for client token
-        return msg.successReply(Message.CREATED, cti);
+	    CBORObject rep = CBORObject.NewMap();
+	    rep.Add(Constants.CTI, cti);
+        return msg.successReply(Message.CREATED, rep);
 	}
 	
 	/**
@@ -268,7 +269,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	                   Constants.charset);
 	           Map<String, CBORObject> introClaims = this.intro.getParams(cti);
 	           if (introClaims != null) {
-	               //FIXME: parameters are abbreviated here?
 	               claims.putAll(introClaims);
 	           }
 	       }

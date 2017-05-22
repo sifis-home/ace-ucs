@@ -156,12 +156,11 @@ public class TestDtlspClient {
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddr, payload, key);
-        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
-        String stuff = new String(cbor.GetByteString());
-        System.out.println(stuff);
+        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals("token2".getBytes(Constants.charset), 
-                cbor.GetByteString());
+                cti.GetByteString());
     }
     
     /**
