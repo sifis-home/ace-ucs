@@ -244,6 +244,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    //FIXME: Check if we need to return a client token
         return msg.successReply(Message.CREATED, rep);
 	}
 	

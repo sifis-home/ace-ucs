@@ -378,6 +378,16 @@ public class TokenRepository implements AutoCloseable {
         return CBORObject.FromObject(cti.getBytes());
 	}
 
+	/**
+	 * Add the mappings for the cnf-key.
+	 * 
+	 * @param key  the key
+	 * @param sid  the subject identifier
+	 * @param cti  the token's identifier
+	 * 
+	 * @throws AceException
+	 * @throws CoseException
+	 */
 	private void processKey(OneKey key, String sid, String cti) 
 	        throws AceException, CoseException {
 	    String kid = null;

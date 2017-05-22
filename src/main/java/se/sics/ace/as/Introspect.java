@@ -38,11 +38,14 @@ import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.Attribute;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
@@ -210,10 +213,40 @@ public class Introspect implements Endpoint, AutoCloseable {
                 }
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
+            //FIXME: Check if we need to generate a client token 
+            try {
+                if (this.db.needsClientToken("FIXME")) {
+                    payload.Add(Constants.CLIENT_TOKEN, generateClientToken(claims));
+                }
+            } catch (AceException e) {
+                LOGGER.severe("Error while querying need for client token: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
         }
         return msg.successReply(Message.CREATED, payload);
 	}
     
+	/**
+	 * Generate a client token from the claims of an access token
+	 * @param claims  the claims of the access token
+	 * 
+	 * @return the client token
+	 */
+    private Encrypt0Message generateClientToken(Map<String, CBORObject> claims) {
+        CBORObject ct = CBORObject.NewMap();
+        ct.Add(Constants.PROFILE, claims.get("profile"));
+        
+        CBORObject aud = claims.get("aud");
+//        this.db.getSupportedPopKeyType(clientId, aud.AsString());
+//        ct.Add(Constants.CNF, FIXME);
+//        ct.Add(Constants.RS_CNF, FIXME);
+        Encrypt0Message enc = new Encrypt0Message();
+        //FIXME:
+        return enc;
+    }
+
+
     /**
      * Parses a CBOR object presumably containing an access token.
      * 
