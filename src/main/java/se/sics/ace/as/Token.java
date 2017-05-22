@@ -377,7 +377,7 @@ public class Token implements Endpoint, AutoCloseable {
 		                    CBORObject.FromObject(key.getEncoded()));
 		            //Note: kid is the same as cti 
 		            byte[] kid = ctiStr.getBytes(Constants.charset);                
-		            keyData.Add(KeyKeys.KeyId, kid);
+		            keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
 
 		            OneKey psk = new OneKey(keyData);
 		            CBORObject coseKey = CBORObject.NewMap();
