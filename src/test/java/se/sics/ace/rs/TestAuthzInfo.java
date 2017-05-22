@@ -558,13 +558,10 @@ public class TestAuthzInfo {
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                CBORObject.FromObject(
-                        "token2".getBytes(Constants.charset)).EncodeToBytes());
+        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
+        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals(cti.GetByteString(), 
+                "token2".getBytes(Constants.charset));
         db.deleteToken("token2");
-    }
-    
-    
-    
-    
+    }    
 }
