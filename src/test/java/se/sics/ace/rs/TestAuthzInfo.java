@@ -89,6 +89,7 @@ public class TestAuthzInfo {
     
     private static AuthzInfo ai = null;
     private static Introspect i; 
+    private static TokenRepository tr = null;
     
     /**
      * Set up tests.
@@ -140,8 +141,9 @@ public class TestAuthzInfo {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
 
-        TokenRepository tr = new TokenRepository(valid, 
+        TokenRepository.create(valid, 
                 "src/test/resources/tokens.json", null);
+        tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -153,7 +155,6 @@ public class TestAuthzInfo {
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 valid, ctx);
-        tr.close();
     }
     
     /**
@@ -179,6 +180,7 @@ public class TestAuthzInfo {
         rootConn.close();
         db.close();
         i.close();
+        tr.close();
         new File("src/test/resources/tokens.json").delete();
     }
     
@@ -205,7 +207,57 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
-    }    
+    }
+    
+    /**
+     * Test CWT with a scope claim that is overwritten by introspection
+     * 
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testCwtIntrospect() throws AceException, IllegalStateException,
+            InvalidCipherTextException, CoseException {
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("cti", CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put("scope", CBORObject.FromObject("r_co2"));
+        //Make introspection succeed
+        db.addToken("token1", params);
+        //this overwrites the scope
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "aKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cbor);
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+                token.encode(ctx));
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
+        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals(cti.GetByteString(), 
+                "token1".getBytes(Constants.charset));
+        assert(1 == tr.canAccess(
+                "aKey", null, "co2", "GET", new KissTime(), null));
+        tr.removeToken(CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+    }
     
     /**
      * Test CWT with invalid MAC submission to AuthzInfo
