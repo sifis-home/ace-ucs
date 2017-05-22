@@ -250,6 +250,13 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	/**
 	 * Process a message containing a CWT.
 	 * 
+	 * Note: The behavior implemented here is the following:
+	 * If we have an introspection handler, we try to introspect,
+	 * if introspection fails we just return the claims from the CWT,
+	 * otherwise we add the claims returned by introspection 
+	 * to those of the CWT, possibly overwriting CWT claims with
+	 * "fresher" introspection claim having the same id.
+	 * 
 	 * @param msg  the message
 	 * 
 	 * @return  the claims of the CWT
