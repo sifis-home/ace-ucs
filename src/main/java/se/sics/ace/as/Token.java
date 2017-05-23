@@ -486,6 +486,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		try {
             this.db.addToken(ctiStr, claims);
+            this.db.addCti2Client(ctiStr, id);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
