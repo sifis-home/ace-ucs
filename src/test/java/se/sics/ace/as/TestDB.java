@@ -276,7 +276,7 @@ public class TestDB {
     
      
     /**
-     * Test the getProfiles() function. 
+     * Test the getProfiles() method. 
      * 
      * @throws Exception 
      */
@@ -290,7 +290,7 @@ public class TestDB {
     }
         
     /**
-     * Test the getKeyTypes() function. 
+     * Test the getKeyTypes() method. 
      * 
      * @throws Exception 
      */
@@ -305,7 +305,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getTokenType() function. 
+     * Test the getTokenType() method. 
      * 
      * @throws Exception 
      */
@@ -316,7 +316,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getCose() function. 
+     * Test the getCose() method. 
      * 
      * @throws Exception 
      */
@@ -330,7 +330,7 @@ public class TestDB {
     }
     
     /**
-     * Test the isScopeSupported() function. 
+     * Test the isScopeSupported() method. 
      * 
      * @throws Exception 
      */
@@ -345,7 +345,7 @@ public class TestDB {
     
     
     /**
-     * Test the getDefaultScope() function. 
+     * Test the getDefaultScope() method. 
      * 
      * @throws Exception 
      */
@@ -360,7 +360,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getDefaultAudience() function. 
+     * Test the getDefaultAudience() method. 
      * 
      * @throws Exception 
      */
@@ -374,6 +374,7 @@ public class TestDB {
     }
     
     /**
+<<<<<<< HEAD
      * Test the needsClientToken() function.
      * @throws Exception 
      */
@@ -387,6 +388,9 @@ public class TestDB {
     
     /**
      * Test the getRSS() function. 
+=======
+     * Test the getRSS() method. 
+>>>>>>> master
      * 
      * @throws Exception 
      */
@@ -403,7 +407,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getExpTime() function. 
+     * Test the getExpTime() method. 
      * 
      * @throws Exception 
      */
@@ -418,7 +422,7 @@ public class TestDB {
     }
 
     /**
-     * Test the getAudiences() function. 
+     * Test the getAudiences() method. 
      * 
      * @throws Exception 
      */
@@ -435,7 +439,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getRsPSK() function. 
+     * Test the getRsPSK() method. 
      * 
      * @throws Exception 
      */
@@ -450,7 +454,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getRsRPK() function. 
+     * Test the getRsRPK() method. 
      * 
      * @throws Exception 
      */
@@ -464,7 +468,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getCPSK() function. 
+     * Test the getCPSK() method. 
      * 
      * @throws Exception 
      */
@@ -479,7 +483,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getCRPK() function. 
+     * Test the getCRPK() method. 
      * 
      * @throws Exception 
      */
@@ -493,7 +497,7 @@ public class TestDB {
     }
 
     /**
-     * Test the deleteRS() function. 
+     * Test the deleteRS() method. 
      * 
      * @throws Exception 
      */
@@ -523,7 +527,7 @@ public class TestDB {
     }
 
     /**
-     * Test the deleteClient() function. 
+     * Test the deleteClient() method. 
      * 
      * @throws Exception 
      */
@@ -537,6 +541,9 @@ public class TestDB {
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(keyBytes));
         OneKey key = new OneKey(keyData);
+
+        profiles.add("blah");
+        keyTypes.add("RPK");
         db.addClient("clientC", profiles, null, null, 
                 keyTypes, key, null, false);
             
@@ -549,7 +556,7 @@ public class TestDB {
     }
 
     /**
-     * Test the getClaims and deleteToken() functions. 
+     * Test the getClaims and deleteToken() methods. 
      * 
      * @throws Exception 
      */
@@ -575,7 +582,7 @@ public class TestDB {
     }
     
     /**
-     * Test the purgeExpiredTokens() function. 
+     * Test the purgeExpiredTokens() method. 
      * 
      * @throws Exception 
      */
@@ -594,5 +601,34 @@ public class TestDB {
         Map<String, CBORObject> result = db.getClaims(cid);
         assert(result.isEmpty());
     }
-   
+    
+    
+    /**
+     * Tests for the addCti2Client(), getClient4Cti() and getCtis4Client()
+     * methods.
+     * 
+     * @throws AceException
+     */
+    @Test (expected=AceException.class)
+    public void testGetClient4Cti() throws AceException {
+        db.addCti2Client("cti1", "client1");
+        db.addCti2Client("cti2", "client1");
+        db.addCti2Client("cti3", "client2");
+        String client = db.getClient4Cti("cti1");
+        assert(client.equals("client1"));
+        client = db.getClient4Cti("cti2");
+        assert(client.equals("client1"));
+        Set<String>ctis = db.getCtis4Client("client1");
+        assert(ctis != null && !ctis.isEmpty());
+        assert(ctis.contains("cti1"));
+        assert(ctis.contains("cti2"));
+        assert(!ctis.contains("cti3"));
+        client = db.getClient4Cti("nothing");
+        assert(client == null);
+        ctis = db.getCtis4Client("a girl is no one");
+        assert(ctis.isEmpty());
+        db.addCti2Client("cti1", "client2");
+        Assert.fail("Duplicate Cti was added to DB");   
+    }
+
 }

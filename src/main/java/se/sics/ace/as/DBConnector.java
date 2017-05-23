@@ -62,9 +62,9 @@ public interface DBConnector {
     public String claimsTable = "Claims";
     
 	/**
-	 * The column for token identifiers (Cid)
+	 * The column for token identifiers (Cti)
 	 */
-	public String cidColumn = "Cid";
+	public String ctiColumn = "Cti";
 		
 	/**
 	 * The column for the token claim names
@@ -208,13 +208,21 @@ public interface DBConnector {
     /**
      * The table saving the counter for generating cti's
      */
-    public String ctiCounterTable = "ctiTable";
+    public String ctiCounterTable = "ctiCounterTable";
     
     /**
      * The column name for cti counter
      */
     public String ctiCounterColumn = "ctiCounter";
-	
+    
+    //******************New table********************************   
+    /**
+     * The table saving the association between cti and client identifier
+     *     Note: This table uses ctiColumn and clientIdColumn
+     */
+    public String cti2clientTable = "TokenLog";
+    
+    
 	/**
 	 * Create the necessary database and tables. Requires the
 	 * root user password.
@@ -293,24 +301,24 @@ public interface DBConnector {
     /**
      * Get the default scope of this client
      *  
-     * @param client  the client identifier
+     * @param clientId  the client identifier
      * 
      * @return  the default scope used by this client if any
      * 
      * @throws AceException 
      */
-    public String getDefaultScope(String client) throws AceException;
+    public String getDefaultScope(String clientId) throws AceException;
 
     /**
      * Get the default audience of this client
      *  
-     * @param client  the client identifier
+     * @param clientId  the client identifier
      * 
      * @return  the default audience used by this client if any
      * 
      * @throws AceException 
      */
-    public String getDefaultAudience(String client) throws AceException;  
+    public String getDefaultAudience(String clientId) throws AceException;  
     
     /**
      * Gets the RSs that are part of this audience.
@@ -340,67 +348,67 @@ public interface DBConnector {
      * Gets the audiences that this RS is part of.
      * Note that the rs identifier is always a singleton audience itself.
      * 
-     * @param rs  the rs identifier
+     * @param rsId  the rs identifier
      *
      * @return  the audience identifiers that this RS is part of
      * 
      * @throws AceException 
      */
-    public Set<String> getAudiences(String rs) 
+    public Set<String> getAudiences(String rsId) 
                 throws AceException;  
 
     /**
      * Get the shared symmetric key (PSK) with this RS
      *  
-     * @param rs  the rs identifier
+     * @param rsId  the rs identifier
      * 
      * @return  the shared symmetric key if there is any
      * 
      * @throws AceException 
      */
-    public OneKey getRsPSK(String rs)
+    public OneKey getRsPSK(String rsId)
         throws AceException;
     
     /**
      * Get the public key (RPK) of this RS
      *  
-     * @param rs  the rs identifier
+     * @param rsId  the rs identifier
      * 
      * @return  the public key if there is any
      * 
      * @throws AceException 
      */
-    public OneKey getRsRPK(String rs)
+    public OneKey getRsRPK(String rsId)
         throws AceException;
     
     /**
      * Get the shared symmetric key (PSK) with this client
      *  
-     * @param client  the client identifier
+     * @param clientId  the client identifier
      * 
      * @return  the shared symmetric key if there is any
      * 
      * @throws AceException 
      */
-    public OneKey getCPSK(String client)
+    public OneKey getCPSK(String clientId)
         throws AceException;
     
     /**
      * Get the public key (RPK) of this client
      *  
-     * @param client  the client identifier
+     * @param clientId  the client identifier
      * 
      * @return  the public key if there is any
      * 
      * @throws AceException 
      */
-    public OneKey getCRPK(String client)
+    public OneKey getCRPK(String clientId)
         throws AceException;
     
 	/**
 	 * Creates a new RS. Must provide either a sharedKey or a publicKey.
 	 * 
-     * @param rs  the identifier for the RS
+     * @param rsId  the identifier for the RS
      * @param profiles  the profiles this RS supports
      * @param scopes  the scopes this RS supports
      * @param auds  the audiences this RS identifies with
@@ -418,24 +426,24 @@ public interface DBConnector {
      *
 	 * @throws AceException 
 	 */
-	public void addRS(String rs, Set<String> profiles, Set<String> scopes, 
+	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
             Set<COSEparams> cose, long expiration, OneKey sharedKey, 
             OneKey publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 
-	 * @param rs  the identifier of the RS
+	 * @param rsId  the identifier of the RS
 	 * 
 	 * @throws AceException
 	 */
-	public void deleteRS(String rs) 
+	public void deleteRS(String rsId) 
 			throws AceException;
 	
 	/**
 	 * Adds a new client to the database.
 	 * 
-	 * @param client  the identifier for the client
+	 * @param clientId  the identifier for the client
      * @param profiles  the profiles this client supports
      * @param defaultScope  the default scope if any, or null
      * @param defaultAud  the default audience if any, or null
@@ -448,7 +456,7 @@ public interface DBConnector {
      *       
 	 * @throws AceException 
 	 */
-	public void addClient(String client, Set<String> profiles, 
+	public void addClient(String clientId, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
 	        OneKey sharedKey, OneKey publicKey, boolean needClientToken) 
 	                throws AceException;
@@ -456,11 +464,11 @@ public interface DBConnector {
 	/**
 	 * Deletes a client and all related data
 	 * 
-	 * @param client  the identifier of the client
+	 * @param clientId  the identifier for the client
 	 * 
 	 * @throws AceException 
 	 */
-	public void deleteClient(String client) throws AceException;
+	public void deleteClient(String clientId) throws AceException;
 
 	/**
 	 * @param client  the identifier of the client 
@@ -527,6 +535,34 @@ public interface DBConnector {
      * @throws AceException 
      */
     public void saveCtiCounter(Long cti) throws AceException;
+    
+    /**
+     * Save a mapping from token identifier to client identifier for
+     *  a newly issued token.
+     * @param cti  the token identifier
+     * @param clientId  the client identifier
+     * @throws AceException
+     */
+    public void addCti2Client(String cti, String clientId) throws AceException;
+
+    /**
+     * Get the client identifier that holds a given token
+     * identified by its cti.
+     * 
+     * @param cti  the cti of the token
+     * @return  the client identifier
+     * @throws AceException 
+     */
+    public String getClient4Cti(String cti) throws AceException;
+    
+    /**
+     * Get the token identifiers (cti) for a given client.
+     * 
+     * @param clientId  the client identifier
+     * @return a set of token identifiers
+     * @throws AceException
+     */
+    public Set<String> getCtis4Client(String clientId) throws AceException;
     
 	/**
 	 * Close the connections. After this any other method calls to this
