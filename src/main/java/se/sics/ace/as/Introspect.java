@@ -213,10 +213,27 @@ public class Introspect implements Endpoint, AutoCloseable {
                 }
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
-            //FIXME: Check if we need to generate a client token 
+            //Check if we need to generate a client token
+            // ... to do this find the client holding this token
+            CBORObject ctiCB = claims.get("cti");
+            if (ctiCB == null) {
+                LOGGER.severe("Token has no cti");
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
+            if (!ctiCB.getType().equals(CBORType.ByteString)) {
+                LOGGER.severe("Token has invalid cti");
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
+            String cti = new String(ctiCB.GetByteString(), Constants.charset);
             try {
-                if (this.db.needsClientToken("FIXME")) {
-                    payload.Add(Constants.CLIENT_TOKEN, generateClientToken(claims));
+                String clientId = this.db.getClient4Cti(cti);
+                if (clientId == null) {
+                    LOGGER.severe("Token: " + cti + " has no owner");
+                    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+                if (this.db.needsClientToken(clientId)) {
+                    payload.Add(Constants.CLIENT_TOKEN, 
+                            generateClientToken(claims, clientId, cti, id));
                 }
             } catch (AceException e) {
                 LOGGER.severe("Error while querying need for client token: "
@@ -230,19 +247,84 @@ public class Introspect implements Endpoint, AutoCloseable {
 	/**
 	 * Generate a client token from the claims of an access token
 	 * @param claims  the claims of the access token
+	 * @param clientId  the client identifier
+	 * @param cti  the token identifier
+	 * @param rsId  the RS identifier
 	 * 
 	 * @return the client token
+	 * @throws AceException 
 	 */
-    private Encrypt0Message generateClientToken(Map<String, CBORObject> claims) {
-        CBORObject ct = CBORObject.NewMap();
-        ct.Add(Constants.PROFILE, claims.get("profile"));
-        
+    private Encrypt0Message generateClientToken(
+            Map<String, CBORObject> claims, String clientId, String cti, 
+            String rsId) 
+                    throws AceException {
+        CBORObject ct = CBORObject.NewMap();        
         CBORObject aud = claims.get("aud");
-//        this.db.getSupportedPopKeyType(clientId, aud.AsString());
-//        ct.Add(Constants.CNF, FIXME);
-//        ct.Add(Constants.RS_CNF, FIXME);
-        Encrypt0Message enc = new Encrypt0Message();
+        String audStr = null;
+        if (aud == null) {
+           audStr = this.db.getDefaultAudience(clientId);  
+        } else {
+           audStr = aud.AsString();
+        }
+        if (audStr == null) {
+            throw new AceException("Token: " + cti + " has no audience");
+        }
+        
+        //Get the client's key
+        OneKey cpsk = this.db.getCPSK(clientId);
+        OneKey crpk = this.db.getCRPK(clientId);
+        
+        if (cpsk == null && crpk == null) {
+            throw new AceException("Client: " + clientId + " has no keys");
+        }        
+        
+        String popType = this.db.getSupportedPopKeyType(clientId, audStr);
+        switch(popType) {
+        case "RPK":
+            //Get RS key
+            OneKey rpk = this.db.getRsRPK(rsId);
+            if (rpk == null) {
+                throw new AceException("RS: " + rsId 
+                        + " has no raw public key, but supports RPK key type");
+            }
+            ct.Add(Constants.RS_CNF, rpk.AsCBOR());
+            //Get client's kid
+            if (crpk == null) {
+                throw new AceException("Client: " + clientId 
+                        + " has no raw public key, but supports RPK key type");
+            }
+            CBORObject kid = crpk.get(KeyKeys.KeyId);
+            if (kid == null) {
+                throw new AceException("Client's: " + clientId 
+                        + " raw public key has no kid");
+            }
+            //We only need the kid for the client's public key
+            CBORObject cnf = CBORObject.NewMap();
+            cnf.Add(Constants.COSE_KID_CBOR, kid);
+            ct.Add(Constants.CNF, cnf);
+            break;
+        case "PSK":
+            //Take the cnf from the claims
+            cnf = claims.get("cnf");
+            if (cnf == null) {
+                throw new AceException("Token: " + cti + " has no 'cnf' claim");
+            }
+            ct.Add(Constants.CNF, cnf);
+            break;
+        default :
+            throw new AceException("Unsupported pop-key type: " + popType
+                    + " for token: " + cti);
+        }
+        
+        String profile = this.db.getSupportedProfile(clientId, audStr);
+        if (profile == null) {
+            throw new AceException("Client: " + clientId + " and audience: "
+                    + audStr + " do not support a common profile");
+        }
+        ct.Add(Constants.PROFILE, CBORObject.FromObject(profile));
         //FIXME:
+        Encrypt0Message enc = new Encrypt0Message();
+
         return enc;
     }
 

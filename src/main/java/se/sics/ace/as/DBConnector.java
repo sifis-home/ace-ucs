@@ -550,7 +550,7 @@ public interface DBConnector {
      * identified by its cti.
      * 
      * @param cti  the cti of the token
-     * @return  the client identifier
+     * @return  the client identifier or null if no client holds that token
      * @throws AceException 
      */
     public String getClient4Cti(String cti) throws AceException;
