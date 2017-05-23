@@ -347,14 +347,7 @@ public class TokenRepository implements AutoCloseable {
           }
         } else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
             String kid = null;
-            CBORObject kidC = cnf.get("kid"); //Unabbreviated
-            if (kidC == null) {
-                kidC = cnf.get(Constants.COSE_KID_CBOR); //Abbreviated 
-                if (kidC == null) {
-                    LOGGER.severe("kid not found in cnf claim");
-                    throw new AceException("Cnf claim is missing kid");
-                }
-            }
+            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             if (kidC.getType().equals(CBORType.ByteString)) {
                 kid = new String(kidC.GetByteString(), Constants.charset);
             } else {
