@@ -341,4 +341,6 @@ public class TestIntrospect {
         System.out.println(params.toString());
         assert(params.get("active").equals(CBORObject.True));
     }
+    
+    //FIXME: Add tests for client token
 }

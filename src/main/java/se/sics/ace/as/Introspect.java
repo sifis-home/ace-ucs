@@ -43,6 +43,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
 import COSE.Encrypt0Message;
@@ -213,6 +214,7 @@ public class Introspect implements Endpoint, AutoCloseable {
                 }
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
+           
             //Check if we need to generate a client token
             // ... to do this find the client holding this token
             CBORObject ctiCB = claims.get("cti");
@@ -254,10 +256,9 @@ public class Introspect implements Endpoint, AutoCloseable {
 	 * @return the client token
 	 * @throws AceException 
 	 */
-    private Encrypt0Message generateClientToken(
+    private CBORObject generateClientToken(
             Map<String, CBORObject> claims, String clientId, String cti, 
-            String rsId) 
-                    throws AceException {
+            String rsId) throws AceException {
         CBORObject ct = CBORObject.NewMap();        
         CBORObject aud = claims.get("aud");
         String audStr = null;
@@ -322,10 +323,44 @@ public class Introspect implements Endpoint, AutoCloseable {
                     + audStr + " do not support a common profile");
         }
         ct.Add(Constants.PROFILE, CBORObject.FromObject(profile));
-        //FIXME:
+        
+        if (cpsk == null) {
+            //XXX: Client token is currently implemented for client RPK
+            throw new AceException("Client token with client RPK only is"
+                    + " currently not supported");   
+        }
+        CBORObject encC = null;     
         Encrypt0Message enc = new Encrypt0Message();
+        //Find the right algorithm from the key length
+        byte[] ckey = cpsk.get(KeyKeys.Octet_K).GetByteString();
+        try {
+            switch (ckey.length) {
+            case 128:
 
-        return enc;
+                enc.addAttribute(HeaderKeys.Algorithm, 
+                        AlgorithmID.AES_CCM_64_64_128.AsCBOR(), 
+                        Attribute.PROTECTED);
+
+                break;
+            case 256:
+                enc.addAttribute(HeaderKeys.Algorithm, 
+                        AlgorithmID.AES_CCM_64_64_256.AsCBOR(), 
+                        Attribute.PROTECTED);
+                break;
+            default:
+                throw new AceException("Unsupported key length for client: "
+                        + clientId);
+            }
+            enc.SetContent(ct.EncodeToBytes());
+            enc.encrypt(cpsk.get(KeyKeys.Octet_K).GetByteString());
+            encC = enc.EncodeToCBORObject();
+        } catch (CoseException | IllegalStateException 
+                | InvalidCipherTextException e) {
+           LOGGER.severe("Error while encrypting client token: " 
+                + e.getMessage());
+           throw new AceException("Error while encrypting client token");
+        }
+        return encC;
     }
 
 

@@ -341,7 +341,7 @@ public class TestAuthzInfo {
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
        
-        //Make introspection succeed
+        //Make Encrypt0Messageintrospection succeed
         db.addToken(new String(cti, Constants.charset), claims);
         
         claims.put("cks", 
@@ -616,4 +616,6 @@ public class TestAuthzInfo {
                 "token2".getBytes(Constants.charset));
         db.deleteToken("token2");
     }    
+    
+    //FIXME: Add test for handling client token returning from introspection
 }
