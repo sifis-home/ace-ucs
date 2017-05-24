@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -161,6 +162,16 @@ public class CoapsIntrospection implements IntrospectionHandler {
         CoapResponse response =  this.client.post(
                 Constants.abbreviate(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    
+        if (!response.getCode().equals(ResponseCode.CREATED)) {
+            //Some error happened
+            if (response.getPayload() == null) {//This was a server error
+                throw new AceException("AS error while trying to introspect");
+            }
+            //Client error
+            throw new AceException("Error while trying to introspect: " 
+                   + CBORObject.DecodeFromBytes(
+                           response.getPayload()).toString());
+        }
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<String, CBORObject> map = Constants.unabbreviate(res);
         return map;
