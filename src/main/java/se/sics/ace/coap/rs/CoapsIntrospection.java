@@ -58,6 +58,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.BksStore;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 
 /**
@@ -154,7 +155,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
     
     @Override
     public Map<String, CBORObject> getParams(String tokenReference) 
-            throws AceException {
+            throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token",  CBORObject.FromObject(tokenReference));
@@ -165,12 +166,12 @@ public class CoapsIntrospection implements IntrospectionHandler {
         if (!response.getCode().equals(ResponseCode.CREATED)) {
             //Some error happened
             if (response.getPayload() == null) {//This was a server error
-                throw new AceException("AS error while trying to introspect");
+                throw new IntrospectionException(response.getCode().value, "");
             }
             //Client error
-            throw new AceException("Error while trying to introspect: " 
-                   + CBORObject.DecodeFromBytes(
-                           response.getPayload()).toString());
+            throw new IntrospectionException(response.getCode().value, 
+                    CBORObject.DecodeFromBytes(
+                            response.getPayload()).toString());
         }
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<String, CBORObject> map = Constants.unabbreviate(res);

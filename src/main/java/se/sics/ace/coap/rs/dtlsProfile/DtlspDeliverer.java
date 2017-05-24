@@ -51,6 +51,7 @@ import COSE.KeyKeys;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
@@ -192,6 +193,9 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
         } catch (AceException e) {
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
                     + e.getMessage());    
+        } catch (IntrospectionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
     

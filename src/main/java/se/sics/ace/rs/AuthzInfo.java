@@ -134,20 +134,28 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        try {
                 claims = processRefrenceToken(msg);
             } catch (AceException e) {
+                //XXX: Could be other errors than 500
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            } catch (IntrospectionException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
             }
 	    } else if (cbor.getType().equals(CBORType.Array)) {
 	        try {
 	            claims = processCWT(msg);
-	        } catch (Exception e) {
+	        } catch (IntrospectionException e) {
+	            //XXX: could be other errors than 400
 	            CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
                 LOGGER.log(Level.INFO, "Message processing aborted: "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	        }
+	        } catch (Exception e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
 	    } else {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -260,8 +268,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * @param msg  the message
 	 * 
 	 * @return  the claims of the CWT
-	 * @throws AceException 
-	 * @throws CoseException 
 	 * 
 	 * @throws Exception
 	 */
@@ -290,9 +296,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @return  the claims of the reference token
 	 * @throws AceException
+	 * @throws IntrospectionException 
 	 */
     private Map<String, CBORObject> processRefrenceToken(Message msg)
-                throws AceException {
+                throws AceException, IntrospectionException {
         
         // This should be a CBOR String
         CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());

@@ -385,9 +385,11 @@ public class TestTokenRepository {
      * Test add token with cnf containing COSE_Key
      *
      * @throws AceException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testTokenCnfCoseKey() throws AceException {
+    public void testTokenCnfCoseKey() 
+            throws AceException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -428,9 +430,10 @@ public class TestTokenRepository {
      * Test add token with cnf containing known kid
      *
      * @throws AceException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testTokenCnfKid() throws AceException {
+    public void testTokenCnfKid() throws AceException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -477,10 +480,12 @@ public class TestTokenRepository {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IntrospectionException 
      */
     @Test
     public void testTokenCnfEncrypt0() throws AceException, CoseException,
-            IllegalStateException, InvalidCipherTextException {
+            IllegalStateException, InvalidCipherTextException, 
+            IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -565,9 +570,11 @@ public class TestTokenRepository {
      * 
      * @throws AceException
      * @throws IOException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testLoad() throws AceException, IOException {
+    public void testLoad() 
+            throws AceException, IOException, IntrospectionException {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");

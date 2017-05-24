@@ -72,7 +72,8 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
   
     
     @Override
-    public Map<String, CBORObject> getParams(String tokenReference) throws AceException {
+    public Map<String, CBORObject> getParams(String tokenReference)
+            throws IntrospectionException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token", 
                 CBORObject.FromObject(tokenReference));
@@ -84,12 +85,12 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
         LocalMessage res = (LocalMessage)this.i.processMessage(req);
         if (res.getMessageCode() != Message.CREATED) {//Some error happened
             if (res.getRawPayload() == null) {//This was a server error
-                throw new AceException("AS error while trying to introspect");
+                throw new IntrospectionException(res.getMessageCode(), "");
             }
             //Client error
-            throw new AceException("Error while trying to introspect: " 
-                   + CBORObject.DecodeFromBytes(
-                           res.getRawPayload()).toString());
+            throw new IntrospectionException(res.getMessageCode(),
+                    CBORObject.DecodeFromBytes(
+                            res.getRawPayload()).toString());
         }
         CBORObject resC = CBORObject.DecodeFromBytes(res.getRawPayload());
         Map<String, CBORObject> map = Constants.unabbreviate(resC);

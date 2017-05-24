@@ -216,10 +216,11 @@ public class TestAuthzInfo {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IntrospectionException 
      */
     @Test
     public void testCwtIntrospect() throws AceException, IllegalStateException,
-            InvalidCipherTextException, CoseException {
+            InvalidCipherTextException, CoseException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));

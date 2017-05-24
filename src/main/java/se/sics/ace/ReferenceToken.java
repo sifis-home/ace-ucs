@@ -38,6 +38,7 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 
 /**
@@ -102,7 +103,13 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
+		Map<String, CBORObject> params = null;
+        try {
+            params = this.introspect.getParams(this.ref);
+        } catch (IntrospectionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 		if (params == null) {
 		    throw new AceException("Token reference not found: " + this.ref);
 		}
@@ -119,7 +126,13 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = this.introspect.getParams(this.ref);
+		Map<String, CBORObject> params = null;
+        try {
+            params = this.introspect.getParams(this.ref);
+        } catch (IntrospectionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
 		if (params == null) {
 		    throw new AceException("Token reference not found: " + this.ref);
 		}
