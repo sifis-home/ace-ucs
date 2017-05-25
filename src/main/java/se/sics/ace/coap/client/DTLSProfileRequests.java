@@ -91,12 +91,12 @@ public class DTLSProfileRequests {
      * @param key  the key to be used to secure the connection to the AS. 
      *  This MUST have a kid.
      * 
-     * @return  the payload of the response 
+     * @return  the response 
      *
      * @throws AceException 
      */
-    public static CBORObject getToken(String asAddr, CBORObject payload, OneKey key) 
-            throws AceException {
+    public static CoapResponse getToken(String asAddr, CBORObject payload, 
+            OneKey key) throws AceException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
@@ -133,10 +133,9 @@ public class DTLSProfileRequests {
                 NetworkConfig.getStandard());
         CoapClient client = new CoapClient(asAddr);
         client.setEndpoint(e);   
-        CoapResponse response = client.post(
+        return client.post(
                 payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
-        return CBORObject.DecodeFromBytes(response.getPayload());
     }
     
     /**
@@ -146,24 +145,34 @@ public class DTLSProfileRequests {
      * @param rsAddr  the full address of the /authz-info endpoint
      *  (including scheme and hostname, and port if not default)
      * @param payload  the token received from the getToken() method
-     * @param useDTLS  use DTLS without client authentication to transfer 
-     *  the token or use plain CoAP. Note that this does NOT work with pre-shared
-     *  keys or with an RS that requires client authentication
+     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
+     *  key handshake
      * 
-     * @return  the payload of the response 
+     * @return  the response 
      *
      * @throws AceException 
      */
-    public static CBORObject postToken(String rsAddr, CBORObject payload, boolean useDTLS) 
-            throws AceException {
+    public static CoapResponse postToken(String rsAddr, CBORObject payload, 
+            OneKey key) throws AceException {
+        if (payload == null) {
+            throw new AceException(
+                    "Payload cannot be null when POSTing to authz-info");
+        }
         Connector c = null;
-        if (useDTLS) {
+        if (key != null) {
             DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                     new InetSocketAddress(0));
             builder.setClientAuthenticationRequired(true);
             builder.setClientOnly();
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+            try {
+                builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+            } catch (CoseException e) {
+                LOGGER.severe("Key is invalid: " + e.getMessage());
+               throw new AceException("Aborting, key invalid: " 
+                       + e.getMessage());
+            }
             c = new DTLSConnector(builder.build());
             try {
                 c.start();
@@ -177,13 +186,10 @@ public class DTLSProfileRequests {
         CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
         CoapClient client = new CoapClient(rsAddr);
         client.setEndpoint(e);   
-        CoapResponse response = client.post(
+        LOGGER.finest("Sending request payload: " + payload);
+        return client.post(
                 payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
-        if (response == null) {
-            return null;
-        }
-        return CBORObject.DecodeFromBytes(response.getPayload());
     }
     
     

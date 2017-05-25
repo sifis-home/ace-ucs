@@ -95,7 +95,7 @@ public class TestDtlspClient {
      */
     @BeforeClass
     public static void setUp() {
-        rsAddr = "coap://localhost/authz-info";
+        rsAddr = "coaps://localhost/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -112,6 +112,22 @@ public class TestDtlspClient {
     public static void tearDown() {
         //Nothing to do yet
     }
+
+    /**
+     * Test requesting some weird URI.
+     * @throws AceException 
+     * @throws CoseException 
+     */
+    @Test
+    public void testWeirdUri() throws AceException, CoseException {
+        CBORObject cbor = CBORObject.True;
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        CoapResponse r = DTLSProfileRequests.postToken(
+                "coaps://localhost/authz-info/test", cbor, key);
+        Assert.assertEquals("UNAUTHORIZED", r.getCode().name());
+        CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
+        Assert.assertEquals("{0: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+    }
     
     /**
      * Tests POSTing a token to authz-info
@@ -122,29 +138,29 @@ public class TestDtlspClient {
      */
     @Test
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
-            InvalidCipherTextException, CoseException {        
+            InvalidCipherTextException, CoseException {  
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
         CBORObject kid = CBORObject.FromObject(
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put("cnf", cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
-        CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, false);
+        CBORObject payload = token.encode(ctx);    
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddr, payload, key);
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
+        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals("token2".getBytes(Constants.charset), 
-                cbor.GetByteString());
+                cti.GetByteString());
     }
     
     /**
@@ -205,7 +221,8 @@ public class TestDtlspClient {
     }
     
     
-    /** Test post to authz-info with RPK then request
+    /** 
+     * Test post to authz-info with RPK then request
      * @throws CoseException 
      * @throws AceException 
      * @throws InvalidCipherTextException 
@@ -232,14 +249,15 @@ public class TestDtlspClient {
         params.put("cnf", cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        CBORObject cbor = DTLSProfileRequests.postToken(rsAddr, payload, false);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddr, payload, key);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key);
         c.setURI("coaps://localhost/helloWorld");
-        CoapResponse r = c.get();
-        Assert.assertEquals("CONTENT", r.getCode().name());
-        Assert.assertEquals("Hello World!", r.getResponseText());  
+        CoapResponse r2 = c.get();
+        Assert.assertEquals("CONTENT", r2.getCode().name());
+        Assert.assertEquals("Hello World!", r2.getResponseText());  
     }
     
     /**

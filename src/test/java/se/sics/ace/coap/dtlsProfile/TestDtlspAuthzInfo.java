@@ -75,6 +75,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
 
 /**
@@ -175,9 +176,11 @@ public class TestDtlspAuthzInfo {
      * Test a POST to /authz-info
      * @throws UnknownHostException 
      * @throws AceException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testPOSTtoken() throws UnknownHostException, AceException {
+    public void testPOSTtoken() 
+            throws UnknownHostException, AceException, IntrospectionException {
         Request req = new Request(Code.POST);
         req.setPayload(payload.EncodeToBytes());
         req.setDestination(InetAddress.getLocalHost());

@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs.dtlsProfile;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Base64;
 import java.util.logging.Logger;
 
@@ -49,6 +51,7 @@ import COSE.KeyKeys;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
@@ -105,12 +108,24 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
     public void deliverRequest(final Exchange ex) {
         Request request = ex.getCurrentRequest();
         Response r = null;
-        if (request.getSenderIdentity() == null) {
-            //Make an exception for "authz-info"
-            if (request.getURI().endsWith("authz-info")) {
+        //authz-info is not under access control
+        try {
+            URI uri = new URI(request.getURI());
+            //Need to check with and without trailing / in case there are query options
+            if (uri.getPath().endsWith("/authz-info") || uri.getPath().endsWith("/authz-info/") ) { 
                 super.deliverRequest(ex);
                 return;
             }
+        } catch (URISyntaxException e) {
+            LOGGER.warning("Request-uri " + request.getURI()
+                    + " is invalid: " + e.getMessage());
+            r = new Response(ResponseCode.BAD_REQUEST);
+            ex.sendResponse(r);
+            return;
+        }      
+        
+       
+        if (request.getSenderIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");
             r = new Response(ResponseCode.UNAUTHORIZED);
             r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
@@ -178,6 +193,9 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
         } catch (AceException e) {
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
                     + e.getMessage());    
+        } catch (IntrospectionException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
         }
     }
     

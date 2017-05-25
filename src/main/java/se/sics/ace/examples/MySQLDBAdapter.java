@@ -101,7 +101,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.expColumn + " bigint NOT NULL, "
                 + DBConnector.pskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
-                + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
+                + " PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
         String createC = "CREATE TABLE IF NOT EXISTS " + this.dbName
                 + "." + DBConnector.cTable + " ("
@@ -110,7 +110,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
-                + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
+                + " PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
         String createProfiles = "CREATE TABLE IF NOT EXISTS "
                 + this.dbName + "."
@@ -151,7 +151,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         String createClaims = "CREATE TABLE IF NOT EXISTS "
                 + this.dbName + "."
                 + DBConnector.claimsTable + "("
-                + DBConnector.cidColumn + " varchar(255) NOT NULL, "
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.claimNameColumn + " varchar(8) NOT NULL,"
                 + DBConnector.claimValueColumn + " varbinary(255));";
 
@@ -161,9 +161,16 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiCounterColumn + " int unsigned);";
 
         String initCtiCtr = "INSERT INTO "
-                + this.dbName + "."
+                + this.dbName + "." 
                 + DBConnector.ctiCounterTable
                 + " VALUES (0);";
+
+        String createTokenLog = "CREATE TABLE IF NOT EXISTS "
+                + DBConnector.dbName + "."
+                + DBConnector.cti2clientTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
+                + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
 
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
@@ -183,6 +190,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createClaims);
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
+            stmt.execute(createTokenLog);
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {

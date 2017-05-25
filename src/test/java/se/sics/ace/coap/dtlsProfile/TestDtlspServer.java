@@ -182,7 +182,7 @@ public class TestDtlspServer {
         CoapServer server = new CoapServer();
         server.add(hello);
         server.add(temp);
-        //server.add(authzInfo);
+        server.add(authzInfo);
         
         DtlspDeliverer dpd 
             = new DtlspDeliverer(server.getRoot(), tr, null, asi); 
@@ -203,12 +203,12 @@ public class TestDtlspServer {
         server.setMessageDeliverer(dpd);
         server.start();
         System.out.println("Server starting");
-        
-        CoapServer server2 = new CoapServer();
-        server2.add(authzInfo);
-        UDPConnector conn2 = new UDPConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT));    
-        server2.addEndpoint(new CoapEndpoint(conn2, NetworkConfig.getStandard()));
-        server2.start();
+       
+//        CoapServer server2 = new CoapServer();
+//        server2.add(authzInfo);
+//        UDPConnector conn2 = new UDPConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT));    
+//        server2.addEndpoint(new CoapEndpoint(conn2, NetworkConfig.getStandard()));
+//        server2.start();
 
     }
     

@@ -347,14 +347,7 @@ public class TokenRepository implements AutoCloseable {
           }
         } else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
             String kid = null;
-            CBORObject kidC = cnf.get("kid"); //Unabbreviated
-            if (kidC == null) {
-                kidC = cnf.get(Constants.COSE_KID_CBOR); //Abbreviated 
-                if (kidC == null) {
-                    LOGGER.severe("kid not found in cnf claim");
-                    throw new AceException("Cnf claim is missing kid");
-                }
-            }
+            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             if (kidC.getType().equals(CBORType.ByteString)) {
                 kid = new String(kidC.GetByteString(), Constants.charset);
             } else {
@@ -484,10 +477,11 @@ public class TokenRepository implements AutoCloseable {
 	 * for this resource and user,-1 if the existing token(s) do not authorize 
 	 * the action requested.
 	 * @throws AceException 
+	 * @throws IntrospectionException 
 	 */
 	public int canAccess(String kid, String subject, String resource, 
 	        String action, TimeProvider time, IntrospectionHandler intro) 
-			        throws AceException {
+			        throws AceException, IntrospectionException {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
 	        return UNAUTHZ; //No tokens for this pop-key

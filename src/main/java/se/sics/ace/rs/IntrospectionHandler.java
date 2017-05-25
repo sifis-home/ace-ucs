@@ -54,9 +54,10 @@ public interface IntrospectionHandler {
 	 * @return  the map of claims (key to claim value) or null if there is no
 	 *     such tokenReference
 	 *     
+	 * @throws IntrospectionException 
 	 * @throws AceException 
 	 */
 	public Map<String, CBORObject> getParams(String tokenReference) 
-	        throws AceException;
+	        throws IntrospectionException, AceException;
 	
 }
