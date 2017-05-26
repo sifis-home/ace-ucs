@@ -665,17 +665,17 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                 + " SET " + DBConnector.ctiCounterColumn + "=?;"));
         
         this.insertCti2Client = this.conn.prepareStatement("INSERT INTO "
-                + DBConnector.dbName + "." + DBConnector.cti2clientTable
+                + DBConnector.cti2clientTable
                 + " VALUES (?,?);");
         
         this.selectClientByCti = this.conn.prepareStatement("SELECT "
                     + DBConnector.clientIdColumn + " FROM "
-                    + DBConnector.dbName + "." + DBConnector.cti2clientTable
+                    + DBConnector.cti2clientTable
                     + " WHERE " + DBConnector.ctiColumn + "=?;");   
           
         this.selectCtisByClient= this.conn.prepareStatement("SELECT "
                 + DBConnector.ctiColumn + " FROM "
-                + DBConnector.dbName + "." + DBConnector.cti2clientTable
+                + DBConnector.cti2clientTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;");   
     
 	}
