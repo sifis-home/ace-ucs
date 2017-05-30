@@ -113,15 +113,17 @@ public class TestToken {
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-        
+        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
+
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey(); 
         publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
                 "myKey".getBytes(Constants.charset)));
         
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
-        
+
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 

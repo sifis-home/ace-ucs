@@ -111,12 +111,14 @@ public class TestKissPDP {
 
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-        
+        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
+
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);

@@ -64,7 +64,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	/**
 	 * The default user of the database
 	 */
-	private String defaultUser = "aceUser";
+	private String defaultUser = "aceuser";
 	
 	/**
 	 * The default password of the default user. 
@@ -75,10 +75,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	private String defaultPassword = "password";
 	
 	/**
-	 * The default connection URL for the database. Here we use a 
-	 * MySQL database on port 3306.
+	 * The default connection URL for the database.
 	 */
-	private String defaultDbUrl = "jdbc:mysql://localhost:3306";
+	private String defaultDbUrl = "";
 	
 	/**
 	 * A prepared connection.
@@ -454,6 +453,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		if (dbUrl != null) {
 			this.defaultDbUrl = dbUrl;
 		}
+		else
+		{
+			this.defaultDbUrl = dbAdapter.getDefaultDBURL();
+		}
 		if (user != null) {
 			this.defaultUser = user;
 		}
@@ -679,6 +682,24 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                 + " WHERE " + DBConnector.clientIdColumn + "=?;");   
     
 	}
+
+
+	/**
+	 * Create the necessary database and tables. Requires the
+	 * root user password.
+	 *
+	 * @param rootPwd  the root user password
+	 * @throws AceException
+	 */
+	public static void createDB(String rootPwd, String username,
+								String userPwd, String dbName, String dbUrl) throws AceException {
+		if (rootPwd == null) {
+			throw new AceException(
+					"Cannot initialize the database without the password");
+		}
+
+		SQLConnector.createDB(new MySQLDBAdapter(), rootPwd, username, userPwd, dbName, dbUrl);
+	}
 	
 	/**
 	 * Create the necessary database and tables. Requires the
@@ -687,13 +708,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * @param rootPwd  the root user password
 	 * @throws AceException 
 	 */
-	@Override
-	public synchronized void init(String rootPwd) throws AceException {
+	public static void createDB(SQLDBAdapter dbAdapter, String rootPwd, String username,
+								String userPwd, String dbName, String dbUrl) throws AceException {
 		if (rootPwd == null) {
 			throw new AceException(
 					"Cannot initialize the database without the password");
 		}
-
+		dbAdapter.setParams(username, userPwd, dbName, dbUrl);
         dbAdapter.createDBAndTables(rootPwd);
 	}
 	

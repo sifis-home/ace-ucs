@@ -65,4 +65,10 @@ public interface SQLDBAdapter {
      * Updates any SQL queries that need to be specific for each DB engine.
      */
     String updateEngineSpecificSQL(String sqlQuery);
+
+    /**
+     * Gets the default DB URL for this adapter.
+     * @return The JDBC URL.
+     */
+    String getDefaultDBURL();
 }

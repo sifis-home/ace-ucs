@@ -44,8 +44,8 @@ import java.util.Properties;
  */
 public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
-    private static final String ROOT_USER = "postgres";
-    private static final String BASE_DB = "postgres";
+    public static final String ROOT_USER = "postgres";
+    public static final String BASE_DB = "postgres";
 
     /**
      * The default connection URL for the database.
@@ -65,6 +65,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         this.user = user;
         this.password = pwd;
         this.dbName = dbName;
+        if(this.dbName == null)
+        {
+            this.dbName = DBConnector.dbName;
+        }
         this.baseDbUrl = dbUrl;
         if(this.baseDbUrl == null)
         {
@@ -238,5 +242,11 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         }
 
         return sqlQuery;
+    }
+
+    @Override
+    public String getDefaultDBURL()
+    {
+        return PostgreSQLDBAdapter.DEFAULT_DB_URL;
     }
 }

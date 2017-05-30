@@ -43,12 +43,12 @@ import se.sics.ace.as.DBConnector;
  *
  */
 public class MySQLDBAdapter implements SQLDBAdapter {
-    private static final String ROOT_USER = "root";
+    public static final String ROOT_USER = "root";
 
     /**
      * The default connection URL for the database.
      */
-    protected static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306";
+    public static final String DEFAULT_DB_URL = "jdbc:mysql://localhost:3306";
 
     protected String user;
     protected String password;
@@ -60,6 +60,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         this.user = user;
         this.password = pwd;
         this.dbName = dbName;
+        if(this.dbName == null)
+        {
+            this.dbName = DBConnector.dbName;
+        }
         this.dbUrl = dbUrl;
         if(this.dbUrl == null)
         {
@@ -203,5 +207,11 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     {
         // Nothing to do here, as the default SQL statements in is compatible with MySQL.
         return sqlQuery;
+    }
+
+    @Override
+    public String getDefaultDBURL()
+    {
+        return MySQLDBAdapter.DEFAULT_DB_URL;
     }
 }

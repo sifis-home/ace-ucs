@@ -115,13 +115,14 @@ public class TestIntrospect {
        
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-         
+        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
         privateKey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
