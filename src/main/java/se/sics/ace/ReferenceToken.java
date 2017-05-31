@@ -107,8 +107,8 @@ public class ReferenceToken implements AccessToken {
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new AceException("Introspection failed: "
+                    + e.getMessage());
         }
 		if (params == null) {
 		    throw new AceException("Token reference not found: " + this.ref);
@@ -130,8 +130,8 @@ public class ReferenceToken implements AccessToken {
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            throw new AceException("Introspection failed: "
+                    + e.getMessage());
         }
 		if (params == null) {
 		    throw new AceException("Token reference not found: " + this.ref);

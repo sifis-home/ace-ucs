@@ -41,9 +41,10 @@ public class OscoapProfile {
 
     /**
      * Constructor
+     * FIXME: Implement this
      */
     public OscoapProfile() {
-        // TODO Auto-generated constructor stub
+
     }
 
 }

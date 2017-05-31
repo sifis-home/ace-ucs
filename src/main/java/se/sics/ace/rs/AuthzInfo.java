@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -134,34 +136,47 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	        try {
                 claims = processRefrenceToken(msg);
             } catch (AceException e) {
-                //XXX: Could be other errors than 500
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             } catch (IntrospectionException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+                LOGGER.info("Introspection error, "
+                         + "message processing aborted: " + e.getMessage());
+                if (e.getMessage().isEmpty()) {
+                    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+                return msg.failReply(e.getCode(), map);
             }
 	    } else if (cbor.getType().equals(CBORType.Array)) {
 	        try {
 	            claims = processCWT(msg);
 	        } catch (IntrospectionException e) {
-	            //XXX: could be other errors than 400
+                LOGGER.info("Introspection error, "
+                        + "message processing aborted: " + e.getMessage());
+               if (e.getMessage().isEmpty()) {
+                   return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+               }
+               CBORObject map = CBORObject.NewMap();
+               map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+               map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+               return msg.failReply(e.getCode(), map);
+	        } catch (AceException | CoseException | InvalidCipherTextException e) {
+	            LOGGER.info("Token invalid: " + e.getMessage());
 	            CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-                map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
-                LOGGER.log(Level.INFO, "Message processing aborted: "
-                        + e.getMessage());
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	        } catch (Exception e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
+	            LOGGER.severe("Unsupported key wrap algorithm in token");
+	            return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, null);
+            } 
 	    } else {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
-	        LOGGER.log(Level.INFO, "Message processing aborted: "
-	                + "invalid reuqest");
+	        LOGGER.info("Message processing aborted: invalid reuqest");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
@@ -172,8 +187,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "Token is not active");
+            LOGGER.info("Message processing aborted: Token is not active");
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
         }
 
@@ -269,9 +283,15 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @return  the claims of the CWT
 	 * 
-	 * @throws Exception
+	 * @throws AceException 
+	 * @throws IntrospectionException 
+	 * @throws CoseException
+	 * 
+	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<String,CBORObject> processCWT(Message msg) throws Exception {
+	private Map<String,CBORObject> processCWT(Message msg) 
+	        throws IntrospectionException, AceException, 
+	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 	    //Check if we can introspect this token
 	    Map<String, CBORObject> claims = cwt.getClaims();

@@ -48,6 +48,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.KeyKeys;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
@@ -194,8 +195,18 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
                     + e.getMessage());    
         } catch (IntrospectionException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
+            LOGGER.info("Introspection error, "
+                    + "message processing aborted: " + e.getMessage());
+           if (e.getMessage().isEmpty()) {
+               ex.sendResponse(new Response(
+                       ResponseCode.INTERNAL_SERVER_ERROR));
+           }
+           CBORObject map = CBORObject.NewMap();
+           map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+           map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+           r = new Response(ResponseCode.BAD_REQUEST);
+           r.setPayload(map.EncodeToBytes());
+           ex.sendResponse(r);
         }
     }
     

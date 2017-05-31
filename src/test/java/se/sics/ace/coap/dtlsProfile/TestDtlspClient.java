@@ -66,7 +66,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 /**
  * Tests a client running the DTLS profile.
  * 
- * NOTE: You need to run DtlspServer first in order for these tests to work.
+ * NOTE: You need to run TestDtlspServer first in order for these tests to work.
  * 
  * @author Ludwig Seitz
  *
