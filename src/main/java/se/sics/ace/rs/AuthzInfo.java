@@ -169,7 +169,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	            map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	        } catch (Exception e) {
-	            LOGGER.severe("Unsupported key wrap algorithm in token");
+	            LOGGER.severe("Unsupported key wrap algorithm in token: " 
+	                    + e.getMessage());
 	            return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, null);
             } 
 	    } else {
