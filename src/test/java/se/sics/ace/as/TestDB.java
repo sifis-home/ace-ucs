@@ -63,6 +63,7 @@ import se.sics.ace.examples.SQLDBAdapter;
  * @author Ludwig Seitz
  *
  */
+@Ignore
 public class TestDB {
   
     static OneKey publicKey;
