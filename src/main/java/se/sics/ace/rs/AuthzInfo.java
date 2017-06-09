@@ -238,7 +238,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience does not apply");
-	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	        return msg.failReply(Message.FAIL_FORBIDDEN, map);
 	    }
 
 	    //6. Check if the token has a scope
