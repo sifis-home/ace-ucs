@@ -331,7 +331,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", t.encode());
         String senderId = new RawPublicKeyIdentity(
-                publicKey.AsPublicKey()).getName();
+                publicKey.AsPublicKey()).getName().trim();
         Message response = i.processMessage(
                 new LocalMessage(-1, senderId, "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
