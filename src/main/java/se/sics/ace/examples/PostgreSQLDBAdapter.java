@@ -111,8 +111,6 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
     @Override
     public synchronized void createDBAndTables(String rootPwd) throws AceException {
-        String deleteDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
-
         String createDB = "CREATE DATABASE " + this.dbName
                 + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
                 " CONNECTION LIMIT = -1;";
@@ -123,7 +121,6 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
              Statement stmt = rootConn.createStatement())
         {
-            stmt.execute(deleteDB);
             stmt.execute(createDB);
             rootConn.close();
             stmt.close();
@@ -248,5 +245,26 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     public String getDefaultDBURL()
     {
         return PostgreSQLDBAdapter.DEFAULT_DB_URL;
+    }
+
+
+    @Override
+    public void wipeDB(String rootPwd) throws AceException
+    {
+        try
+        {
+            //Just to be sure if a previous test didn't exit cleanly
+            Properties connectionProps = new Properties();
+            connectionProps.put("user", ROOT_USER);
+            connectionProps.put("password", rootPwd);
+            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL, connectionProps);
+            String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
+            Statement stmt = rootConn.createStatement();
+            stmt.execute(dropDB);
+            stmt.close();
+            rootConn.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
     }
 }

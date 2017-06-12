@@ -61,6 +61,15 @@ public interface SQLDBAdapter {
      */
     void createDBAndTables(String rootPwd) throws AceException;
 
+
+    /**
+     * Totally deletes a DB.
+     *
+     * @param rootPwd the root or base password to use.
+     * @throws AceException
+     */
+    void wipeDB(String rootPwd) throws AceException;
+
     /**
      * Updates any SQL queries that need to be specific for each DB engine.
      */

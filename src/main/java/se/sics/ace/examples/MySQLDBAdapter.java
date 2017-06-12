@@ -214,4 +214,24 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     {
         return MySQLDBAdapter.DEFAULT_DB_URL;
     }
+
+    @Override
+    public void wipeDB(String rootPwd) throws AceException
+    {
+        try
+        {
+            //Just to be sure if a previous test didn't exit cleanly
+            Properties connectionProps = new Properties();
+            connectionProps.put("user", ROOT_USER);
+            connectionProps.put("password", rootPwd);
+            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL, connectionProps);
+            String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
+            Statement stmt = rootConn.createStatement();
+            stmt.execute(dropDB);
+            stmt.close();
+            rootConn.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
 }

@@ -31,11 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
+import java.sql.*;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -727,18 +723,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * @param rootPwd  the root password.
 	 * @throws SQLException 
 	 */
-	public static void wipeDatabase(String rootPwd) throws SQLException {
-	    //Just to be sure if a previous test didn't exit cleanly
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", rootPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);      
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);       
-        stmt.close();
-        rootConn.close();
+	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
+		dbAdapter.wipeDB(rootPwd);
 	}
 	
 	/**
