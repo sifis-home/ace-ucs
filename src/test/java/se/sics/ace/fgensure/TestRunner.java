@@ -61,17 +61,19 @@ public class TestRunner {
         //Skipping TestBskStore to avoid trouble with Java UCE
         System.out.println("Running CoAP client tests");
         //FIXME: Start server on another thread
+        toggleSilence();
         r = JUnitCore.runClasses(TestCoAPClient.class);
+        toggleSilence();
         //FIXME: Stop server
         handleResult(r);
         System.out.println("Running CoAP introspection tests");
+        toggleSilence();
         //FIXME: Start server on another thread
         r = JUnitCore.runClasses(TestCoapsIntrospection.class);
+        toggleSilence();
         //FIXME: Stop server
         handleResult(r);
-        
-        
-
+        System.exit(0);
     }
 
     private static void handleResult(Result r) {

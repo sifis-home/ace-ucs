@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,8 +46,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.ConnectorBase;
-import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -54,7 +53,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import COSE.AlgorithmID;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
@@ -152,7 +151,7 @@ public class TestDtlspServer {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        createTR(valid);
         TokenRepository tr = TokenRepository.getInstance();
         
         byte[] key128a 
@@ -212,6 +211,18 @@ public class TestDtlspServer {
 
     }
     
+    /**
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+        }
+    }
 
 
 }
