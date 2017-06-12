@@ -112,13 +112,39 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        TokenRepository.create(valid, "src/test/resources/tokens.json", ctx);
+        createTR(valid);
         tr = TokenRepository.getInstance();
         
         ai = new AuthzInfo(tr, 
                 Collections.singletonList("TestAS"), new KissTime(), null, 
                 valid, ctx);
         store = new DtlspPskStore(ai);
+    }
+    
+    /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
     }
     
     /**
@@ -260,4 +286,5 @@ public class TestDtlspPskStore {
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);
     }
+
 }

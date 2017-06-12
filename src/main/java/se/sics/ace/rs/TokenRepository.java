@@ -665,6 +665,7 @@ public class TokenRepository implements AutoCloseable {
         if (!this.closed) {
             this.closed = true;   
             persist();
+            singleton = null;
         }
     }
 

@@ -134,7 +134,7 @@ public class TestTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        createTR(valid);
         tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -147,6 +147,32 @@ public class TestTokenRepository {
         rpkCnf.Add(Constants.COSE_KEY_CBOR, 
                 asymmetricKey.PublicKey().AsCBOR()); 
        
+    }
+    
+    /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
     }
     
     /**

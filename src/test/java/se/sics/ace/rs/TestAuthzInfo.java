@@ -116,6 +116,8 @@ public class TestAuthzInfo {
         } finally {
             br.close();
         }
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
@@ -140,9 +142,7 @@ public class TestAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-
-        TokenRepository.create(valid, 
-                "src/test/resources/tokens.json", null);
+        createTR(valid);
         tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -155,6 +155,32 @@ public class TestAuthzInfo {
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 valid, ctx);
+    }
+    
+    /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
     }
     
     /**
@@ -521,7 +547,7 @@ public class TestAuthzInfo {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());   
         db.deleteToken("token2");
     }  

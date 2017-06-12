@@ -104,6 +104,9 @@ public class TestCoAPServer {
         OneKey akey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
+        
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
         SQLConnector.createDB(dbPwd, "aceUser", "password", null,
@@ -162,5 +165,12 @@ public class TestCoAPServer {
                 time, asymmKey);
         as.start();
         System.out.println("Server starting");
+    }
+    
+    /**
+     * Stops the server
+     */
+    public static void stop() {
+        as.stop();
     }
 }

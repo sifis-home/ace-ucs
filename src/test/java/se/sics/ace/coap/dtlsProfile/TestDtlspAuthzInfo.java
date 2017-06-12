@@ -129,10 +129,8 @@ public class TestDtlspAuthzInfo {
         myScopes.put("rw_co2", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
-        
-        TokenRepository.create(
-                valid, "src/test/resources/tokens.json", null);
+                myScopes);  
+        createTR(valid);
         tr = TokenRepository.getInstance();
         
         //Set up COSE parameters
@@ -173,6 +171,32 @@ public class TestDtlspAuthzInfo {
     }
     
     /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
+    }
+    
+    /**
      * Test a POST to /authz-info
      * @throws UnknownHostException 
      * @throws AceException 
@@ -206,8 +230,7 @@ public class TestDtlspAuthzInfo {
                 tr.canAccess("ourKey", "ourKey", "temp", "GET", 
                         new KissTime(), null));
     }
-    
-    
+         
     /**
      * Deletes the test file after the tests
      */
