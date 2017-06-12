@@ -2,16 +2,24 @@ package se.sics.ace.fgensure;
 
 import java.io.OutputStream;
 import java.io.PrintStream;
+import java.util.logging.Level;
 
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 
+import junit.framework.Test;
 import se.sics.ace.as.TestDB;
 import se.sics.ace.as.TestKissPDP;
 import se.sics.ace.as.TestToken;
 import se.sics.ace.coap.TestCoAPClient;
+import se.sics.ace.coap.TestCoAPServer;
 import se.sics.ace.coap.TestCoapsIntrospection;
+import se.sics.ace.coap.dtlsProfile.TestAsInfo;
+import se.sics.ace.coap.dtlsProfile.TestDtlspAuthzInfo;
+import se.sics.ace.coap.dtlsProfile.TestDtlspClient;
+import se.sics.ace.coap.dtlsProfile.TestDtlspPskStore;
+import se.sics.ace.coap.dtlsProfile.TestDtlspServer;
 import se.sics.ace.cwt.CwtTest;
 import se.sics.ace.rs.TestAuthzInfo;
 import se.sics.ace.rs.TestRESTscope;
@@ -35,11 +43,6 @@ public class TestRunner {
         saveOut = new PrintStream(new NullOutputStream());
         saveErr = new PrintStream(new NullOutputStream());
                
-        //CWT tests: CwtTest
-        //AS tests: TestDB TestKissPDP TestToken
-        //RS tests: TestAuthzInfo TestRESTscope TestTokenRepository
-        //Coap tests: TestBksStore (fails if java UCE not installed)
-        //Coap tests that need TestCoAPServer to run: TestCoAPClient TestCoapsIntrospection
         //DTLS profile tests: TestAsInfo TestDtlspAuthzInfo TestDtlspPskStore
         //DTLS profile tests that need TestDtlspServer to run: TestDtlspClient
         
@@ -48,32 +51,55 @@ public class TestRunner {
         Result r = JUnitCore.runClasses(CwtTest.class);
         toggleSilence();
         handleResult(r);
+        
         System.out.println("Running AS tests");
         toggleSilence();
         r = JUnitCore.runClasses(TestDB.class, TestKissPDP.class, TestToken.class);
         toggleSilence();
         handleResult(r);
+        
         System.out.println("Running RS tests");
         toggleSilence();
         r = JUnitCore.runClasses(TestAuthzInfo.class, TestRESTscope.class, TestTokenRepository.class);
         toggleSilence();
         handleResult(r);
+        
         //Skipping TestBskStore to avoid trouble with Java UCE
+        
         System.out.println("Running CoAP client tests");
-        //FIXME: Start server on another thread
         toggleSilence();
+        RunTestServer as = new RunTestServer();
+        as.run();
         r = JUnitCore.runClasses(TestCoAPClient.class);
+        as.stop();
         toggleSilence();
-        //FIXME: Stop server
         handleResult(r);
+        
         System.out.println("Running CoAP introspection tests");
         toggleSilence();
-        //FIXME: Start server on another thread
+        as = new RunTestServer();
+        as.run();
         r = JUnitCore.runClasses(TestCoapsIntrospection.class);
+        as.stop();
         toggleSilence();
-        //FIXME: Stop server
         handleResult(r);
-        System.exit(0);
+        
+        System.out.println("Running DTLS profile tests");
+        toggleSilence();
+        r = JUnitCore.runClasses(TestAsInfo.class, TestDtlspAuthzInfo.class, TestDtlspPskStore.class);
+        toggleSilence();
+        handleResult(r);
+        
+        System.out.println("Running DTLS profile client/server tests");
+        toggleSilence();
+        RunDtlsTestServer rs = new RunDtlsTestServer();
+        rs.run();
+        r = JUnitCore.runClasses(TestDtlspClient.class);
+        rs.stop();
+        toggleSilence();
+        handleResult(r);
+        
+        System.exit(0);      
     }
 
     private static void handleResult(Result r) {
@@ -120,8 +146,58 @@ public class TestRunner {
             return;
         }
         
-        public NullOutputStream(){ //Does nothing
+        public NullOutputStream(){ 
+            //Does nothing
         }
     }
+    
+    private static class RunTestServer implements Runnable {
+        
+        public RunTestServer() {
+           //Do nothing
+        }
 
+        /**
+         * Stop the server
+         */
+        public void stop() {
+            TestCoAPServer.stop();
+        }
+        
+        @Override
+        public void run() {
+            try {
+                TestCoAPServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                TestCoAPServer.stop();
+            }
+        }
+        
+    }
+    
+    private static class RunDtlsTestServer implements Runnable {
+        
+        public RunDtlsTestServer() {
+           //Do nothing
+        }
+
+        /**
+         * Stop the server
+         */
+        public void stop() {
+            TestDtlspServer.stop();
+        }
+        
+        @Override
+        public void run() {
+            try {
+                TestDtlspServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                TestDtlspServer.stop();
+            }
+        }
+        
+    }
 }

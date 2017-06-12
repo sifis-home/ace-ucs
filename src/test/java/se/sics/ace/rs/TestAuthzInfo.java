@@ -170,6 +170,16 @@ public class TestAuthzInfo {
             TokenRepository.create(valid, "src/test/resources/tokens.json", null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
         }
     }
     
