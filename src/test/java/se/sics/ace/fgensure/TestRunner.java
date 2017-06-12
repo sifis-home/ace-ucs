@@ -10,6 +10,7 @@ import org.junit.runner.notification.Failure;
 
 import junit.framework.Test;
 import se.sics.ace.as.TestDB;
+import se.sics.ace.as.TestIntrospect;
 import se.sics.ace.as.TestKissPDP;
 import se.sics.ace.as.TestToken;
 import se.sics.ace.coap.TestCoAPClient;
@@ -54,7 +55,7 @@ public class TestRunner {
         
         System.out.println("Running AS tests");
         toggleSilence();
-        r = JUnitCore.runClasses(TestDB.class, TestKissPDP.class, TestToken.class);
+        r = JUnitCore.runClasses(TestDB.class, TestIntrospect.class, TestKissPDP.class, TestToken.class);
         toggleSilence();
         handleResult(r);
         
