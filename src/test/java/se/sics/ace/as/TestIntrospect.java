@@ -112,7 +112,9 @@ public class TestIntrospect {
         } finally {
             br.close();
         }
-       
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
+        
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
          
