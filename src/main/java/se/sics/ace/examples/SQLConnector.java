@@ -762,6 +762,29 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	}
 	
 	/**
+	 * Deletes the whole database.
+	 * 
+	 * CAUTION: This method really does what is says, without asking you again!
+	 * It's main function is to clean the database during test runs.
+	 * 
+	 * @param rootPwd  the root password.
+	 * @throws SQLException 
+	 */
+	public static void wipeDatabase(String rootPwd) throws SQLException {
+	    //Just to be sure if a previous test didn't exit cleanly
+        Properties connectionProps = new Properties();
+        connectionProps.put("user", "root");
+        connectionProps.put("password", rootPwd);
+        Connection rootConn = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306", connectionProps);      
+        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
+        Statement stmt = rootConn.createStatement();
+        stmt.execute(dropDB);       
+        stmt.close();
+        rootConn.close();
+	}
+	
+	/**
 	 * Close the connections. After this any other method calls to this
 	 * object will lead to an exception.
 	 * 
@@ -1603,8 +1626,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", rootPwd);
-        String cUser = "CREATE USER '" + username 
-                + "'@'localhost' IDENTIFIED BY '" + userPwd 
+        String cUser = "CREATE USER IF NOT EXISTS '" + username 
+               + "'@'localhost' IDENTIFIED BY '" + userPwd 
                 + "';";
         String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE ON "
                + DBConnector.dbName + ".* TO '" + username + "'@'localhost';";

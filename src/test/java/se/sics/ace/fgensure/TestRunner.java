@@ -1,6 +1,7 @@
 package se.sics.ace.fgensure;
 
-import java.util.Collections;
+import java.io.OutputStream;
+import java.io.PrintStream;
 
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
@@ -24,13 +25,16 @@ import se.sics.ace.rs.TestTokenRepository;
  */
 public class TestRunner {
 
+    private static PrintStream saveOut;
+    private static PrintStream saveErr;
+    
     /**
      * @param args first argument given is the number of the test
      */
     public static void main(String[] args) {
-        // TODO Auto-generated method stub
-
-        
+        saveOut = new PrintStream(new NullOutputStream());
+        saveErr = new PrintStream(new NullOutputStream());
+               
         //CWT tests: CwtTest
         //AS tests: TestDB TestKissPDP TestToken
         //RS tests: TestAuthzInfo TestRESTscope TestTokenRepository
@@ -40,14 +44,19 @@ public class TestRunner {
         //DTLS profile tests that need TestDtlspServer to run: TestDtlspClient
         
         System.out.println("Running CWT tests");
-        //FIXME: Set System.out to quiet
+        toggleSilence();
         Result r = JUnitCore.runClasses(CwtTest.class);
+        toggleSilence();
         handleResult(r);
         System.out.println("Running AS tests");
+        toggleSilence();
         r = JUnitCore.runClasses(TestDB.class, TestKissPDP.class, TestToken.class);
+        toggleSilence();
         handleResult(r);
         System.out.println("Running RS tests");
+        toggleSilence();
         r = JUnitCore.runClasses(TestAuthzInfo.class, TestRESTscope.class, TestTokenRepository.class);
+        toggleSilence();
         handleResult(r);
         //Skipping TestBskStore to avoid trouble with Java UCE
         System.out.println("Running CoAP client tests");
@@ -74,4 +83,43 @@ public class TestRunner {
             }
         }
     }
+    
+    /**
+     * Toggle between NullOutputStream and default System.out
+     */
+    private static void toggleSilence() {
+        PrintStream newO = saveOut;
+        PrintStream newE = saveErr;
+        saveOut = System.out;
+        saveErr = System.err;
+        System.setOut(newO);
+        System.setErr(newE);
+    }
+    
+    /**
+     * A silent output stream
+     * @author Ludwig Seitz
+     *
+     */
+    private static class NullOutputStream extends OutputStream {
+        
+        @Override
+        public void write(int b){
+            return;
+        }
+        
+        @Override
+        public void write(byte[] b){
+            return;
+        }
+        
+        @Override
+        public void write(byte[] b, int off, int len){
+            return;
+        }
+        
+        public NullOutputStream(){ //Does nothing
+        }
+    }
+
 }

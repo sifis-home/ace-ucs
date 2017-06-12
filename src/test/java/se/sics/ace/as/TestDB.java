@@ -103,10 +103,11 @@ public class TestDB {
         } finally {
             br.close();
         }
+        //Just to be sure that not old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-        
         
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
