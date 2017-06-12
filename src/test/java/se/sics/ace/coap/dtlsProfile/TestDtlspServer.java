@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
@@ -127,6 +128,8 @@ public class TestDtlspServer {
         }
     }
     
+    private static CoapServer rs = null;
+    
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -178,13 +181,13 @@ public class TestDtlspServer {
         Resource temp = new TempResource();
         Resource authzInfo = new DtlspAuthzInfo(ai);
 
-        CoapServer server = new CoapServer();
-        server.add(hello);
-        server.add(temp);
-        server.add(authzInfo);
+        rs = new CoapServer();
+        rs.add(hello);
+        rs.add(temp);
+        rs.add(authzInfo);
         
         DtlspDeliverer dpd 
-            = new DtlspDeliverer(server.getRoot(), tr, null, asi); 
+            = new DtlspDeliverer(rs.getRoot(), tr, null, asi); 
           
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
@@ -196,19 +199,12 @@ public class TestDtlspServer {
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
         DTLSConnector connector = new DTLSConnector(config.build());
-        server.addEndpoint(
+        rs.addEndpoint(
                 new CoapEndpoint(connector, NetworkConfig.getStandard()));
 
-        server.setMessageDeliverer(dpd);
-        server.start();
+        rs.setMessageDeliverer(dpd);
+        rs.start();
         System.out.println("Server starting");
-       
-//        CoapServer server2 = new CoapServer();
-//        server2.add(authzInfo);
-//        UDPConnector conn2 = new UDPConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT));    
-//        server2.addEndpoint(new CoapEndpoint(conn2, NetworkConfig.getStandard()));
-//        server2.start();
-
     }
     
     /**
@@ -221,7 +217,24 @@ public class TestDtlspServer {
             TokenRepository.create(valid, "src/test/resources/tokens.json", null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File("src/test/resources/tokens.json").delete();
+                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
         }
+    }
+
+    /**
+     * Stops the server
+     */
+    public static void stop() {
+        rs.stop();
     }
 
 

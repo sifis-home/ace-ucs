@@ -164,4 +164,11 @@ public class TestCoAPServer {
         as.start();
         System.out.println("Server starting");
     }
+    
+    /**
+     * Stops the server
+     */
+    public static void stop() {
+        as.stop();
+    }
 }
