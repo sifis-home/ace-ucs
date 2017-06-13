@@ -220,8 +220,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testRefInactive() throws IllegalStateException, 
@@ -295,9 +293,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testInvalidCWT() throws IllegalStateException, 
@@ -334,9 +330,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testInvalidTokenFormat() throws IllegalStateException, 
@@ -359,9 +353,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testExpiredCWT() throws IllegalStateException, 
@@ -403,8 +395,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoIssuer() throws IllegalStateException, 
@@ -443,8 +433,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testIssuerNotRecognized() throws IllegalStateException, 
@@ -483,8 +471,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoAudience() throws IllegalStateException, 
@@ -522,8 +508,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoAudienceMatch() throws IllegalStateException, 
@@ -561,9 +545,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testNoScope() throws IllegalStateException, 
@@ -599,9 +581,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testSuccess() throws IllegalStateException, 

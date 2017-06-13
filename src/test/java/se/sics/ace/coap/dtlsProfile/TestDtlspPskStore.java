@@ -87,7 +87,6 @@ public class TestDtlspPskStore {
      * Set up tests.
      *
      * @throws AceException 
-     * @throws CoseException 
      * @throws IOException 
      */
     @BeforeClass
@@ -153,7 +152,6 @@ public class TestDtlspPskStore {
     /**
      * Deletes the test file after the tests
      * 
-     * @throws SQLException 
      * @throws AceException 
      */
     @AfterClass

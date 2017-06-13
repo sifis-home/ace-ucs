@@ -41,7 +41,7 @@ import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.ScopeValidator;
 
 /**
- * Simple audience & scope validator for testing purposes.
+ * Simple audience and scope validator for testing purposes.
  * 
  * @author Ludwig Seitz
  *
