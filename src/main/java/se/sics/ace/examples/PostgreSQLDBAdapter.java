@@ -257,7 +257,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             Properties connectionProps = new Properties();
             connectionProps.put("user", ROOT_USER);
             connectionProps.put("password", rootPwd);
-            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL, connectionProps);
+            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL + "/" + BASE_DB, connectionProps);
             String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
             Statement stmt = rootConn.createStatement();
             stmt.execute(dropDB);
