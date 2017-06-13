@@ -29,43 +29,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace;
+
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 /**
- * Exception thrown by the IntrospectionHandler to indicate errors at the AS.
- * 
- * Needed a separate class to distinguish these from AceExceptions.
+ * This class is used to load configuration for the tests.
  * 
  * @author Ludwig Seitz
  *
  */
-public class IntrospectionException extends Exception {
+public class TestConfig {
 
     /**
-     * 
+     * The directory path to all test files including the closing '/'.
      */
-    private static final long serialVersionUID = -4345733975500623410L;
+    public static String testFilePath;
+    
+    static {
+        try(BufferedReader br =
+                new BufferedReader(new FileReader("test.cfg"))) {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            testFilePath = sb.toString().replace(
+                    System.getProperty("line.separator"), "");     
 
-    /**
-     * Error code received from the AS
-     */
-    private int code;
-    
-    /**
-     * Constructor 
-     * 
-     * @param code  the error code received from the AS 
-     * @param message  Exception message
-     */
-    public IntrospectionException(int code, String message) {
-        super(message);
-        this.code = code;
+        } catch (Exception e) {
+            System.err.println("Couldn't load test configuration: " 
+                    + e.getMessage());
+        }
     }
     
-    /**
-     * @return  the error code
-     */
-    public int getCode() {
-        return this.code;
-    }
 }

@@ -62,6 +62,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
@@ -159,14 +160,16 @@ public class TestTokenRepository {
      */
     private static void createTR(KissValidator valid) throws IOException {
         try {
-            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
                 TokenRepository tr = TokenRepository.getInstance();
                 tr.close();
-                new File("src/test/resources/tokens.json").delete();
-                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -180,7 +183,7 @@ public class TestTokenRepository {
      */
     @AfterClass
     public static void tearDown() {
-        new File("src/test/resources/tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
     /**
@@ -620,7 +623,7 @@ public class TestTokenRepository {
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
-                "src/test/resources/testTokens.json" , ctx);
+                TestConfig.testFilePath + "testTokens.json" , ctx);
         
         Assert.assertEquals(TokenRepository.OK,
                 tr2.canAccess("rpk", null, "co2", "GET", 
