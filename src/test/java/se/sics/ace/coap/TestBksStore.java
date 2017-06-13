@@ -43,6 +43,9 @@ import java.security.cert.CertificateException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
+
+import se.sics.ace.TestConfig;
+
 import org.junit.Assert;
 /**
  * Tests for the Bouncy Castle Key Store backed implementation of 
@@ -74,10 +77,10 @@ public class TestBksStore {
     public static void setUp() throws KeyStoreException, 
             NoSuchProviderException, NoSuchAlgorithmException, 
             CertificateException, FileNotFoundException, IOException {
-        BksStore.init("src/test/resources/testKeyStore.bks", "password", 
-                "src/test/resources/add2id.cfg");
-        keystore = new BksStore("src/test/resources/testKeyStore.bks", "password", 
-                "src/test/resources/add2id.cfg");
+        BksStore.init(TestConfig.testFilePath + "testKeyStore.bks", "password",
+                TestConfig.testFilePath + "add2id.cfg");
+        keystore = new BksStore(TestConfig.testFilePath + "testKeyStore.bks",
+                "password", TestConfig.testFilePath + "add2id.cfg");
     }
     
     /**
@@ -86,7 +89,7 @@ public class TestBksStore {
     @AfterClass
     public static void tearDown() {
         keystore = null;
-        new File("src/test/resources/testKeyStore.bks").delete();
+        new File(TestConfig.testFilePath + "testKeyStore.bks").delete();
     }
     
     

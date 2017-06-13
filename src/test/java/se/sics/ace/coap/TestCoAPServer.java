@@ -49,6 +49,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.CoapsAS;
@@ -159,7 +160,7 @@ public class TestCoAPServer {
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
         as = new CoapsAS("AS", db, 
-                KissPDP.getInstance("src/test/resources/acl.json", db), 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 time, asymmKey);
         as.start();
         System.out.println("Server starting");

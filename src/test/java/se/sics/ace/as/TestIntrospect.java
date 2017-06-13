@@ -64,6 +64,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -185,7 +186,7 @@ public class TestIntrospect {
         db.addToken(cti, claims);
 
         i = new Introspect(
-                KissPDP.getInstance("src/test/resources/acl.json", db), 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, time, publicKey);
     }
     
