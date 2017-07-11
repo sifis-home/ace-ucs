@@ -713,6 +713,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		dbAdapter.setParams(username, userPwd, dbName, dbUrl);
         dbAdapter.createDBAndTables(rootPwd);
 	}
+
+	public static void wipeDatabase(String rootPwd) throws AceException {
+		MySQLDBAdapter dbAdapter = new MySQLDBAdapter();
+		SQLConnector.wipeDatabase(dbAdapter, rootPwd);
+	}
 	
 	/**
 	 * Deletes the whole database.
