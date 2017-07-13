@@ -65,6 +65,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -314,8 +315,8 @@ public class TestToken {
         claims.put("cti", CBORObject.FromObject("token2"));
         db.addToken(cti, claims);
         t = new Token("AS", 
-                KissPDP.getInstance("src/test/resources/acl.json", db), db,
-                new KissTime(), privateKey); 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
+                db, new KissTime(), privateKey); 
     }
     
     /**

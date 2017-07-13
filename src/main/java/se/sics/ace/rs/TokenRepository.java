@@ -279,7 +279,6 @@ public class TokenRepository implements AutoCloseable {
 	 * @return  the cti or the local id given to this token
 	 * 
 	 * @throws AceException 
-	 * @throws CoseException 
 	 */
 	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {

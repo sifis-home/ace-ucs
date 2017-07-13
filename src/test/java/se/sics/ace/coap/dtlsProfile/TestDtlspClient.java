@@ -33,7 +33,6 @@ package se.sics.ace.coap.dtlsProfile;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -85,13 +84,6 @@ public class TestDtlspClient {
     
     /**
      * Set up tests.
-     * @throws UnknownHostException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     *
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws IOException 
      */
     @BeforeClass
     public static void setUp() {
@@ -103,10 +95,7 @@ public class TestDtlspClient {
     }
     
     /**
-     * Cleans up after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
+     * Cleans up after the tests 
      */
     @AfterClass
     public static void tearDown() {

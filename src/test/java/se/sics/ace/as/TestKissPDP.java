@@ -61,6 +61,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.SQLConnector;
 
@@ -260,7 +261,8 @@ public class TestKissPDP {
     @Test
     public void testParseConfig() throws Exception {
 
-    	KissPDP pdp = KissPDP.getInstance("src/test/resources/acl.json", db);
+    	KissPDP pdp = KissPDP.getInstance(TestConfig.testFilePath 
+    	        + "acl.json", db);
     	assert(pdp.canAccessToken("clientA"));
     	assert(pdp.canAccess("clientA", "rs2", "r_light").equals("r_light"));
     	assert(pdp.canAccess("clientC", "rs1", "r_temp")==null);

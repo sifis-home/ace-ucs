@@ -56,6 +56,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
@@ -214,14 +215,16 @@ public class TestDtlspServer {
      */
     private static void createTR(KissValidator valid) throws IOException {
         try {
-            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
                 TokenRepository tr = TokenRepository.getInstance();
                 tr.close();
-                new File("src/test/resources/tokens.json").delete();
-                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }

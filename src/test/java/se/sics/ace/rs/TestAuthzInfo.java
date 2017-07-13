@@ -64,6 +64,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.TestConfig;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
@@ -149,8 +150,8 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         i = new Introspect(
-                KissPDP.getInstance("src/test/resources/acl.json", db), db, 
-                new KissTime(), key);
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
+                db, new KissTime(), key);
         ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
@@ -167,14 +168,16 @@ public class TestAuthzInfo {
      */
     private static void createTR(KissValidator valid) throws IOException {
         try {
-            TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
                 TokenRepository tr = TokenRepository.getInstance();
                 tr.close();
-                new File("src/test/resources/tokens.json").delete();
-                TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -207,7 +210,7 @@ public class TestAuthzInfo {
         db.close();
         i.close();
         tr.close();
-        new File("src/test/resources/tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
     /**
@@ -217,8 +220,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testRefInactive() throws IllegalStateException, 
@@ -292,9 +293,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testInvalidCWT() throws IllegalStateException, 
@@ -331,9 +330,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testInvalidTokenFormat() throws IllegalStateException, 
@@ -356,9 +353,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testExpiredCWT() throws IllegalStateException, 
@@ -400,8 +395,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoIssuer() throws IllegalStateException, 
@@ -440,8 +433,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testIssuerNotRecognized() throws IllegalStateException, 
@@ -480,8 +471,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoAudience() throws IllegalStateException, 
@@ -519,8 +508,6 @@ public class TestAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException 
-     * 
-     * @throws Exception 
      */
     @Test
     public void testNoAudienceMatch() throws IllegalStateException, 
@@ -558,9 +545,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testNoScope() throws IllegalStateException, 
@@ -596,9 +581,7 @@ public class TestAuthzInfo {
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
-     * @throws AceException 
-     * 
-     * @throws Exception 
+     * @throws AceException  
      */
     @Test
     public void testSuccess() throws IllegalStateException, 
