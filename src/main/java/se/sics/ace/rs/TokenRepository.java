@@ -560,7 +560,6 @@ public class TokenRepository implements AutoCloseable {
                              if (introspect != null && introspect.get("active").isTrue()) {
                                  return OK; // Token is active and passed all other tests
                              }
-
                          }
                         return OK; //We didn't introspect, but the token is ok otherwise
                      }
