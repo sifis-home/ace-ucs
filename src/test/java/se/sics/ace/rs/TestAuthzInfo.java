@@ -122,14 +122,14 @@ public class TestAuthzInfo {
         
         SQLConnector.createUser(dbPwd, "aceUser", "password", 
                 "jdbc:mysql://localhost:3306");
-        
-        
+        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
-        
+
         Set<String> actions = new HashSet<>();
         actions.add("GET");
         Map<String, Set<String>> myResource = new HashMap<>();

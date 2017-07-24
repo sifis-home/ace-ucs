@@ -34,21 +34,14 @@ package se.sics.ace.as;
 import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import org.junit.*;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -61,6 +54,7 @@ import COSE.OneKey;
 import se.sics.ace.COSEparams;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.AceException;
+import se.sics.ace.examples.SQLDBAdapter;
 
 
 /**
@@ -69,15 +63,19 @@ import se.sics.ace.AceException;
  * @author Ludwig Seitz
  *
  */
+@Ignore
 public class TestDB {
   
     static OneKey publicKey;
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    
+
+    static String testUsername = "userace";
+    static String testPassword = "pwd";
+
     static SQLConnector db = null;
     
-    private static String dbPwd = null;
-    
+    protected static String dbPwd = null;
+
     /**
      * Set up tests.
      * @throws SQLException 
@@ -85,8 +83,7 @@ public class TestDB {
      * @throws IOException 
      * @throws CoseException 
      */
-    @BeforeClass
-    public static void setUp() 
+    public static void setUp(SQLDBAdapter dbAdapter)
             throws SQLException, AceException, IOException, CoseException {
         
         BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
@@ -103,17 +100,18 @@ public class TestDB {
         } finally {
             br.close();
         }
+
         //Just to be sure that not old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd);
-        
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
-                "jdbc:mysql://localhost:3306");
-        
+        SQLConnector.wipeDatabase(dbAdapter, dbPwd);
+
+        dbAdapter.setParams(testUsername, testPassword, DBConnector.dbName, null);
+        SQLConnector.createUser(dbAdapter, dbPwd, testUsername, testPassword,null);
+        SQLConnector.createDB(dbAdapter, dbPwd, testUsername, testPassword, DBConnector.dbName, null);
+
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
-        
-        db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
+
+        db = SQLConnector.getInstance(dbAdapter,null, testUsername, testPassword);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -214,31 +212,7 @@ public class TestDB {
         claims.put("cid", CBORObject.FromObject("token2"));
         db.addToken(cid, claims);
     }
-    
-    /**
-     * Deletes the test DB after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
-     */
-    @AfterClass
-    public static void tearDown() throws SQLException, AceException {
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceUser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);        
-        stmt.close();
-        rootConn.close();
-        db.close();
-    }
-    
+
     
     /**
      * Test adding a RS that is already in the DB
