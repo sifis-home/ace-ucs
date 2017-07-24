@@ -31,7 +31,11 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
-import java.sql.*;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -685,6 +689,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * root user password.
 	 *
 	 * @param rootPwd  the root user password
+	 * @param username the username of the database owner, default if null
+	 * @param userPwd  the password of the database owner, default if null
+	 * @param dbName   the name of the database, default if null
+	 * @param dbUrl    the URL of the database, default if null
 	 * @throws AceException
 	 */
 	public static void createDB(String rootPwd, String username,
@@ -700,8 +708,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	/**
 	 * Create the necessary database and tables. Requires the
 	 * root user password.
+	 * @param dbAdapter 
 	 * 
 	 * @param rootPwd  the root user password
+     * @param username the username of the database owner, default if null
+     * @param userPwd  the password of the database owner, default if null
+     * @param dbName   the name of the database, default if null
+     * @param dbUrl    the URL of the database, default if null
 	 * @throws AceException 
 	 */
 	public static void createDB(SQLDBAdapter dbAdapter, String rootPwd, String username,
@@ -714,6 +727,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         dbAdapter.createDBAndTables(rootPwd);
 	}
 
+	/**
+	 * Deletes the whole database assuming MySQL.
+	 * 
+	 * CAUTION: This method really does what is says, without asking you again!
+     * It's main function is to clean the database during test runs.
+     * 
+	 * @param rootPwd  the root user password.
+	 * 
+	 * @throws AceException
+	 */
 	public static void wipeDatabase(String rootPwd) throws AceException {
 		MySQLDBAdapter dbAdapter = new MySQLDBAdapter();
 		SQLConnector.wipeDatabase(dbAdapter, rootPwd);
@@ -725,7 +748,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * CAUTION: This method really does what is says, without asking you again!
 	 * It's main function is to clean the database during test runs.
 	 * 
-	 * @param rootPwd  the root password.
+	 * @param dbAdapter handler for engine-db specific commands
+	 * @param rootPwd  the root password
+	 * @throws AceException 
 	 * @throws SQLException 
 	 */
 	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
