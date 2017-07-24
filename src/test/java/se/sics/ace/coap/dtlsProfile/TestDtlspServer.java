@@ -70,8 +70,8 @@ import se.sics.ace.rs.TokenRepository;
 /**
  * Server for testing the DTLSProfileDeliverer class. 
  * 
- * The Junit tests are in TestDtlspClient, but you MUST
- * run this server first for the tests to work.
+ * The Junit tests are in TestDtlspClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *

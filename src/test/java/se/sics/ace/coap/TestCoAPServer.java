@@ -58,7 +58,10 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.SQLConnector;
 
 /**
- * Test the CoAP classes.
+ * The server to run the client tests against.
+ * 
+ * The Junit tests are in TestCoAPClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *

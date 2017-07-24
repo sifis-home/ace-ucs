@@ -55,6 +55,7 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -70,7 +71,7 @@ import se.sics.ace.as.Token;
 /**
  * Test the coap classes.
  * 
- * NOTE: You have to run a fresh instance of TestCoAPServer first to run this tests!
+ * NOTE: This will automatically start a server in another thread
  * 
  * @author Ludwig Seitz
  *
@@ -79,6 +80,42 @@ public class TestCoAPClient {
     
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+    static RunTestServer srv = null;
+    
+    private static class RunTestServer implements Runnable {
+        
+        public RunTestServer() {
+           //Do nothing
+        }
+
+        /**
+         * Stop the server
+         */
+        public void stop() {
+            TestCoAPServer.stop();
+        }
+        
+        @Override
+        public void run() {
+            try {
+                TestCoAPServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                TestCoAPServer.stop();
+            }
+        }
+        
+    }
+    
+    
+    /**
+     * This sets up everything for the tests including the server
+     */
+    @BeforeClass
+    public static void setUp() {
+        srv = new RunTestServer();
+        srv.run();
+    }
     
     /**
      * Deletes the test DB after the tests
@@ -89,6 +126,7 @@ public class TestCoAPClient {
      */
     @AfterClass
     public static void tearDown() throws SQLException, AceException, IOException {
+        srv.stop();
         String dbPwd = null;
         BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
         try {
@@ -121,7 +159,7 @@ public class TestCoAPClient {
     
     /**
      * Test connecting with RPK without authenticating the client.
-     * The Server shgould reject that.
+     * The Server should reject that.
      * 
      * @throws Exception 
      */

@@ -82,11 +82,41 @@ public class TestDtlspClient {
     
     private static CwtCryptoCtx ctx;
     
+    private static RunTestServer srv;
+    
+    private static class RunTestServer implements Runnable {
+
+        public RunTestServer() {
+            //Do nothing
+        }
+
+        /**
+         * Stop the server
+         */
+        public void stop() {
+            TestDtlspServer.stop();
+        }
+
+        @Override
+        public void run() {
+            try {
+                TestDtlspServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                TestDtlspServer.stop();
+            }
+        }
+
+    }
+    
     /**
      * Set up tests.
      */
     @BeforeClass
     public static void setUp() {
+        srv = new RunTestServer();
+        srv.run();       
+        
         rsAddr = "coaps://localhost/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -99,7 +129,7 @@ public class TestDtlspClient {
      */
     @AfterClass
     public static void tearDown() {
-        //Nothing to do yet
+        srv.stop();
     }
 
     /**
