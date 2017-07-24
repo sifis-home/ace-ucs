@@ -108,9 +108,9 @@ public class TestCoAPServer {
         //Just to be sure no old test pollutes the DB
         SQLConnector.wipeDatabase(dbPwd);
         
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
                 "jdbc:mysql://localhost:3306");
 
 

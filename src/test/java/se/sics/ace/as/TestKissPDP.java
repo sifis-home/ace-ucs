@@ -112,9 +112,9 @@ public class TestKissPDP {
         //Just to be sure no old test pollutes the DB
         SQLConnector.wipeDatabase(dbPwd);
         
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
                 "jdbc:mysql://localhost:3306");
 
 
@@ -238,7 +238,7 @@ public class TestKissPDP {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceUser'@'localhost';";
+        String dropUser = "DROP USER 'aceuser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
         stmt.execute(dropUser);
