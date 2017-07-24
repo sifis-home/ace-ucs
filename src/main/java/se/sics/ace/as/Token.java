@@ -303,7 +303,7 @@ public class Token implements Endpoint, AutoCloseable {
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		if (exp == Long.MAX_VALUE) { //No expiration time found
+		if (exp == Long.MAX_VALUE) { // == No expiration time found
 		    //using default
 		    exp = now + expiration;
 		} else {

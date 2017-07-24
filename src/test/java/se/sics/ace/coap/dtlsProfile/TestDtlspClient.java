@@ -206,7 +206,12 @@ public class TestDtlspClient {
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
-        Assert.assertEquals("19.0 C", r.getResponseText()); 
+        Assert.assertEquals("19.0 C", r.getResponseText());
+        
+        //Try the same request again
+        CoapResponse r2 = c.get();
+        Assert.assertEquals("CONTENT", r2.getCode().name());
+        Assert.assertEquals("19.0 C", r2.getResponseText());
     }
     
     
