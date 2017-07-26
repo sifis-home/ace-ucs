@@ -258,7 +258,6 @@ public class CWT implements AccessToken {
 	 * @throws InvalidCipherTextException 
 	 * @throws IllegalStateException 
 	 * @throws AceException 
-	 * @throws Exception 
 	 */
 	public CBORObject encode(CwtCryptoCtx ctx) 
 	        throws IllegalStateException, InvalidCipherTextException, 
@@ -344,7 +343,7 @@ public class CWT implements AccessToken {
 	
 	/**
 	 * Returns the value of a claim referenced by name or 
-	 * <emph>null</emph> if this claim is not in the CWT.
+	 * null if this claim is not in the CWT.
 	 * 
 	 * @param name  the name of the claim
 	 * @return  the value of the claim or null.

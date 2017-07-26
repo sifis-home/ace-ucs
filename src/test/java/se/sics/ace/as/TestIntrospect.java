@@ -64,6 +64,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -112,16 +113,19 @@ public class TestIntrospect {
         } finally {
             br.close();
         }
-       
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
+        
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-         
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
         privateKey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -183,7 +187,7 @@ public class TestIntrospect {
         db.addToken(cti, claims);
 
         i = new Introspect(
-                KissPDP.getInstance("src/test/resources/acl.json", db), 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, time, publicKey);
     }
     
@@ -203,7 +207,7 @@ public class TestIntrospect {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceUser'@'localhost';";
+        String dropUser = "DROP USER 'aceuser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
         stmt.execute(dropUser);    

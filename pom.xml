@@ -52,13 +52,16 @@
     	<artifactId>mysql-connector-java</artifactId>
         <version>5.1.30</version>
     </dependency>
-    <!-- 
+    <dependency>
+		  <groupId>org.postgresql</groupId>
+		  <artifactId>postgresql</artifactId>
+		  <version>9.3-1104-jdbc4</version>
+    </dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-core</artifactId>
 		<version>1.0.5</version>
 	</dependency>
-	 -->
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>scandium</artifactId>

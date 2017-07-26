@@ -49,6 +49,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.CoapsAS;
@@ -57,7 +58,10 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.SQLConnector;
 
 /**
- * Test the CoAP classes.
+ * The server to run the client tests against.
+ * 
+ * The Junit tests are in TestCoAPClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *
@@ -104,11 +108,16 @@ public class TestCoAPServer {
         OneKey akey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
+        
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-            
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
+
         db = new CoapDBConnector(null, null, null);
-        db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -156,9 +165,16 @@ public class TestCoAPServer {
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
         as = new CoapsAS("AS", db, 
-                KissPDP.getInstance("src/test/resources/acl.json", db), 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 time, asymmKey);
         as.start();
         System.out.println("Server starting");
+    }
+    
+    /**
+     * Stops the server
+     */
+    public static void stop() {
+        as.stop();
     }
 }

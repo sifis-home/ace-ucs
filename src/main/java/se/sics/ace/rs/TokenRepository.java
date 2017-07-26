@@ -279,7 +279,6 @@ public class TokenRepository implements AutoCloseable {
 	 * @return  the cti or the local id given to this token
 	 * 
 	 * @throws AceException 
-	 * @throws CoseException 
 	 */
 	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {
@@ -561,7 +560,6 @@ public class TokenRepository implements AutoCloseable {
                              if (introspect != null && introspect.get("active").isTrue()) {
                                  return OK; // Token is active and passed all other tests
                              }
-
                          }
                         return OK; //We didn't introspect, but the token is ok otherwise
                      }
@@ -665,6 +663,7 @@ public class TokenRepository implements AutoCloseable {
         if (!this.closed) {
             this.closed = true;   
             persist();
+            singleton = null;
         }
     }
 

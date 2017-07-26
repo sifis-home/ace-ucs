@@ -56,6 +56,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -86,7 +87,6 @@ public class TestDtlspPskStore {
      * Set up tests.
      *
      * @throws AceException 
-     * @throws CoseException 
      * @throws IOException 
      */
     @BeforeClass
@@ -112,7 +112,7 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        TokenRepository.create(valid, "src/test/resources/tokens.json", ctx);
+        createTR(valid);
         tr = TokenRepository.getInstance();
         
         ai = new AuthzInfo(tr, 
@@ -122,16 +122,43 @@ public class TestDtlspPskStore {
     }
     
     /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
+    }
+    
+    /**
      * Deletes the test file after the tests
      * 
-     * @throws SQLException 
      * @throws AceException 
      */
     @AfterClass
     public static void tearDown() throws AceException  {
         tr.close();
         ai.close();
-        new File("src/test/resources/tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }  
     
     
@@ -260,4 +287,5 @@ public class TestDtlspPskStore {
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);
     }
+
 }

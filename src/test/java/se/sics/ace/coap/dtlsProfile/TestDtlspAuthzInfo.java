@@ -69,6 +69,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -129,10 +130,8 @@ public class TestDtlspAuthzInfo {
         myScopes.put("rw_co2", myResource2);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
-        
-        TokenRepository.create(
-                valid, "src/test/resources/tokens.json", null);
+                myScopes);  
+        createTR(valid);
         tr = TokenRepository.getInstance();
         
         //Set up COSE parameters
@@ -173,6 +172,34 @@ public class TestDtlspAuthzInfo {
     }
     
     /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
+    }
+    
+    /**
      * Test a POST to /authz-info
      * @throws UnknownHostException 
      * @throws AceException 
@@ -206,13 +233,12 @@ public class TestDtlspAuthzInfo {
                 tr.canAccess("ourKey", "ourKey", "temp", "GET", 
                         new KissTime(), null));
     }
-    
-    
+         
     /**
      * Deletes the test file after the tests
      */
     @AfterClass
     public static void tearDown() {
-        new File("src/test/resources/tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }

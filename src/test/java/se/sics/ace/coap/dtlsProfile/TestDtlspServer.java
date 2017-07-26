@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.File;
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,8 +47,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.ConnectorBase;
-import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -54,8 +54,9 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import COSE.AlgorithmID;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
@@ -69,8 +70,8 @@ import se.sics.ace.rs.TokenRepository;
 /**
  * Server for testing the DTLSProfileDeliverer class. 
  * 
- * The Junit tests are in TestDtlspClient, but you MUST
- * run this server first for the tests to work.
+ * The Junit tests are in TestDtlspClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *
@@ -128,6 +129,8 @@ public class TestDtlspServer {
         }
     }
     
+    private static CoapServer rs = null;
+    
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -152,7 +155,7 @@ public class TestDtlspServer {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        createTR(valid);
         TokenRepository tr = TokenRepository.getInstance();
         
         byte[] key128a 
@@ -179,13 +182,13 @@ public class TestDtlspServer {
         Resource temp = new TempResource();
         Resource authzInfo = new DtlspAuthzInfo(ai);
 
-        CoapServer server = new CoapServer();
-        server.add(hello);
-        server.add(temp);
-        server.add(authzInfo);
+        rs = new CoapServer();
+        rs.add(hello);
+        rs.add(temp);
+        rs.add(authzInfo);
         
         DtlspDeliverer dpd 
-            = new DtlspDeliverer(server.getRoot(), tr, null, asi); 
+            = new DtlspDeliverer(rs.getRoot(), tr, null, asi); 
           
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
@@ -197,21 +200,45 @@ public class TestDtlspServer {
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
         DTLSConnector connector = new DTLSConnector(config.build());
-        server.addEndpoint(
+        rs.addEndpoint(
                 new CoapEndpoint(connector, NetworkConfig.getStandard()));
 
-        server.setMessageDeliverer(dpd);
-        server.start();
+        rs.setMessageDeliverer(dpd);
+        rs.start();
         System.out.println("Server starting");
-       
-//        CoapServer server2 = new CoapServer();
-//        server2.add(authzInfo);
-//        UDPConnector conn2 = new UDPConnector(new InetSocketAddress(CoAP.DEFAULT_COAP_PORT));    
-//        server2.addEndpoint(new CoapEndpoint(conn2, NetworkConfig.getStandard()));
-//        server2.start();
-
     }
     
+    /**
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
+    }
+
+    /**
+     * Stops the server
+     */
+    public static void stop() {
+        rs.stop();
+    }
 
 
 }

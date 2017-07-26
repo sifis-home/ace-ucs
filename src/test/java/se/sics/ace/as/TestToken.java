@@ -65,6 +65,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -110,18 +111,22 @@ public class TestToken {
         } finally {
             br.close();
         }
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
         
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-        
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
+
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey(); 
         publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
                 "myKey".getBytes(Constants.charset)));
         
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
-        
+
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
@@ -310,8 +315,8 @@ public class TestToken {
         claims.put("cti", CBORObject.FromObject("token2"));
         db.addToken(cti, claims);
         t = new Token("AS", 
-                KissPDP.getInstance("src/test/resources/acl.json", db), db,
-                new KissTime(), privateKey); 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
+                db, new KissTime(), privateKey); 
     }
     
     /**
@@ -329,7 +334,7 @@ public class TestToken {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceUser'@'localhost';";
+        String dropUser = "DROP USER 'aceuser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
         stmt.execute(dropUser);

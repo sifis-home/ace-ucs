@@ -61,6 +61,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.TestConfig;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.SQLConnector;
 
@@ -108,15 +109,19 @@ public class TestKissPDP {
         } finally {
             br.close();
         }
-
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
-                "jdbc:mysql://localhost:3306");
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(dbPwd);
         
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
+                "jdbc:mysql://localhost:3306");
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
+                "jdbc:mysql://localhost:3306");
+
+
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
         db = SQLConnector.getInstance(null, null, null);
-        db.init(dbPwd);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -233,7 +238,7 @@ public class TestKissPDP {
                 "jdbc:mysql://localhost:3306", connectionProps);
               
         String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceUser'@'localhost';";
+        String dropUser = "DROP USER 'aceuser'@'localhost';";
         Statement stmt = rootConn.createStatement();
         stmt.execute(dropDB);
         stmt.execute(dropUser);
@@ -256,7 +261,8 @@ public class TestKissPDP {
     @Test
     public void testParseConfig() throws Exception {
 
-    	KissPDP pdp = KissPDP.getInstance("src/test/resources/acl.json", db);
+    	KissPDP pdp = KissPDP.getInstance(TestConfig.testFilePath 
+    	        + "acl.json", db);
     	assert(pdp.canAccessToken("clientA"));
     	assert(pdp.canAccess("clientA", "rs2", "r_light").equals("r_light"));
     	assert(pdp.canAccess("clientC", "rs1", "r_temp")==null);
