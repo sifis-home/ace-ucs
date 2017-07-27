@@ -1,17 +1,11 @@
 package se.sics.ace.coap.client;
 
-import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.OSCoapClient;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.stack.oscoap.OscoapCtx;
 import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
 
 import com.upokecenter.cbor.CBORObject;
-
-import COSE.OneKey;
-import se.sics.ace.AceException;
 
 /**
  * This class implements the OSCOAP profile of ACE for the client-side requests:
@@ -43,10 +37,13 @@ public class OscoapProfileRequests {
     
     
     /**
-     * @param rsAddr
-     * @param payload
-     * @param db
-     * @return
+     * Sends a token to the /authz-info endpoint of the RS using POST.
+     * 
+     * @param rsAddr  the full address of the /authz-info endpoint
+     * @param payload  the payload of the request, containing access token.
+     * @param db  the OSCOAP context database
+     * 
+     * @return  the response
      */
     public static CoapResponse postToken(String rsAddr, CBORObject payload, 
             OscoapCtxDB db) {
@@ -54,26 +51,30 @@ public class OscoapProfileRequests {
     }
     
     /**
+     * Send a POST message to an RS. Used internally by other methods.
      * 
-     * @param addr
-     * @param payload
-     * @param db
+     * @param addr  the address to use
+     * @param payload  the payload to send
+     * @param db  the OSCOAP context database
      * @return
      */
     private static CoapResponse sendMessage(String addr, CBORObject payload, 
             OscoapCtxDB db) {
-        OSCoapClient client = getClient(db);
-        client.setURI(addr);
+        OSCoapClient client = getClient(addr, db);
         return client.post(payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
     }
     
     /**
-     * @param db
-     * @return
+     * Get an OSCOAP client for sending messages to a RS.
+     * 
+     * @param uri  the address of the resource this client should contact
+     * @param db  the OSCOAP context database
+     *  
+     * @return  the OSCoapClient instance
      */
-    public static OSCoapClient getClient(OscoapCtxDB db) {
-        return new OSCoapClient(db);
+    public static OSCoapClient getClient(String uri, OscoapCtxDB db) {
+        return new OSCoapClient(uri, db);
     }
 
 

@@ -31,20 +31,36 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs.oscoapProfile;
 
+import org.eclipse.californium.core.OSCoapServer;
+import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
+
+import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
+import se.sics.ace.rs.IntrospectionHandler;
+import se.sics.ace.rs.TokenRepository;
+
 /**
  * Implements the OSCOAP profile of ACE
  * 
  * @author Ludwig Seitz
  *
  */
-public class OscoapProfile {
+public class OscoapProfile extends OSCoapServer {
 
     /**
-     * Constructor
-     * FIXME: Implement this
+     * Constructor.
+     *
+     * @param ctxDB  the OSCOAP context database 
+     * @param tr  the token repository 
+     * @param i   the introspection handler or null for no introspection
+     * @param asInfo  the information about the AS responsible for this RS
      */
-    public OscoapProfile() {
-
+    public OscoapProfile(OscoapCtxDB ctxDB, TokenRepository tr, 
+            IntrospectionHandler i, AsInfo asInfo) {
+        super(ctxDB);
+        this.setMessageDeliverer(new OscoapDeliverer(this.getRoot(), 
+                tr, i, asInfo));
     }
+    
+    
 
 }
