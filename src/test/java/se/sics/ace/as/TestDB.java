@@ -41,7 +41,9 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import org.junit.*;
+import org.junit.Assert;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -78,6 +80,7 @@ public class TestDB {
 
     /**
      * Set up tests.
+     * @param dbAdapter 
      * @throws SQLException 
      * @throws AceException 
      * @throws IOException 

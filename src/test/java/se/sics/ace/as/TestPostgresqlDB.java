@@ -58,7 +58,7 @@ public class TestPostgresqlDB extends TestDB {
     public static void setUp()
             throws SQLException, AceException, IOException, CoseException {
 
-        TestMysqlDB.setUp(new PostgreSQLDBAdapter());
+        TestDB.setUp(new PostgreSQLDBAdapter());
     }
 
     /**

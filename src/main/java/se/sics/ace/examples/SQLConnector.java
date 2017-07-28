@@ -89,11 +89,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	private static boolean isConnected = false;
 
-    /**
-     * Specific creator for different databases.
-     */
-    private SQLDBAdapter dbAdapter;
-	
 	/**
 	 * A prepared INSERT statement to add a new Resource Server.
 	 * 
@@ -464,7 +459,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 			this.defaultPassword = pwd;
 		}
 
-        this.dbAdapter = dbAdapter;
         dbAdapter.setParams(this.defaultUser, this.defaultPassword, DBConnector.dbName, this.defaultDbUrl);
 
 		Properties connectionProps = new Properties();      

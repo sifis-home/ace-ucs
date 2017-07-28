@@ -27,9 +27,11 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import COSE.*;
+
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+
+import COSE.CoseException;
 import se.sics.ace.AceException;
 import se.sics.ace.examples.MySQLDBAdapter;
 
@@ -38,7 +40,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.*;
+import java.util.Properties;
+
 
 /**
  *
@@ -55,7 +58,7 @@ public class TestMysqlDB extends TestDB {
     public static void setUp()
             throws SQLException, AceException, IOException, CoseException {
 
-        TestMysqlDB.setUp(new MySQLDBAdapter());
+        TestDB.setUp(new MySQLDBAdapter());
     }
 
     /**
