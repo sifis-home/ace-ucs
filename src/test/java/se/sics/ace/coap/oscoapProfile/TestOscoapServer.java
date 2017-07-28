@@ -33,7 +33,6 @@ package se.sics.ace.coap.oscoapProfile;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -41,30 +40,27 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.stack.oscoap.HashMapCtxDB;
+import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 import COSE.AlgorithmID;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
+import se.sics.ace.coap.rs.oscoapProfile.OscoapServer;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
 /**
@@ -129,7 +125,7 @@ public class TestOscoapServer {
         }
     }
     
-    private static CoapServer rs = null;
+    private static OscoapServer rs = null;
     
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -182,7 +178,12 @@ public class TestOscoapServer {
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
 
-        rs = new CoapServer();
+        //FIXME: Add stuff here
+        OscoapCtxDB db = new HashMapCtxDB();
+        
+        IntrospectionHandler i = null;
+        
+        rs = new OscoapServer(db, tr, i, asi);
         rs.add(hello);
         rs.add(temp);
         rs.add(authzInfo);
@@ -190,18 +191,7 @@ public class TestOscoapServer {
         CoapDeliverer dpd 
             = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
           
-        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
-        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(true);
-        DTLSConnector connector = new DTLSConnector(config.build());
-        rs.addEndpoint(
-                new CoapEndpoint(connector, NetworkConfig.getStandard()));
+        //FIXME: Do we need to set up an Endpoint?
 
         rs.setMessageDeliverer(dpd);
         rs.start();

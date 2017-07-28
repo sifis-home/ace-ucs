@@ -45,7 +45,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class OscoapProfile extends OSCoapServer {
+public class OscoapServer extends OSCoapServer {
 
     /**
      * Constructor.
@@ -55,7 +55,7 @@ public class OscoapProfile extends OSCoapServer {
      * @param i   the introspection handler or null for no introspection
      * @param asInfo  the information about the AS responsible for this RS
      */
-    public OscoapProfile(OscoapCtxDB ctxDB, TokenRepository tr, 
+    public OscoapServer(OscoapCtxDB ctxDB, TokenRepository tr, 
             IntrospectionHandler i, AsInfo asInfo) {
         super(ctxDB);
         this.setMessageDeliverer(new CoapDeliverer(this.getRoot(), 
