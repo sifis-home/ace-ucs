@@ -39,7 +39,7 @@ import org.junit.rules.ExpectedException;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
-import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
+import se.sics.ace.rs.AsInfo;
 
 /**
  * Tests the DTLSProfileAsInfo class.

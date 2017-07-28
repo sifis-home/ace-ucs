@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs.dtlsProfile;
+package se.sics.ace.coap.rs;
 
 import java.util.logging.Logger;
 
@@ -52,13 +52,13 @@ import se.sics.ace.rs.AuthzInfo;
  * @author Ludwig Seitz
  *
  */
-public class DtlspAuthzInfo extends CoapResource {
+public class CoapAuthzInfo extends CoapResource {
 
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DtlspAuthzInfo.class.getName());
+        = Logger.getLogger(CoapAuthzInfo.class.getName());
     
     /**
      * The underlying authz-info library
@@ -70,7 +70,7 @@ public class DtlspAuthzInfo extends CoapResource {
     * 
     * @param ai  the internal authorization information handler 
     */ 
-    public DtlspAuthzInfo(AuthzInfo ai) {
+    public CoapAuthzInfo(AuthzInfo ai) {
         super("authz-info");
         this.ai = ai;
     }

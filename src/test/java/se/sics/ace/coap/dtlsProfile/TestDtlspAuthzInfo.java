@@ -70,7 +70,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
+import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -97,7 +97,7 @@ public class TestDtlspAuthzInfo {
     private static TokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfo ai;
-    private static DtlspAuthzInfo dai;
+    private static CoapAuthzInfo dai;
     private static CBORObject payload;
     
     /**
@@ -146,7 +146,7 @@ public class TestDtlspAuthzInfo {
                 valid, ctx);
         
         //Set up the DTLS authz-info resource
-        dai = new DtlspAuthzInfo(ai);
+        dai = new CoapAuthzInfo(ai);
         
         //Set up a token to use
         Map<String, CBORObject> params = new HashMap<>(); 

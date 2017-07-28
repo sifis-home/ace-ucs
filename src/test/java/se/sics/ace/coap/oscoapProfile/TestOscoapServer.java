@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.dtlsProfile;
+package se.sics.ace.coap.oscoapProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -76,7 +76,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class TestDtlspServer {
+public class TestOscoapServer {
 
 
     /**
@@ -138,7 +138,7 @@ public class TestDtlspServer {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-      //Set up DTLSProfileTokenRepository
+      //Set up OscoapProfileTokenRepository
         Set<String> actions = new HashSet<>();
         actions.add("GET");
         Map<String, Set<String>> myResource = new HashMap<>();
@@ -177,7 +177,7 @@ public class TestDtlspServer {
                 valid, ctx);
                
         AsInfo asi 
-            = new AsInfo("coaps://blah/authz-info/");
+            = new AsInfo("coap://blah/authz-info/");
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);

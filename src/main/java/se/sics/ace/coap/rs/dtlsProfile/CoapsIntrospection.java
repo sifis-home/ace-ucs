@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;

@@ -34,7 +34,8 @@ package se.sics.ace.coap.rs.oscoapProfile;
 import org.eclipse.californium.core.OSCoapServer;
 import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
 
-import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
+import se.sics.ace.coap.rs.CoapDeliverer;
+import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
@@ -57,7 +58,7 @@ public class OscoapProfile extends OSCoapServer {
     public OscoapProfile(OscoapCtxDB ctxDB, TokenRepository tr, 
             IntrospectionHandler i, AsInfo asInfo) {
         super(ctxDB);
-        this.setMessageDeliverer(new OscoapDeliverer(this.getRoot(), 
+        this.setMessageDeliverer(new CoapDeliverer(this.getRoot(), 
                 tr, i, asInfo));
     }
     
