@@ -112,7 +112,7 @@ public class TestDtlspClient {
         srv = new RunTestServer();
         srv.run();       
         
-        rsAddr = "coaps://localhost/authz-info";
+        rsAddr = "coaps://localhost/.well-known/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);

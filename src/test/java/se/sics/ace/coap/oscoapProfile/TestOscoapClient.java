@@ -38,7 +38,9 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.stack.oscoap.HashMapCtxDB;
+import org.eclipse.californium.core.network.stack.oscoap.OscoapCtx;
 import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
+import org.eclipse.californium.core.network.stack.oscoap.exceptions.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -108,20 +110,21 @@ public class TestOscoapClient {
     
     /**
      * Set up tests.
+     * @throws OSException 
      */
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws OSException {
         srv = new RunTestServer();
         srv.run();       
         
-        rsAddr = "coap://localhost/authz-info";
+        rsAddr = "coap://localhost/.well-known/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
         ctxDB = new HashMapCtxDB();
-        //FIXME: Put something in the DB
+        ctxDB.addContext(new OscoapCtx(key128, true));
     }
     
     /**
@@ -140,7 +143,6 @@ public class TestOscoapClient {
     @Test
     public void testWeirdUri() throws AceException, CoseException {
         CBORObject cbor = CBORObject.True;
-        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         CoapResponse r = OscoapProfileRequests.postToken(
                 "coap://localhost/authz-info/test", cbor, ctxDB);
         Assert.assertEquals("UNAUTHORIZED", r.getCode().name());

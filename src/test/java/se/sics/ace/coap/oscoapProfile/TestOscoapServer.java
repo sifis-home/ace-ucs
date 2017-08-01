@@ -41,6 +41,7 @@ import java.util.Set;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.stack.oscoap.HashMapCtxDB;
+import org.eclipse.californium.core.network.stack.oscoap.OscoapCtx;
 import org.eclipse.californium.core.network.stack.oscoap.OscoapCtxDB;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -74,7 +75,12 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestOscoapServer {
 
-
+    /**
+     * The shared key
+     */
+    private static byte[] key128
+        = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    
     /**
      * Definition of the Hello-World Resource
      */
@@ -178,21 +184,20 @@ public class TestOscoapServer {
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
 
-        //FIXME: Add stuff here
+     
         OscoapCtxDB db = new HashMapCtxDB();
+        db.addContext(new OscoapCtx(key128, false));
         
         IntrospectionHandler i = null;
         
         rs = new OscoapServer(db, tr, i, asi);
         rs.add(hello);
         rs.add(temp);
-        rs.add(authzInfo);
+        rs.getRoot().getChild(".well-known").add(authzInfo);
         
         CoapDeliverer dpd 
-            = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
-          
-        //FIXME: Do we need to set up an Endpoint?
-
+            = new CoapDeliverer(rs.getRoot(), tr, i, asi); 
+        
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");

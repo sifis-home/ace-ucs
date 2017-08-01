@@ -134,6 +134,7 @@ public class CoapDeliverer implements MessageDeliverer {
             return;
         }      
         
+        //FIXME: check for .well-known as well
        
         if (request.getSenderIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");
