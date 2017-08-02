@@ -378,7 +378,7 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
         } else if (kidC.getType().equals(CBORType.ByteString)) {
-            kid = new String(kidC.GetByteString(), Constants.charset);
+            kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
         } else {
             LOGGER.severe("kid is not a byte string");
             throw new AceException("COSE_Key contains invalid kid");
@@ -394,8 +394,7 @@ public class TokenRepository implements AutoCloseable {
             this.sid2kid.put(rpk.getName(), kid);
         } else { //Take the kid as sid
             this.sid2kid.put(kid, kid);
-        }
-        
+        }        
     }
 
     /**
