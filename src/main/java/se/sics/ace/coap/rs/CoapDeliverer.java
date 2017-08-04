@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs.dtlsProfile;
+package se.sics.ace.coap.rs;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
 
@@ -48,14 +49,17 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.KeyKeys;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.rs.AsInfo;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
 /**
- * This interceptor should process incoming and outgoing messages at the RS 
+ * This deliverer processes incoming and outgoing messages at the RS 
  * according to the specifications of the ACE framework 
  * (draft-ietf-ace-oauth-authz) and the DTLS profile of that framework
  * (draft-gerdes-ace-dtls-authorize).
@@ -66,13 +70,13 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class DtlspDeliverer extends ServerMessageDeliverer {
+public class CoapDeliverer implements MessageDeliverer {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DtlspDeliverer.class.getName());
+        = Logger.getLogger(CoapDeliverer.class.getName());
     
     /**
      * The token repository
@@ -88,7 +92,14 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
      * The AS information message sent back to unauthorized requesters
      */
     private AsInfo asInfo;
+  
+    /**
+     * The ServerMessageDeliverer that processes the request
+     * after access control has been done
+     */
+    private ServerMessageDeliverer d;
     
+
     /**
      * Constructor. 
      * @param root  the root of the resources that this deliverer controls
@@ -96,9 +107,9 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
      * @param i  the introspection handler or null if there isn't any.
      * @param asInfo  the AS information to send for client authz errors.
      */
-    public DtlspDeliverer(Resource root, TokenRepository tr, 
+    public CoapDeliverer(Resource root, TokenRepository tr, 
             IntrospectionHandler i, AsInfo asInfo) {
-        super(root);
+        this.d = new ServerMessageDeliverer(root);
         this.tr = tr;
         this.asInfo = asInfo;
     }
@@ -112,7 +123,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             URI uri = new URI(request.getURI());
             //Need to check with and without trailing / in case there are query options
             if (uri.getPath().endsWith("/authz-info") || uri.getPath().endsWith("/authz-info/") ) { 
-                super.deliverRequest(ex);
+                this.d.deliverRequest(ex);
                 return;
             }
         } catch (URISyntaxException e) {
@@ -123,6 +134,7 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
             return;
         }      
         
+        //FIXME: check for .well-known as well
        
         if (request.getSenderIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");
@@ -144,18 +156,22 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
                       kid = new String(ckid.GetByteString(), Constants.charset);
                    } else { //No kid in that CBOR map or it isn't a bstr
                        failUnauthz(ex);
+                       return;
                    }
                 } else {//Some weird CBOR that is not a map here
                    failUnauthz(ex);
+                   return;
                 }                
             } catch (CBORException e) {//Really no kid found for that subject
                 LOGGER.finest("Error while trying to parse some "
                         + "subject identity to CBOR: " + e.getMessage());
                failUnauthz(ex);
+               return;
             } catch (IllegalArgumentException e) {//Text was not Base64 encoded
                 LOGGER.finest("Error: " + e.getMessage() 
                 + " while trying to Base64 decode this: " + subject);
                 failUnauthz(ex);
+                return;
             }
            
         }
@@ -168,30 +184,44 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
                     new KissTime(), this.i);
             switch (res) {
             case TokenRepository.OK :
-                super.deliverRequest(ex);
-                break;
+                this.d.deliverRequest(ex);
+                return;
             case TokenRepository.UNAUTHZ :
                failUnauthz(ex);
-                break;
+               return;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
                 r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
                 ex.sendResponse(r);
-                break;
+                return;
             case TokenRepository.METHODNA :
                 r = new Response(ResponseCode.METHOD_NOT_ALLOWED);
                 r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
                 ex.sendResponse(r);
-                break;
+                return;
             default :
                 LOGGER.severe("Error during scope evaluation,"
                         + " unknown result: " + res);
                ex.sendResponse(new Response(
                        ResponseCode.INTERNAL_SERVER_ERROR));
+               return;
             }
         } catch (AceException e) {
             LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
                     + e.getMessage());    
+        } catch (IntrospectionException e) {
+            LOGGER.info("Introspection error, "
+                    + "message processing aborted: " + e.getMessage());
+           if (e.getMessage().isEmpty()) {
+               ex.sendResponse(new Response(
+                       ResponseCode.INTERNAL_SERVER_ERROR));
+           }
+           CBORObject map = CBORObject.NewMap();
+           map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+           map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+           r = new Response(ResponseCode.BAD_REQUEST);
+           r.setPayload(map.EncodeToBytes());
+           ex.sendResponse(r);
         }
     }
     
@@ -204,5 +234,10 @@ public class DtlspDeliverer extends ServerMessageDeliverer {
         Response r = new Response(ResponseCode.UNAUTHORIZED);
         r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
         ex.sendResponse(r);
+    }
+
+    @Override
+    public void deliverResponse(Exchange exchange, Response response) {
+        this.d.deliverResponse(exchange, response);        
     }
 }

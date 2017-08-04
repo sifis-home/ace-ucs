@@ -251,7 +251,7 @@ public class DTLSProfileRequests {
      *  kid of a known access token through psk-identity in the DTLS handshake.
      * @param serverAddress  the address of the server and resource this client
      *  should talk to
-     * @param kid  the access token this client should use towards the server
+     * @param kid  the kid that the client should use as PSK in the handshake
      * @param key  the pre-shared key for use with this server.
      * 
      * @return  a CoAP client configured to pass the access token through the

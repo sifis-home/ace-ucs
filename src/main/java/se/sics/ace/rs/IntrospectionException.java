@@ -29,21 +29,43 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs.oscoapProfile;
+package se.sics.ace.rs;
 
 /**
- * Implements the OSCOAP profile of ACE
+ * Exception thrown by the IntrospectionHandler to indicate errors at the AS.
+ * 
+ * Needed a separate class to distinguish these from AceExceptions.
  * 
  * @author Ludwig Seitz
  *
  */
-public class OscoapProfile {
+public class IntrospectionException extends Exception {
 
     /**
-     * Constructor
+     * 
      */
-    public OscoapProfile() {
-        // TODO Auto-generated constructor stub
-    }
+    private static final long serialVersionUID = -4345733975500623410L;
 
+    /**
+     * Error code received from the AS
+     */
+    private int code;
+    
+    /**
+     * Constructor 
+     * 
+     * @param code  the error code received from the AS 
+     * @param message  Exception message
+     */
+    public IntrospectionException(int code, String message) {
+        super(message);
+        this.code = code;
+    }
+    
+    /**
+     * @return  the error code
+     */
+    public int getCode() {
+        return this.code;
+    }
 }

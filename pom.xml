@@ -52,6 +52,11 @@
     	<artifactId>mysql-connector-java</artifactId>
         <version>5.1.30</version>
     </dependency>
+    <dependency>
+		  <groupId>org.postgresql</groupId>
+		  <artifactId>postgresql</artifactId>
+		  <version>9.3-1104-jdbc4</version>
+    </dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-core</artifactId>
@@ -65,7 +70,7 @@
 	<dependency>
 		<groupId>com.augustcellars.cose</groupId>
 		<artifactId>cose-java</artifactId>
-		<version>0.9.5</version>
+		<version>0.9.6</version>
 	</dependency>
   </dependencies>
   <build>

@@ -38,6 +38,8 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -136,24 +138,46 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            } catch (IntrospectionException e) {
+                LOGGER.info("Introspection error, "
+                         + "message processing aborted: " + e.getMessage());
+                if (e.getMessage().isEmpty()) {
+                    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+                return msg.failReply(e.getCode(), map);
             }
 	    } else if (cbor.getType().equals(CBORType.Array)) {
 	        try {
 	            claims = processCWT(msg);
-	        } catch (Exception e) {
+	        } catch (IntrospectionException e) {
+                LOGGER.info("Introspection error, "
+                        + "message processing aborted: " + e.getMessage());
+               if (e.getMessage().isEmpty()) {
+                   return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+               }
+               CBORObject map = CBORObject.NewMap();
+               map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+               map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+               return msg.failReply(e.getCode(), map);
+	        } catch (AceException | CoseException | InvalidCipherTextException e) {
+	            LOGGER.info("Token invalid: " + e.getMessage());
 	            CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-                map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
-                LOGGER.log(Level.INFO, "Message processing aborted: "
-                        + e.getMessage());
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	        }
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            map.Add(Constants.ERROR_DESCRIPTION, "Token is invalid");
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	        } catch (Exception e) {
+	            LOGGER.severe("Unsupported key wrap algorithm in token: " 
+	                    + e.getMessage());
+	            return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, null);
+            } 
 	    } else {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
-	        LOGGER.log(Level.INFO, "Message processing aborted: "
-	                + "invalid reuqest");
+	        LOGGER.info("Message processing aborted: invalid reuqest");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
@@ -164,8 +188,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             map.Add(Constants.ERROR_DESCRIPTION, "Token is not active");
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "Token is not active");
+            LOGGER.info("Message processing aborted: Token is not active");
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
         }
 
@@ -215,7 +238,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
             map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience does not apply");
-	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	        return msg.failReply(Message.FAIL_FORBIDDEN, map);
 	    }
 
 	    //6. Check if the token has a scope
@@ -263,12 +286,16 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * @param msg  the message
 	 * 
 	 * @return  the claims of the CWT
-	 * @throws AceException 
-	 * @throws CoseException 
 	 * 
-	 * @throws Exception
+	 * @throws AceException 
+	 * @throws IntrospectionException 
+	 * @throws CoseException
+	 * 
+	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<String,CBORObject> processCWT(Message msg) throws Exception {
+	private Map<String,CBORObject> processCWT(Message msg) 
+	        throws IntrospectionException, AceException, 
+	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 	    //Check if we can introspect this token
 	    Map<String, CBORObject> claims = cwt.getClaims();
@@ -293,9 +320,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @return  the claims of the reference token
 	 * @throws AceException
+	 * @throws IntrospectionException 
 	 */
     private Map<String, CBORObject> processRefrenceToken(Message msg)
-                throws AceException {
+                throws AceException, IntrospectionException {
         
         // This should be a CBOR String
         CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());

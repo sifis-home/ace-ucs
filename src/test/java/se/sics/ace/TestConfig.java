@@ -29,35 +29,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace;
 
-import java.util.Map;
-
-import com.upokecenter.cbor.CBORObject;
-
-import se.sics.ace.AceException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 
 /**
- * An interface for classes handling introspection of tokens.
+ * This class is used to load configuration for the tests.
  * 
  * @author Ludwig Seitz
  *
  */
-public interface IntrospectionHandler {
+public class TestConfig {
 
-	/**
-	 * Get the parameters (claims) for a token reference 
-	 * (probably through introspection).
-	 * 
-	 * @param tokenReference  the token reference
-	 * 
-	 * @return  the map of claims (key to claim value) or null if there is no
-	 *     such tokenReference
-	 *     
-	 * @throws IntrospectionException 
-	 * @throws AceException 
-	 */
-	public Map<String, CBORObject> getParams(String tokenReference) 
-	        throws IntrospectionException, AceException;
-	
+    /**
+     * The directory path to all test files including the closing '/'.
+     */
+    public static String testFilePath;
+    
+    static {
+        try(BufferedReader br =
+                new BufferedReader(new FileReader("test.cfg"))) {
+            StringBuilder sb = new StringBuilder();
+            String line = br.readLine();
+            while (line != null) {
+                sb.append(line);
+                sb.append(System.lineSeparator());
+                line = br.readLine();
+            }
+            testFilePath = sb.toString().replace(
+                    System.getProperty("line.separator"), "");     
+
+        } catch (Exception e) {
+            System.err.println("Couldn't load test configuration: " 
+                    + e.getMessage());
+        }
+    }
+    
 }

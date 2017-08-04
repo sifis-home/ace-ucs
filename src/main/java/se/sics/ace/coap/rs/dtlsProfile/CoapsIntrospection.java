@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.coap.rs.dtlsProfile;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -57,6 +58,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.BksStore;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 
 /**
@@ -153,7 +155,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
     
     @Override
     public Map<String, CBORObject> getParams(String tokenReference) 
-            throws AceException {
+            throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token",  CBORObject.FromObject(tokenReference));
@@ -161,6 +163,16 @@ public class CoapsIntrospection implements IntrospectionHandler {
         CoapResponse response =  this.client.post(
                 Constants.abbreviate(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    
+        if (!response.getCode().equals(ResponseCode.CREATED)) {
+            //Some error happened
+            if (response.getPayload() == null) {//This was a server error
+                throw new IntrospectionException(response.getCode().value, "");
+            }
+            //Client error
+            throw new IntrospectionException(response.getCode().value, 
+                    CBORObject.DecodeFromBytes(
+                            response.getPayload()).toString());
+        }
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<String, CBORObject> map = Constants.unabbreviate(res);
         return map;

@@ -31,10 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -65,9 +62,6 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Tests a client running the DTLS profile.
- * 
- * NOTE: You need to run DtlspServer first in order for these tests to work.
- * 
  * @author Ludwig Seitz
  *
  */
@@ -83,19 +77,42 @@ public class TestDtlspClient {
     
     private static CwtCryptoCtx ctx;
     
+    private static RunTestServer srv;
+    
+    private static class RunTestServer implements Runnable {
+
+        public RunTestServer() {
+            //Do nothing
+        }
+
+        /**
+         * Stop the server
+         */
+        public void stop() {
+            TestDtlspServer.stop();
+        }
+
+        @Override
+        public void run() {
+            try {
+                TestDtlspServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                TestDtlspServer.stop();
+            }
+        }
+
+    }
+    
     /**
      * Set up tests.
-     * @throws UnknownHostException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     *
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws IOException 
      */
     @BeforeClass
     public static void setUp() {
-        rsAddr = "coaps://localhost/authz-info";
+        srv = new RunTestServer();
+        srv.run();       
+        
+        rsAddr = "coaps://localhost/.well-known/authz-info";
 
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -103,14 +120,11 @@ public class TestDtlspClient {
     }
     
     /**
-     * Cleans up after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
+     * Cleans up after the tests 
      */
     @AfterClass
     public static void tearDown() {
-        //Nothing to do yet
+        srv.stop();
     }
 
     /**
@@ -217,7 +231,12 @@ public class TestDtlspClient {
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
-        Assert.assertEquals("19.0 C", r.getResponseText()); 
+        Assert.assertEquals("19.0 C", r.getResponseText());
+        
+        //Try the same request again
+        CoapResponse r2 = c.get();
+        Assert.assertEquals("CONTENT", r2.getCode().name());
+        Assert.assertEquals("19.0 C", r2.getResponseText());
     }
     
     

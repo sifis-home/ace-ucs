@@ -62,6 +62,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
@@ -134,7 +135,7 @@ public class TestTokenRepository {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
         
-        TokenRepository.create(valid, "src/test/resources/tokens.json", null);
+        createTR(valid);
         tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -150,11 +151,39 @@ public class TestTokenRepository {
     }
     
     /**
+     * Create the Token repository if not already created,
+     * if already create ignore.
+     * 
+     * @param valid 
+     * @throws IOException 
+     * 
+     */
+    private static void createTR(KissValidator valid) throws IOException {
+        try {
+            TokenRepository.create(valid, TestConfig.testFilePath 
+                    + "tokens.json", null);
+        } catch (AceException e) {
+            System.err.println(e.getMessage());
+            try {
+                TokenRepository tr = TokenRepository.getInstance();
+                tr.close();
+                new File(TestConfig.testFilePath + "tokens.json").delete();
+                TokenRepository.create(valid, TestConfig.testFilePath 
+                        + "tokens.json", null);
+            } catch (AceException e2) {
+               throw new RuntimeException(e2);
+            }
+           
+            
+        }
+    }
+    
+    /**
      * Deletes the test file after the tests
      */
     @AfterClass
     public static void tearDown() {
-        new File("src/test/resources/tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
     /**
@@ -385,9 +414,11 @@ public class TestTokenRepository {
      * Test add token with cnf containing COSE_Key
      *
      * @throws AceException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testTokenCnfCoseKey() throws AceException {
+    public void testTokenCnfCoseKey() 
+            throws AceException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -428,9 +459,10 @@ public class TestTokenRepository {
      * Test add token with cnf containing known kid
      *
      * @throws AceException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testTokenCnfKid() throws AceException {
+    public void testTokenCnfKid() throws AceException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -477,10 +509,12 @@ public class TestTokenRepository {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IntrospectionException 
      */
     @Test
     public void testTokenCnfEncrypt0() throws AceException, CoseException,
-            IllegalStateException, InvalidCipherTextException {
+            IllegalStateException, InvalidCipherTextException, 
+            IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -565,9 +599,11 @@ public class TestTokenRepository {
      * 
      * @throws AceException
      * @throws IOException 
+     * @throws IntrospectionException 
      */
     @Test
-    public void testLoad() throws AceException, IOException {
+    public void testLoad() 
+            throws AceException, IOException, IntrospectionException {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
@@ -587,7 +623,7 @@ public class TestTokenRepository {
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
-                "src/test/resources/testTokens.json" , ctx);
+                TestConfig.testFilePath + "testTokens.json" , ctx);
         
         Assert.assertEquals(TokenRepository.OK,
                 tr2.canAccess("rpk", null, "co2", "GET", 

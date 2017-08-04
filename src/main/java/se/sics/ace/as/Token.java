@@ -291,7 +291,9 @@ public class Token implements Endpoint, AutoCloseable {
 		Map<String, CBORObject> claims = new HashMap<>();
 		claims.put("iss", CBORObject.FromObject(this.asId));
 		claims.put("aud", CBORObject.FromObject(aud));
-		claims.put("sub", CBORObject.FromObject(id));
+		//Don't use sub, cnf is enough to bind the token
+		//and sub leads to problems with the DTLS profile and PSK
+		//claims.put("sub", CBORObject.FromObject(id));
 		long now = this.time.getCurrentTime();
 		long exp = Long.MAX_VALUE;
         try {
@@ -301,8 +303,11 @@ public class Token implements Endpoint, AutoCloseable {
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		if (exp == Long.MAX_VALUE) {
-		    exp = expiration;
+		if (exp == Long.MAX_VALUE) { // == No expiration time found
+		    //using default
+		    exp = now + expiration;
+		} else {
+		    exp = now + exp;
 		}
 		claims.put("exp", CBORObject.FromObject(exp));
 		claims.put("iat", CBORObject.FromObject(now));

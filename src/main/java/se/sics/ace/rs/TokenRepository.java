@@ -279,7 +279,6 @@ public class TokenRepository implements AutoCloseable {
 	 * @return  the cti or the local id given to this token
 	 * 
 	 * @throws AceException 
-	 * @throws CoseException 
 	 */
 	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {
@@ -347,7 +346,7 @@ public class TokenRepository implements AutoCloseable {
           }
         } else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
             String kid = null;
-            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR); //Abbreviated 
+            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             if (kidC.getType().equals(CBORType.ByteString)) {
                 kid = new String(kidC.GetByteString(), Constants.charset);
             } else {
@@ -487,10 +486,11 @@ public class TokenRepository implements AutoCloseable {
 	 * for this resource and user,-1 if the existing token(s) do not authorize 
 	 * the action requested.
 	 * @throws AceException 
+	 * @throws IntrospectionException 
 	 */
 	public int canAccess(String kid, String subject, String resource, 
 	        String action, TimeProvider time, IntrospectionHandler intro) 
-			        throws AceException {
+			        throws AceException, IntrospectionException {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
 	        return UNAUTHZ; //No tokens for this pop-key
@@ -570,7 +570,6 @@ public class TokenRepository implements AutoCloseable {
                              if (introspect != null && introspect.get("active").isTrue()) {
                                  return OK; // Token is active and passed all other tests
                              }
-
                          }
                         return OK; //We didn't introspect, but the token is ok otherwise
                      }
@@ -674,6 +673,7 @@ public class TokenRepository implements AutoCloseable {
         if (!this.closed) {
             this.closed = true;   
             persist();
+            singleton = null;
         }
     }
 

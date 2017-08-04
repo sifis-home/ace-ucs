@@ -52,7 +52,7 @@ public interface DBConnector {
 	/**
 	 * The default database name
 	 */
-	public String dbName = "AceASdb";
+	public String dbName = "aceasdb";
 	
 	//******************New table********************************	
 
@@ -222,17 +222,7 @@ public interface DBConnector {
      */
     public String cti2clientTable = "TokenLog";
     
-    
-	/**
-	 * Create the necessary database and tables. Requires the
-	 * root user password.
-	 * 
-	 * @param rootPwd  the root user password
-	 * 
-	 * @throws AceException 
-	 */
-	public void init(String rootPwd) throws AceException;
-	
+
 	/**
 	 * Gets a common profile supported by a specific audience and client.
 	 * 
