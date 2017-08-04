@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -374,11 +375,18 @@ public class TokenRepository implements AutoCloseable {
 	        throws AceException, CoseException {
 	    String kid = null;
         CBORObject kidC = key.get(KeyKeys.KeyId);
+        
         if (kidC == null) {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
         } else if (kidC.getType().equals(CBORType.ByteString)) {
-            kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
+            try {
+                kid = new String(kidC.GetByteString(), "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                LOGGER.severe("Error: UTF-8 encoding not found"
+                        + e.getMessage());
+                throw new AceException("Fatal error: No UTF-8 encoding");
+            }
         } else {
             LOGGER.severe("kid is not a byte string");
             throw new AceException("COSE_Key contains invalid kid");

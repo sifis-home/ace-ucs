@@ -51,18 +51,24 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
+import com.upokecenter.cbor.CBORObject;
+
 import COSE.AlgorithmID;
+import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
+import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.TokenRepository;
@@ -175,23 +181,47 @@ public class TestDtlspServer {
                 new KissTime(), 
                 null,
                 valid, ctx);
-               
-        AsInfo asi 
-            = new AsInfo("coaps://blah/authz-info/");
-        Resource hello = new HelloWorldResource();
-        Resource temp = new TempResource();
-        Resource authzInfo = new CoapAuthzInfo(ai);
+      
+      //Add a test token to authz-info
+      byte[] key128
+          = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+      Map<String, CBORObject> params = new HashMap<>(); 
+      params.put("scope", CBORObject.FromObject("r_temp"));
+      params.put("aud", CBORObject.FromObject("rs1"));
+      params.put("cti", CBORObject.FromObject(
+              "token1".getBytes(Constants.charset)));
+      params.put("iss", CBORObject.FromObject("TestAS"));
 
-        rs = new CoapServer();
-        rs.add(hello);
-        rs.add(temp);
-        rs.getRoot().getChild(".well-known").add(authzInfo);
-        
-        CoapDeliverer dpd 
-            = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
-          
-        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+      OneKey key = new OneKey();
+      key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      String kidStr = "someKey";
+      CBORObject kid = CBORObject.FromObject(
+              kidStr.getBytes(Constants.charset));
+      key.add(KeyKeys.KeyId, kid);
+      key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+      CBORObject cnf = CBORObject.NewMap();
+      cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+      params.put("cnf", cnf);
+      CWT token = new CWT(params);
+      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
+
+      AsInfo asi 
+      = new AsInfo("coaps://blah/authz-info/");
+      Resource hello = new HelloWorldResource();
+      Resource temp = new TempResource();
+      Resource authzInfo = new CoapAuthzInfo(ai);
+
+      rs = new CoapServer();
+      rs.add(hello);
+      rs.add(temp);
+      rs.getRoot().getChild(".well-known").add(authzInfo);
+
+      CoapDeliverer dpd 
+      = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+
+      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
+              new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
         config.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});

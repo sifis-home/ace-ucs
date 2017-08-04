@@ -157,7 +157,7 @@ public class TestDtlspClient {
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+                "tokenPAI".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
@@ -173,7 +173,7 @@ public class TestDtlspClient {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("token2".getBytes(Constants.charset), 
+        Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), 
                 cti.GetByteString());
     }
     
@@ -192,7 +192,7 @@ public class TestDtlspClient {
         params.put("scope", CBORObject.FromObject("r_helloWorld"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token3".getBytes(Constants.charset)));
+                "tokenPI".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -216,18 +216,24 @@ public class TestDtlspClient {
         
     /**
      *  Test passing a kid through psk-identity
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
      */
     @Test
-    public void testKidPskId() {
+    public void testKidPskId() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
+        String kidStr = "someKey";
         CBORObject kid = CBORObject.FromObject(
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
-                CoAP.DEFAULT_COAP_SECURE_PORT), "ourKey", key);
+                CoAP.DEFAULT_COAP_SECURE_PORT), "someKey", key);
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
@@ -260,7 +266,7 @@ public class TestDtlspClient {
         params.put("scope", CBORObject.FromObject("r_helloWorld"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token4".getBytes(Constants.charset)));
+                "tokenPRPK".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -316,7 +322,7 @@ public class TestDtlspClient {
         params.put("scope", CBORObject.FromObject("r_helloWorld"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token5".getBytes(Constants.charset)));
+                "tokenFailNM".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -356,7 +362,7 @@ public class TestDtlspClient {
         params.put("scope", CBORObject.FromObject("r_helloWorld"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(
-                "token6".getBytes(Constants.charset)));
+                "tokenfailNAM".getBytes(Constants.charset)));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
