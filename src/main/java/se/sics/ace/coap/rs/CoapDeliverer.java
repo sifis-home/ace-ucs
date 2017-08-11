@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs.dtlsProfile;
+package se.sics.ace.coap.rs;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -53,12 +53,13 @@ import COSE.KeyKeys;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
 
 /**
- * This interceptor should process incoming and outgoing messages at the RS 
+ * This deliverer processes incoming and outgoing messages at the RS 
  * according to the specifications of the ACE framework 
  * (draft-ietf-ace-oauth-authz) and the DTLS profile of that framework
  * (draft-gerdes-ace-dtls-authorize).
@@ -69,13 +70,13 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class DtlspDeliverer implements MessageDeliverer {
+public class CoapDeliverer implements MessageDeliverer {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(DtlspDeliverer.class.getName());
+        = Logger.getLogger(CoapDeliverer.class.getName());
     
     /**
      * The token repository
@@ -106,7 +107,7 @@ public class DtlspDeliverer implements MessageDeliverer {
      * @param i  the introspection handler or null if there isn't any.
      * @param asInfo  the AS information to send for client authz errors.
      */
-    public DtlspDeliverer(Resource root, TokenRepository tr, 
+    public CoapDeliverer(Resource root, TokenRepository tr, 
             IntrospectionHandler i, AsInfo asInfo) {
         this.d = new ServerMessageDeliverer(root);
         this.tr = tr;
@@ -133,6 +134,7 @@ public class DtlspDeliverer implements MessageDeliverer {
             return;
         }      
         
+        //FIXME: check for .well-known as well
        
         if (request.getSenderIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");

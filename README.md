@@ -52,3 +52,4 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 
 ### Acknowledgments ###
 This code is in the framework of the [CelticPlus](https://www.celticplus.eu/) project [CyberWI](http://www.cyberwi.eu/), with funding from [Vinnova](http://www.vinnova.se/sv/).
+The PostgresSQL adapter code and many useful debug comments were supplied by Sebastian Echeverria from the [SEI lab](https://www.sei.cmu.edu) at CMU.

@@ -29,75 +29,68 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.dtlsProfile;
+package se.sics.ace.coap.rs;
 
-import org.junit.Assert;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.ExpectedException;
+import java.util.logging.Logger;
 
-import com.upokecenter.cbor.CBORObject;
+import org.eclipse.californium.core.CoapResource;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
-import se.sics.ace.rs.AsInfo;
+import se.sics.ace.Message;
+import se.sics.ace.coap.CoapReq;
+import se.sics.ace.coap.CoapRes;
+import se.sics.ace.rs.AuthzInfo;
+
 
 /**
- * Tests the DTLSProfileAsInfo class.
+ * A CoAP resource implementing the authz-info endpoint at the RS 
+ * for the DTLS profile.
  * 
  * @author Ludwig Seitz
  *
  */
-public class TestAsInfo {
-    
-    /**
-     * Expected exception
-     */
-    @Rule
-    public ExpectedException thrown = ExpectedException.none();
-    
-    /**
-     * Test creating an AS info with null as AS uri.
-     */
-    @Test
-    public void testNullUri() {
-        this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
-                    + "with null or empty asUri field");
-        @SuppressWarnings("unused")
-        AsInfo ai = new AsInfo(null);
-    }
-    
-    /**
-     * Test creating an AS info with empty AS uri.
-     */
-    @Test
-    public void testEmptyUri() {
-        this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
-                    + "with null or empty asUri field");
-        @SuppressWarnings("unused")
-        AsInfo ai = new AsInfo("");
-    }
-    
-    /**
-     * Test round trips with creating and parsing AS information
-     * 
-     * @throws AceException
-     */
-    @Test 
-    public void testRoundTrip() throws AceException {
-        AsInfo ai = new AsInfo("coaps://blah/authz-info/");
-        CBORObject cbor = ai.getCBOR();
-        AsInfo ai2 = AsInfo.parse(cbor.EncodeToBytes());
-        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
-        Assert.assertNull(ai.getNonce());
-        
-        byte[] nonce = {0x00, 0x01, 0x02};
-        ai = new AsInfo("blah", nonce);
-        cbor = ai.getCBOR();
-        ai2 = AsInfo.parse(cbor.EncodeToBytes());
-        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
-        Assert.assertArrayEquals(nonce, ai2.getNonce());
-    }
+public class CoapAuthzInfo extends CoapResource {
 
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(CoapAuthzInfo.class.getName());
+    
+    /**
+     * The underlying authz-info library
+     */
+    private AuthzInfo ai;
+    
+   /**
+    * Constructor.
+    * 
+    * @param ai  the internal authorization information handler 
+    */ 
+    public CoapAuthzInfo(AuthzInfo ai) {
+        super("authz-info");
+        this.ai = ai;
+    }
+    
+    @Override
+    public void handlePOST(CoapExchange exchange) {
+        exchange.accept();
+        Request req = new Request(exchange.getRequestCode());
+        req.setPayload(exchange.getRequestPayload());
+        try {
+            CoapReq msg = CoapReq.getInstance(req);
+            Message reply = this.ai.processMessage(msg);
+            //Safe to cast, since CoapReq only ever renders a CoapRes
+            CoapRes response = (CoapRes)reply; 
+            exchange.respond(response.getCode(), response.getRawPayload(),
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (AceException e) {
+            LOGGER.severe("Error while handling incoming POST: " 
+                    + e.getMessage());
+            return;
+        }  
+    }
 }

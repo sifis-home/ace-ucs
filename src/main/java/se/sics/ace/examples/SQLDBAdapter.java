@@ -72,6 +72,11 @@ public interface SQLDBAdapter {
 
     /**
      * Updates any SQL queries that need to be specific for each DB engine.
+     * 
+     * @param sqlQuery  the query that should be updated
+     * 
+     * @return  the updated query
+     * 
      */
     String updateEngineSpecificSQL(String sqlQuery);
 

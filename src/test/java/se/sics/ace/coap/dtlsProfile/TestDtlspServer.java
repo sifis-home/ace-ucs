@@ -57,21 +57,21 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.TestConfig;
-import se.sics.ace.coap.rs.dtlsProfile.AsInfo;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspAuthzInfo;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspDeliverer;
+import se.sics.ace.coap.rs.CoapAuthzInfo;
+import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
+import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.TokenRepository;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
  * 
- * The Junit tests are in TestDtlspClient, but you MUST
- * run this server first for the tests to work.
+ * The Junit tests are in TestDtlspClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *
@@ -180,15 +180,15 @@ public class TestDtlspServer {
             = new AsInfo("coaps://blah/authz-info/");
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
-        Resource authzInfo = new DtlspAuthzInfo(ai);
+        Resource authzInfo = new CoapAuthzInfo(ai);
 
         rs = new CoapServer();
         rs.add(hello);
         rs.add(temp);
-        rs.add(authzInfo);
+        rs.getRoot().getChild(".well-known").add(authzInfo);
         
-        DtlspDeliverer dpd 
-            = new DtlspDeliverer(rs.getRoot(), tr, null, asi); 
+        CoapDeliverer dpd 
+            = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
           
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));

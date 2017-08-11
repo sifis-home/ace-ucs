@@ -44,7 +44,14 @@ import java.util.Properties;
  */
 public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
+    /**
+     * The default root-user name
+     */
     public static final String ROOT_USER = "postgres";
+    
+    /**
+     * The default database name
+     */
     public static final String BASE_DB = "postgres";
 
     /**

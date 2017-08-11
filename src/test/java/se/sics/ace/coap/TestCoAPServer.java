@@ -58,7 +58,10 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.SQLConnector;
 
 /**
- * Test the CoAP classes.
+ * The server to run the client tests against.
+ * 
+ * The Junit tests are in TestCoAPClient, 
+ * which will automatically start this server.
  * 
  * @author Ludwig Seitz
  *
@@ -108,9 +111,9 @@ public class TestCoAPServer {
         //Just to be sure no old test pollutes the DB
         SQLConnector.wipeDatabase(dbPwd);
         
-        SQLConnector.createUser(dbPwd, "aceUser", "password", 
+        SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceUser", "password", null,
+        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
                 "jdbc:mysql://localhost:3306");
 
 

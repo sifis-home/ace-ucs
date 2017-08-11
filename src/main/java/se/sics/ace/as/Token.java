@@ -303,8 +303,11 @@ public class Token implements Endpoint, AutoCloseable {
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		if (exp == Long.MAX_VALUE) {
-		    exp = expiration;
+		if (exp == Long.MAX_VALUE) { // == No expiration time found
+		    //using default
+		    exp = now + expiration;
+		} else {
+		    exp = now + exp;
 		}
 		claims.put("exp", CBORObject.FromObject(exp));
 		claims.put("iat", CBORObject.FromObject(now));

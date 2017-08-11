@@ -33,7 +33,6 @@ package se.sics.ace.coap.dtlsProfile;
 
 import java.io.File;
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -49,7 +48,6 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;

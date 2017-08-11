@@ -70,7 +70,7 @@
 	<dependency>
 		<groupId>com.augustcellars.cose</groupId>
 		<artifactId>cose-java</artifactId>
-		<version>0.9.5</version>
+		<version>0.9.6</version>
 	</dependency>
   </dependencies>
   <build>
