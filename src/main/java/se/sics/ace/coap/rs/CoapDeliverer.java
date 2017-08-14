@@ -62,7 +62,7 @@ import se.sics.ace.rs.TokenRepository;
  * This deliverer processes incoming and outgoing messages at the RS 
  * according to the specifications of the ACE framework 
  * (draft-ietf-ace-oauth-authz) and the DTLS profile of that framework
- * (draft-gerdes-ace-dtls-authorize).
+ * (draft-ietf-ace-dtls-authorize).
  * 
  * It's specific task is to match requests against existing access tokens
  * to see if the request is authorized.
