@@ -171,10 +171,10 @@ public class TestCoAPClient {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setClientOnly();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
         CoapClient client = new CoapClient("coaps://localhost/introspect");
-        client.setEndpoint(e);        
+        client.setEndpoint(e);
+        dtlsConnector.start();
        
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();
@@ -202,10 +202,10 @@ public class TestCoAPClient {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
         CoapClient client = new CoapClient("coaps://localhost/token");
-        client.setEndpoint(e);        
+        client.setEndpoint(e);
+        dtlsConnector.start();
 
         Map<String, CBORObject> params = new HashMap<>();
         params.put("grant_type", Token.clientCredentialsStr);
@@ -243,10 +243,11 @@ public class TestCoAPClient {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        dtlsConnector.start();
+
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
         CoapClient client = new CoapClient("coaps://localhost/introspect");
-        client.setEndpoint(e);        
+        client.setEndpoint(e);
+        dtlsConnector.start();
        
         ReferenceToken at = new ReferenceToken("token1");
         Map<String, CBORObject> params = new HashMap<>();

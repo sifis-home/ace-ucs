@@ -239,7 +239,7 @@ public class TokenRepository implements AutoCloseable {
 	        return; //File will be created if tokens are added
 	    }
 	    FileInputStream fis = new FileInputStream(f);
-        Scanner scanner = new Scanner(fis, "UTF-8" );
+        Scanner scanner = new Scanner(fis, "UTF-8");
         Scanner s = scanner.useDelimiter("\\A");
         String configStr = s.hasNext() ? s.next() : "";
         s.close();

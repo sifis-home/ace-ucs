@@ -122,17 +122,17 @@ public class DTLSProfileRequests {
             throw new AceException("Unknown key type");
         }
 
-        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());      
+        CoapEndpoint ep = new CoapEndpoint(dtlsConnector, 
+                NetworkConfig.getStandard());
+        CoapClient client = new CoapClient(asAddr);
+        client.setEndpoint(ep);
         try {
             dtlsConnector.start();
         } catch (IOException e) {
             LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
             throw new AceException(e.getMessage());
         }
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
-                NetworkConfig.getStandard());
-        CoapClient client = new CoapClient(asAddr);
-        client.setEndpoint(e);   
         return client.post(
                 payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
