@@ -100,13 +100,13 @@ public class CoapsIntrospection implements IntrospectionHandler {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
                 NetworkConfig.getStandard());
         LOGGER.fine("Creating CoAPS client for introspection to: " 
                 + introspectAddress + " with RPK");
         this.client = new CoapClient(introspectAddress);
         this.client.setEndpoint(e);
+        dtlsConnector.start();
     }
     
     /**
@@ -144,13 +144,13 @@ public class CoapsIntrospection implements IntrospectionHandler {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        dtlsConnector.start();
         CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
                 NetworkConfig.getStandard());
         LOGGER.fine("Creating CoAPS client for introspection to: " 
                 + introspectAddress + " with RPK");
         this.client = new CoapClient(introspectAddress);
         this.client.setEndpoint(e);
+        dtlsConnector.start();
     }
     
     @Override
