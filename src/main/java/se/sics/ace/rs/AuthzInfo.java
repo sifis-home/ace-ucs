@@ -32,6 +32,7 @@
 package se.sics.ace.rs;
 
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -299,8 +300,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	   if (this.intro != null) {
 	       CBORObject ctiCB = claims.get("cti");
 	       if (ctiCB != null && ctiCB.getType().equals(CBORType.ByteString)) {
-	           String cti = new String(ctiCB.GetByteString(), 
-	                   Constants.charset);
+	           String cti = Base64.getEncoder().encodeToString(
+	                   ctiCB.GetByteString());
 	           Map<String, CBORObject> introClaims = this.intro.getParams(cti);
 	           if (introClaims != null) {
 	               claims.putAll(introClaims);
@@ -346,7 +347,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
     /**
      * Get the proof-of-possession key of a token identified by its 'cti'.
      * 
-     * @param cti  the cti of the token
+     * @param cti  the Base64 encoded cti of the token
      * 
      * @return  the pop key or null if this cti is unknown
      * 

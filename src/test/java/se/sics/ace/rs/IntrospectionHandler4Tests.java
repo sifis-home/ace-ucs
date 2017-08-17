@@ -75,6 +75,7 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
     public Map<String, CBORObject> getParams(String tokenReference)
             throws IntrospectionException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
+        //FIXME:
         params.put("token", 
                 CBORObject.FromObject(tokenReference));
         params.put("token_type_hint", 

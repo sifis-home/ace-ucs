@@ -681,15 +681,13 @@ public class TestTokenRepository {
     
     
     /**
-     * Remove lingering token1 entries
+     * Remove lingering token entries
      * @throws AceException 
      */
     @After
     public void cleanup() throws AceException {
-        tr.removeToken(CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
-        tr.removeToken(CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        tr.removeToken("token1");
+        tr.removeToken("token2");
     }
     
 }

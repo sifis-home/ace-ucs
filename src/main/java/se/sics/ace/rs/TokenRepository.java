@@ -36,6 +36,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -75,7 +76,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * that don't have these will lead to request failure.
  * 
  * If the token has no cti, this class will use the hashCode() of the claims
- * Map as local cti.
+ * Map to generate a local cti.
  * 
  * This class is implemented as a singleton to ensure that all users see
  * the same repository (and yes I know that parameterized singletons are bad 
@@ -105,16 +106,11 @@ public class TokenRepository implements AutoCloseable {
      * Return codes of the canAccess() method. 4.05 Method Not Allowed
      */
     public static final int METHODNA = -2;
-    
-    
+
     /**
-     * Return codes of the canAccess() method
+     * Converter for generating byte arrays from int
      */
-    
-    /**
-     * Return codes of the canAccess() method
-     */
-    
+    private static ByteBuffer buffer = ByteBuffer.allocate(Integer.BYTES);
     
     /**
      * The logger
@@ -128,7 +124,7 @@ public class TokenRepository implements AutoCloseable {
     private boolean closed = true;
     
 	/**
-	 * Maps cti to the claims of the corresponding token
+	 * Maps the base64 encoded cti to the claims of the corresponding token
 	 */
 	private Map<String, Map<String, CBORObject>> cti2claims;
 	
@@ -139,7 +135,7 @@ public class TokenRepository implements AutoCloseable {
 	protected Map<String, OneKey> kid2key;
 	
 	/**
-	 * Map the  token identifier to the corresponding pop-key kid
+	 * Map the base64 encoded cti of a token to the corresponding pop-key kid
 	 */
 	protected Map<String, String>cti2kid;
 	
@@ -291,12 +287,15 @@ public class TokenRepository implements AutoCloseable {
 		CBORObject cticb = claims.get("cti");
 		String cti = null;
 		if (cticb == null) {
-			cti = String.valueOf(claims.hashCode());
+		    cticb = CBORObject.FromObject(
+		            buffer.putInt(0, claims.hashCode()).array());
+			cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
+			claims.put("cti", cticb);
 		} else if (!cticb.getType().equals(CBORType.ByteString)) {
 		    LOGGER.info("Token's cti in not a ByteString");
             throw new AceException("Cti has invalid format");
         } else {		
-		    cti = new String(claims.get("cti").GetByteString());
+		    cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
 		}
 		
 		//Check for duplicate cti
@@ -368,7 +367,7 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");
         }
-        return CBORObject.FromObject(cti.getBytes());
+        return cticb;
 	}
 
 	private void processKey(OneKey key, String sid, String cti) 
@@ -408,23 +407,19 @@ public class TokenRepository implements AutoCloseable {
     /**
 	 * Remove an existing token from the repository.
 	 * 
-	 * @param cti  the cti of the token to be removed.
+	 * @param cti  the cti of the token to be removed Base64 encoded.
 	 * @throws AceException 
 	 */
-	public synchronized void removeToken(CBORObject cti) throws AceException {
+	public synchronized void removeToken(String cti) throws AceException {
 	    if (cti == null) {
             throw new AceException("Cti is null");
-        } else if (!cti.getType().equals(CBORType.ByteString)) {
-            throw new AceException("Cti has invalid format");
-        }
-        
-        String ctiStr = new String(cti.GetByteString());
-        
+        } 
+	    
         //Remove the claims
-        this.cti2claims.remove(ctiStr);
+        this.cti2claims.remove(cti);
  
 		//Remove the mapping to the pop key
-		this.cti2kid.remove(ctiStr);
+		this.cti2kid.remove(cti);
 		
 		//Remove unused keys
 		Set<String> remove = new HashSet<>();
@@ -448,7 +443,7 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	public synchronized void pollTokens(TimeProvider time) 
 				throws AceException {
-	    HashSet<CBORObject> tokenToRemove = new HashSet<>();
+	    HashSet<String> tokenToRemove = new HashSet<>();
 		for (Entry<String, Map<String, CBORObject>> foo 
 		        : this.cti2claims.entrySet()) {
 		    if (foo.getValue() != null) {
@@ -459,12 +454,12 @@ public class TokenRepository implements AutoCloseable {
 		        if (!exp.isIntegral()) {
 		            throw new AceException("Expiration time is in wrong format");
 		        }
-		        if (exp.AsInt64() > time.getCurrentTime()) {
-		            tokenToRemove.add(foo.getValue().get("cti"));
+		        if (time.getCurrentTime() > exp.AsInt64()) {
+		            tokenToRemove.add(foo.getKey());
 				}
 			}
 		}
-		for (CBORObject cti : tokenToRemove) {
+		for (String cti : tokenToRemove) {
 		    removeToken(cti);
 		}
 		persist();
@@ -606,7 +601,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the proof-of-possession key of a token identified by its 'cti'.
 	 * 
-	 * @param cti  the cti of the token
+	 * @param cti  the cti of the token Base64 encoded
 	 * 
 	 * @return  the pop-key the token or null if this cti is unknown
 	 * @throws AceException 

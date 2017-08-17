@@ -283,8 +283,7 @@ public class TestAuthzInfo {
                 "token1".getBytes(Constants.charset));
         assert(1 == tr.canAccess(
                 "aKey", null, "co2", "GET", new KissTime(), null));
-        tr.removeToken(CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        tr.removeToken("token1");
     }
     
     /**

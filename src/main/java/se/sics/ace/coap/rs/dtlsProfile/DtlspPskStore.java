@@ -155,8 +155,8 @@ public class DtlspPskStore implements PskStore {
             //Note that this is either the token's cti or the internal
             //id that the AuthzInfo endpoint assigned to it 
             CBORObject cti = resPayl.get(CBORObject.FromObject(Constants.CTI));
-            //Note that the cti bytes may not come from a String originally
-            String ctiStr = new String(cti.GetByteString());
+            String ctiStr = Base64.getEncoder().encodeToString(
+                    cti.GetByteString());
             try {
                  key = this.authzInfo.getPoP(ctiStr);
                  return key.get(KeyKeys.Octet_K).GetByteString();

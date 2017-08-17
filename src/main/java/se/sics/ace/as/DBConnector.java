@@ -486,7 +486,7 @@ public interface DBConnector {
     /**
      * Returns the claims associated with this token.
      * 
-     * @param cti  the token identifier
+     * @param cti  the token identifier encoded Base64
      * 
      * @return  the set of claims
      *  
@@ -516,7 +516,7 @@ public interface DBConnector {
     /**
      * Save a mapping from token identifier to client identifier for
      *  a newly issued token.
-     * @param cti  the token identifier
+     * @param cti  the token identifier Base64 encoded
      * @param clientId  the client identifier
      * @throws AceException
      */
@@ -526,7 +526,7 @@ public interface DBConnector {
      * Get the client identifier that holds a given token
      * identified by its cti.
      * 
-     * @param cti  the cti of the token
+     * @param cti  the cti of the token Base64 encoded
      * @return  the client identifier
      * @throws AceException 
      */
@@ -536,7 +536,7 @@ public interface DBConnector {
      * Get the token identifiers (cti) for a given client.
      * 
      * @param clientId  the client identifier
-     * @return a set of token identifiers
+     * @return a set of token identifiers Base64 encoded
      * @throws AceException
      */
     public Set<String> getCtis4Client(String clientId) throws AceException;

@@ -31,12 +31,14 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.Base64;
 import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.cwt.CWT;
 
@@ -87,8 +89,7 @@ public class AccessTokenFactory {
 	        if (cti == null) {
 	            throw new AceException("Token has no cti");
 	        }
-			return new ReferenceToken(
-			        new String(cti.GetByteString()));	
+			return new ReferenceToken(cti.GetByteString());	
 		default: 
 			throw new AceException("Unsupported token type");
 		}
