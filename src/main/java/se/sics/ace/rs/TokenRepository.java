@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -238,7 +239,7 @@ public class TokenRepository implements AutoCloseable {
 	        return; //File will be created if tokens are added
 	    }
 	    FileInputStream fis = new FileInputStream(f);
-        Scanner scanner = new Scanner(fis, "UTF-8" );
+        Scanner scanner = new Scanner(fis, "UTF-8");
         Scanner s = scanner.useDelimiter("\\A");
         String configStr = s.hasNext() ? s.next() : "";
         s.close();
@@ -384,11 +385,18 @@ public class TokenRepository implements AutoCloseable {
 	        throws AceException, CoseException {
 	    String kid = null;
         CBORObject kidC = key.get(KeyKeys.KeyId);
+        
         if (kidC == null) {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
         } else if (kidC.getType().equals(CBORType.ByteString)) {
-            kid = new String(kidC.GetByteString(), Constants.charset);
+            try {
+                kid = new String(kidC.GetByteString(), "UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                LOGGER.severe("Error: UTF-8 encoding not found"
+                        + e.getMessage());
+                throw new AceException("Fatal error: No UTF-8 encoding");
+            }
         } else {
             LOGGER.severe("kid is not a byte string");
             throw new AceException("COSE_Key contains invalid kid");
@@ -404,8 +412,7 @@ public class TokenRepository implements AutoCloseable {
             this.sid2kid.put(rpk.getName(), kid);
         } else { //Take the kid as sid
             this.sid2kid.put(kid, kid);
-        }
-        
+        }        
     }
 
     /**

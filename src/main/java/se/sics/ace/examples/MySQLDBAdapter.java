@@ -84,7 +84,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
-        String cUser = "CREATE USER '" + this.user
+        String cUser = "CREATE USER IF NOT EXISTS'" + this.user
                 + "'@'localhost' IDENTIFIED BY '" + this.password
                 + "';";
         String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE ON "

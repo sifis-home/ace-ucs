@@ -34,6 +34,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.ResultSet;
 import java.util.Properties;
 
 /**
@@ -118,13 +119,34 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
     @Override
     public synchronized void createDBAndTables(String rootPwd) throws AceException {
-        String createDB = "CREATE DATABASE " + this.dbName
-                + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
-                " CONNECTION LIMIT = -1;";
-
         Properties connectionProps = new Properties();
         connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
+
+        // First check it DB exists.
+        String checkDB = "SELECT datname FROM pg_catalog.pg_database WHERE datname = '" + this.dbName + "';";
+        try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
+             Statement stmt = rootConn.createStatement())
+        {
+            ResultSet result = stmt.executeQuery(checkDB);
+            if (result.next())
+            {
+                // For consistency with other DB adapters, do nothing in this case.
+                rootConn.close();
+                stmt.close();
+                return;
+            }
+            rootConn.close();
+            stmt.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+            throw new AceException(e.getMessage());
+        }
+
+        // Create the database.
+        String createDB = "CREATE DATABASE " + this.dbName
+                + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
+                " CONNECTION LIMIT = -1;";
         try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
              Statement stmt = rootConn.createStatement())
         {

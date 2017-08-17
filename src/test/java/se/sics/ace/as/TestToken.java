@@ -769,4 +769,29 @@ public class TestToken {
         claims = db.getClaims("token2");
         assert(claims.isEmpty());
     }
+    
+    /**
+     * Test the token endpoint by requesting multiple tokens and
+     * checking that the cti counter is correctly adjusted.
+     * This uses default audience and scope.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testMultiRequest() throws Exception {
+        Map<String, CBORObject> params = new HashMap<>(); 
+        params.put("grant_type", Token.clientCredentialsStr);
+        Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
+        Message response = t.processMessage(msg);
+        Long ctiCtrStart = db.getCtiCounter();
+        for (int i=0; i<10; i++) {
+            response = t.processMessage(msg);
+        }
+        Long ctiCtrEnd = db.getCtiCounter();
+        System.out.println("Start: " + ctiCtrStart);
+        System.out.println("End: " + ctiCtrEnd);
+        assert(ctiCtrEnd == ctiCtrStart+10);
+        
+    }
+
 }

@@ -322,11 +322,13 @@ public class Token implements Endpoint, AutoCloseable {
         try {
             profile = this.db.getSupportedProfile(id, aud);
         } catch (AceException e) {
+            this.cti--; //roll-back
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 		if (profile == null) {
+            this.cti--; //roll-back
 		    CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, "No compatible profile found");
             LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -336,6 +338,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		if (tokenType != AccessTokenFactory.CWT_TYPE 
 		        && tokenType != AccessTokenFactory.REF_TYPE) {
+            this.cti--; //roll-back
 		    CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, "Unsupported token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -351,6 +354,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    //Check that the kid is well-formed
 		    CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
 		    if (!kidC.getType().equals(CBORType.ByteString)) {
+	            this.cti--; //roll-back
 		        LOGGER.info("Message processing aborted: "
 		               + " Malformed kid in request parameter 'cnf'");
 		        CBORObject map = CBORObject.NewMap();
@@ -366,6 +370,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    try {
 		        keyType = this.db.getSupportedPopKeyType(id, aud);
 		    } catch (AceException e) {
+	            this.cti--; //roll-back
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -389,6 +394,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
 		            claims.put("cnf", coseKey);
 		        } catch (NoSuchAlgorithmException | CoseException e) {
+		            this.cti--; //roll-back
 		            LOGGER.severe("Message processing aborted: "
 		                    + e.getMessage());
 		            return msg.failReply(
@@ -397,6 +403,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        break;
 		    case "RPK":
 		        if (cnf == null) {
+		            this.cti--; //roll-back
 		            CBORObject map = CBORObject.NewMap();
 		            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		            map.Add(Constants.ERROR_DESCRIPTION, 
@@ -409,6 +416,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        try {
 		            rpk = getKey(cnf, id);
 		        } catch (AceException | CoseException e) {
+		            this.cti--; //roll-back
 		            LOGGER.severe("Message processing aborted: "
 		                    + e.getMessage());
 		            if (e.getMessage().startsWith("Malformed")) {
@@ -422,6 +430,7 @@ public class Token implements Endpoint, AutoCloseable {
 		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		        }
 		        if (rpk == null) {
+		            this.cti--; //roll-back
 		            CBORObject map = CBORObject.NewMap();
 		            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		            map.Add(Constants.ERROR_DESCRIPTION, 
@@ -435,6 +444,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        claims.put("cnf", coseKey);
 		        break;
 		    default :
+	            this.cti--; //roll-back
 		        CBORObject map = CBORObject.NewMap();
 		        map.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
 		        LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -447,6 +457,7 @@ public class Token implements Endpoint, AutoCloseable {
         try {
             token = AccessTokenFactory.generateToken(tokenType, claims);
         } catch (AceException e) {
+            this.cti--; //roll-back
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -464,11 +475,13 @@ public class Token implements Endpoint, AutoCloseable {
             try {
                 ctx = makeCommonCtx(aud);
             } catch (AceException | CoseException e) {
+                this.cti--; //roll-back
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		    if (ctx == null) {
+	            this.cti--; //roll-back
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, 
 	                    "No common security context found for audience");
@@ -481,6 +494,7 @@ public class Token implements Endpoint, AutoCloseable {
                 rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
             } catch (IllegalStateException | InvalidCipherTextException
                     | CoseException | AceException e) {
+                this.cti--; //roll-back
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -492,12 +506,14 @@ public class Token implements Endpoint, AutoCloseable {
 		try {
             this.db.addToken(ctiStr, claims);
             this.db.addCti2Client(ctiStr, id);
+            this.db.saveCtiCounter(this.cti);
         } catch (AceException e) {
+            this.cti--; //roll-back
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		 LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
+		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
