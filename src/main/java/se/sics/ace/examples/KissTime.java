@@ -42,12 +42,10 @@ import se.sics.ace.TimeProvider;
  *
  */
 public class KissTime implements TimeProvider {
-
-	private Date date = new Date();
 	
 	@Override
 	public long getCurrentTime() {
-		return this.date.getTime();
+		return new Date().getTime();
 	}
 
 }
