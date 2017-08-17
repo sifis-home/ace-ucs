@@ -577,7 +577,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 		this.insertClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.cTable
-                + " VALUES (?,?,?,?,?);"));
+                + " VALUES (?,?,?,?,?,?);"));
 	
 		this.deleteClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.cTable
