@@ -786,10 +786,10 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
-        Message response = t.processMessage(msg);
+        t.processMessage(msg);
         Long ctiCtrStart = db.getCtiCounter();
         for (int i=0; i<10; i++) {
-            response = t.processMessage(msg);
+            t.processMessage(msg);
         }
         Long ctiCtrEnd = db.getCtiCounter();
         System.out.println("Start: " + ctiCtrStart);

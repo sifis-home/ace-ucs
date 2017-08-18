@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.util.Base64;
 import java.util.HashMap;
@@ -348,7 +347,8 @@ public class TokenRepository implements AutoCloseable {
             String kid = null;
             CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             if (kidC.getType().equals(CBORType.ByteString)) {
-                kid = new String(kidC.GetByteString(), Constants.charset);
+                kid = Base64.getEncoder().encodeToString(
+                        kidC.GetByteString());
             } else {
                 LOGGER.severe("kid is not a byte string");
                 throw new AceException("cnf contains invalid kid");
@@ -379,13 +379,7 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
         } else if (kidC.getType().equals(CBORType.ByteString)) {
-            try {
-                kid = new String(kidC.GetByteString(), "UTF-8");
-            } catch (UnsupportedEncodingException e) {
-                LOGGER.severe("Error: UTF-8 encoding not found"
-                        + e.getMessage());
-                throw new AceException("Fatal error: No UTF-8 encoding");
-            }
+            kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
         } else {
             LOGGER.severe("kid is not a byte string");
             throw new AceException("COSE_Key contains invalid kid");

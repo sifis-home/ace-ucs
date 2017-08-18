@@ -39,6 +39,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -360,9 +361,10 @@ public class TestAuthzInfo {
         Map<String, CBORObject> claims = new HashMap<>();
         byte[] cti = {0x0B, 0x71};
         claims.put("cti", CBORObject.FromObject(cti));
-       
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        
         //Make introspection succeed
-        db.addToken(new String(cti, Constants.charset), claims);
+        db.addToken(ctiStr, claims);
         
         claims.put("cks", 
                 CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
@@ -384,7 +386,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         map.Add(Constants.ERROR_DESCRIPTION, "Token is expired");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
-        db.deleteToken(new String(cti, Constants.charset));
+        db.deleteToken(ctiStr);
     }
     
     /**

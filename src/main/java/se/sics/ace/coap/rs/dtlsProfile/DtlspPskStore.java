@@ -117,7 +117,8 @@ public class DtlspPskStore implements PskStore {
         }
         CBORObject kidCB = payload.get(KeyKeys.KeyId.AsCBOR());
         if (kidCB != null) {//We have a kid: 
-            String kid = new String(kidCB.GetByteString(), Constants.charset);
+            String kid = Base64.getEncoder().encodeToString(
+                    kidCB.GetByteString());
             try {
                 key = this.authzInfo.getKey(kid);
                 if (key != null) {
