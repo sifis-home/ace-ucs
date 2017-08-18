@@ -548,7 +548,8 @@ public class TokenRepository implements AutoCloseable {
                      if (this.scopeValidator.scopeMatch(subscope, resource, action)) {
                        //Check if we should introspect this token
                          if (intro != null) {
-                             Map<String,CBORObject> introspect = intro.getParams(cti);
+                             byte[] ctiB = Base64.getDecoder().decode(cti);
+                             Map<String,CBORObject> introspect = intro.getParams(ctiB);
                              if (introspect != null && introspect.get("active") == null) {
                                  throw new AceException("Token introspection didn't "
                                          + "return an 'active' parameter");

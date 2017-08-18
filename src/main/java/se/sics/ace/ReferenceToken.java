@@ -113,7 +113,7 @@ public class ReferenceToken implements AccessToken {
 		}
 		Map<String, CBORObject> params = null;
         try {
-            params = this.introspect.getParams(this.refS);
+            params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
             throw new AceException("Introspection failed: "
                     + e.getMessage());
@@ -136,7 +136,7 @@ public class ReferenceToken implements AccessToken {
 		}
 		Map<String, CBORObject> params = null;
         try {
-            params = this.introspect.getParams(this.refS);
+            params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
             throw new AceException("Introspection failed: "
                     + e.getMessage());
