@@ -158,7 +158,6 @@ public class CoapsIntrospection implements IntrospectionHandler {
             throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
         Map<String, CBORObject> params = new HashMap<>();
-        //FIXME:
         params.put("token",  CBORObject.FromObject(tokenReference));
         params.put("token_type_hint", CBORObject.FromObject("pop")); 
         CoapResponse response =  this.client.post(

@@ -332,7 +332,6 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessRef() throws Exception {
-        //FIXME: create corresponding token
         ReferenceToken t = new ReferenceToken(new byte[]{0x01});
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", t.encode());

@@ -175,8 +175,7 @@ public class TestCoAPClient {
         CoapClient client = new CoapClient("coaps://localhost/introspect");
         client.setEndpoint(e);
         dtlsConnector.start();
-        
-        //FIXME: cti
+
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token", at.encode());
@@ -250,8 +249,7 @@ public class TestCoAPClient {
         client.setEndpoint(e);
         dtlsConnector.start();
        
-        //FIXME: cti
-        ReferenceToken at = new ReferenceToken(new byte[]{0x01});
+        ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token", at.encode());
         CoapResponse response = client.post(
