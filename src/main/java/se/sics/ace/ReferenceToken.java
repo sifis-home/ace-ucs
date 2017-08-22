@@ -31,8 +31,8 @@
  *******************************************************************************/
 package se.sics.ace;
 
-import java.math.BigInteger;
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
@@ -52,7 +52,12 @@ public class ReferenceToken implements AccessToken {
 	/**
 	 * The reference 
 	 */
-	private String ref;
+	private byte[] ref;
+	
+	/**
+	 * The reference as Base64 encoded string
+	 */
+	private String refS;
 	
 	/**
 	 * A handler for introspecting this token.
@@ -64,9 +69,10 @@ public class ReferenceToken implements AccessToken {
 	 * 
 	 * @param length  the length in bits of the reference.
 	 */
-	public ReferenceToken(int length) {
-		SecureRandom random = new SecureRandom();
-		this.ref = new BigInteger(length, random).toString(32);
+	public ReferenceToken(int length) {		
+		this.ref = new byte[length];
+		new SecureRandom().nextBytes(this.ref);
+		this.refS = Base64.getEncoder().encodeToString(this.ref);
 	}
 	
 	/**
@@ -74,17 +80,19 @@ public class ReferenceToken implements AccessToken {
 	 * length of 128 bits for the reference.
 	 */
 	public ReferenceToken() {
-		SecureRandom random = new SecureRandom();
-		this.ref = new BigInteger(128, random).toString(32);
+	    this.ref = new byte[128/8];
+	    new SecureRandom().nextBytes(this.ref);
+	    this.refS = Base64.getEncoder().encodeToString(this.ref);
 	}
 	
 	/**
-	 * Constructor. Uses a given string as reference.
+	 * Constructor. Uses a given cti as reference.
 	 * 
 	 * @param ref  the reference
 	 */
-	public ReferenceToken(String ref) {
+	public ReferenceToken(byte[] ref) {
 	    this.ref = ref;
+        this.refS = Base64.getEncoder().encodeToString(this.ref); 
 	}
 	
 	
@@ -111,7 +119,7 @@ public class ReferenceToken implements AccessToken {
                     + e.getMessage());
         }
 		if (params == null) {
-		    throw new AceException("Token reference not found: " + this.ref);
+		    throw new AceException("Token reference not found: " + this.refS);
 		}
 		CBORObject expO = params.get("exp");
 		if (expO != null && expO.AsInt64() < now) {
@@ -134,7 +142,7 @@ public class ReferenceToken implements AccessToken {
                     + e.getMessage());
         }
 		if (params == null) {
-		    throw new AceException("Token reference not found: " + this.ref);
+		    throw new AceException("Token reference not found: " + this.refS);
 		}
 		//Check nbf and exp for the found match
 		CBORObject nbfO = params.get("nbf");
@@ -155,20 +163,20 @@ public class ReferenceToken implements AccessToken {
 	}
 
 	/**
-	 * Parse a reference token from a CBOR object (must be a String).
+	 * Parse a reference token from a CBOR object (must be a ByteString).
 	 * @param ob
 	 * @return  the reference token or null of the object didn't contain
 	 *          a valid String
 	 */
 	public static ReferenceToken parse(CBORObject ob) {
-	   if (ob.getType().equals(CBORType.TextString)) {
-	       return new ReferenceToken(ob.AsString());
+	   if (ob.getType().equals(CBORType.ByteString)) {
+	       return new ReferenceToken(ob.GetByteString());
 	   } 
 	   return null;
 	}
 
     @Override
     public String getCti() throws AceException {
-        return this.ref;
+        return this.refS;
     }
 }

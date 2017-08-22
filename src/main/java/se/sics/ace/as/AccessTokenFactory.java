@@ -87,8 +87,7 @@ public class AccessTokenFactory {
 	        if (cti == null) {
 	            throw new AceException("Token has no cti");
 	        }
-			return new ReferenceToken(
-			        new String(cti.GetByteString()));	
+			return new ReferenceToken(cti.GetByteString());	
 		default: 
 			throw new AceException("Unsupported token type");
 		}

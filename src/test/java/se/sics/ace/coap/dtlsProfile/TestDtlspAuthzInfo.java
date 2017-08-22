@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -152,14 +153,11 @@ public class TestDtlspAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put("cti", CBORObject.FromObject(new byte[]{0x00}));
         params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02}); 
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -222,15 +220,16 @@ public class TestDtlspAuthzInfo {
         iex.setEndpoint(new CoapEndpoint());
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
-        
+      
+        String kid = Base64.getEncoder().encodeToString(new byte[]{0x01, 0x02});
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
-                ai.getKey("ourKey").get(KeyKeys.Octet_K).GetByteString());
-        
-        
+                ai.getKey(kid).get(KeyKeys.Octet_K).GetByteString());
+               
+      
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess("ourKey", "ourKey", "temp", "GET", 
+                tr.canAccess(kid, kid, "temp", "GET", 
                         new KissTime(), null));
     }
          

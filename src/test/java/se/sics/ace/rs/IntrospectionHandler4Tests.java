@@ -72,7 +72,7 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
   
     
     @Override
-    public Map<String, CBORObject> getParams(String tokenReference)
+    public Map<String, CBORObject> getParams(byte[] tokenReference)
             throws IntrospectionException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("token", 

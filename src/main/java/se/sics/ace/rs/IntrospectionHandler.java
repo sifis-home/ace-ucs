@@ -49,7 +49,7 @@ public interface IntrospectionHandler {
 	 * Get the parameters (claims) for a token reference 
 	 * (probably through introspection).
 	 * 
-	 * @param tokenReference  the token reference
+	 * @param tokenReference  the token reference (cid)
 	 * 
 	 * @return  the map of claims (key to claim value) or null if there is no
 	 *     such tokenReference
@@ -57,7 +57,7 @@ public interface IntrospectionHandler {
 	 * @throws IntrospectionException 
 	 * @throws AceException 
 	 */
-	public Map<String, CBORObject> getParams(String tokenReference) 
+	public Map<String, CBORObject> getParams(byte[] tokenReference) 
 	        throws IntrospectionException, AceException;
 	
 }

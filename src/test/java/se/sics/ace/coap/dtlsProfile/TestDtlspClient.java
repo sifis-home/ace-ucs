@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -87,8 +88,10 @@ public class TestDtlspClient {
 
         /**
          * Stop the server
+         * @throws AceException 
+         * @throws IOException 
          */
-        public void stop() {
+        public void stop() throws IOException, AceException {
             TestDtlspServer.stop();
         }
 
@@ -98,7 +101,11 @@ public class TestDtlspClient {
                 TestDtlspServer.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
-                TestDtlspServer.stop();
+                try {
+                    TestDtlspServer.stop();
+                } catch (IOException | AceException e) {
+                    System.err.println(e.getMessage());
+                }
             }
         }
 
@@ -121,9 +128,11 @@ public class TestDtlspClient {
     
     /**
      * Cleans up after the tests 
+     * @throws AceException 
+     * @throws IOException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws IOException, AceException {
         srv.stop();
     }
 

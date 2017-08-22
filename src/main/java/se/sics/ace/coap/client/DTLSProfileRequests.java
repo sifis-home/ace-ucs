@@ -103,7 +103,8 @@ public class DTLSProfileRequests {
         builder.setClientOnly();
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
-            String keyId = new String(key.get(KeyKeys.KeyId).GetByteString());
+            String keyId = Base64.getEncoder().encodeToString(
+                    key.get(KeyKeys.KeyId).GetByteString());
             builder.setPskStore(new StaticPskStore(
                     keyId, key.get(KeyKeys.Octet_K).GetByteString()));
             builder.setSupportedCipherSuites(new CipherSuite[]{

@@ -38,6 +38,7 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -87,6 +88,8 @@ public class TestToken {
     private static SQLConnector db = null;
     private static String dbPwd = null;
     private static Token t = null;
+    private static String cti1;
+    private static String cti2;
     
     /**
      * Set up tests.
@@ -303,22 +306,24 @@ public class TestToken {
                 keyTypes, skey, publicKey, false);
         
         //Setup token entries
-        String cti = "token1";
+        byte[] cti = new byte[] {0x00};
+        cti1 = Base64.getEncoder().encodeToString(cti);
         Map<String, CBORObject> claims = new HashMap<>();
         claims.put("scope", CBORObject.FromObject("co2"));
         claims.put("aud",  CBORObject.FromObject("sensors"));
         claims.put("exp", CBORObject.FromObject(1000000L));   
         claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject("token1"));
-        db.addToken(cti, claims);
+        claims.put("cti", CBORObject.FromObject(cti));
+        db.addToken(cti1, claims);
         
-        cti = "token2";
+        cti = new byte[]{0x01};
+        cti2 = Base64.getEncoder().encodeToString(cti);
         claims.clear();
         claims.put("scope", CBORObject.FromObject("temp"));
         claims.put("aud",  CBORObject.FromObject("actuators"));
         claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cti", CBORObject.FromObject("token2"));
-        db.addToken(cti, claims);
+        claims.put("cti", CBORObject.FromObject(cti));
+        db.addToken(cti2, claims);
         t = new Token("AS", 
                 KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, new KissTime(), privateKey); 
@@ -663,7 +668,8 @@ public class TestToken {
         System.out.println(params.toString());
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get("access_token");
-        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
+        Map<String, CBORObject> claims = db.getClaims(cti);
         System.out.println(claims.toString());
         assert(claims.get("scope").AsString().contains("rw_valve"));
         assert(claims.get("scope").AsString().contains("r_pressure"));
@@ -705,7 +711,8 @@ public class TestToken {
         System.out.println(params.toString());
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get("access_token");
-        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
+        Map<String, CBORObject> claims = db.getClaims(cti);
         System.out.println(claims.toString());
         assert(claims.get("scope").AsString().contains("rw_valve"));
     }
@@ -734,7 +741,9 @@ public class TestToken {
         System.out.println(params.toString());
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get("access_token");
-        Map<String, CBORObject> claims = db.getClaims(token.AsString());
+        String ctiStr = Base64.getEncoder().encodeToString(
+                token.GetByteString());
+        Map<String, CBORObject> claims = db.getClaims(ctiStr);
         System.out.println(claims.toString());
         assert(claims.get("scope").AsString().contains("r_pressure"));
         CBORObject cnf2 = claims.get("cnf");
@@ -749,7 +758,7 @@ public class TestToken {
      */
     @Test
     public void testPurge() throws Exception {
-        Map<String, CBORObject> claims = db.getClaims("token1");
+        Map<String, CBORObject> claims = db.getClaims(cti1);
         assert(!claims.isEmpty());
         db.purgeExpiredTokens(1000001L);
         claims = db.getClaims("token1");
@@ -763,10 +772,10 @@ public class TestToken {
      */
     @Test
     public void testRemoveToken() throws Exception { 
-        Map<String, CBORObject> claims = db.getClaims("token2");
+        Map<String, CBORObject> claims = db.getClaims(cti2);
         assert(!claims.isEmpty());
-        db.deleteToken("token2");
-        claims = db.getClaims("token2");
+        db.deleteToken(cti2);
+        claims = db.getClaims(cti2);
         assert(claims.isEmpty());
     }
     
@@ -782,10 +791,10 @@ public class TestToken {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("grant_type", Token.clientCredentialsStr);
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
-        Message response = t.processMessage(msg);
+        t.processMessage(msg);
         Long ctiCtrStart = db.getCtiCounter();
         for (int i=0; i<10; i++) {
-            response = t.processMessage(msg);
+            t.processMessage(msg);
         }
         Long ctiCtrEnd = db.getCtiCounter();
         System.out.println("Start: " + ctiCtrStart);

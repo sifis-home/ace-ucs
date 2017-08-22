@@ -154,13 +154,13 @@ public class TestCoAPServer {
                 keyTypes, skey, null, false);        
         
         KissTime time = new KissTime();
-        String cti = "token1";
+        String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<String, CBORObject> claims = new HashMap<>();
         claims.put("scope", CBORObject.FromObject("co2"));
         claims.put("aud",  CBORObject.FromObject("sensors"));
         claims.put("exp", CBORObject.FromObject(time.getCurrentTime()+1000000L));   
         claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject("token1"));
+        claims.put("cti", CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
