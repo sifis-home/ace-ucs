@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -226,7 +227,8 @@ public class Introspect implements Endpoint, AutoCloseable {
                 LOGGER.severe("Token has invalid cti");
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
-            String cti = new String(ctiCB.GetByteString(), Constants.charset);
+            String cti = Base64.getEncoder().encodeToString(
+                    ctiCB.GetByteString());
             try {
                 String clientId = this.db.getClient4Cti(cti);
                 if (clientId == null) {
@@ -335,14 +337,14 @@ public class Introspect implements Endpoint, AutoCloseable {
         byte[] ckey = cpsk.get(KeyKeys.Octet_K).GetByteString();
         try {
             switch (ckey.length) {
-            case 128:
+            case 16:
 
                 enc.addAttribute(HeaderKeys.Algorithm, 
                         AlgorithmID.AES_CCM_64_64_128.AsCBOR(), 
                         Attribute.PROTECTED);
 
                 break;
-            case 256:
+            case 32:
                 enc.addAttribute(HeaderKeys.Algorithm, 
                         AlgorithmID.AES_CCM_64_64_256.AsCBOR(), 
                         Attribute.PROTECTED);

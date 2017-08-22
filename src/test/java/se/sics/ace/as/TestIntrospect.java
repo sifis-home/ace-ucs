@@ -184,7 +184,9 @@ public class TestIntrospect {
         claims.put("exp", CBORObject.FromObject(time.getCurrentTime()-1L));   
         claims.put("aud",  CBORObject.FromObject("actuators"));
         claims.put("cti", CBORObject.FromObject(cti));
+        claims.put("cnf", publicKey.AsCBOR());
         db.addToken(ctiStr, claims);
+        db.addCti2Client(ctiStr, "client1");
         
         byte[] cti2 = new byte[]{0x01};
         String cti2Str =  Base64.getEncoder().encodeToString(cti2);
@@ -194,8 +196,9 @@ public class TestIntrospect {
         claims.put("exp", CBORObject.FromObject(
                 time.getCurrentTime() + 2000000L));
         claims.put("cti", CBORObject.FromObject(cti2));
+        claims.put("cnf", publicKey.AsCBOR());
         db.addToken(cti2Str, claims);
-
+        db.addCti2Client(cti2Str, "client1");
         i = new Introspect(
                 KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, time, publicKey);
@@ -362,7 +365,7 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessRefClientToken() throws Exception {
-        ReferenceToken t = new ReferenceToken(new byte[]{0x02});
+        ReferenceToken t = new ReferenceToken(new byte[]{0x01});
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", t.encode());
         String senderId = new RawPublicKeyIdentity(
