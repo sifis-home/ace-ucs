@@ -130,7 +130,15 @@ public class TestAuthzInfo {
         publicKey = key.PublicKey();
         
         db = SQLConnector.getInstance(null, null, null);
-
+        
+        Set<String> profiles = new HashSet<>();
+        profiles.add("coap_dtls");
+        Set<String> keyTypes = new HashSet<>();
+        keyTypes.add("RPK");
+        db.addClient("client1", profiles, null, null, keyTypes, null, 
+                key, false);
+        
+        
         Set<String> actions = new HashSet<>();
         actions.add("GET");
         Map<String, Set<String>> myResource = new HashMap<>();
@@ -253,10 +261,10 @@ public class TestAuthzInfo {
         params.put("scope", CBORObject.FromObject("r_co2"));
         params.put("cti", CBORObject.FromObject(new byte[]{0x08}));
         
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x08}), params);
-        
+        db.addToken(ctiStr, params);
+        db.addCti2Client(ctiStr, "client1");
         
         //this overwrites the scope
         params.put("scope", CBORObject.FromObject("r_temp"));
@@ -367,6 +375,7 @@ public class TestAuthzInfo {
         
         //Make introspection succeed
         db.addToken(ctiStr, claims);
+        db.addCti2Client(ctiStr, "client1");
         
         claims.put("cks", 
                 CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
@@ -406,11 +415,11 @@ public class TestAuthzInfo {
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("cti", CBORObject.FromObject(new byte[]{0x03}));
- 
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x03}), params);
-                
+        db.addCti2Client(ctiStr, "client1");        
         
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -441,10 +450,11 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("cti", CBORObject.FromObject(new byte[]{0x01}));
-        
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x01}), params);
+        db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -478,10 +488,11 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(new byte[]{0x04}));
-        
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x04});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x04}), params);
+        db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("iss", CBORObject.FromObject("TestAS"));
@@ -514,10 +525,11 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(new byte[]{0x02}));
-        
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x02});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x02}), params);
+        db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("blah"));
@@ -551,10 +563,11 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(new byte[]{0x05}));
-        
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x05});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x05}), params);
+        db.addCti2Client(ctiStr, "client1");
 
         params.put("aud", CBORObject.FromObject("rs1"));
         params.put("iss", CBORObject.FromObject("TestAS"));
@@ -587,10 +600,11 @@ public class TestAuthzInfo {
         
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(new byte[]{0x07}));
-        
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x07}), params);
+        db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
