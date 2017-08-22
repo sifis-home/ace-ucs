@@ -162,6 +162,7 @@ public class TestCoAPServer {
         claims.put("aud",  CBORObject.FromObject("actuators"));
         claims.put("cti", CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
+        db.addCti2Client(cti, "clientA");
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
