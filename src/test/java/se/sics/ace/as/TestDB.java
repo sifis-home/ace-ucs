@@ -352,7 +352,6 @@ public class TestDB {
     }
     
     /**
-<<<<<<< HEAD
      * Test the needsClientToken() function.
      * @throws Exception 
      */
@@ -366,9 +365,6 @@ public class TestDB {
     
     /**
      * Test the getRSS() function. 
-=======
-     * Test the getRSS() method. 
->>>>>>> master
      * 
      * @throws Exception 
      */

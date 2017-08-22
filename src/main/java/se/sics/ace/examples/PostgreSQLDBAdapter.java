@@ -174,7 +174,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " bytea, "
                 + DBConnector.rpkColumn + " bytea,"
-                + DBConnector.needClientToken + " smallint, "
+                + DBConnector.needClientToken + " boolean, "
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
         String createProfiles = "CREATE TABLE "

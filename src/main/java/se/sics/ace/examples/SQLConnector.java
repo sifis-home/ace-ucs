@@ -585,7 +585,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		
 		this.needClientToken = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.needClientToken + " FROM "
-                + DBConnector.dbName + "." + DBConnector.cTable
+                + DBConnector.cTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 		
 		this.selectDefaultAudience = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -674,19 +674,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                  + DBConnector.ctiCounterTable
                 + " SET " + DBConnector.ctiCounterColumn + "=?;"));
         
-        this.insertCti2Client = this.conn.prepareStatement("INSERT INTO "
+        this.insertCti2Client = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                 + DBConnector.cti2clientTable
-                + " VALUES (?,?);");
+                + " VALUES (?,?);"));
         
-        this.selectClientByCti = this.conn.prepareStatement("SELECT "
+        this.selectClientByCti = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                     + DBConnector.clientIdColumn + " FROM "
                     + DBConnector.cti2clientTable
-                    + " WHERE " + DBConnector.ctiColumn + "=?;");   
+                    + " WHERE " + DBConnector.ctiColumn + "=?;"));   
           
-        this.selectCtisByClient= this.conn.prepareStatement("SELECT "
+        this.selectCtisByClient= this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.ctiColumn + " FROM "
                 + DBConnector.cti2clientTable
-                + " WHERE " + DBConnector.clientIdColumn + "=?;");   
+                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
     
 	}
 
