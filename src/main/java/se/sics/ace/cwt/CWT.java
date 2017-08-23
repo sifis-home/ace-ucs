@@ -34,7 +34,6 @@ package se.sics.ace.cwt;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -59,7 +58,6 @@ import COSE.SignMessage;
 import COSE.Signer;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 /**
  * Implements CWTs.
@@ -105,7 +103,7 @@ public class CWT implements AccessToken {
 				if (myKid == null || myKid.equals(kid)) {
 					s.setKey(ctx.getPublicKey());
 					if(signed.validate(s)) {
-						return new CWT(parseClaims(
+						return new CWT(Constants.getParams(
 								CBORObject.DecodeFromBytes(
 										signed.GetContent())));
 					}
@@ -116,7 +114,7 @@ public class CWT implements AccessToken {
 		} else if (coseRaw instanceof Sign1Message) {
 			Sign1Message signed = (Sign1Message)coseRaw;
 			if (signed.validate(ctx.getPublicKey())) {
-				return new CWT(parseClaims(
+				return new CWT(Constants.getParams(
 					CBORObject.DecodeFromBytes(signed.GetContent())));
 			}
 			
@@ -136,8 +134,9 @@ public class CWT implements AccessToken {
 						    OneKey coseKey = new OneKey(key);
 						    r.SetKey(coseKey);			    
 						    if (maced.Validate(r)) {
-						        return new CWT(parseClaims(
-						                CBORObject.DecodeFromBytes(maced.GetContent())));
+						        return new CWT(Constants.getParams(
+						                CBORObject.DecodeFromBytes(
+						                        maced.GetContent())));
 						    }
 						}
 					}
@@ -148,7 +147,7 @@ public class CWT implements AccessToken {
 		} else if (coseRaw instanceof MAC0Message) {
 			MAC0Message maced = (MAC0Message)coseRaw;
 			if (maced.Validate(ctx.getKey())) {
-				return new CWT(parseClaims(
+				return new CWT(Constants.getParams(
 						CBORObject.DecodeFromBytes(maced.GetContent())));
 			}
 			
@@ -169,7 +168,7 @@ public class CWT implements AccessToken {
 							r.SetKey(coseKey);
 							byte[] plaintext = processDecrypt(encrypted, r);
 							if (plaintext != null) {
-								return new CWT(parseClaims(
+								return new CWT(Constants.getParams(
 										CBORObject.DecodeFromBytes(
 												plaintext)));
 							}
@@ -181,7 +180,7 @@ public class CWT implements AccessToken {
 			
 		} else if (coseRaw instanceof Encrypt0Message) {
 			Encrypt0Message encrypted = (Encrypt0Message)coseRaw;
-			return new CWT(parseClaims(
+			return new CWT(Constants.getParams(
 					CBORObject.DecodeFromBytes(encrypted.decrypt(
 							ctx.getKey()))));
 		}
@@ -200,31 +199,6 @@ public class CWT implements AccessToken {
 		}
 	}
 	
-	
-	/**
-	 * Process a CBORObject containing a Map of claims.
-	 * 
-	 * @param content  the CBOR Map of claims
-	 * @return  the mapping of unabbreviated claim names to values.
-	 * @throws AceException
-	 */
-	public static Map<Short, CBORObject> parseClaims(CBORObject content) 
-				throws AceException {
-		if (content.getType() != CBORType.Map) {
-			throw new AceException("This is not a CWT");
-		}
-		Map<Short, CBORObject> claims = new HashMap<>();
-		for (CBORObject key : content.getKeys()) {
-		    if (key.getType().equals(CBORType.Number)) {
-		        short abbrev = key.AsInt16();
-		        claims.put(abbrev, content.get(key));
-		    } else {
-		        throw new AceException("Non-integer type in CWT claims map");
-			}
-		}
-		return claims;
-	}
-	
 	/**
 	 * Encodes this CWT as CBOR Map without crypto wrapper.
 	 * 
@@ -232,11 +206,7 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public CBORObject encode() {
-	    CBORObject ret = CBORObject.NewMap();
-	    for (Entry<Short, CBORObject> c : this.claims.entrySet()) {
-	        ret.Add(CBORObject.FromObject(c.getKey()), c.getValue());
-	    }
-        return ret;
+	    return Constants.getCBOR(this.claims);
 	}
 	
 	/**

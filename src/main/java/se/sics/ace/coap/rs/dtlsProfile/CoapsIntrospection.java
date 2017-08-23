@@ -157,11 +157,11 @@ public class CoapsIntrospection implements IntrospectionHandler {
     public Map<Short, CBORObject> getParams(byte[] tokenReference) 
             throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
-        Map<String, CBORObject> params = new HashMap<>();
-        params.put("token",  CBORObject.FromObject(tokenReference));
-        params.put("token_type_hint", CBORObject.FromObject("pop")); 
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.TOKEN,  CBORObject.FromObject(tokenReference));
+        params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop")); 
         CoapResponse response =  this.client.post(
-                Constants.abbreviate(params).EncodeToBytes(), 
+                Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    
         if (!response.getCode().equals(ResponseCode.CREATED)) {
             //Some error happened
@@ -174,7 +174,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
                             response.getPayload()).toString());
         }
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        Map<String, CBORObject> map = Constants.unabbreviate(res);
+        Map<Short, CBORObject> map = Constants.getParams(res);
         return map;
         
     }

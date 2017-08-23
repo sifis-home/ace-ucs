@@ -34,7 +34,6 @@ package se.sics.ace.as;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -193,11 +192,8 @@ public class Introspect implements Endpoint, AutoCloseable {
             }  
             payload.Add(Constants.ACTIVE, CBORObject.False);           
         } else {
-            for (Entry<Short, CBORObject> entry : claims.entrySet()) {
-               payload.Add(entry.getKey(), entry.getValue());
-            }
-            payload.Add(Constants.ACTIVE, CBORObject.True);
-            
+            payload = Constants.getCBOR(claims);
+            payload.Add(Constants.ACTIVE, CBORObject.True);            
         }
         try {
             LOGGER.log(Level.INFO, "Returning introspection result: " 

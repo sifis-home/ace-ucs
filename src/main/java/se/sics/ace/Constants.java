@@ -32,8 +32,11 @@
 package se.sics.ace;
 
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 /**
  * Constants for use with the ACE framework.
@@ -379,5 +382,44 @@ public class Constants {
         }
         return -1;
     }
+    
+    /**
+     * Takes a CBORObject that is a map and transforms it
+     * into Map<Short, CBORObject>
+     * @param cbor  the CBOR map
+     * @return  the Map
+     * @throws AceException if the cbor parameter is not a CBOR map or
+     *  if a key is not a short
+     */
+    public static Map<Short, CBORObject> getParams(CBORObject cbor) 
+            throws AceException {
+        if (!cbor.getType().equals(CBORType.Map)) {
+            throw new AceException("CBOR object is not a Map"); 
+        }
+        Map<Short, CBORObject> ret = new HashMap<>();
+        for (CBORObject key : cbor.getKeys()) {
+            if (!key.getType().equals(CBORType.Number)) {
+                throw new AceException("CBOR key was not a Short: "
+                        + key.toString());
+            }
+            ret.put(key.AsInt16(), cbor.get(key));
+        }
+        return ret;
+    }
+    
+    /**
+     * Takes a  Map<Short, CBORObject> and transforms it into a CBOR map.
+     * 
+     * @param map  the map
+     * @return  the CBOR map
+     */
+    public static CBORObject getCBOR(Map<Short, CBORObject> map) {
+        CBORObject cbor = CBORObject.NewMap();
+        for (Map.Entry<Short, CBORObject> e : map.entrySet()) {
+            cbor.Add(e.getKey(), e.getValue());
+        }
+        return cbor;
+    }
+    
 
 }

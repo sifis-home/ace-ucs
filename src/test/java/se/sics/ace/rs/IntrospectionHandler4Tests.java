@@ -93,12 +93,8 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
                             res.getRawPayload()).toString());
         }
         CBORObject resC = CBORObject.DecodeFromBytes(res.getRawPayload());
-        params.clear();
         if (resC.getType().equals(CBORType.Map)) {
-            for (CBORObject c : resC.getKeys()) {
-                params.put(c.AsInt16(), resC.get(c));
-            }
-            return params;
+            return Constants.getParams(resC);
         }
         throw new AceException("Introspection didn't return a CBOR Map");
     }

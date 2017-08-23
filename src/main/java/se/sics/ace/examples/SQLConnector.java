@@ -39,7 +39,6 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
@@ -910,7 +909,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         
         Set<String> refSet = null;
-        for (Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
+        for (Map.Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
             if (refSet == null) {
                 refSet = new HashSet<>();
                 refSet.addAll(rs.getValue());
@@ -971,7 +970,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         
         Set<String> refSet = null;
-        for (Entry<String, Set<String>> rs : cose.entrySet()) {
+        for (Map.Entry<String, Set<String>> rs : cose.entrySet()) {
             if (refSet == null) {
                 refSet = new HashSet<>();
                 refSet.addAll(rs.getValue());
@@ -1484,7 +1483,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     "addToken() requires at least one claim");
         }
         try {
-            for (Entry<Short, CBORObject> claim : claims.entrySet()) {
+            for (Map.Entry<Short, CBORObject> claim : claims.entrySet()) {
                 this.insertClaim.setString(1, cti);
                 this.insertClaim.setShort(2, claim.getKey());
                 this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());

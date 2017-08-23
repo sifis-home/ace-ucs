@@ -41,6 +41,7 @@ import org.eclipse.californium.core.coap.Response;
 
 import com.upokecenter.cbor.CBORObject;
 
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -87,10 +88,7 @@ public class CoapRes implements Message {
         this.response = new Response(code);
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        CBORObject payload = CBORObject.NewMap();
-        for (Map.Entry<Short, CBORObject> entry : parameters.entrySet()) {
-            payload.Add(entry.getKey(), entry.getValue());
-        }
+        CBORObject payload = Constants.getCBOR(this.parameters);
         this.response.setPayload(payload.EncodeToBytes());   
     }
     

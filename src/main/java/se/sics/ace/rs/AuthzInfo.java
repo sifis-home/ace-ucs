@@ -183,7 +183,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    
 	    //2. Check if the token is active, this will only be present if we 
 	    // did introspect
-	    CBORObject active = claims.get("active");
+	    CBORObject active = claims.get(Constants.ACTIVE);
         if (active != null && active.isFalse()) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -193,7 +193,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
         }
 
 	    //3. Check that the token is not expired (exp)
-	    CBORObject exp = claims.get("exp");
+	    CBORObject exp = claims.get(Constants.EXP);
 	    if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) { 
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -204,7 +204,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }   
       
 	    //4. Check if we accept the issuer (iss)
-	    CBORObject iss = claims.get("iss");
+	    CBORObject iss = claims.get(Constants.ISS);
 	    if (iss == null) {
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -223,7 +223,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }
 
 	    //5. Check if we are the audience (aud)
-	    CBORObject aud = claims.get("aud");
+	    CBORObject aud = claims.get(Constants.AUD);
 	    if (aud == null) {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -242,7 +242,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }
 
 	    //6. Check if the token has a scope
-	    CBORObject scope = claims.get("scope");
+	    CBORObject scope = claims.get(Constants.SCOPE);
 	    if (scope == null) {
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_SCOPE);

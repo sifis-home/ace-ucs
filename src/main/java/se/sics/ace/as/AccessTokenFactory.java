@@ -37,6 +37,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.cwt.CWT;
 
@@ -83,7 +84,7 @@ public class AccessTokenFactory {
 		case CWT_TYPE :
 			return new CWT(claims);
 		case REF_TYPE :
-		    CBORObject cti = claims.get("cti");
+		    CBORObject cti = claims.get(Constants.CTI);
 	        if (cti == null) {
 	            throw new AceException("Token has no cti");
 	        }

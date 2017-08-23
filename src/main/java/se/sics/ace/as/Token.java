@@ -276,7 +276,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//6. Create token
 		//Find supported token type
-		Integer tokenType = null;
+		Short tokenType = null;
         try {
             tokenType = this.db.getSupportedTokenType(aud);
         } catch (AceException e) {

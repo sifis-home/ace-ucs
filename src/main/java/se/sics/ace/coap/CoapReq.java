@@ -44,6 +44,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -82,11 +83,9 @@ public class CoapReq implements Message {
             } catch (CBORException ex) {
                 throw new AceException(ex.getMessage());
             }
-            if (cborPayload != null && cborPayload.getType().equals(CBORType.Map)) {
-                this.parameters = new HashMap<>();
-                for (CBORObject c : cborPayload.getKeys()) {
-                    this.parameters.put(c.AsInt16(), cborPayload.get(c));
-                }
+            if (cborPayload != null 
+                    && cborPayload.getType().equals(CBORType.Map)) {
+                this.parameters = Constants.getParams(cborPayload);
             }
         }
     }

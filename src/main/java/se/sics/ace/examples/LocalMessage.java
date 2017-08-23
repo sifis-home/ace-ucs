@@ -34,10 +34,13 @@ package se.sics.ace.examples;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -47,7 +50,12 @@ import se.sics.ace.Message;
  *
  */
 public class LocalMessage implements Message {
-
+    
+    /**
+     * The logger
+     */
+    private static final Logger LOGGER 
+        = Logger.getLogger(LocalMessage.class.getName() );
     
     /**
      * The authenticated id of the sender
@@ -97,6 +105,7 @@ public class LocalMessage implements Message {
      * @param senderId
      * @param recipientId 
      * @param payload
+     * @throws AceException 
      */
     public LocalMessage(int code, String senderId, 
             String recipientId, CBORObject payload) {
@@ -107,9 +116,11 @@ public class LocalMessage implements Message {
         this.payload = payload;
 
         if (payload != null && payload.getType().equals(CBORType.Map)) {
-            this.params = new HashMap<>();
-            for (CBORObject c : payload.getKeys()) {
-                this.params.put(c.AsInt16(), payload.get(c));
+            try {
+                this.params = Constants.getParams(payload);
+            } catch (AceException e) {
+                LOGGER.severe(e.getMessage());
+                this.params = null;
             }
         }
     }

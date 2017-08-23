@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -439,7 +438,7 @@ public class TokenRepository implements AutoCloseable {
 	public synchronized void pollTokens(TimeProvider time) 
 				throws AceException {
 	    HashSet<String> tokenToRemove = new HashSet<>();
-		for (Entry<String, Map<Short, CBORObject>> foo 
+		for (Map.Entry<String, Map<Short, CBORObject>> foo 
 		        : this.cti2claims.entrySet()) {
 		    if (foo.getValue() != null) {
 		        CBORObject exp = foo.getValue().get(Constants.EXP);
@@ -581,7 +580,7 @@ public class TokenRepository implements AutoCloseable {
 	    for (String cti : this.cti2claims.keySet()) {
 	        Map<Short, CBORObject> claims = this.cti2claims.get(cti);
 	        JSONObject token = new JSONObject();
-	        for (Entry<Short,CBORObject> entry : claims.entrySet()) {
+	        for (Map.Entry<Short,CBORObject> entry : claims.entrySet()) {
 	            token.put(entry.getKey().toString(), 
 	                    Base64.getEncoder().encodeToString(
 	                            entry.getValue().EncodeToBytes()));
