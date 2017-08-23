@@ -151,7 +151,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         }
 
 	    //Get the token from the payload
-        CBORObject cbor = msg.getParameter("token");
+        CBORObject cbor = msg.getParameter(Constants.TOKEN);
         if (cbor == null) {
             LOGGER.log(Level.INFO,
                     "Request didn't provide 'token' parameter");
@@ -174,7 +174,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         
         //3. Check if token is still in there
         //If not return active=false	    
-        Map<String, CBORObject> claims;
+        Map<Short, CBORObject> claims;
         try {
             claims = this.db.getClaims(token.getCti());
         } catch (AceException e) {
@@ -193,23 +193,18 @@ public class Introspect implements Endpoint, AutoCloseable {
             }  
             payload.Add(Constants.ACTIVE, CBORObject.False);           
         } else {
-            for (Entry<String, CBORObject> entry : claims.entrySet()) {
-                short abbrev = Constants.getIdx(
-                        Constants.ABBREV, entry.getKey());
-                if (abbrev == -1) { //No abbreviation found
-                    payload.Add(entry.getKey(), entry.getValue());
-                } else {
-                    payload.Add(abbrev, entry.getValue());
-                }
-                try {
-                    LOGGER.log(Level.INFO, "Returning introspection result: " 
-                            + claims.toString() + " for " + token.getCti());
-                } catch (AceException e) {
-                    LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
-                    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                }
+            for (Entry<Short, CBORObject> entry : claims.entrySet()) {
+               payload.Add(entry.getKey(), entry.getValue());
             }
             payload.Add(Constants.ACTIVE, CBORObject.True);
+            
+        }
+        try {
+            LOGGER.log(Level.INFO, "Returning introspection result: " 
+                    + payload.toString() + " for " + token.getCti());
+        } catch (AceException e) {
+            LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
         return msg.successReply(Message.CREATED, payload);
 	}

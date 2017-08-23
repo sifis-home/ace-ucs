@@ -41,7 +41,6 @@ import org.eclipse.californium.core.coap.Response;
 
 import com.upokecenter.cbor.CBORObject;
 
-import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -56,7 +55,7 @@ public class CoapRes implements Message {
      * The parameters in the payload of this message as a Map for convenience.
      * This is null if the payload is empty or not a CBOR Map.
      */
-    private Map<String, CBORObject> parameters = null;
+    private Map<Short, CBORObject> parameters = null;
     
     
     /**
@@ -84,12 +83,15 @@ public class CoapRes implements Message {
      * @param parameters  the response parameters
      */
     public CoapRes(ResponseCode code,
-            Map<String, CBORObject> parameters) {
+            Map<Short, CBORObject> parameters) {
         this.response = new Response(code);
         this.parameters = new HashMap<>();
         this.parameters.putAll(parameters);
-        this.response.setPayload(
-                Constants.abbreviate(this.parameters).EncodeToBytes());   
+        CBORObject payload = CBORObject.NewMap();
+        for (Map.Entry<Short, CBORObject> entry : parameters.entrySet()) {
+            payload.Add(entry.getKey(), entry.getValue());
+        }
+        this.response.setPayload(payload.EncodeToBytes());   
     }
     
     @Override
@@ -103,7 +105,7 @@ public class CoapRes implements Message {
     }
 
     @Override
-    public Set<String> getParameterNames() {
+    public Set<Short> getParameterNames() {
         if (this.parameters != null) {
             return this.parameters.keySet();
         }
@@ -111,7 +113,7 @@ public class CoapRes implements Message {
     }
 
     @Override
-    public CBORObject getParameter(String name) {
+    public CBORObject getParameter(Short name) {
         if (this.parameters != null) {
             return this.parameters.get(name);
         }
@@ -119,9 +121,9 @@ public class CoapRes implements Message {
     }
 
     @Override
-    public Map<String, CBORObject> getParameters() {
+    public Map<Short, CBORObject> getParameters() {
         if (this.parameters != null) {
-            Map<String, CBORObject> map = new HashMap<>();
+            Map<Short, CBORObject> map = new HashMap<>();
             map.putAll(this.parameters);
             return map;
         }

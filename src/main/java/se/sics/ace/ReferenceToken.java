@@ -111,7 +111,7 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = null;
+		Map<Short, CBORObject> params = null;
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
@@ -134,7 +134,7 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = null;
+		Map<Short, CBORObject> params = null;
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {

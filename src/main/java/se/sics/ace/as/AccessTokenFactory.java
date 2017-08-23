@@ -51,17 +51,17 @@ public class AccessTokenFactory {
 	/**
 	 * The type identifier for CWTs
 	 */
-	public static final int CWT_TYPE = 0;
+	public static final short CWT_TYPE = 0;
 	
 	/**
 	 * The type identifier for reference tokens
 	 */
-	public static final int REF_TYPE = 1;
+	public static final short REF_TYPE = 1;
 	
 	/**
      * The type identifier for test tokens
      */
-    public static final int TEST_TYPE = 2;
+    public static final short TEST_TYPE = 2;
     
 	
 	/**
@@ -78,7 +78,7 @@ public class AccessTokenFactory {
 	 * @throws AceException
 	 */
 	public static AccessToken generateToken(
-			int type, Map<String, CBORObject> claims) throws AceException {
+			int type, Map<Short, CBORObject> claims) throws AceException {
 		switch (type) {
 		case CWT_TYPE :
 			return new CWT(claims);

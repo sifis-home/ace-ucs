@@ -44,7 +44,6 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
 import se.sics.ace.Message;
 
 /**
@@ -59,7 +58,7 @@ public class CoapReq implements Message {
      * The parameters in the payload of this message as a Map for convenience,
      * if the payload is a CBOR Map.
      */
-    private Map<String, CBORObject> parameters;
+    private Map<Short, CBORObject> parameters;
     
     /**
      * The underlying Request from Californium
@@ -84,7 +83,10 @@ public class CoapReq implements Message {
                 throw new AceException(ex.getMessage());
             }
             if (cborPayload != null && cborPayload.getType().equals(CBORType.Map)) {
-                this.parameters = Constants.unabbreviate(cborPayload);
+                this.parameters = new HashMap<>();
+                for (CBORObject c : cborPayload.getKeys()) {
+                    this.parameters.put(c.AsInt16(), cborPayload.get(c));
+                }
             }
         }
     }
@@ -105,7 +107,7 @@ public class CoapReq implements Message {
     }
 
     @Override
-    public Set<String> getParameterNames() {
+    public Set<Short> getParameterNames() {
         if (this.parameters != null) {
             return this.parameters.keySet();
         }
@@ -113,7 +115,7 @@ public class CoapReq implements Message {
     }
 
     @Override
-    public CBORObject getParameter(String name) {
+    public CBORObject getParameter(Short name) {
         if (this.parameters != null) {
             return this.parameters.get(name);
         }
@@ -121,9 +123,9 @@ public class CoapReq implements Message {
     }
 
     @Override
-    public Map<String, CBORObject> getParameters() {
+    public Map<Short, CBORObject> getParameters() {
         if (this.parameters != null) {
-            Map<String, CBORObject> map = new HashMap<>();
+            Map<Short, CBORObject> map = new HashMap<>();
             map.putAll(this.parameters);
             return map;
         }

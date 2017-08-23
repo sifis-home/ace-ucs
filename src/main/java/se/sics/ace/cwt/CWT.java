@@ -34,6 +34,7 @@ package se.sics.ace.cwt;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -68,14 +69,14 @@ import com.upokecenter.cbor.CBORType;
  */
 public class CWT implements AccessToken {
 
-	private Map<String, CBORObject> claims;	
+	private Map<Short, CBORObject> claims;	
 	
 	/**
 	 * Creates a new CWT without a COSE wrapper.
 	 * 
 	 * @param claims  the map of claims.
 	 */
-	public CWT(Map<String, CBORObject> claims) {
+	public CWT(Map<Short, CBORObject> claims) {
 		this.claims = new HashMap<> (claims);
 	}
 	
@@ -207,34 +208,18 @@ public class CWT implements AccessToken {
 	 * @return  the mapping of unabbreviated claim names to values.
 	 * @throws AceException
 	 */
-	public static Map<String, CBORObject> parseClaims(CBORObject content) 
+	public static Map<Short, CBORObject> parseClaims(CBORObject content) 
 				throws AceException {
 		if (content.getType() != CBORType.Map) {
 			throw new AceException("This is not a CWT");
 		}
-		Map<String, CBORObject> claims = new HashMap<>();
+		Map<Short, CBORObject> claims = new HashMap<>();
 		for (CBORObject key : content.getKeys()) {
-			switch(key.getType()) {
-			
-				case TextString :
-					claims.put(key.AsString(), content.get(key));						
-					break;
-					
-				case Number :
-					int abbrev = key.AsInt32();
-					if (abbrev < Constants.ABBREV.length) {
-						claims.put(Constants.ABBREV[abbrev], 
-								content.get(key));
-					} else {
-						throw new AceException(
-								"Unknown claim abbreviation: " + abbrev);
-					}
-					break;
-					
-				default :
-					throw new AceException(
-							"Invalid key type in CWT claims map");
-			
+		    if (key.getType().equals(CBORType.Number)) {
+		        short abbrev = key.AsInt16();
+		        claims.put(abbrev, content.get(key));
+		    } else {
+		        throw new AceException("Non-integer type in CWT claims map");
 			}
 		}
 		return claims;
@@ -247,7 +232,11 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public CBORObject encode() {
-        return Constants.abbreviate(this.claims);
+	    CBORObject ret = CBORObject.NewMap();
+	    for (Entry<Short, CBORObject> c : this.claims.entrySet()) {
+	        ret.Add(CBORObject.FromObject(c.getKey()), c.getValue());
+	    }
+        return ret;
 	}
 	
 	/**
@@ -349,21 +338,21 @@ public class CWT implements AccessToken {
 	 * @param name  the name of the claim
 	 * @return  the value of the claim or null.
 	 */
-	public CBORObject getClaim(String name) {
+	public CBORObject getClaim(Short name) {
 		return this.claims.get(name);
 	}
 	
 	/**
 	 * @return  a list of all claims in this CWT.
 	 */
-	public Set<String> getClaimKeys() {
+	public Set<Short> getClaimKeys() {
 		return this.claims.keySet();
 	}
 	
 	/**
 	 * @return a copy of the claims in this CWT.
 	 */
-	public Map<String, CBORObject> getClaims() {
+	public Map<Short, CBORObject> getClaims() {
 	    return new HashMap<>(this.claims);
 	}
 	
@@ -377,11 +366,11 @@ public class CWT implements AccessToken {
 	@Override
 	public boolean isValid(long now) {
 		//Check nbf and exp for the found match
-		CBORObject nbfO = this.claims.get("nbf");
+		CBORObject nbfO = this.claims.get(Constants.NBF);
 		if (nbfO != null &&  nbfO.AsInt64()	> now) {
 			return false;
 		}	
-		CBORObject expO = this.claims.get("exp");
+		CBORObject expO = this.claims.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
 			return false;
@@ -398,7 +387,7 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public boolean expired(long now) {
-		CBORObject expO = this.claims.get("exp");
+		CBORObject expO = this.claims.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
 			return true;
@@ -413,7 +402,7 @@ public class CWT implements AccessToken {
 
     @Override
     public String getCti() throws AceException {
-        CBORObject cti = this.claims.get("cti");
+        CBORObject cti = this.claims.get(Constants.CTI);
         if (cti == null) {
             throw new AceException("Token has no cti");
         }

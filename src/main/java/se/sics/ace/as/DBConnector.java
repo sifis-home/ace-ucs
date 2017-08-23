@@ -252,7 +252,7 @@ public interface DBConnector {
      * @return  a token type the audience supports or null
      * @throws AceException 
      */
-    public Integer getSupportedTokenType(String aud) throws AceException;
+    public Short getSupportedTokenType(String aud) throws AceException;
     
     /**
      * Returns a common set of COSE message parameters used to protect
@@ -412,7 +412,7 @@ public interface DBConnector {
 	 * @throws AceException 
 	 */
 	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
-            Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
+            Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
             Set<COSEparams> cose, long expiration, OneKey sharedKey, 
             OneKey publicKey) throws AceException;
 	/**
@@ -462,7 +462,7 @@ public interface DBConnector {
 	 * 
 	 * @throws AceException 
 	 */
-	public void addToken(String cti, Map<String, CBORObject> claims) 
+	public void addToken(String cti, Map<Short, CBORObject> claims) 
 	        throws AceException;
 	
 	/**
@@ -492,7 +492,7 @@ public interface DBConnector {
      *  
      * @throws AceException
      */
-    public Map<String, CBORObject> getClaims(String cti) throws AceException;
+    public Map<Short, CBORObject> getClaims(String cti) throws AceException;
     
     
     /**

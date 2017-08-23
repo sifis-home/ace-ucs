@@ -57,7 +57,7 @@ public interface IntrospectionHandler {
 	 * @throws IntrospectionException 
 	 * @throws AceException 
 	 */
-	public Map<String, CBORObject> getParams(byte[] tokenReference) 
+	public Map<Short, CBORObject> getParams(byte[] tokenReference) 
 	        throws IntrospectionException, AceException;
 	
 }

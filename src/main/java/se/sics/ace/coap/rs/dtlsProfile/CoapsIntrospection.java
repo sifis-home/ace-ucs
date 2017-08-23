@@ -154,7 +154,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
     }
     
     @Override
-    public Map<String, CBORObject> getParams(byte[] tokenReference) 
+    public Map<Short, CBORObject> getParams(byte[] tokenReference) 
             throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
         Map<String, CBORObject> params = new HashMap<>();

@@ -189,8 +189,8 @@ public class Token implements Endpoint, AutoCloseable {
 	            + msg.getParameters());
 	    
 	    //1. Check that this is a client credentials grant type    
-	    if (msg.getParameter("grant_type") == null 
-	            || !msg.getParameter("grant_type")
+	    if (msg.getParameter(Constants.GRANT_TYPE) == null 
+	            || !msg.getParameter(Constants.GRANT_TYPE)
 	                .equals(clientCredentialsStr)) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
@@ -210,7 +210,7 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		
 		//3. Check if the request has a scope
-		CBORObject cbor = msg.getParameter("scope");
+		CBORObject cbor = msg.getParameter(Constants.SCOPE);
 		String scope = null;
 		if (cbor == null ) {
 			try {
@@ -233,7 +233,7 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		
 		//4. Check if the request has an audience or if there is a default aud
-		cbor = msg.getParameter("aud");
+		cbor = msg.getParameter(Constants.AUD);
 		String aud = null;
 		if (cbor == null) {
 		    try {
@@ -294,9 +294,9 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		
 		
-		Map<String, CBORObject> claims = new HashMap<>();
-		claims.put("iss", CBORObject.FromObject(this.asId));
-		claims.put("aud", CBORObject.FromObject(aud));
+		Map<Short, CBORObject> claims = new HashMap<>();
+		claims.put(Constants.ISS, CBORObject.FromObject(this.asId));
+		claims.put(Constants.AUD, CBORObject.FromObject(aud));
 		//Don't use sub, cnf is enough to bind the token
 		//and sub leads to problems with the DTLS profile and PSK
 		//claims.put("sub", CBORObject.FromObject(id));
@@ -315,13 +315,13 @@ public class Token implements Endpoint, AutoCloseable {
 		} else {
 		    exp = now + exp;
 		}
-		claims.put("exp", CBORObject.FromObject(exp));
-		claims.put("iat", CBORObject.FromObject(now));
+		claims.put(Constants.EXP, CBORObject.FromObject(exp));
+		claims.put(Constants.IAT, CBORObject.FromObject(now));
 		byte[] ctiB = buffer.putLong(0, this.cti).array();
 		String ctiStr = Base64.getEncoder().encodeToString(ctiB);
 		this.cti++;
-		claims.put("cti", CBORObject.FromObject(ctiB));
-		claims.put("scope", CBORObject.FromObject(allowedScopes));
+		claims.put(Constants.CTI, CBORObject.FromObject(ctiB));
+		claims.put(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 
 		//Find supported profile
 		String profile = null;
@@ -355,7 +355,7 @@ public class Token implements Endpoint, AutoCloseable {
 		//Check if client requested a specific kid,
 		// if so, assume the client knows what it's doing
 		// i.e. that the RS has that key and can process it
-		CBORObject cnf = msg.getParameter("cnf");
+		CBORObject cnf = msg.getParameter(Constants.CNF);
 		if (cnf != null && cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
 		    //Check that the kid is well-formed
 		    CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
@@ -369,7 +369,7 @@ public class Token implements Endpoint, AutoCloseable {
                         "Malformed kid in 'cnf' parameter");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
-		    claims.put("cnf", cnf);
+		    claims.put(Constants.CNF, cnf);
 		} else {	
 		    //Find supported key type for proof-of-possession
 		    String keyType = "";
@@ -398,7 +398,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            OneKey psk = new OneKey(keyData);
 		            CBORObject coseKey = CBORObject.NewMap();
 		            coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
-		            claims.put("cnf", coseKey);
+		            claims.put(Constants.CNF, coseKey);
 		        } catch (NoSuchAlgorithmException | CoseException e) {
 		            this.cti--; //roll-back
 		            LOGGER.severe("Message processing aborted: "
@@ -447,7 +447,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        }
 		        CBORObject coseKey = CBORObject.NewMap();
 		        coseKey.Add(Constants.COSE_KEY, rpk.AsCBOR());
-		        claims.put("cnf", coseKey);
+		        claims.put(Constants.CNF, coseKey);
 		        break;
 		    default :
 	            this.cti--; //roll-back
@@ -470,7 +470,7 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
-		rsInfo.Add(Constants.CNF, claims.get("cnf"));
+		rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 		if (!allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}

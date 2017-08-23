@@ -131,7 +131,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    
 		//1. Check whether it is a CWT or REF type
 	    CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    Map<String, CBORObject> claims = null;
+	    Map<Short, CBORObject> claims = null;
 	    if (cbor.getType().equals(CBORType.ByteString)) {
 	        try {
                 claims = processRefrenceToken(msg);
@@ -290,16 +290,16 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<String,CBORObject> processCWT(Message msg) 
+	private Map<Short,CBORObject> processCWT(Message msg) 
 	        throws IntrospectionException, AceException, 
 	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 	    //Check if we can introspect this token
-	    Map<String, CBORObject> claims = cwt.getClaims();
+	    Map<Short, CBORObject> claims = cwt.getClaims();
 	   if (this.intro != null) {
-	       CBORObject cti = claims.get("cti");
+	       CBORObject cti = claims.get(Constants.CTI);
 	       if (cti != null && cti.getType().equals(CBORType.ByteString)) {
-	           Map<String, CBORObject> introClaims 
+	           Map<Short, CBORObject> introClaims 
 	               = this.intro.getParams(cti.GetByteString());
 	           if (introClaims != null) {
 	               claims.putAll(introClaims);
@@ -318,7 +318,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    private Map<String, CBORObject> processRefrenceToken(Message msg)
+    private Map<Short, CBORObject> processRefrenceToken(Message msg)
                 throws AceException, IntrospectionException {
         
         // This should be a CBOR String
@@ -331,11 +331,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
         if (this.intro == null) {
             throw new AceException("Introspection handler not found");
         }
-        Map<String, CBORObject> params 
+        Map<Short, CBORObject> params 
             = this.intro.getParams(token.GetByteString());        
         if (params == null) {
             params = new HashMap<>();
-            params.put("active", CBORObject.False);
+            params.put(Constants.ACTIVE, CBORObject.False);
         }
        
         return params;

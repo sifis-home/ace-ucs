@@ -213,7 +213,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         String createClaims = "CREATE TABLE "
                 + DBConnector.claimsTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
-                + DBConnector.claimNameColumn + " varchar(8) NOT NULL,"
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " bytea);";
 
         String createCtiCtr = "CREATE TABLE "

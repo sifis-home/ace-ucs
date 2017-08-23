@@ -164,7 +164,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + this.dbName + "."
                 + DBConnector.claimsTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
-                + DBConnector.claimNameColumn + " varchar(8) NOT NULL,"
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " varbinary(255));";
 
         String createCtiCtr = "CREATE TABLE IF NOT EXISTS "

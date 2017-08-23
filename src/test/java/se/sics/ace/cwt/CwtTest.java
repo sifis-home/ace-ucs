@@ -50,6 +50,7 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.Recipient;
 import COSE.Signer;
+import se.sics.ace.Constants;
 
 /**
  * Tests of CWT code
@@ -65,7 +66,7 @@ public class CwtTest {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
 
-    static Map<String, CBORObject> claims;
+    static Map<Short, CBORObject> claims;
    
     /**
      * Tests for CWT code.
@@ -84,16 +85,16 @@ public class CwtTest {
         publicKey = privateKey.PublicKey();
 
         claims = new HashMap<>();
-        claims.put("iss", CBORObject.FromObject("coap://as.example.com"));
-        claims.put("aud", CBORObject.FromObject("coap://light.example.com"));
-        claims.put("exp", CBORObject.FromObject(1444064944));
-        claims.put("nbf", CBORObject.FromObject(1443944944));
-        claims.put("iat", CBORObject.FromObject(1443944944));
+        claims.put(Constants.ISS, CBORObject.FromObject("coap://as.example.com"));
+        claims.put(Constants.AUD, CBORObject.FromObject("coap://light.example.com"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1444064944));
+        claims.put(Constants.NBF, CBORObject.FromObject(1443944944));
+        claims.put(Constants.IAT, CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
-        claims.put("cti", CBORObject.FromObject(cti));
-        claims.put("cks", 
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        claims.put(Constants.CNF, 
                 CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
-        claims.put("scope", CBORObject.FromObject(
+        claims.put(Constants.SCOPE, CBORObject.FromObject(
         		"r+/s/light rwx+/a/led w+/dtls"));
     }
 
@@ -122,7 +123,7 @@ public class CwtTest {
         ctx = CwtCryptoCtx.sign1Verify(publicKey, alg);
         CWT cwt2 = CWT.processCOSE(rawCWT, ctx);
         
-        for (String key : claims.keySet()) {
+        for (Short key : claims.keySet()) {
         	assert(cwt2.getClaimKeys().contains(key));
         }
     }
@@ -142,7 +143,7 @@ public class CwtTest {
          
         CWT cwt2 = CWT.processCOSE(rawCWT, ctx);
         
-         for (String key : claims.keySet()) {
+         for (Short key : claims.keySet()) {
          	assert(cwt2.getClaimKeys().contains(key));
          }
      }
@@ -162,7 +163,7 @@ public class CwtTest {
           
          CWT cwt2 = CWT.processCOSE(rawCWT, ctx);
          
-          for (String key : claims.keySet()) {
+          for (Short key : claims.keySet()) {
           	assert(cwt2.getClaimKeys().contains(key));
           }
       }
@@ -188,7 +189,7 @@ public class CwtTest {
           
            CWT cwt2 = CWT.processCOSE(rawCWT, ctx2);
            
-            for (String key : claims.keySet()) {
+            for (Short key : claims.keySet()) {
             	assert(cwt2.getClaimKeys().contains(key));
             }
        }
@@ -215,7 +216,7 @@ public class CwtTest {
             
             CWT cwt2 = CWT.processCOSE(msg.EncodeToBytes(), ctx);
             
-            for (String key : claims.keySet()) {
+            for (Short key : claims.keySet()) {
             	assert(cwt2.getClaimKeys().contains(key));
             }
         }
@@ -242,7 +243,7 @@ public class CwtTest {
              
              CWT cwt2 = CWT.processCOSE(msg.EncodeToBytes(), ctx);
              
-             for (String key : claims.keySet()) {
+             for (Short key : claims.keySet()) {
              	assert(cwt2.getClaimKeys().contains(key));
              }
          }

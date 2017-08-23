@@ -50,6 +50,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.DBConnector;
 
@@ -636,7 +637,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        + DBConnector.ctiColumn + "," + DBConnector.claimValueColumn
 		        + " FROM "
 		        + DBConnector.claimsTable
-		        + " WHERE " + DBConnector.claimNameColumn + "='exp';"));
+		        + " WHERE " + DBConnector.claimNameColumn + "=" + Constants.EXP + ";"));
 		        
 		this.insertClaim = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.claimsTable
@@ -877,7 +878,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
-    public  synchronized Integer getSupportedTokenType(String aud) 
+    public  synchronized Short getSupportedTokenType(String aud) 
             throws AceException {
         if (aud == null) {
             throw new AceException(
@@ -928,7 +929,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         //Get the first remaining value
         if (refSet != null && !refSet.isEmpty()) {
             String tokenType = refSet.iterator().next();
-            for (int i=0; i<AccessTokenFactory.ABBREV.length; i++) {
+            for (short i=0; i<AccessTokenFactory.ABBREV.length; i++) {
                 if (tokenType.equals(AccessTokenFactory.ABBREV[i])) {
                     return i;
                 }
@@ -1245,7 +1246,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     @Override
     public synchronized void addRS(String rsId, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
-            Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
+            Set<Short> tokenTypes, Set<COSEparams> cose, long expiration, 
             OneKey sharedKey, OneKey publicKey) throws AceException {
        
         if (rsId == null || rsId.isEmpty()) {
@@ -1334,7 +1335,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             }
             this.insertKeyType.clearParameters();
             
-            for (int tokenType : tokenTypes) {
+            for (short tokenType : tokenTypes) {
                 this.insertTokenType.setString(1, rsId);
                 this.insertTokenType.setString(2, 
                         AccessTokenFactory.ABBREV[tokenType]);
@@ -1473,7 +1474,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     
     @Override
     public synchronized void addToken(String cti, 
-            Map<String, CBORObject> claims) throws AceException {
+            Map<Short, CBORObject> claims) throws AceException {
         if (cti == null || cti.isEmpty()) {
             throw new AceException(
                     "addToken() requires non-null, non-empty cti");
@@ -1483,9 +1484,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     "addToken() requires at least one claim");
         }
         try {
-            for (Entry<String, CBORObject> claim : claims.entrySet()) {
+            for (Entry<Short, CBORObject> claim : claims.entrySet()) {
                 this.insertClaim.setString(1, cti);
-                this.insertClaim.setString(2, claim.getKey());
+                this.insertClaim.setShort(2, claim.getKey());
                 this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());
                 this.insertClaim.execute();
             }
@@ -1528,19 +1529,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
 
     @Override
-    public synchronized Map<String, CBORObject> getClaims(String cti) 
+    public synchronized Map<Short, CBORObject> getClaims(String cti) 
             throws AceException {
         if (cti == null) {
             throw new AceException("getClaims() requires non-null cti");
         }
-        Map<String, CBORObject> claims = new HashMap<>();
+        Map<Short, CBORObject> claims = new HashMap<>();
         try {
             this.selectClaims.setString(1, cti);
             ResultSet result = this.selectClaims.executeQuery();
             this.selectClaims.clearParameters();
             while (result.next()) {
-                String claimName 
-                    = result.getString(DBConnector.claimNameColumn);
+                Short claimName 
+                    = result.getShort(DBConnector.claimNameColumn);
                 CBORObject cbor = CBORObject.DecodeFromBytes(
                         result.getBytes(DBConnector.claimValueColumn));
                 claims.put(claimName, cbor);
