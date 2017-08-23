@@ -57,6 +57,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -129,15 +130,21 @@ public class TestAuthzInfo {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
+        OneKey sharedKey = new OneKey();
+        sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        sharedKey.add(KeyKeys.KeyId, CBORObject.FromObject(new byte[]{0x74, 0x11}));
+        sharedKey.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+       
         db = SQLConnector.getInstance(null, null, null);
         
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
-        keyTypes.add("RPK");
+        keyTypes.add("PSK");
         db.addClient("client1", profiles, null, null, keyTypes, null, 
-                key, false);
-        
+                publicKey, false);
+        db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
+                publicKey, true);
         
         Set<String> actions = new HashSet<>();
         actions.add("GET");
@@ -234,7 +241,7 @@ public class TestAuthzInfo {
     public void testRefInactive() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         ReferenceToken token = new ReferenceToken(20);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                 token.encode());
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -259,9 +266,9 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, IntrospectionException {
         Map<String, CBORObject> params = new HashMap<>();
         params.put("scope", CBORObject.FromObject("r_co2"));
-        params.put("cti", CBORObject.FromObject(new byte[]{0x08}));
+        params.put("cti", CBORObject.FromObject(new byte[]{0x01}));
         
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
         //Make introspection succeed
         db.addToken(ctiStr, params);
         db.addCti2Client(ctiStr, "client1");
@@ -283,13 +290,13 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                 token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x08});
+        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
         String kidStr = Base64.getEncoder().encodeToString(
                 kid.GetByteString());
         assert(1 == tr.canAccess(
@@ -314,7 +321,7 @@ public class TestAuthzInfo {
         claims.put("exp", CBORObject.FromObject(1444064944));
         claims.put("nbf", CBORObject.FromObject(1443944944));
         claims.put("iat", CBORObject.FromObject(1443944944));
-        byte[] cti = {0x0B, 0x71};
+        byte[] cti = {0x0B, 0x72};
         claims.put("cti", CBORObject.FromObject(cti));
         claims.put("cks", 
                 CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
@@ -323,7 +330,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
 
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                 cwt.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -346,7 +353,7 @@ public class TestAuthzInfo {
     public void testInvalidTokenFormat() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         CBORObject token = CBORObject.False;
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                token);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -414,11 +421,11 @@ public class TestAuthzInfo {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("r_temp"));
         params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(new byte[]{0x03}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
+        params.put("cti", CBORObject.FromObject(new byte[]{0x02}));
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x02});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x03}), params);
+                new byte[]{0x02}), params);
         db.addCti2Client(ctiStr, "client1");        
         
         CWT token = new CWT(params);
@@ -426,7 +433,7 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -449,11 +456,11 @@ public class TestAuthzInfo {
     public void testIssuerNotRecognized() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("cti", CBORObject.FromObject(new byte[]{0x01}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
+        params.put("cti", CBORObject.FromObject(new byte[]{0x03}));
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x01}), params);
+                new byte[]{0x03}), params);
         db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
@@ -464,7 +471,7 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
@@ -524,11 +531,11 @@ public class TestAuthzInfo {
     public void testNoAudienceMatch() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
-        params.put("cti", CBORObject.FromObject(new byte[]{0x02}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x02});
+        params.put("cti", CBORObject.FromObject(new byte[]{0x05}));
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x05});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x02}), params);
+                new byte[]{0x05}), params);
         db.addCti2Client(ctiStr, "client1");
         
         params.put("scope", CBORObject.FromObject("r_temp"));
@@ -562,11 +569,11 @@ public class TestAuthzInfo {
     public void testNoScope() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<String, CBORObject> params = new HashMap<>();
-        params.put("cti", CBORObject.FromObject(new byte[]{0x05}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x05});
+        params.put("cti", CBORObject.FromObject(new byte[]{0x06}));
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x06});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x05}), params);
+                new byte[]{0x06}), params);
         db.addCti2Client(ctiStr, "client1");
 
         params.put("aud", CBORObject.FromObject("rs1"));
@@ -600,15 +607,15 @@ public class TestAuthzInfo {
         
         Map<String, CBORObject> params = new HashMap<>();
         params.put("cti", CBORObject.FromObject(new byte[]{0x07}));
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x07}), params);
-        db.addCti2Client(ctiStr, "client1");
+        db.addCti2Client(ctiStr, "client1");  
         
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("iss", CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
@@ -637,4 +644,64 @@ public class TestAuthzInfo {
     }    
     
     //FIXME: Add test for handling client token returning from introspection
+    /**
+     * Test successful submission to AuthzInfo
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException  
+     */
+    @Test
+    public void testClientToken() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        
+        Map<String, CBORObject> params = new HashMap<>();
+        params.put("cti", CBORObject.FromObject(new byte[]{0x08}));
+        params.put("scope", CBORObject.FromObject("r_temp"));
+        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put("iss", CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put("cnf", cbor);
+        
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x08}), params);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
+        db.addCti2Client(ctiStr, "client2");
+        
+        
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
+                token.encode(ctx));
+                
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        System.out.println(response.toString());
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
+        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals(cti.GetByteString(), 
+                new byte[]{0x08});
+        CBORObject ct = resP.get(CBORObject.FromObject(Constants.CLIENT_TOKEN));
+        Assert.assertNotNull(ct);
+        Encrypt0Message ctE = (Encrypt0Message) COSE.Message.DecodeFromBytes(
+                ct.EncodeToBytes());
+        CBORObject clientToken = CBORObject.DecodeFromBytes(ctE.decrypt(key128));
+        Assert.assertNotNull(clientToken.get(
+                CBORObject.FromObject(Constants.CNF)));
+        System.out.println("================Client Token==============");
+        System.out.println(Constants.unabbreviate(clientToken));
+    }    
 }

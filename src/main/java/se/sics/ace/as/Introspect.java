@@ -327,7 +327,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         ct.Add(Constants.PROFILE, CBORObject.FromObject(profile));
         
         if (cpsk == null) {
-            //XXX: Client token is currently implemented for client RPK
+            //XXX: Client token is currently implemented for client PSK only
             throw new AceException("Client token with client RPK only is"
                     + " currently not supported");   
         }
