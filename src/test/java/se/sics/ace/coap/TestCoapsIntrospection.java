@@ -156,7 +156,6 @@ public class TestCoapsIntrospection {
                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
        CoapsIntrospection i = new CoapsIntrospection(key, "coaps://localhost/introspect");
        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
-       System.out.println(map);
        assert(map.containsKey(Constants.AUD));
        assert(map.get(Constants.AUD).AsString().equals("actuators"));
        assert(map.containsKey(Constants.SCOPE));

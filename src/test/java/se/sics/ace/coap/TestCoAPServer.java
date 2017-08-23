@@ -49,6 +49,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
@@ -136,7 +137,7 @@ public class TestCoAPServer {
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
-        Set<Integer> tokenTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
         COSEparams coseP = new COSEparams(MessageTag.MAC0, 
@@ -154,12 +155,12 @@ public class TestCoAPServer {
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(time.getCurrentTime()+1000000L));   
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject(new byte[]{0x00}));
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
+        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
