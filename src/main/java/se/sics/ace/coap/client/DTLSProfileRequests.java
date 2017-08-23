@@ -34,8 +34,10 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Base64;
+import java.util.Map;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
@@ -52,6 +54,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.CoseException;
+import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.OneKey;
 
@@ -322,6 +325,35 @@ public class DTLSProfileRequests {
         client.setEndpoint(e);   
 
         return client;    
+    }
+    
+    /**
+     * Takes the CoapResponse to a postToken() call and tries to extract the
+     * client token.
+     * 
+     * @param r  the response presumably containing a client token
+     * @param k_c_as  the shared key between client and AS
+     * 
+     * @return  the claims of the client token
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     */
+    public static Map<String, CBORObject> handleClientToken(
+            CoapResponse r, byte[] k_c_as) throws AceException, CoseException,
+            InvalidCipherTextException {
+        if (r.getPayload() == null) {
+            throw new AceException("Payload is null, expecting client token");
+        }
+        CBORObject resP = CBORObject.DecodeFromBytes(r.getPayload());
+        CBORObject ct = resP.get(CBORObject.FromObject(Constants.CLIENT_TOKEN));
+        if (ct == null) {
+            throw new AceException("Client token not found in payload");
+        }
+        Encrypt0Message ctE = (Encrypt0Message) COSE.Message.DecodeFromBytes(
+                ct.EncodeToBytes());
+        CBORObject clientToken = CBORObject.DecodeFromBytes(ctE.decrypt(k_c_as));
+        return Constants.unabbreviate(clientToken);
     }
     
 }
