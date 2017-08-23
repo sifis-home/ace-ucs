@@ -756,7 +756,7 @@ public class TestToken {
         Map<String, CBORObject> claims = db.getClaims(cti1);
         assert(!claims.isEmpty());
         db.purgeExpiredTokens(1000001L);
-        claims = db.getClaims("token1");
+        claims = db.getClaims(cti1);
         assert(claims.isEmpty());
     }
     
