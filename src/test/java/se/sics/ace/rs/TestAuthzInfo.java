@@ -643,7 +643,6 @@ public class TestAuthzInfo {
                 new byte[]{0x07});
     }    
     
-    //FIXME: Add test for handling client token returning from introspection
     /**
      * Test successful submission to AuthzInfo
      * 
@@ -701,7 +700,5 @@ public class TestAuthzInfo {
         CBORObject clientToken = CBORObject.DecodeFromBytes(ctE.decrypt(key128));
         Assert.assertNotNull(clientToken.get(
                 CBORObject.FromObject(Constants.CNF)));
-        System.out.println("================Client Token==============");
-        System.out.println(Constants.unabbreviate(clientToken));
     }    
 }
