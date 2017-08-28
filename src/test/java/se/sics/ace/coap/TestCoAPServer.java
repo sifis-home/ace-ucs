@@ -151,7 +151,8 @@ public class TestCoAPServer {
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, keyTypes, skey, null);        
+        db.addClient("clientA", profiles, null, null, 
+                keyTypes, skey, null, false);        
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
@@ -162,6 +163,7 @@ public class TestCoAPServer {
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
+        db.addCti2Client(cti, "clientA");
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         

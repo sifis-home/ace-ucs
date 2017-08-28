@@ -164,20 +164,31 @@ public class TestIntrospect {
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, key, publicKey);
+        
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        db.addClient("client1", profiles, null, null, keyTypes, key, 
+                null, true);
                 
         KissTime time = new KissTime();
         
         //Setup token entries
         byte[] cti = new byte[] {0x00};
         String ctiStr = Base64.getEncoder().encodeToString(cti);
-        
+
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()-1L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, publicKey.AsCBOR());
+        claims.put(Constants.CNF, cnf);
         db.addToken(ctiStr, claims);
+        db.addCti2Client(ctiStr, "client1");
         
         byte[] cti2 = new byte[]{0x01};
         String cti2Str =  Base64.getEncoder().encodeToString(cti2);
@@ -187,8 +198,9 @@ public class TestIntrospect {
         claims.put(Constants.EXP, CBORObject.FromObject(
                 time.getCurrentTime() + 2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti2));
+        claims.put(Constants.CNF, cnf);
         db.addToken(cti2Str, claims);
-
+        db.addCti2Client(cti2Str, "client1");
         i = new Introspect(
                 KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, time, publicKey);
@@ -347,5 +359,27 @@ public class TestIntrospect {
         params = Constants.getParams(rparams);
         System.out.println(params.toString());
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
+    }
+    
+    /**
+     * Test the introspect endpoint. Expired token purged before introspected.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testSuccessRefClientToken() throws Exception {
+        ReferenceToken t = new ReferenceToken(new byte[]{0x01});
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.TOKEN, t.encode());
+        String senderId = new RawPublicKeyIdentity(
+                publicKey.AsPublicKey()).getName().trim();
+        Message response = i.processMessage(
+                new LocalMessage(-1, senderId, "TestAS", params));
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
+        assert(params.get(Constants.CLIENT_TOKEN) != null);
     }
 }

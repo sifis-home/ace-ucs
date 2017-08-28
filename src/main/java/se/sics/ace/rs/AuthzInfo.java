@@ -267,6 +267,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    if(claims.containsKey(Constants.CLIENT_TOKEN)) {
+	        rep.Add(Constants.CLIENT_TOKEN, claims.get(
+	                Constants.CLIENT_TOKEN));
+	    }
         return msg.successReply(Message.CREATED, rep);
 	}
 	

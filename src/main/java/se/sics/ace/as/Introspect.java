@@ -31,17 +31,22 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.bouncycastle.crypto.InvalidCipherTextException;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.AlgorithmID;
 import COSE.Attribute;
 import COSE.CoseException;
+import COSE.Encrypt0Message;
 import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
@@ -190,11 +195,12 @@ public class Introspect implements Endpoint, AutoCloseable {
                 LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
                 return  msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }  
-            payload.Add(Constants.ACTIVE, CBORObject.False);           
-        } else {
-            payload = Constants.getCBOR(claims);
-            payload.Add(Constants.ACTIVE, CBORObject.True);            
+            payload.Add(Constants.ACTIVE, CBORObject.False);
+            //No need to check for client token, the token is invalid anyways
+            return msg.successReply(Message.CREATED, payload); 
         }
+        payload = Constants.getCBOR(claims);
+        payload.Add(Constants.ACTIVE, CBORObject.True);
         try {
             LOGGER.log(Level.INFO, "Returning introspection result: " 
                     + payload.toString() + " for " + token.getCti());
@@ -202,9 +208,157 @@ public class Introspect implements Endpoint, AutoCloseable {
             LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
+
+           
+        //Check if we need to generate a client token
+        // ... to do this find the client holding this token
+        CBORObject ctiCB = claims.get(Constants.CTI);
+        if (ctiCB == null) {
+            LOGGER.severe("Token has no cti");
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+        if (!ctiCB.getType().equals(CBORType.ByteString)) {
+            LOGGER.severe("Token has invalid cti");
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+        String cti = Base64.getEncoder().encodeToString(
+                ctiCB.GetByteString());
+        try {
+            String clientId = this.db.getClient4Cti(cti);
+            if (clientId == null) {
+                LOGGER.severe("Token: " + cti + " has no owner");
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
+            if (this.db.needsClientToken(clientId)) {
+                payload.Add(Constants.CLIENT_TOKEN, 
+                        generateClientToken(claims, clientId, cti, id));
+            }
+        } catch (AceException e) {
+            LOGGER.severe("Error while querying need for client token: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
         return msg.successReply(Message.CREATED, payload);
 	}
     
+	/**
+	 * Generate a client token from the claims of an access token
+	 * @param claims  the claims of the access token
+	 * @param clientId  the client identifier
+	 * @param cti  the token identifier
+	 * @param rsId  the RS identifier
+	 * 
+	 * @return the client token
+	 * @throws AceException 
+	 */
+    private CBORObject generateClientToken(
+            Map<Short, CBORObject> claims, String clientId, String cti, 
+            String rsId) throws AceException {
+        CBORObject ct = CBORObject.NewMap();        
+        CBORObject aud = claims.get(Constants.AUD);
+        String audStr = null;
+        if (aud == null) {
+           audStr = this.db.getDefaultAudience(clientId);  
+        } else {
+           audStr = aud.AsString();
+        }
+        if (audStr == null) {
+            throw new AceException("Token: " + cti + " has no audience");
+        }
+        
+        //Get the client's key
+        OneKey cpsk = this.db.getCPSK(clientId);
+        OneKey crpk = this.db.getCRPK(clientId);
+        
+        if (cpsk == null && crpk == null) {
+            throw new AceException("Client: " + clientId + " has no keys");
+        }        
+        
+        String popType = this.db.getSupportedPopKeyType(clientId, audStr);
+        switch(popType) {
+        case "RPK":
+            //Get RS key
+            OneKey rpk = this.db.getRsRPK(rsId);
+            if (rpk == null) {
+                throw new AceException("RS: " + rsId 
+                        + " has no raw public key, but supports RPK key type");
+            }
+            ct.Add(Constants.RS_CNF, rpk.AsCBOR());
+            //Get client's kid
+            if (crpk == null) {
+                throw new AceException("Client: " + clientId 
+                        + " has no raw public key, but supports RPK key type");
+            }
+            CBORObject kid = crpk.get(KeyKeys.KeyId);
+            if (kid == null) {
+                throw new AceException("Client's: " + clientId 
+                        + " raw public key has no kid");
+            }
+            //We only need the kid for the client's public key
+            CBORObject cnf = CBORObject.NewMap();
+            cnf.Add(Constants.COSE_KID_CBOR, kid);
+            ct.Add(Constants.CNF, cnf);
+            break;
+        case "PSK":
+            //Take the cnf from the claims
+            cnf = claims.get(Constants.CNF);
+            if (cnf == null) {
+                throw new AceException("Token: " + cti + " has no 'cnf' claim");
+            }
+            ct.Add(Constants.CNF, cnf);
+            break;
+        default :
+            throw new AceException("Unsupported pop-key type: " + popType
+                    + " for token: " + cti);
+        }
+        
+        String profile = this.db.getSupportedProfile(clientId, audStr);
+        if (profile == null) {
+            throw new AceException("Client: " + clientId + " and audience: "
+                    + audStr + " do not support a common profile");
+        }
+        ct.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+        
+        if (cpsk == null) {
+            //XXX: Client token is currently implemented for client PSK only
+            throw new AceException("Client token with client RPK only is"
+                    + " currently not supported");   
+        }
+        CBORObject encC = null;     
+        Encrypt0Message enc = new Encrypt0Message();
+        //Find the right algorithm from the key length
+        byte[] ckey = cpsk.get(KeyKeys.Octet_K).GetByteString();
+        try {
+            switch (ckey.length) {
+            case 16:
+
+                enc.addAttribute(HeaderKeys.Algorithm, 
+                        AlgorithmID.AES_CCM_64_64_128.AsCBOR(), 
+                        Attribute.PROTECTED);
+
+                break;
+            case 32:
+                enc.addAttribute(HeaderKeys.Algorithm, 
+                        AlgorithmID.AES_CCM_64_64_256.AsCBOR(), 
+                        Attribute.PROTECTED);
+                break;
+            default:
+                throw new AceException("Unsupported key length for client: "
+                        + clientId);
+            }
+            enc.SetContent(ct.EncodeToBytes());
+            enc.encrypt(cpsk.get(KeyKeys.Octet_K).GetByteString());
+            encC = enc.EncodeToCBORObject();
+        } catch (CoseException | IllegalStateException 
+                | InvalidCipherTextException e) {
+           LOGGER.severe("Error while encrypting client token: " 
+                + e.getMessage());
+           throw new AceException("Error while encrypting client token");
+        }
+        return encC;
+    }
+
+
     /**
      * Parses a CBOR object presumably containing an access token.
      * 
