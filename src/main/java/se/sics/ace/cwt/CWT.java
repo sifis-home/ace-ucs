@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.cwt;
 
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -416,7 +417,7 @@ public class CWT implements AccessToken {
         if (cti == null) {
             throw new AceException("Token has no cti");
         }
-        return new String(cti.GetByteString());
+        return Base64.getEncoder().encodeToString(cti.GetByteString());
     }
 	
 }

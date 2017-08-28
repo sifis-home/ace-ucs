@@ -132,10 +132,12 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             if (result.next())
             {
                 // For consistency with other DB adapters, do nothing in this case.
+                result.close();
                 rootConn.close();
                 stmt.close();
                 return;
             }
+            result.close();
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {

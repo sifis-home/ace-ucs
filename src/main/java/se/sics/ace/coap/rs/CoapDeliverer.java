@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Base64;
@@ -70,7 +72,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class CoapDeliverer implements MessageDeliverer {
+public class CoapDeliverer implements MessageDeliverer, Closeable {
     
     /**
      * The logger
@@ -150,8 +152,10 @@ public class CoapDeliverer implements MessageDeliverer {
                         Base64.getDecoder().decode(subject));
                 if (cbor.getType().equals(CBORType.Map)) {
                    CBORObject ckid = cbor.get(KeyKeys.KeyId.AsCBOR());
-                   if (ckid != null && ckid.getType().equals(CBORType.ByteString)) {
-                      kid = new String(ckid.GetByteString(), Constants.charset);
+                   if (ckid != null && ckid.getType().equals(
+                           CBORType.ByteString)) {
+                      kid = Base64.getEncoder().encodeToString(
+                              ckid.GetByteString());
                    } else { //No kid in that CBOR map or it isn't a bstr
                        failUnauthz(ex);
                        return;
@@ -237,5 +241,15 @@ public class CoapDeliverer implements MessageDeliverer {
     @Override
     public void deliverResponse(Exchange exchange, Response response) {
         this.d.deliverResponse(exchange, response);        
+    }
+
+    @Override
+    public void close() throws IOException {
+        try {
+            this.tr.close();
+        } catch (AceException e) {
+            LOGGER.severe("Error while trying to close token repository: " 
+                    + e.getMessage());
+        }        
     }
 }

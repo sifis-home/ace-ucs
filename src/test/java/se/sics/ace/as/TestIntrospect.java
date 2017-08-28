@@ -168,23 +168,26 @@ public class TestIntrospect {
         KissTime time = new KissTime();
         
         //Setup token entries
-        String cti = "token1";
+        byte[] cti = new byte[] {0x00};
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        
         Map<String, CBORObject> claims = new HashMap<>();
         claims.put("scope", CBORObject.FromObject("co2"));
         claims.put("aud",  CBORObject.FromObject("sensors"));
         claims.put("exp", CBORObject.FromObject(time.getCurrentTime()-1L));   
         claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("cti", CBORObject.FromObject("token1"));
-        db.addToken(cti, claims);
+        claims.put("cti", CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
         
-        cti = "token2";
+        byte[] cti2 = new byte[]{0x01};
+        String cti2Str =  Base64.getEncoder().encodeToString(cti2);
         claims.clear();
         claims.put("scope", CBORObject.FromObject("temp"));
         claims.put("aud",  CBORObject.FromObject("actuators"));
         claims.put("exp", CBORObject.FromObject(
                 time.getCurrentTime() + 2000000L));
-        claims.put("cti", CBORObject.FromObject("token2"));
-        db.addToken(cti, claims);
+        claims.put("cti", CBORObject.FromObject(cti2));
+        db.addToken(cti2Str, claims);
 
         i = new Introspect(
                 KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
@@ -258,7 +261,7 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessPurgedInactive() throws Exception {
-        ReferenceToken purged = new ReferenceToken("token1");
+        ReferenceToken purged = new ReferenceToken(new byte[]{0x00});
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", purged.encode());
         Message response = i.processMessage(
@@ -279,7 +282,7 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessNotExistInactive() throws Exception {
-        CBORObject notExist = CBORObject.FromObject("notExist");
+        CBORObject notExist = CBORObject.FromObject(new byte[] {0x03});
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", notExist);
         Message response = i.processMessage(
@@ -303,8 +306,7 @@ public class TestIntrospect {
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("scope", CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put("aud", CBORObject.FromObject("rs3"));
-        params.put("cti", CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put("cti", CBORObject.FromObject(new byte[]{0x01}));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
@@ -330,7 +332,7 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessRef() throws Exception {
-        ReferenceToken t = new ReferenceToken("token2");
+        ReferenceToken t = new ReferenceToken(new byte[]{0x01});
         Map<String, CBORObject> params = new HashMap<>(); 
         params.put("token", t.encode());
         String senderId = new RawPublicKeyIdentity(

@@ -31,9 +31,11 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -133,7 +135,11 @@ public class Token implements Endpoint, AutoCloseable {
 	public static CBORObject clientCredentialsStr 
 	    = CBORObject.FromObject("client_credentials");
 
-	
+	/**
+	 * Converter to create the byte array from the cti number
+	 */
+	 private static ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
+	 
 	/**
 	 * Constructor.
 	 * 
@@ -311,10 +317,10 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 		claims.put("exp", CBORObject.FromObject(exp));
 		claims.put("iat", CBORObject.FromObject(now));
-		String ctiStr = Long.toHexString(this.cti);
+		byte[] ctiB = buffer.putLong(0, this.cti).array();
+		String ctiStr = Base64.getEncoder().encodeToString(ctiB);
 		this.cti++;
-		claims.put("cti", CBORObject.FromObject(
-		        ctiStr.getBytes(Constants.charset)));
+		claims.put("cti", CBORObject.FromObject(ctiB));
 		claims.put("scope", CBORObject.FromObject(allowedScopes));
 
 		//Find supported profile
@@ -386,7 +392,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
 		                    CBORObject.FromObject(key.getEncoded()));
 		            //Note: kid is the same as cti 
-		            byte[] kid = ctiStr.getBytes(Constants.charset);                
+		            byte[] kid = ctiB;               
 		            keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
 
 		            OneKey psk = new OneKey(keyData);

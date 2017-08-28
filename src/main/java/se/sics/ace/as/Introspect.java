@@ -238,7 +238,7 @@ public class Introspect implements Endpoint, AutoCloseable {
                 LOGGER.severe("Error while processing CWT: " + e.getMessage());
                 throw new AceException(e.getMessage());
             }
-        } else if (token.getType().equals(CBORType.TextString)) {
+        } else if (token.getType().equals(CBORType.ByteString)) {
             return ReferenceToken.parse(token);
         }
         throw new AceException("Unknown access token format");        

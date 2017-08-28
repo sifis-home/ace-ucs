@@ -135,7 +135,13 @@ public class TestDtlspServer {
         }
     }
     
+    private static TokenRepository tr = null;
+    
+    private static AuthzInfo ai = null;
+    
     private static CoapServer rs = null;
+    
+    private static CoapDeliverer dpd = null;
     
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -162,7 +168,7 @@ public class TestDtlspServer {
                 myScopes);
         
         createTR(valid);
-        TokenRepository tr = TokenRepository.getInstance();
+        tr = TokenRepository.getInstance();
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -177,7 +183,7 @@ public class TestDtlspServer {
 
         
       //Set up the inner Authz-Info library
-      AuthzInfo  ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
+      ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 null,
                 valid, ctx);
@@ -217,8 +223,7 @@ public class TestDtlspServer {
       rs.add(temp);
       rs.getRoot().getChild(".well-known").add(authzInfo);
 
-      CoapDeliverer dpd 
-      = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+      dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
               new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
@@ -265,9 +270,15 @@ public class TestDtlspServer {
 
     /**
      * Stops the server
+     * 
+     * @throws IOException 
+     * @throws AceException 
      */
-    public static void stop() {
+    public static void stop() throws IOException, AceException {
         rs.stop();
+        dpd.close();
+        ai.close();
+        tr.close();
     }
 
 
