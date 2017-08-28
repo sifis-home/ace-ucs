@@ -279,6 +279,7 @@ public class TestDtlspServer {
         dpd.close();
         ai.close();
         tr.close();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
 
