@@ -315,10 +315,19 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public Set<String> getRSS(String aud) throws AceException; 
-    
-       
-    /**
+    public Set<String> getRSS(String aud) throws AceException;
+
+	/**
+	 * Gets all RSs.
+	 *
+	 * @return  all registered RS identifiers
+	 *  or null if that audience is not defined
+	 *
+	 * @throws AceException
+	 */
+	public Set<String> getRSS() throws AceException;
+
+	/**
      * Returns the smallest expiration time for the RS in this
      *     audience.
      *     
@@ -521,6 +530,14 @@ public interface DBConnector {
      * @throws AceException
      */
     public void addCti2Client(String cti, String clientId) throws AceException;
+
+	/**
+	 * Get list of all registered client ids.
+	 *
+	 * @return  the list of client identifiers
+	 * @throws AceException
+	 */
+	public Set<String> getClients() throws AceException;
 
     /**
      * Get the client identifier that holds a given token
