@@ -132,8 +132,8 @@ public class Token implements Endpoint, AutoCloseable {
     /**
      * The client credentials grant type as CBOR-string
      */
-	public static CBORObject clientCredentialsStr 
-	    = CBORObject.FromObject("client_credentials");
+	public static CBORObject clientCredentials 
+	    = CBORObject.FromObject(Constants.GT_CLI_CRED);
 
 	/**
 	 * Converter to create the byte array from the cti number
@@ -191,7 +191,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    //1. Check that this is a client credentials grant type    
 	    if (msg.getParameter(Constants.GRANT_TYPE) == null 
 	            || !msg.getParameter(Constants.GRANT_TYPE)
-	                .equals(clientCredentialsStr)) {
+	                .equals(clientCredentials)) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
             LOGGER.log(Level.INFO, "Message processing aborted: "

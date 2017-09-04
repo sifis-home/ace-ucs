@@ -208,7 +208,7 @@ public class TestCoAPClient {
         dtlsConnector.start();
 
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_temp rw_config foobar"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));

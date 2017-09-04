@@ -362,7 +362,7 @@ public class TestToken {
     @Test
     public void testFailUnauthorized() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         LocalMessage msg = new LocalMessage(-1, "client_1", "TestAS", params); 
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -381,7 +381,7 @@ public class TestToken {
     @Test
     public void testFailMissingScope() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         LocalMessage msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -402,7 +402,7 @@ public class TestToken {
     @Test
     public void testFailMissingAudience() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("blah"));
         LocalMessage msg = new LocalMessage(-1, "clientA","TestAS", params);
         Message response = t.processMessage(msg);
@@ -424,7 +424,7 @@ public class TestToken {
     @Test
     public void testFailForbidden() throws Exception {  
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("blah"));
         params.put(Constants.AUD, CBORObject.FromObject("blubb"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
@@ -447,7 +447,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleTokenType() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("failTokenType"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenType"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
@@ -471,7 +471,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleProfile() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("failProfile"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failProfile"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
@@ -494,7 +494,7 @@ public class TestToken {
     @Test
     public void testFailUnsupportedTokenType() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("rs5"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
@@ -517,7 +517,7 @@ public class TestToken {
     @Test
     public void testFailRpkNotProvided() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_light"));
         Message msg = new LocalMessage(-1, "clientD", "TestAS", params);
@@ -540,7 +540,7 @@ public class TestToken {
     @Test
     public void testFailUnknownKeyType() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("rs6"));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_valve"));
         Message msg = new LocalMessage(-1, "clientC", "TestAS", params);
@@ -562,7 +562,7 @@ public class TestToken {
     @Test
     public void testFailIncompatibleCwt() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("failCWTpar"));
         params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
@@ -584,7 +584,7 @@ public class TestToken {
     @Test
     public void testSucceedDefaultScope() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -608,7 +608,7 @@ public class TestToken {
     @Test
     public void testSucceedDefaultAud() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -633,7 +633,7 @@ public class TestToken {
     @Test
     public void testSucceed() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put(Constants.AUD, CBORObject.FromObject("rs3"));
@@ -664,7 +664,7 @@ public class TestToken {
     public void testSucceedCE() throws AceException, CoseException, 
             IllegalStateException, InvalidCipherTextException {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("rw_valve"));
         params.put(Constants.AUD, CBORObject.FromObject("rs3"));
@@ -697,7 +697,7 @@ public class TestToken {
     @Test
     public void testSucceedCnfKid() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_pressure"));
         params.put(Constants.AUD, CBORObject.FromObject("rs3"));
@@ -758,7 +758,7 @@ public class TestToken {
     @Test
     public void testMultiRequest() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         t.processMessage(msg);
         Long ctiCtrStart = db.getCtiCounter();
