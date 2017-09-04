@@ -35,7 +35,7 @@ import java.io.BufferedReader;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
-
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +54,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.AceException;
 import se.sics.ace.examples.SQLDBAdapter;
@@ -139,7 +140,7 @@ public class TestDB {
         keyTypes.add("PSK");
         keyTypes.add("RPK");
         
-        Set<Integer> tokenTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         
@@ -186,33 +187,30 @@ public class TestDB {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient("clientA", profiles, null, null, keyTypes, null,
-                publicKey);
+                publicKey, true);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", keyTypes, 
-                skey, null);
+                skey, null, false);
         
         //Setup token entries
         String cid = "token1";
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(1000000L));   
-        claims.put("cid", CBORObject.FromObject("token1"));
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
+        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cid, claims);
         
         cid = "token2";
         claims.clear();
-        claims.put("scope", CBORObject.FromObject("temp"));
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         db.addToken(cid, claims);
     }
 
@@ -229,7 +227,7 @@ public class TestDB {
         Set<String> scopes = new HashSet<>();
         Set<String> auds = new HashSet<>();      
         Set<String> keyTypes = new HashSet<>();      
-        Set<Integer> tokenTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
         Set<COSEparams> cose = new HashSet<>();        
         long expiration = 1000000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
@@ -247,7 +245,8 @@ public class TestDB {
     public void testAddDuplicateClient() throws Exception {
         Set<String> profiles = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
-        db.addClient("clientA", profiles, null, null, keyTypes, null, null);
+        db.addClient("clientA", profiles, null, null, 
+                keyTypes, null, null, false);
         Assert.fail("Duplicate client was added to DB");
     }
     
@@ -288,7 +287,7 @@ public class TestDB {
      */
     @Test
     public void testGetTokenType() throws Exception {
-        Integer tokenType = db.getSupportedTokenType("sensors");
+        Short tokenType = db.getSupportedTokenType("sensors");
         assert(tokenType.equals(AccessTokenFactory.CWT_TYPE));
     }
     
@@ -351,7 +350,19 @@ public class TestDB {
     }
     
     /**
-     * Test the getRSS() method. 
+     * Test the needsClientToken() function.
+     * @throws Exception 
+     */
+    @Test
+    public void testNeedsClientToken() throws Exception {
+        boolean nCT = db.needsClientToken("clientB");
+        assert(!nCT);
+        nCT = db.needsClientToken("clientA");
+        assert(nCT);
+    }
+    
+    /**
+     * Test the getRSS() function. 
      * 
      * @throws Exception 
      */
@@ -470,7 +481,7 @@ public class TestDB {
         Set<String> auds = new HashSet<>();      
         Set<String> keyTypes = new HashSet<>();  
         keyTypes.add("PSK");
-        Set<Integer> tokenTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         Set<COSEparams> cose = new HashSet<>();      
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -502,9 +513,11 @@ public class TestDB {
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(keyBytes));
         OneKey key = new OneKey(keyData);
+
         profiles.add("blah");
         keyTypes.add("RPK");
-        db.addClient("clientC", profiles, null, null, keyTypes, key, null);
+        db.addClient("clientC", profiles, null, null, 
+                keyTypes, key, null, false);
             
        OneKey newKey = db.getCPSK("clientC");
        Assert.assertArrayEquals(key.EncodeToBytes(), newKey.EncodeToBytes());
@@ -522,21 +535,22 @@ public class TestDB {
     @Test
     public void testTokenTables() throws Exception {
         
-        String cid = "token3";
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(1000000L));   
-        claims.put("cid", CBORObject.FromObject("token3"));
-        db.addToken(cid, claims);
+        byte[] cti = new byte[]{0x01, 0x02};
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
                 
-        Map<String, CBORObject> result = db.getClaims(cid);
+        Map<Short, CBORObject> result = db.getClaims(ctiStr);
          
         //Checks that there are claims
         assert(!result.isEmpty());
                 
-        db.deleteToken(cid);
-        result = db.getClaims(cid);
+        db.deleteToken(ctiStr);
+        result = db.getClaims(ctiStr);
         assert(result.isEmpty());
     }
     
@@ -547,17 +561,18 @@ public class TestDB {
      */
     @Test
     public void testPurgeExpiredTokens() throws Exception {
-        String cid = "token3";
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(1000L));   
-        claims.put("cid", CBORObject.FromObject("token3"));
-        db.addToken(cid, claims);
+        byte[] cti = new byte[]{0x01, 0x03};
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000L));   
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
         
         db.purgeExpiredTokens(1001L);
        
-        Map<String, CBORObject> result = db.getClaims(cid);
+        Map<Short, CBORObject> result = db.getClaims(ctiStr);
         assert(result.isEmpty());
     }
     

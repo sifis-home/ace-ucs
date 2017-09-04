@@ -174,6 +174,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " bytea, "
                 + DBConnector.rpkColumn + " bytea,"
+                + DBConnector.needClientToken + " boolean, "
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
         String createProfiles = "CREATE TABLE "
@@ -213,7 +214,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         String createClaims = "CREATE TABLE "
                 + DBConnector.claimsTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
-                + DBConnector.claimNameColumn + " varchar(8) NOT NULL,"
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " bytea);";
 
         String createCtiCtr = "CREATE TABLE "

@@ -54,7 +54,6 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
@@ -322,6 +321,5 @@ public class DTLSProfileRequests {
         client.setEndpoint(e);   
 
         return client;    
-    }
-    
+    }    
 }

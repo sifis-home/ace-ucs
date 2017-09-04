@@ -131,7 +131,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    
 		//1. Check whether it is a CWT or REF type
 	    CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    Map<String, CBORObject> claims = null;
+	    Map<Short, CBORObject> claims = null;
 	    if (cbor.getType().equals(CBORType.ByteString)) {
 	        try {
                 claims = processRefrenceToken(msg);
@@ -183,7 +183,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    
 	    //2. Check if the token is active, this will only be present if we 
 	    // did introspect
-	    CBORObject active = claims.get("active");
+	    CBORObject active = claims.get(Constants.ACTIVE);
         if (active != null && active.isFalse()) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -193,7 +193,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
         }
 
 	    //3. Check that the token is not expired (exp)
-	    CBORObject exp = claims.get("exp");
+	    CBORObject exp = claims.get(Constants.EXP);
 	    if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) { 
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -204,7 +204,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }   
       
 	    //4. Check if we accept the issuer (iss)
-	    CBORObject iss = claims.get("iss");
+	    CBORObject iss = claims.get(Constants.ISS);
 	    if (iss == null) {
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -223,7 +223,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }
 
 	    //5. Check if we are the audience (aud)
-	    CBORObject aud = claims.get("aud");
+	    CBORObject aud = claims.get(Constants.AUD);
 	    if (aud == null) {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -242,7 +242,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    }
 
 	    //6. Check if the token has a scope
-	    CBORObject scope = claims.get("scope");
+	    CBORObject scope = claims.get(Constants.SCOPE);
 	    if (scope == null) {
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
@@ -267,6 +267,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    if(claims.containsKey(Constants.CLIENT_TOKEN)) {
+	        rep.Add(Constants.CLIENT_TOKEN, claims.get(
+	                Constants.CLIENT_TOKEN));
+	    }
         return msg.successReply(Message.CREATED, rep);
 	}
 	
@@ -290,16 +294,16 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<String,CBORObject> processCWT(Message msg) 
+	private Map<Short,CBORObject> processCWT(Message msg) 
 	        throws IntrospectionException, AceException, 
 	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
 	    //Check if we can introspect this token
-	    Map<String, CBORObject> claims = cwt.getClaims();
+	    Map<Short, CBORObject> claims = cwt.getClaims();
 	   if (this.intro != null) {
-	       CBORObject cti = claims.get("cti");
+	       CBORObject cti = claims.get(Constants.CTI);
 	       if (cti != null && cti.getType().equals(CBORType.ByteString)) {
-	           Map<String, CBORObject> introClaims 
+	           Map<Short, CBORObject> introClaims 
 	               = this.intro.getParams(cti.GetByteString());
 	           if (introClaims != null) {
 	               claims.putAll(introClaims);
@@ -318,7 +322,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    private Map<String, CBORObject> processRefrenceToken(Message msg)
+    private Map<Short, CBORObject> processRefrenceToken(Message msg)
                 throws AceException, IntrospectionException {
         
         // This should be a CBOR String
@@ -331,11 +335,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
         if (this.intro == null) {
             throw new AceException("Introspection handler not found");
         }
-        Map<String, CBORObject> params 
+        Map<Short, CBORObject> params 
             = this.intro.getParams(token.GetByteString());        
         if (params == null) {
             params = new HashMap<>();
-            params.put("active", CBORObject.False);
+            params.put(Constants.ACTIVE, CBORObject.False);
         }
        
         return params;

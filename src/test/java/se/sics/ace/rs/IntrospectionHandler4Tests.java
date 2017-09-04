@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -72,16 +73,15 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
   
     
     @Override
-    public Map<String, CBORObject> getParams(byte[] tokenReference)
+    public Map<Short, CBORObject> getParams(byte[] tokenReference)
             throws IntrospectionException, AceException {
-        Map<String, CBORObject> params = new HashMap<>();
-        params.put("token", 
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.TOKEN, 
                 CBORObject.FromObject(tokenReference));
-        params.put("token_type_hint", 
+        params.put(Constants.TOKEN_TYPE_HINT, 
                 CBORObject.FromObject("pop"));
         
-        LocalMessage req = new LocalMessage(0, this.rsId, this.asId,
-                Constants.abbreviate(params));
+        LocalMessage req = new LocalMessage(0, this.rsId, this.asId, params);
         LocalMessage res = (LocalMessage)this.i.processMessage(req);
         if (res.getMessageCode() != Message.CREATED) {//Some error happened
             if (res.getRawPayload() == null) {//This was a server error
@@ -93,9 +93,10 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
                             res.getRawPayload()).toString());
         }
         CBORObject resC = CBORObject.DecodeFromBytes(res.getRawPayload());
-        Map<String, CBORObject> map = Constants.unabbreviate(resC);
-        return map;
-
+        if (resC.getType().equals(CBORType.Map)) {
+            return Constants.getParams(resC);
+        }
+        throw new AceException("Introspection didn't return a CBOR Map");
     }
 
 }

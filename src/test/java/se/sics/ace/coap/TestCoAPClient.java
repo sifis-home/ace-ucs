@@ -177,10 +177,10 @@ public class TestCoAPClient {
         dtlsConnector.start();
 
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
-        Map<String, CBORObject> params = new HashMap<>();
-        params.put("token", at.encode());
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.TOKEN, at.encode());
         CoapResponse response = client.post(
-                Constants.abbreviate(params).EncodeToBytes(), 
+                Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
         Assert.assertNull(response);        
     }
@@ -207,23 +207,23 @@ public class TestCoAPClient {
         client.setEndpoint(e);
         dtlsConnector.start();
 
-        Map<String, CBORObject> params = new HashMap<>();
-        params.put("grant_type", Token.clientCredentialsStr);
-        params.put("scope", 
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentialsStr);
+        params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_temp rw_config foobar"));
-        params.put("aud", CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         CoapResponse response = client.post(
-                Constants.abbreviate(params).EncodeToBytes(), 
+                Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        Map<String, CBORObject> map = Constants.unabbreviate(res);
+        Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
-        assert(map.containsKey("access_token"));
-        assert(map.containsKey("profile"));
-        assert(map.get("profile").AsString().equals("coap_oscoap"));
-        assert(map.containsKey("cnf"));
-        assert(map.containsKey("scope"));
-        assert(map.get("scope").AsString().equals("r_temp rw_config"));
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(map.containsKey(Constants.PROFILE));
+        assert(map.get(Constants.PROFILE).AsString().equals("coap_oscoap"));
+        assert(map.containsKey(Constants.CNF));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
     }
     
     /**
@@ -250,22 +250,22 @@ public class TestCoAPClient {
         dtlsConnector.start();
        
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
-        Map<String, CBORObject> params = new HashMap<>();
-        params.put("token", at.encode());
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.TOKEN, at.encode());
         CoapResponse response = client.post(
-                Constants.abbreviate(params).EncodeToBytes(), 
+                Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        Map<String, CBORObject> map = Constants.unabbreviate(res);
+        Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
-        assert(map.containsKey("aud"));
-        assert(map.get("aud").AsString().equals("actuators"));
-        assert(map.containsKey("scope"));
-        assert(map.get("scope").AsString().equals("co2"));
-        assert(map.containsKey("active"));
-        assert(map.get("active").isTrue());
-        assert(map.containsKey("cti"));
-        assert(map.containsKey("exp"));
+        assert(map.containsKey(Constants.AUD));
+        assert(map.get(Constants.AUD).AsString().equals("actuators"));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+        assert(map.containsKey(Constants.ACTIVE));
+        assert(map.get(Constants.ACTIVE).isTrue());
+        assert(map.containsKey(Constants.CTI));
+        assert(map.containsKey(Constants.EXP));
         
     }
 }

@@ -34,7 +34,6 @@ package se.sics.ace;
 import java.nio.charset.Charset;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -220,17 +219,6 @@ public class Constants {
 	public static final short RS_CNF = 31; //5
 	
 	/**
-	 * Array of String values for the abbreviations
-	 */
-	public static final String[] ABBREV = {"", "iss", "sub", "aud", "exp", 
-		"nbf", "iat", "cti", "client_id", "client_secret", "response_type",
-		"redirect_uri", "scope", "state", "code", "error", "error_description", 
-		"error_uri", "grant_type", "access_token", "token_type", "expires_in",
-		"username", "password", "refresh_token", "cnf", "profile", "token",
-		"token_type_hint", "active", "client_token", "rs_cnf"};
-	
-	
-	/**
 	 * CWT claims
 	 */
 	public static final short[] CWT_CLAIMS 
@@ -332,14 +320,6 @@ public class Constants {
 	 */
 	public static final short GT_REF_TOK = 3;
 	
-	   /**
-     * The string values for these abbreviations
-     */
-    public static final String[] GRANT_TYPES = {"password", 
-            "authorization_code", "client_credentials", "refresh_token"};
-    
-
-
 	/**
 	 * RESTful action names
 	 */
@@ -384,101 +364,119 @@ public class Constants {
     public static final CBORObject COSE_KID_CBOR 
         = CBORObject.FromObject(COSE_KID);
     
-	
-	/**
-	 * Searches an array of strings for the index of the given string.
-	 * @param array  an array of Strings
-	 * @param val  a String value
-	 * @return  the index of val in array
-	 */
-	public static short getIdx(String[] array, String val) {
-	    if (val == null || array == null) {
-	        return -1;
-	    }
-	    for (short i=0; i<array.length; i++) {
-	        if (val.equals(array[i])) {
-	            return i;
-	        }
-	    }
-	    return -1;
-	}
-	
+
     /**
-    * Maps a parameter map to the unabbreviated version.
-    * 
-    * @param map
-     * @return  the unabbreviated version of the map
-     * @throws AceException  if map is not a CBOR map
-    */
-   public static Map<String, CBORObject> unabbreviate(CBORObject map) 
-           throws AceException {
-       if (!map.getType().equals(CBORType.Map)) {
-           throw new AceException("Parameter is not a CBOR map");
-       }
-       Map<String, CBORObject> ret = new HashMap<>();
-       for (CBORObject key : map.getKeys()) {
-           String keyStr = null;
-           CBORObject obj = map.get(key);
-           if (key.isIntegral()) {
-               short keyInt = key.AsInt16();
-               if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
-                  keyStr = Constants.ABBREV[keyInt];
-                   if (keyInt == GRANT_TYPE
-                           && map.get(key).getType().equals(CBORType.Number)) {
-                       obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
-                   } else if (keyInt == ERROR
-                           && map.get(key).getType().equals(CBORType.Number)) {
-                       obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
-                   }                   
-               } else {
-                   throw new AceException("Malformed parameter map");
-               }
-           } else if (key.GetTags().equals(CBORType.TextString)) {
-               keyStr = key.AsString();
-           } else {
-               throw new AceException("Malformed parameter map");
-           }
-           ret.put(keyStr, obj);
-       }
-      return ret;
-   }
-   
+     * Searches an array of strings for the index of the given string.
+     * @param array  an array of Strings
+     * @param val  a String value
+     * @return  the index of val in array
+     */
+    public static short getIdx(String[] array, String val) {
+        if (val == null || array == null) {
+            return -1;
+        }
+        for (short i=0; i<array.length; i++) {
+            if (val.equals(array[i])) {
+                return i;
+            }
+        }
+        return -1;
+    }
+    
+    /**
+     * Takes a CBORObject that is a map and transforms it
+     * into Map<Short, CBORObject>
+     * @param cbor  the CBOR map
+     * @return  the Map
+     * @throws AceException if the cbor parameter is not a CBOR map or
+     *  if a key is not a short
+     */
+    public static Map<Short, CBORObject> getParams(CBORObject cbor) 
+            throws AceException {
+        if (!cbor.getType().equals(CBORType.Map)) {
+            throw new AceException("CBOR object is not a Map"); 
+        }
+        Map<Short, CBORObject> ret = new HashMap<>();
+        for (CBORObject key : cbor.getKeys()) {
+            if (!key.getType().equals(CBORType.Number)) {
+                throw new AceException("CBOR key was not a Short: "
+                        + key.toString());
+            }
+            ret.put(key.AsInt16(), cbor.get(key));
+        }
+        return ret;
+    }
+    
+    /**
+     * Takes a  Map<Short, CBORObject> and transforms it into a CBOR map.
+     * 
+     * @param map  the map
+     * @return  the CBOR map
+     */
+    public static CBORObject getCBOR(Map<Short, CBORObject> map) {
+        CBORObject cbor = CBORObject.NewMap();
+        for (Map.Entry<Short, CBORObject> e : map.entrySet()) {
+            cbor.Add(e.getKey(), e.getValue());
+        }
+        return cbor;
+    }
 
-   /**
-    * Maps a parameter map to the abbreviated version.
-    * 
-    * @param map  the map of unabbreviated parameters
-    * @return a CBOR Map with abbreviations
-    */
-   public static CBORObject abbreviate(Map<String, CBORObject> map) {
-       CBORObject ret = CBORObject.NewMap();
-       for (Entry<String, CBORObject> e : map.entrySet()) {
-           Short keyInt = getIdx(ABBREV, e.getKey());
-           if (keyInt > 0) { //found an abbreviation
-               if (keyInt == GRANT_TYPE 
-                       && e.getValue().getType().equals(CBORType.TextString)) {
-                   Short keyVal = getIdx(GRANT_TYPES, e.getValue().AsString());
-                   if (keyVal >=0) {
-                       ret.Add(keyInt, keyVal);
-                   } else {
-                       ret.Add(keyInt, e.getValue());
-                   }
-               } else if (keyInt == ERROR 
-                       && e.getValue().getType().equals(CBORType.TextString)) {
-                   Short keyVal = getIdx(ERROR_CODES, e.getValue().AsString());
-                   if (keyVal >=0) {
-                       ret.Add(keyInt, keyVal);
-                   } else {
-                       ret.Add(keyInt, e.getValue());
-                   }
-               } else {
-                   ret.Add(keyInt, e.getValue());
-               }
+    /**
+     * Array of String values for the abbreviations (use for debugging)
+     */
+    public static final String[] ABBREV = {"", "iss", "sub", "aud", "exp", 
+        "nbf", "iat", "cti", "client_id", "client_secret", "response_type",
+        "redirect_uri", "scope", "state", "code", "error", "error_description", 
+        "error_uri", "grant_type", "access_token", "token_type", "expires_in",
+        "username", "password", "refresh_token", "cnf", "profile", "token",
+        "token_type_hint", "active", "client_token", "rs_cnf"};
+    
+    /**
+     * The string values for the grant type abbreviations (use for debugging)
+     */
+    public static final String[] GRANT_TYPES = {"password", 
+            "authorization_code", "client_credentials", "refresh_token"};
 
-           } else {
-               ret.Add(e.getKey(), e.getValue());
-           }
-       }
+
+    
+    /**
+     * Maps a parameter map to the unabbreviated version.
+     * 
+     * @param map
+      * @return  the unabbreviated version of the map
+      * @throws AceException  if map is not a CBOR map
+     */
+    public static Map<String, CBORObject> unabbreviate(CBORObject map) 
+            throws AceException {
+        if (!map.getType().equals(CBORType.Map)) {
+            throw new AceException("Parameter is not a CBOR map");
+        }
+        Map<String, CBORObject> ret = new HashMap<>();
+        for (CBORObject key : map.getKeys()) {
+            String keyStr = null;
+            CBORObject obj = map.get(key);
+            if (key.isIntegral()) {
+                short keyInt = key.AsInt16();
+                if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
+                   keyStr = Constants.ABBREV[keyInt];
+                    if (keyInt == GRANT_TYPE
+                            && map.get(key).getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
+                    } else if (keyInt == ERROR
+                            && map.get(key).getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
+                    }                   
+                } else {
+                    throw new AceException("Malformed parameter map");
+                }
+            } else if (key.GetTags().equals(CBORType.TextString)) {
+                keyStr = key.AsString();
+            } else {
+                throw new AceException("Malformed parameter map");
+            }
+            ret.put(keyStr, obj);
+        }
        return ret;
-   }
+    }
+    
 }

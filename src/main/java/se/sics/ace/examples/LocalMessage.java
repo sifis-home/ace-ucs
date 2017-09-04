@@ -50,14 +50,12 @@ import se.sics.ace.Message;
  *
  */
 public class LocalMessage implements Message {
-
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(LocalMessage.class.getName());
-
+        = Logger.getLogger(LocalMessage.class.getName() );
     
     /**
      * The authenticated id of the sender
@@ -72,7 +70,7 @@ public class LocalMessage implements Message {
     /**
      * The parameters contained in the payload of this message
      */
-    private Map<String, CBORObject> params;
+    private Map<Short, CBORObject> params;
     
     /**
      * The payload of the message when it is not a Map
@@ -92,7 +90,7 @@ public class LocalMessage implements Message {
      * @param parameters
      */
     public LocalMessage(int code, String senderId, 
-            String recipientId, Map<String, CBORObject> parameters) {
+            String recipientId, Map<Short, CBORObject> parameters) {
         this.code = code;
         this.senderId = senderId;
         this.recipientId = recipientId;
@@ -107,6 +105,7 @@ public class LocalMessage implements Message {
      * @param senderId
      * @param recipientId 
      * @param payload
+     * @throws AceException 
      */
     public LocalMessage(int code, String senderId, 
             String recipientId, CBORObject payload) {
@@ -118,16 +117,13 @@ public class LocalMessage implements Message {
 
         if (payload != null && payload.getType().equals(CBORType.Map)) {
             try {
-                this.params = Constants.unabbreviate(payload);
+                this.params = Constants.getParams(payload);
             } catch (AceException e) {
-                LOGGER.severe("Error while unabbreviating CBOR payload: " 
-                        + e.getMessage());
+                LOGGER.severe(e.getMessage());
                 this.params = null;
-                return;
             }
         }
     }
-
     
     
     @Override
@@ -157,25 +153,25 @@ public class LocalMessage implements Message {
 
 
     @Override
-    public Set<String> getParameterNames() {
+    public Set<Short> getParameterNames() {
         return (this.params == null) 
                 ? null : this.params.keySet();
     }
 
 
     @Override
-    public CBORObject getParameter(String name) {
+    public CBORObject getParameter(Short name) {
         return (this.params == null) 
                 ? null : this.params.get(name);
     }
 
 
     @Override
-    public Map<String, CBORObject> getParameters() {
+    public Map<Short, CBORObject> getParameters() {
         if (this.params == null) {
             return null;
         }
-        HashMap<String, CBORObject> ret = new HashMap<>();
+        HashMap<Short, CBORObject> ret = new HashMap<>();
        ret.putAll(this.params);
        return ret;
     }

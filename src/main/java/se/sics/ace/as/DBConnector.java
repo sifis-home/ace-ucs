@@ -113,6 +113,11 @@ public interface DBConnector {
      * The column name for client identifier
      */
     public String clientIdColumn = "ClientId";	
+    
+    /**
+     * The column name for noting that the client needs a client token
+     */
+    public String needClientToken = "NeedClientToken";
 	
 	/**
 	 * The column name for the default audience use by the client
@@ -252,7 +257,7 @@ public interface DBConnector {
      * @return  a token type the audience supports or null
      * @throws AceException 
      */
-    public Integer getSupportedTokenType(String aud) throws AceException;
+    public Short getSupportedTokenType(String aud) throws AceException;
     
     /**
      * Returns a common set of COSE message parameters used to protect
@@ -412,7 +417,7 @@ public interface DBConnector {
 	 * @throws AceException 
 	 */
 	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
-            Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
+            Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
             Set<COSEparams> cose, long expiration, OneKey sharedKey, 
             OneKey publicKey) throws AceException;
 	/**
@@ -437,12 +442,13 @@ public interface DBConnector {
      *     there is none
      * @param publicKey  the COSE-encoded public key of this client or null if
      *      there is none
+	 * @param needClientToken this client a client token
      *       
 	 * @throws AceException 
 	 */
 	public void addClient(String clientId, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
-	        OneKey sharedKey, OneKey publicKey) 
+	        OneKey sharedKey, OneKey publicKey, boolean needClientToken) 
 	                throws AceException;
 	
 	/**
@@ -454,6 +460,13 @@ public interface DBConnector {
 	 */
 	public void deleteClient(String clientId) throws AceException;
 
+	/**
+	 * @param client  the identifier of the client 
+	 * @return  Does this client need a client token?
+	 * 
+	 * @throws AceException 
+	 */
+	public boolean needsClientToken(String client) throws AceException;
 	
 	/**
 	 * Adds a new token to the database
@@ -462,7 +475,7 @@ public interface DBConnector {
 	 * 
 	 * @throws AceException 
 	 */
-	public void addToken(String cti, Map<String, CBORObject> claims) 
+	public void addToken(String cti, Map<Short, CBORObject> claims) 
 	        throws AceException;
 	
 	/**
@@ -492,7 +505,7 @@ public interface DBConnector {
      *  
      * @throws AceException
      */
-    public Map<String, CBORObject> getClaims(String cti) throws AceException;
+    public Map<Short, CBORObject> getClaims(String cti) throws AceException;
     
     
     /**

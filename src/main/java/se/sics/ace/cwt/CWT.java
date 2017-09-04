@@ -58,7 +58,6 @@ import COSE.SignMessage;
 import COSE.Signer;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 /**
  * Implements CWTs.
@@ -68,14 +67,14 @@ import com.upokecenter.cbor.CBORType;
  */
 public class CWT implements AccessToken {
 
-	private Map<String, CBORObject> claims;	
+	private Map<Short, CBORObject> claims;	
 	
 	/**
 	 * Creates a new CWT without a COSE wrapper.
 	 * 
 	 * @param claims  the map of claims.
 	 */
-	public CWT(Map<String, CBORObject> claims) {
+	public CWT(Map<Short, CBORObject> claims) {
 		this.claims = new HashMap<> (claims);
 	}
 	
@@ -104,7 +103,7 @@ public class CWT implements AccessToken {
 				if (myKid == null || myKid.equals(kid)) {
 					s.setKey(ctx.getPublicKey());
 					if(signed.validate(s)) {
-						return new CWT(parseClaims(
+						return new CWT(Constants.getParams(
 								CBORObject.DecodeFromBytes(
 										signed.GetContent())));
 					}
@@ -115,7 +114,7 @@ public class CWT implements AccessToken {
 		} else if (coseRaw instanceof Sign1Message) {
 			Sign1Message signed = (Sign1Message)coseRaw;
 			if (signed.validate(ctx.getPublicKey())) {
-				return new CWT(parseClaims(
+				return new CWT(Constants.getParams(
 					CBORObject.DecodeFromBytes(signed.GetContent())));
 			}
 			
@@ -135,8 +134,9 @@ public class CWT implements AccessToken {
 						    OneKey coseKey = new OneKey(key);
 						    r.SetKey(coseKey);			    
 						    if (maced.Validate(r)) {
-						        return new CWT(parseClaims(
-						                CBORObject.DecodeFromBytes(maced.GetContent())));
+						        return new CWT(Constants.getParams(
+						                CBORObject.DecodeFromBytes(
+						                        maced.GetContent())));
 						    }
 						}
 					}
@@ -147,7 +147,7 @@ public class CWT implements AccessToken {
 		} else if (coseRaw instanceof MAC0Message) {
 			MAC0Message maced = (MAC0Message)coseRaw;
 			if (maced.Validate(ctx.getKey())) {
-				return new CWT(parseClaims(
+				return new CWT(Constants.getParams(
 						CBORObject.DecodeFromBytes(maced.GetContent())));
 			}
 			
@@ -168,7 +168,7 @@ public class CWT implements AccessToken {
 							r.SetKey(coseKey);
 							byte[] plaintext = processDecrypt(encrypted, r);
 							if (plaintext != null) {
-								return new CWT(parseClaims(
+								return new CWT(Constants.getParams(
 										CBORObject.DecodeFromBytes(
 												plaintext)));
 							}
@@ -180,7 +180,7 @@ public class CWT implements AccessToken {
 			
 		} else if (coseRaw instanceof Encrypt0Message) {
 			Encrypt0Message encrypted = (Encrypt0Message)coseRaw;
-			return new CWT(parseClaims(
+			return new CWT(Constants.getParams(
 					CBORObject.DecodeFromBytes(encrypted.decrypt(
 							ctx.getKey()))));
 		}
@@ -199,47 +199,6 @@ public class CWT implements AccessToken {
 		}
 	}
 	
-	
-	/**
-	 * Process a CBORObject containing a Map of claims.
-	 * 
-	 * @param content  the CBOR Map of claims
-	 * @return  the mapping of unabbreviated claim names to values.
-	 * @throws AceException
-	 */
-	public static Map<String, CBORObject> parseClaims(CBORObject content) 
-				throws AceException {
-		if (content.getType() != CBORType.Map) {
-			throw new AceException("This is not a CWT");
-		}
-		Map<String, CBORObject> claims = new HashMap<>();
-		for (CBORObject key : content.getKeys()) {
-			switch(key.getType()) {
-			
-				case TextString :
-					claims.put(key.AsString(), content.get(key));						
-					break;
-					
-				case Number :
-					int abbrev = key.AsInt32();
-					if (abbrev < Constants.ABBREV.length) {
-						claims.put(Constants.ABBREV[abbrev], 
-								content.get(key));
-					} else {
-						throw new AceException(
-								"Unknown claim abbreviation: " + abbrev);
-					}
-					break;
-					
-				default :
-					throw new AceException(
-							"Invalid key type in CWT claims map");
-			
-			}
-		}
-		return claims;
-	}
-	
 	/**
 	 * Encodes this CWT as CBOR Map without crypto wrapper.
 	 * 
@@ -247,7 +206,7 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public CBORObject encode() {
-        return Constants.abbreviate(this.claims);
+	    return Constants.getCBOR(this.claims);
 	}
 	
 	/**
@@ -349,21 +308,21 @@ public class CWT implements AccessToken {
 	 * @param name  the name of the claim
 	 * @return  the value of the claim or null.
 	 */
-	public CBORObject getClaim(String name) {
+	public CBORObject getClaim(Short name) {
 		return this.claims.get(name);
 	}
 	
 	/**
 	 * @return  a list of all claims in this CWT.
 	 */
-	public Set<String> getClaimKeys() {
+	public Set<Short> getClaimKeys() {
 		return this.claims.keySet();
 	}
 	
 	/**
 	 * @return a copy of the claims in this CWT.
 	 */
-	public Map<String, CBORObject> getClaims() {
+	public Map<Short, CBORObject> getClaims() {
 	    return new HashMap<>(this.claims);
 	}
 	
@@ -377,11 +336,11 @@ public class CWT implements AccessToken {
 	@Override
 	public boolean isValid(long now) {
 		//Check nbf and exp for the found match
-		CBORObject nbfO = this.claims.get("nbf");
+		CBORObject nbfO = this.claims.get(Constants.NBF);
 		if (nbfO != null &&  nbfO.AsInt64()	> now) {
 			return false;
 		}	
-		CBORObject expO = this.claims.get("exp");
+		CBORObject expO = this.claims.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
 			return false;
@@ -398,7 +357,7 @@ public class CWT implements AccessToken {
 	 */
 	@Override
 	public boolean expired(long now) {
-		CBORObject expO = this.claims.get("exp");
+		CBORObject expO = this.claims.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
 			return true;
@@ -413,7 +372,7 @@ public class CWT implements AccessToken {
 
     @Override
     public String getCti() throws AceException {
-        CBORObject cti = this.claims.get("cti");
+        CBORObject cti = this.claims.get(Constants.CTI);
         if (cti == null) {
             throw new AceException("Token has no cti");
         }

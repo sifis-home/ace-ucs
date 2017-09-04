@@ -51,6 +51,7 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
 
@@ -154,16 +155,15 @@ public class TestCoapsIntrospection {
        OneKey key = new OneKey(
                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
        CoapsIntrospection i = new CoapsIntrospection(key, "coaps://localhost/introspect");
-       Map<String, CBORObject> map =  i.getParams(new byte[]{0x00});     
-       System.out.println(map);
-       assert(map.containsKey("aud"));
-       assert(map.get("aud").AsString().equals("actuators"));
-       assert(map.containsKey("scope"));
-       assert(map.get("scope").AsString().equals("co2"));
-       assert(map.containsKey("active"));
-       assert(map.get("active").isTrue());
-       assert(map.containsKey("cti"));
-       assert(map.containsKey("exp"));
+       Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
+       assert(map.containsKey(Constants.AUD));
+       assert(map.get(Constants.AUD).AsString().equals("actuators"));
+       assert(map.containsKey(Constants.SCOPE));
+       assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+       assert(map.containsKey(Constants.ACTIVE));
+       assert(map.get(Constants.ACTIVE).isTrue());
+       assert(map.containsKey(Constants.CTI));
+       assert(map.containsKey(Constants.EXP));
        
    }
 }

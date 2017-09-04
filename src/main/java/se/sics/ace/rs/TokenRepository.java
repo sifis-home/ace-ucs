@@ -41,7 +41,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -125,7 +124,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Maps the base64 encoded cti to the claims of the corresponding token
 	 */
-	private Map<String, Map<String, CBORObject>> cti2claims;
+	private Map<String, Map<Short, CBORObject>> cti2claims;
 	
 	
 	/**
@@ -251,12 +250,13 @@ public class TokenRepository implements AutoCloseable {
                 }
                 JSONObject token =  (JSONObject)foo;
                 Iterator<String> iterToken = token.keys();
-                Map<String, CBORObject> params = new HashMap<>();
+                Map<Short, CBORObject> params = new HashMap<>();
                 while (iterToken.hasNext()) {
                     String key = iterToken.next();  
-                    params.put(key, CBORObject.DecodeFromBytes(
-                            Base64.getDecoder().decode(
-                                    token.getString((key)))));
+                    params.put(Short.parseShort(key), 
+                            CBORObject.DecodeFromBytes(
+                                    Base64.getDecoder().decode(
+                                            token.getString((key)))));
                 }
                 this.addToken(params, ctx, null);
             }
@@ -276,20 +276,20 @@ public class TokenRepository implements AutoCloseable {
 	 * 
 	 * @throws AceException 
 	 */
-	public synchronized CBORObject addToken(Map<String, CBORObject> claims, 
+	public synchronized CBORObject addToken(Map<Short, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {
-		CBORObject so = claims.get("scope");
+		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
 			throw new AceException("Token has no scope");
 		}
 
-		CBORObject cticb = claims.get("cti");
+		CBORObject cticb = claims.get(Constants.CTI);
 		String cti = null;
 		if (cticb == null) {
 		    cticb = CBORObject.FromObject(
 		            buffer.putInt(0, claims.hashCode()).array());
 			cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
-			claims.put("cti", cticb);
+			claims.put(Constants.CTI, cticb);
 		} else if (!cticb.getType().equals(CBORType.ByteString)) {
 		    LOGGER.info("Token's cti in not a ByteString");
             throw new AceException("Cti has invalid format");
@@ -303,7 +303,7 @@ public class TokenRepository implements AutoCloseable {
 		}
 
 		//Store the pop-key
-		CBORObject cnf = claims.get("cnf");
+		CBORObject cnf = claims.get(Constants.CNF);
         if (cnf == null) {
             LOGGER.severe("Token has not cnf");
             throw new AceException("Token has no cnf");
@@ -364,7 +364,7 @@ public class TokenRepository implements AutoCloseable {
         }
         
         //Now store the claims. Need deep copy here
-        Map<String, CBORObject> foo = new HashMap<>();
+        Map<Short, CBORObject> foo = new HashMap<>();
         foo.putAll(claims);
         this.cti2claims.put(cti, foo);
         
@@ -373,6 +373,16 @@ public class TokenRepository implements AutoCloseable {
         return cticb;
 	}
 
+	/**
+	 * Add the mappings for the cnf-key.
+	 * 
+	 * @param key  the key
+	 * @param sid  the subject identifier
+	 * @param cti  the token's identifier
+	 * 
+	 * @throws AceException
+	 * @throws CoseException
+	 */
 	private void processKey(OneKey key, String sid, String cti) 
 	        throws AceException, CoseException {
 	    String kid = null;
@@ -441,15 +451,16 @@ public class TokenRepository implements AutoCloseable {
 	public synchronized void purgeTokens(TimeProvider time) 
 				throws AceException {
 	    HashSet<String> tokenToRemove = new HashSet<>();
-		for (Entry<String, Map<String, CBORObject>> foo 
+		for (Map.Entry<String, Map<Short, CBORObject>> foo 
 		        : this.cti2claims.entrySet()) {
 		    if (foo.getValue() != null) {
-		        CBORObject exp = foo.getValue().get("exp");
+		        CBORObject exp = foo.getValue().get(Constants.EXP);
 		        if (exp == null) {
 		            continue; //This token never expires
 		        }
 		        if (!exp.isIntegral()) {
-		            throw new AceException("Expiration time is in wrong format");
+		            throw new AceException(
+		                    "Expiration time is in wrong format");
 		        }
 		        if (time.getCurrentTime() > exp.AsInt64()) {
 		            tokenToRemove.add(foo.getKey());
@@ -497,14 +508,14 @@ public class TokenRepository implements AutoCloseable {
 	    for (String cti : ctis) { //All tokens linked to that pop key
 	        //Check if we have the claims for that cti
 	        //Get the claims
-            Map<String, CBORObject> claims = this.cti2claims.get(cti);
+            Map<Short, CBORObject> claims = this.cti2claims.get(cti);
             if (claims == null || claims.isEmpty()) {
                 //No claims found
                 continue;
             }
 	        
           //Check if the subject matches
-            CBORObject subO = claims.get("sub");
+            CBORObject subO = claims.get(Constants.SUB);
             if (subO != null) {
                 if (subject == null) {
                     //Token requires subject, but none provided
@@ -517,7 +528,7 @@ public class TokenRepository implements AutoCloseable {
             }
             
             //Check if the token is expired
-            CBORObject exp = claims.get("exp"); 
+            CBORObject exp = claims.get(Constants.EXP); 
              if (exp != null && !exp.isIntegral()) {
                     throw new AceException("Expiration time is in wrong format");
              }
@@ -527,7 +538,7 @@ public class TokenRepository implements AutoCloseable {
              }
             
              //Check nbf
-             CBORObject nbf = claims.get("nbf");
+             CBORObject nbf = claims.get(Constants.NBF);
              if (nbf != null &&  !nbf.isIntegral()) {
                  throw new AceException("NotBefore time is in wrong format");
              }
@@ -537,7 +548,7 @@ public class TokenRepository implements AutoCloseable {
              }   
             
 	        //Check the scope
-             CBORObject scope = claims.get("scope");
+             CBORObject scope = claims.get(Constants.SCOPE);
              if (scope == null) {
                  LOGGER.severe("Token: " + cti + " has no scope");
                  throw new AceException("Token: " + cti + " has no scope");
@@ -551,12 +562,14 @@ public class TokenRepository implements AutoCloseable {
                        //Check if we should introspect this token
                          if (intro != null) {
                              byte[] ctiB = Base64.getDecoder().decode(cti);
-                             Map<String,CBORObject> introspect = intro.getParams(ctiB);
-                             if (introspect != null && introspect.get("active") == null) {
+                             Map<Short,CBORObject> introspect = intro.getParams(ctiB);
+                             if (introspect != null 
+                                     && introspect.get(Constants.ACTIVE) == null) {
                                  throw new AceException("Token introspection didn't "
                                          + "return an 'active' parameter");
                              }
-                             if (introspect != null && introspect.get("active").isTrue()) {
+                             if (introspect != null && introspect.get(
+                                     Constants.ACTIVE).isTrue()) {
                                  return OK; // Token is active and passed all other tests
                              }
                          }
@@ -577,10 +590,10 @@ public class TokenRepository implements AutoCloseable {
 	private void persist() throws AceException {
 	    JSONArray config = new JSONArray();
 	    for (String cti : this.cti2claims.keySet()) {
-	        Map<String, CBORObject> claims = this.cti2claims.get(cti);
+	        Map<Short, CBORObject> claims = this.cti2claims.get(cti);
 	        JSONObject token = new JSONObject();
-	        for (Entry<String,CBORObject> entry : claims.entrySet()) {
-	            token.put(entry.getKey(), 
+	        for (Map.Entry<Short,CBORObject> entry : claims.entrySet()) {
+	            token.put(entry.getKey().toString(), 
 	                    Base64.getEncoder().encodeToString(
 	                            entry.getValue().EncodeToBytes()));
 	        }
