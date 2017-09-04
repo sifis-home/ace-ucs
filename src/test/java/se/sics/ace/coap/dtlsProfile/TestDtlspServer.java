@@ -221,7 +221,7 @@ public class TestDtlspServer {
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
-      rs.getRoot().getChild(".well-known").add(authzInfo);
+      rs.add(authzInfo);
 
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
