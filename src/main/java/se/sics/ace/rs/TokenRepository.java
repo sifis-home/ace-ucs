@@ -302,11 +302,6 @@ public class TokenRepository implements AutoCloseable {
 		    throw new AceException("Duplicate cti");
 		}
 
-		//Need deep copy here
-		Map<String, CBORObject> foo = new HashMap<>();
-		foo.putAll(claims);
-		this.cti2claims.put(cti, foo);
-
 		//Store the pop-key
 		CBORObject cnf = claims.get("cnf");
         if (cnf == null) {
@@ -367,6 +362,14 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");
         }
+        
+        //Now store the claims. Need deep copy here
+        Map<String, CBORObject> foo = new HashMap<>();
+        foo.putAll(claims);
+        this.cti2claims.put(cti, foo);
+        
+        persist();
+        
         return cticb;
 	}
 
@@ -435,7 +438,7 @@ public class TokenRepository implements AutoCloseable {
      *
 	 * @throws AceException 
 	 */
-	public synchronized void pollTokens(TimeProvider time) 
+	public synchronized void purgeTokens(TimeProvider time) 
 				throws AceException {
 	    HashSet<String> tokenToRemove = new HashSet<>();
 		for (Entry<String, Map<String, CBORObject>> foo 
@@ -456,7 +459,6 @@ public class TokenRepository implements AutoCloseable {
 		for (String cti : tokenToRemove) {
 		    removeToken(cti);
 		}
-		persist();
 	}
 	
 	/**

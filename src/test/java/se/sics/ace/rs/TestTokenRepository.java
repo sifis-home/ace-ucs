@@ -598,7 +598,7 @@ public class TestTokenRepository {
         Assert.assertNotNull(key1);
         Assert.assertNotNull(key2);
         
-        tr.pollTokens(time);
+        tr.purgeTokens(time);
 
         key1 = tr.getPoP("dG9rZW4x");
         key2 = tr.getPoP("dG9rZW4y");
