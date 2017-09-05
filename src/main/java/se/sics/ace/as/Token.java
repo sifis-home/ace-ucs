@@ -316,7 +316,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    exp = now + exp;
 		}
 		claims.put(Constants.EXP, CBORObject.FromObject(exp));
-		claims.put(Constants.IAT, CBORObject.FromObject(now));
+		//IAT is not really necessary
+		//claims.put(Constants.IAT, CBORObject.FromObject(now));
 		byte[] ctiB = buffer.putLong(0, this.cti).array();
 		String ctiStr = Base64.getEncoder().encodeToString(ctiB);
 		this.cti++;
