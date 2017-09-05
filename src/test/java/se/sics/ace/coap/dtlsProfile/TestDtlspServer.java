@@ -237,7 +237,10 @@ public class TestDtlspServer {
         DTLSConnector connector = new DTLSConnector(config.build());
         rs.addEndpoint(
                 new CoapEndpoint(connector, NetworkConfig.getStandard()));
-
+        //Add a CoAP (no 's') endpoint for authz-info
+        rs.addEndpoint(new CoapEndpoint(new InetSocketAddress(
+                CoAP.DEFAULT_COAP_PORT)));
+        
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");
