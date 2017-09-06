@@ -25,14 +25,15 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 * Dependencies: Lots, check the .pom file
 * Database configuration:  Set up an MySQL database, for running 
   the Junit tests create a file 'db.pwd' with the root password of your test 
-  database at the root directory of this library. If you want an alternative 
-  database you have to change the dependencies to include another JDBC and
-  double check if SQLConnector uses a compatible syntax.
+  database at the root directory of this library (just the password nothing else). 
+  If you want an alternative database you have to change the dependencies to 
+  include another JDBC and double check if SQLConnector uses a compatible syntax.
 * How to run tests: Run the Test* class files in the src/test folders. The CoAP 
   tests require you to run TestCoAPServer (as normal program not as Junit test)
   first.  Also note that you need to restart TestCoAPServer for each Coap test, 
   since the Server sets up the database and the test cleans it up (I might fix
-  that in a future version).
+  that in a future version). For all tests to work you also have to replace
+  [JCE Unlimited Strength Policy](http://www.oracle.com/technetwork/java/javase/downloads/jce8-download-2133166.html) files.
 * Deployment instructions: TBD. You should be able to set up the code for testing
   by just using the maven pom.xml and configuring the database (as explained 
   above).
