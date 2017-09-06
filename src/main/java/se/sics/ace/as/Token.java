@@ -37,6 +37,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -234,10 +235,13 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//4. Check if the request has an audience or if there is a default aud
 		cbor = msg.getParameter(Constants.AUD);
-		String aud = null;
+		Set<String> aud = new HashSet<>();
 		if (cbor == null) {
 		    try {
-                aud = this.db.getDefaultAudience(id);
+		        String dAud = this.db.getDefaultAudience(id);
+		        if (dAud != null) {
+		            aud.add(dAud);
+		        }
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
@@ -245,16 +249,14 @@ public class Token implements Endpoint, AutoCloseable {
             }
 		} else {
 		    if (cbor.getType().equals(CBORType.Array)) {
-		        //XXX: Aud arrays not implemented
-		        LOGGER.severe("Message processing aborted: "
-		               + "audience arrays not supported");
-		        CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-	            map.Add(Constants.ERROR_DESCRIPTION, 
-	                    "Audience arrays not supported");
-                return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
+		      for (int i=0; i<cbor.size(); i++) {
+		          CBORObject audE = cbor.get(i);
+		          if (audE.getType().equals(CBORType.TextString)) {
+		              aud.add(audE.AsString());
+		          } //XXX: Silently skip non-text string audiences
+		      }
 		    } else if (cbor.getType().equals(CBORType.TextString)) {
-		        aud = cbor.AsString(); 
+		        aud.add(cbor.AsString()); 
 		    } else {//error
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -265,7 +267,7 @@ public class Token implements Endpoint, AutoCloseable {
 	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		    }
 		}
-		if (aud == null) {
+		if (aud.isEmpty()) {
 		    CBORObject map = CBORObject.NewMap();
 		    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		    map.Add(Constants.ERROR_DESCRIPTION, 
@@ -315,7 +317,13 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		Map<Short, CBORObject> claims = new HashMap<>();
 		claims.put(Constants.ISS, CBORObject.FromObject(this.asId));
-		claims.put(Constants.AUD, CBORObject.FromObject(aud));
+		//Check if AUD is a singleton
+		if (aud.size() == 1) {
+		    claims.put(Constants.AUD, CBORObject.FromObject(
+		            aud.iterator().next()));
+		} else {
+		    claims.put(Constants.AUD, CBORObject.FromObject(aud));
+		}
 		//Don't use sub, cnf is enough to bind the token
 		//and sub leads to problems with the DTLS profile and PSK
 		//claims.put("sub", CBORObject.FromObject(id));
@@ -612,14 +620,14 @@ public class Token implements Endpoint, AutoCloseable {
 	/**
 	 * Create a common CWT crypto context for the given audience.
 	 * 
-	 * @param aud  the audience
+	 * @param aud  the audiences
 
 	 * @return  a common crypto context or null if there isn't any
 	 * 
 	 * @throws CoseException 
 	 * @throws AceException 
 	 */
-	private CwtCryptoCtx makeCommonCtx(String aud) 
+	private CwtCryptoCtx makeCommonCtx(Set<String> aud) 
 	        throws AceException, CoseException {
 	    COSEparams cose = this.db.getSupportedCoseParams(aud);
 	    if (cose == null) {
@@ -667,21 +675,23 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @throws AceException 
 	 * @throws CoseException 
 	 */
-	private List<Recipient> makeRecipients(String aud, COSEparams cose)
+	private List<Recipient> makeRecipients(Set<String> aud, COSEparams cose)
 	        throws AceException, CoseException {
 	    List<Recipient> rl = new ArrayList<>();
-	    for (String rs : this.db.getRSS(aud)) {
-	        Recipient r = new Recipient();
-	        r.addAttribute(HeaderKeys.Algorithm, 
-	                cose.getKeyWrap().AsCBOR(), 
-	                Attribute.UNPROTECTED);
-	        CBORObject key = CBORObject.NewMap();
-	        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-	        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
-	                this.db.getRsPSK(rs)));
-	        OneKey coseKey = new OneKey(key);
-	        r.SetKey(coseKey); 
-	        rl.add(r);
+	    for (String audE : aud) {
+	        for (String rs : this.db.getRSS(audE)) {
+	            Recipient r = new Recipient();
+	            r.addAttribute(HeaderKeys.Algorithm, 
+	                    cose.getKeyWrap().AsCBOR(), 
+	                    Attribute.UNPROTECTED);
+	            CBORObject key = CBORObject.NewMap();
+	            key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+	            key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
+	                    this.db.getRsPSK(rs)));
+	            OneKey coseKey = new OneKey(key);
+	            r.SetKey(coseKey); 
+	            rl.add(r);
+	        }
 	    }
 	    return rl;
 	}
@@ -693,8 +703,11 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @return  a common PSK or null if there isn't any
 	 * @throws AceException 
 	 */
-	private byte[] getCommonSecretKey(String aud) throws AceException {
-	    Set<String> rss = this.db.getRSS(aud);
+	private byte[] getCommonSecretKey(Set<String> aud) throws AceException {
+	    Set<String> rss = new HashSet<>();
+	    for (String audE : aud) {
+	        rss.addAll(this.db.getRSS(audE));
+	    }
 	    byte[] key = null;
 	    for (String rs : rss) {
 	        OneKey cose = this.db.getRsPSK(rs);

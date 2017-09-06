@@ -36,6 +36,7 @@ import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -258,10 +259,12 @@ public class TestDB {
      */
     @Test
     public void testGetProfiles() throws Exception {
-        String profile = db.getSupportedProfile("clientA", "sensors");
+        String profile = db.getSupportedProfile("clientA", 
+                Collections.singleton("sensors"));
         assert(profile.equals("coap_dtls"));
         
-        profile = db.getSupportedProfile("sensors", "clientB");
+        profile = db.getSupportedProfile("sensors", 
+                Collections.singleton("clientB"));
         assert(profile == null);
     }
         
@@ -273,10 +276,12 @@ public class TestDB {
     @Test
     public void testGetKeyTypes() throws Exception {
             
-        String keyType = db.getSupportedPopKeyType("clientB", "rs1");
+        String keyType = db.getSupportedPopKeyType("clientB", 
+                Collections.singleton("rs1"));
         assert(keyType.equals("PSK"));
         
-        keyType =  db.getSupportedPopKeyType("clientB", "rs2");
+        keyType =  db.getSupportedPopKeyType("clientB", 
+                Collections.singleton("rs2"));
         assert(keyType == null);
     }
     
@@ -287,9 +292,25 @@ public class TestDB {
      */
     @Test
     public void testGetTokenType() throws Exception {
-        Short tokenType = db.getSupportedTokenType("sensors");
+        Short tokenType = db.getSupportedTokenType(
+                Collections.singleton("sensors"));
         assert(tokenType.equals(AccessTokenFactory.CWT_TYPE));
     }
+    
+    /**
+     * Test the getTokenType() method with a set of audiences
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testGetTokenTypeAudSet() throws Exception {
+        Set<String> aud = new HashSet<>();
+        aud.add("sensors");
+        aud.add("actuators");
+        Short tokenType = db.getSupportedTokenType(aud);
+        assert(tokenType.equals(AccessTokenFactory.CWT_TYPE));
+    }
+    
     
     /**
      * Test the getCose() method. 
@@ -298,9 +319,10 @@ public class TestDB {
      */
     @Test
     public void testGetCose() throws Exception {
-        COSEparams cose = db.getSupportedCoseParams("actuators");
+        COSEparams cose = db.getSupportedCoseParams(
+                Collections.singleton("actuators"));
         assert(cose == null);
-        cose = db.getSupportedCoseParams("sensors");
+        cose = db.getSupportedCoseParams(Collections.singleton("sensors"));
         System.out.println(cose.toString());
         assert(cose.toString().equals("18:-7:-6")); 
     }
@@ -385,10 +407,10 @@ public class TestDB {
      */
     @Test
     public void testGetExpTime() throws Exception {
-        long exp = db.getExpTime("rs1");
+        long exp = db.getExpTime(Collections.singleton("rs1"));
         assert(exp == 1000000L);
         
-        exp =  db.getExpTime("rs2");
+        exp =  db.getExpTime(Collections.singleton("rs2"));
         assert(exp == 300000L);
 
     }
@@ -604,5 +626,7 @@ public class TestDB {
         db.addCti2Client("cti1", "client2");
         Assert.fail("Duplicate Cti was added to DB");   
     }
+    
+    
 
 }

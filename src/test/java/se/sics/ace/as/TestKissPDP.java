@@ -39,6 +39,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -269,10 +270,12 @@ public class TestKissPDP {
     	KissPDP pdp = KissPDP.getInstance(TestConfig.testFilePath 
     	        + "acl.json", db);
     	assert(pdp.canAccessToken("clientA"));
-    	assert(pdp.canAccess("clientA", "rs2", "r_light").equals("r_light"));
-    	assert(pdp.canAccess("clientC", "rs1", "r_temp")==null);
-    	assert(pdp.canAccess("clientA", "rs1", "r_temp").equals("r_temp"));
-    	assert(pdp.canAccess("clientB", "rs1", "r_config")==null);
+    	Set<String> rs1 = Collections.singleton("rs1");
+    	Set<String> rs2 = Collections.singleton("rs2");
+    	assert(pdp.canAccess("clientA", rs2, "r_light").equals("r_light"));
+    	assert(pdp.canAccess("clientC", rs1, "r_temp")==null);
+    	assert(pdp.canAccess("clientA", rs1, "r_temp").equals("r_temp"));
+    	assert(pdp.canAccess("clientB", rs1, "r_config")==null);
     	assert(pdp.canAccessIntrospect("rs1"));
     	assert(!pdp.canAccessToken("clientF"));
     	assert(!pdp.canAccessIntrospect("rs4"));

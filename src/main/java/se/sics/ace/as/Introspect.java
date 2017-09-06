@@ -33,8 +33,10 @@ package se.sics.ace.as;
 
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -256,25 +258,24 @@ public class Introspect implements Endpoint, AutoCloseable {
             String rsId) throws AceException {
         CBORObject ct = CBORObject.NewMap();        
         CBORObject aud = claims.get(Constants.AUD);
-        String audStr = null;
+        Set<String> audSet = new HashSet<>();
         if (aud == null) {
-           audStr = this.db.getDefaultAudience(clientId);  
-        } else {
-            if (aud.getType().equals(CBORType.Array)) {
-                //XXX: Aud arrays not implemented
-                LOGGER.warning(
-                        "Audience arrays not supported for client token");
-                throw new AceException(
-                        "Audience array not supported for client token");
-            } else if (aud.getType().equals(CBORType.TextString)) {
-              audStr = aud.AsString();  
-            } else {//error
-                LOGGER.warning("Audience is malformed for token: " + cti);
-                throw new AceException("Audience malformed");
-            }
-           audStr = aud.AsString();
+            audSet.add(this.db.getDefaultAudience(clientId));  
+        } else if (aud.getType().equals(CBORType.Array)) {
+            for (int i=0; i<aud.size(); i++) {
+                CBORObject audE = aud.get(i);
+                if (audE.getType().equals(CBORType.TextString)) {
+                    audSet.add(audE.AsString());
+                } //XXX: Silently skip non-text string audiences
+            }   
+        } else if (aud.getType().equals(CBORType.TextString)) {
+            audSet.add(aud.AsString());  
+        } else {//error
+            LOGGER.warning("Audience is malformed for token: " + cti);
+            throw new AceException("Audience malformed");
         }
-        if (audStr == null) {
+        
+        if (audSet.isEmpty()) {
             throw new AceException("Token: " + cti + " has no audience");
         }
         
@@ -286,7 +287,7 @@ public class Introspect implements Endpoint, AutoCloseable {
             throw new AceException("Client: " + clientId + " has no keys");
         }        
         
-        String popType = this.db.getSupportedPopKeyType(clientId, audStr);
+        String popType = this.db.getSupportedPopKeyType(clientId, audSet);
         switch(popType) {
         case "RPK":
             //Get RS key
@@ -324,10 +325,10 @@ public class Introspect implements Endpoint, AutoCloseable {
                     + " for token: " + cti);
         }
         
-        String profile = this.db.getSupportedProfile(clientId, audStr);
+        String profile = this.db.getSupportedProfile(clientId, audSet);
         if (profile == null) {
-            throw new AceException("Client: " + clientId + " and audience: "
-                    + audStr + " do not support a common profile");
+            throw new AceException("Client: " + clientId + " and audiences: "
+                    + audSet.toString() + " do not support a common profile");
         }
         ct.Add(Constants.PROFILE, CBORObject.FromObject(profile));
         
@@ -412,7 +413,8 @@ public class Introspect implements Endpoint, AutoCloseable {
      */
     private CwtCryptoCtx makeCtx(String rsid) 
             throws AceException, CoseException {
-        COSEparams cose = this.db.getSupportedCoseParams(rsid);
+        COSEparams cose = this.db.getSupportedCoseParams(
+                Collections.singleton(rsid));
         if (cose == null) {
             return null;
         }

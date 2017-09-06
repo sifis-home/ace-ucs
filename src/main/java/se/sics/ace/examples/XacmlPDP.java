@@ -193,7 +193,7 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	public String canAccess(String clientId, String aud, String scopes) 
+	public String canAccess(String clientId, Set<String> aud, String scopes) 
 			throws AceException {
 		Set<Attributes> attributes = new HashSet<>();
 		StringAttribute subjectAV = new StringAttribute(clientId);
@@ -203,18 +203,23 @@ public class XacmlPDP implements PDP {
 				SUBJECT_CAT, Collections.singleton(subject));
 		attributes.add(subjectCat);
 		
-		String audStr = aud;
+		Set<String> audSet = new HashSet<>();
 		if (aud == null || aud.isEmpty()) {
 			if (this.defaultAud.isEmpty()) {
 				return null;
 			}
-			audStr = this.defaultAud;
+			audSet.add(this.defaultAud);
 		}
-		StringAttribute audAV = new StringAttribute(audStr);
-		Attribute audA = new Attribute(URI.create("oauth2:audience"), 
-				null, null, audAV, false, 0);
+		
+		HashSet<Attribute> resources = new HashSet<>();
+		for (String audE : audSet) {
+		    StringAttribute audAV = new StringAttribute(audE);
+		    Attribute audA = new Attribute(URI.create("oauth2:audience"), 
+		            null, null, audAV, false, 0);
+		    resources.add(audA);
+		}
 		Attributes resourceCat = new Attributes(
-				RESOURCE_CAT, Collections.singleton(audA));
+				RESOURCE_CAT, resources);
 		attributes.add(resourceCat);
 		
 		String scopeStr = scopes;

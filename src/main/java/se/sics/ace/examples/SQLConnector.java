@@ -36,6 +36,7 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -816,37 +817,40 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	
     @Override
     public synchronized String getSupportedProfile(
-            String clientId, String audience) throws AceException {
+            String clientId, Set<String> audience) throws AceException {
         if (clientId == null || audience == null) {
             throw new AceException(
                     "getSupportedProfile() requires non-null parameters");
         }
         Map<String, Set<String>> rsProfiles = new HashMap<>();
         Set<String> clientProfiles = new HashSet<>();
-        try {
-            this.selectProfiles.setString(1, audience);
-            this.selectProfiles.setString(2, clientId);
-            ResultSet result = this.selectProfiles.executeQuery();
-            this.selectProfiles.clearParameters();
+        for (String aud : audience) {
+            try {
+                this.selectProfiles.setString(1, aud);
+                this.selectProfiles.setString(2, clientId);
+                ResultSet result = this.selectProfiles.executeQuery();
+                this.selectProfiles.clearParameters();
 
-            while(result.next()) {
-                String id = result.getString(DBConnector.idColumn);
-                String profile = result.getString(DBConnector.profileColumn);
-                if (id.equals(clientId)) {
-                    clientProfiles.add(profile);
-                } else if (rsProfiles.containsKey(id)) {
-                    Set<String> foo = rsProfiles.get(id);
-                    foo.add(profile);
-                    rsProfiles.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(profile);
-                    rsProfiles.put(id, bar);
+                while(result.next()) {
+                    String id = result.getString(DBConnector.idColumn);
+                    String profile = result.getString(
+                            DBConnector.profileColumn);
+                    if (id.equals(clientId)) {
+                        clientProfiles.add(profile);
+                    } else if (rsProfiles.containsKey(id)) {
+                        Set<String> foo = rsProfiles.get(id);
+                        foo.add(profile);
+                        rsProfiles.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(profile);
+                        rsProfiles.put(id, bar);
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-        result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientProfiles, rsProfiles);
       
@@ -854,43 +858,46 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
     @Override
     public synchronized String getSupportedPopKeyType(
-            String clientId, String aud) throws AceException {
+            String clientId, Set<String> aud) throws AceException {
         if (clientId == null || aud == null) {
             throw new AceException(
                     "getSupportedPopKeyType() requires non-null parameters");
         }
         Map<String, Set<String>> rsKeyTypes = new HashMap<>();
         Set<String> clientKeyTypes = new HashSet<>();
-        try {
-            this.selectKeyTypes.setString(1, aud);
-            this.selectKeyTypes.setString(2, clientId);
-            ResultSet result = this.selectKeyTypes.executeQuery();
-            this.selectKeyTypes.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.idColumn);
-                String keyType = result.getString(DBConnector.keyTypeColumn);
-                if (id.equals(clientId)) {
-                    clientKeyTypes.add(keyType);
-                } else if (rsKeyTypes.containsKey(id)) {
-                    Set<String> foo = rsKeyTypes.get(id);
-                    foo.add(keyType);
-                    rsKeyTypes.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(keyType);
-                    rsKeyTypes.put(id, bar);
+        for (String audE : aud) {
+            try {
+                this.selectKeyTypes.setString(1, audE);
+                this.selectKeyTypes.setString(2, clientId);
+                ResultSet result = this.selectKeyTypes.executeQuery();
+                this.selectKeyTypes.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.idColumn);
+                    String keyType = result.getString(
+                            DBConnector.keyTypeColumn);
+                    if (id.equals(clientId)) {
+                        clientKeyTypes.add(keyType);
+                    } else if (rsKeyTypes.containsKey(id)) {
+                        Set<String> foo = rsKeyTypes.get(id);
+                        foo.add(keyType);
+                        rsKeyTypes.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(keyType);
+                        rsKeyTypes.put(id, bar);
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientKeyTypes, rsKeyTypes);
         
     }
     
     @Override
-    public  synchronized Short getSupportedTokenType(String aud) 
+    public  synchronized Short getSupportedTokenType(Set<String> aud) 
             throws AceException {
         if (aud == null) {
             throw new AceException(
@@ -898,29 +905,30 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         //Note: We store the token types as Strings in the DB
         Map<String, Set<String>> tokenTypes = new HashMap<>();
-        try {
-            this.selectTokenTypes.setString(1, aud);
-            ResultSet result = this.selectTokenTypes.executeQuery();
-            this.selectTokenTypes.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.rsIdColumn);
-                String tokenType = result.getString(
-                        DBConnector.tokenTypeColumn);
-               if (tokenTypes.containsKey(id)) {
-                    Set<String> foo = tokenTypes.get(id);
-                    foo.add(tokenType);
-                    tokenTypes.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(tokenType);
-                    tokenTypes.put(id, bar);
-                } 
+        for (String audE : aud) {
+            try {
+                this.selectTokenTypes.setString(1, audE);
+                ResultSet result = this.selectTokenTypes.executeQuery();
+                this.selectTokenTypes.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.rsIdColumn);
+                    String tokenType = result.getString(
+                            DBConnector.tokenTypeColumn);
+                    if (tokenTypes.containsKey(id)) {
+                        Set<String> foo = tokenTypes.get(id);
+                        foo.add(tokenType);
+                        tokenTypes.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(tokenType);
+                        tokenTypes.put(id, bar);
+                    } 
+                }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
-        
         Set<String> refSet = null;
         for (Map.Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
             if (refSet == null) {
@@ -952,34 +960,36 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
-    public synchronized COSEparams getSupportedCoseParams(String aud) 
+    public synchronized COSEparams getSupportedCoseParams(Set<String> aud) 
             throws AceException, CoseException {
         if (aud == null) {
             throw new AceException(
                     "getSupportedCoseParams() requires non-null aud");
         }
         Map<String, Set<String>> cose = new HashMap<>();
-        try {
-            this.selectCOSE.setString(1, aud);
-            ResultSet result = this.selectCOSE.executeQuery();
-            this.selectCOSE.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.rsIdColumn);
-                String coseParam = result.getString(
-                        DBConnector.coseColumn);
-               if (cose.containsKey(id)) {
-                    Set<String> foo = cose.get(id);
-                    foo.add(coseParam);
-                    cose.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(coseParam);
-                    cose.put(id, bar);
-                } 
+        for (String audE : aud) {
+            try {
+                this.selectCOSE.setString(1, audE);
+                ResultSet result = this.selectCOSE.executeQuery();
+                this.selectCOSE.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.rsIdColumn);
+                    String coseParam = result.getString(
+                            DBConnector.coseColumn);
+                    if (cose.containsKey(id)) {
+                        Set<String> foo = cose.get(id);
+                        foo.add(coseParam);
+                        cose.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(coseParam);
+                        cose.put(id, bar);
+                    } 
+                }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         
         Set<String> refSet = null;
@@ -1103,31 +1113,33 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }
         if (rss.isEmpty()) {
-            return null;
+            return Collections.emptySet();
         }
         return rss;
     }
     
     @Override
-    public synchronized long getExpTime(String rsId) throws AceException {
-        if (rsId == null) {
+    public synchronized long getExpTime(Set<String> aud) throws AceException {
+        if (aud == null) {
             throw new AceException(
-                    "getExpTime() requires non-null rsId");
+                    "getExpTime() requires non-null audience");
         }
         long smallest = Long.MAX_VALUE;
-        try {
-            this.selectExpiration.setString(1, rsId);
-            ResultSet result = this.selectExpiration.executeQuery();
-            this.selectExpiration.clearParameters();
-            while (result.next()) {
-                long val = result.getLong(DBConnector.expColumn);
-                if (val < smallest) {
-                    smallest = val;
+        for (String audE : aud) {
+            try {
+                this.selectExpiration.setString(1, audE);
+                ResultSet result = this.selectExpiration.executeQuery();
+                this.selectExpiration.clearParameters();
+                while (result.next()) {
+                    long val = result.getLong(DBConnector.expColumn);
+                    if (val < smallest) {
+                        smallest = val;
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return smallest;
     }
