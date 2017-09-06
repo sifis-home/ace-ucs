@@ -23,7 +23,7 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
   test resources), the discovery of AS (out of scope again). If you don't
   know where to start you probably shouldn't use this in production settings.
 * Dependencies: Lots, check the .pom file
-* Database configuration:  Set up an MySQL or Postgresql database, for running 
+* Database configuration:  Set up a MySQL or Postgresql database, for running 
   the Junit tests create a file 'db.pwd' with the root password of your test 
   database at the root directory of this library (just the password nothing else). 
   If you want an alternative database you have to change the dependencies to 
