@@ -244,7 +244,26 @@ public class Token implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
-		    aud = cbor.AsString();
+		    if (cbor.getType().equals(CBORType.Array)) {
+		        //XXX: Aud arrays not implemented
+		        LOGGER.severe("Message processing aborted: "
+		               + "audience arrays not supported");
+		        CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Audience arrays not supported");
+                return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
+		    } else if (cbor.getType().equals(CBORType.TextString)) {
+		        aud = cbor.AsString(); 
+		    } else {//error
+		        CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Audience malformed");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Audience malformed");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		    }
 		}
 		if (aud == null) {
 		    CBORObject map = CBORObject.NewMap();

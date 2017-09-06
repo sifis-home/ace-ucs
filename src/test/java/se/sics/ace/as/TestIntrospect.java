@@ -304,7 +304,6 @@ public class TestIntrospect {
                 response.getRawPayload());
         
         params = Constants.getParams(rparams);
-        System.out.println(params.toString());
         assert(params.get(Constants.ACTIVE).equals(CBORObject.False));
     }
     
@@ -334,7 +333,6 @@ public class TestIntrospect {
                 response.getRawPayload());
        
         params = Constants.getParams(rparams);
-        System.out.println(params.toString());
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True)); 
     }
     
@@ -357,7 +355,6 @@ public class TestIntrospect {
                 response.getRawPayload());
        
         params = Constants.getParams(rparams);
-        System.out.println(params.toString());
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
     }
     

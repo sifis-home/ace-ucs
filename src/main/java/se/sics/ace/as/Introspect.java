@@ -260,6 +260,18 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (aud == null) {
            audStr = this.db.getDefaultAudience(clientId);  
         } else {
+            if (aud.getType().equals(CBORType.Array)) {
+                //XXX: Aud arrays not implemented
+                LOGGER.warning(
+                        "Audience arrays not supported for client token");
+                throw new AceException(
+                        "Audience array not supported for client token");
+            } else if (aud.getType().equals(CBORType.TextString)) {
+              audStr = aud.AsString();  
+            } else {//error
+                LOGGER.warning("Audience is malformed for token: " + cti);
+                throw new AceException("Audience malformed");
+            }
            audStr = aud.AsString();
         }
         if (audStr == null) {

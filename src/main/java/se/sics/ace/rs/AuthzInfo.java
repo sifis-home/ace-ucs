@@ -232,7 +232,31 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	                + "Token has no audience");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
-	    if (!this.audience.match(aud.AsString())) {
+	    ArrayList<String> auds = new ArrayList<>();
+	    if (aud.getType().equals(CBORType.Array)) {
+	        for (int i=0; i<aud.size(); i++) {
+	            if (aud.get(i).getType().equals(CBORType.TextString)) {
+	                auds.add(aud.get(i).AsString());
+	            } //XXX: silently skip aud entries that are not text strings
+	        }
+	    } else if (aud.getType().equals(CBORType.TextString)) {
+	        auds.add(aud.AsString());
+	    } else {//Error
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Audience malformed");
+	        LOGGER.log(Level.INFO, "Message processing aborted: "
+	                + "audience malformed");
+	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    
+	    boolean audMatch = false;
+	    for (String audStr : auds) {
+	        if (this.audience.match(audStr)) {
+	            audMatch = true;
+	        }
+	    }
+	    if (!audMatch) { 
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
             map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
