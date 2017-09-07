@@ -121,28 +121,26 @@ public interface Message {
 	public String getSenderId();
 	
 	/**
-	 * @return  a set of the parameter names, null if the message does not
-     *     have a parameter map in the payload.  This MUST be the unabbreviated
-     *     parameter names.
+	 * @return  a set of the parameter names (abbreviated), 
+	 *     null if the message does not have a parameter map in the payload. 
 	 */
-	public Set<String> getParameterNames();
+	public Set<Short> getParameterNames();
 	
 	/**
      * Returns a parameter, or null if the parameter does not exist.
-     * This MUST use the unabbreviated parameter names.
      * 
-	 * @param name  the name of the parameter
+	 * @param name  the name abbreviation of the parameter
 	 * @return  the parameter value or null if it doesn't exist or the 
 	 *     message does not have a parameter map in the payload.
 	 */
-	public CBORObject getParameter(String name);
+	public CBORObject getParameter(Short name);
 	
 	/**
 	 * @return  the <code>Map</code> of parameters for this message or
 	 *     null if the message does not have a parameter map in the    
 	 *     payload.  This MUST provide the unabbreviated parameter names.
 	 */
-	public Map<String, CBORObject> getParameters();
+	public Map<Short, CBORObject> getParameters();
 	
 	/**
 	 * Generate a reply message indicating success.

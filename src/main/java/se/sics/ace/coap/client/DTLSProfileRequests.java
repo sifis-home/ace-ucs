@@ -54,7 +54,6 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
@@ -175,14 +174,14 @@ public class DTLSProfileRequests {
                        + e.getMessage());
             }
             c = new DTLSConnector(builder.build());
-            try {
-                c.start();
-            } catch (IOException e) {
-                LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
-                throw new AceException(e.getMessage());
-            }
         } else {
-            c = new UDPConnector(); 
+            c = new UDPConnector();
+        }
+        try {
+            c.start();
+        } catch (IOException e) {
+            LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
+            throw new AceException(e.getMessage());
         }
         CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
         CoapClient client = new CoapClient(rsAddr);
@@ -260,7 +259,7 @@ public class DTLSProfileRequests {
      *  handshake 
      */
     public static CoapClient getPskClient(InetSocketAddress serverAddress,
-            String kid, OneKey key) {
+            byte[] kid, OneKey key) {
         if (serverAddress == null || serverAddress.getHostName() == null) {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
@@ -284,7 +283,7 @@ public class DTLSProfileRequests {
         InMemoryPskStore store = new InMemoryPskStore();
         
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(KeyKeys.KeyId.AsCBOR(), kid.getBytes(Constants.charset));
+        cbor.Add(KeyKeys.KeyId.AsCBOR(), kid);
         String identity = Base64.getEncoder().encodeToString(
                 cbor.EncodeToBytes());
         LOGGER.finest("Adding key for: " + serverAddress.toString());
@@ -322,6 +321,5 @@ public class DTLSProfileRequests {
         client.setEndpoint(e);   
 
         return client;    
-    }
-    
+    }    
 }

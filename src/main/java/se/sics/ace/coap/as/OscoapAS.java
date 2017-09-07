@@ -40,7 +40,7 @@ package se.sics.ace.coap.as;
 public class OscoapAS {
 
     /**
-     * FIXME: Implement this
+     * Not implemented in this branch
      */
     public OscoapAS() {
 

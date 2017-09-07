@@ -111,7 +111,7 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = null;
+		Map<Short, CBORObject> params = null;
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
@@ -121,7 +121,7 @@ public class ReferenceToken implements AccessToken {
 		if (params == null) {
 		    throw new AceException("Token reference not found: " + this.refS);
 		}
-		CBORObject expO = params.get("exp");
+		CBORObject expO = params.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 			//Token has expired
 			return true;
@@ -134,7 +134,7 @@ public class ReferenceToken implements AccessToken {
 		if (this.introspect == null) {
 			throw new AceException("Need IntrospectionHandler");
 		}
-		Map<String, CBORObject> params = null;
+		Map<Short, CBORObject> params = null;
         try {
             params = this.introspect.getParams(this.ref);
         } catch (IntrospectionException e) {
@@ -145,11 +145,11 @@ public class ReferenceToken implements AccessToken {
 		    throw new AceException("Token reference not found: " + this.refS);
 		}
 		//Check nbf and exp for the found match
-		CBORObject nbfO = params.get("nbf");
+		CBORObject nbfO = params.get(Constants.NBF);
 		if (nbfO != null &&  nbfO.AsInt64()	> now) {
 		    return false;
 		}	
-		CBORObject expO = params.get("exp");
+		CBORObject expO = params.get(Constants.EXP);
 		if (expO != null && expO.AsInt64() < now) {
 		    //Token has expired
 		    return false;

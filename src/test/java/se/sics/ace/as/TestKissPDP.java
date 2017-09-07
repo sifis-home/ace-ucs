@@ -38,7 +38,8 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.Statement;
-
+import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -61,6 +62,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.SQLConnector;
@@ -146,7 +148,7 @@ public class TestKissPDP {
         keyTypes.add("PSK");
         keyTypes.add("RPK");
         
-        Set<Integer> tokenTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         
@@ -194,33 +196,37 @@ public class TestKissPDP {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
+        db.addClient("clientA", profiles, null, null, 
+                keyTypes, null, publicKey, false);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, skey, null);
+        db.addClient("clientB", profiles, "co2", "sensors", 
+                keyTypes, skey, null, false);
         
         //Setup token entries
-        String cid = "token1";
-        Map<String, CBORObject> claims = new HashMap<>();
-        claims.put("scope", CBORObject.FromObject("co2"));
-        claims.put("aud",  CBORObject.FromObject("sensors"));
-        claims.put("exp", CBORObject.FromObject(1000000L));   
-        claims.put("cid", CBORObject.FromObject("token1"));
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
-        db.addToken(cid, claims);
+        byte[] cti = new byte[]{0x01};
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
+        claims.put(Constants.CTI, CBORObject.FromObject("token1"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
         
-        cid = "token2";
+        cti = new byte[]{0x02};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
         claims.clear();
-        claims.put("scope", CBORObject.FromObject("temp"));
-        claims.put("aud",  CBORObject.FromObject("actuators"));
-        claims.put("exp", CBORObject.FromObject(2000000L));
-        claims.put("cid", CBORObject.FromObject("token2"));
-        db.addToken(cid, claims);
+        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
     }
     
     /**
@@ -264,10 +270,12 @@ public class TestKissPDP {
     	KissPDP pdp = KissPDP.getInstance(TestConfig.testFilePath 
     	        + "acl.json", db);
     	assert(pdp.canAccessToken("clientA"));
-    	assert(pdp.canAccess("clientA", "rs2", "r_light").equals("r_light"));
-    	assert(pdp.canAccess("clientC", "rs1", "r_temp")==null);
-    	assert(pdp.canAccess("clientA", "rs1", "r_temp").equals("r_temp"));
-    	assert(pdp.canAccess("clientB", "rs1", "r_config")==null);
+    	Set<String> rs1 = Collections.singleton("rs1");
+    	Set<String> rs2 = Collections.singleton("rs2");
+    	assert(pdp.canAccess("clientA", rs2, "r_light").equals("r_light"));
+    	assert(pdp.canAccess("clientC", rs1, "r_temp")==null);
+    	assert(pdp.canAccess("clientA", rs1, "r_temp").equals("r_temp"));
+    	assert(pdp.canAccess("clientB", rs1, "r_config")==null);
     	assert(pdp.canAccessIntrospect("rs1"));
     	assert(!pdp.canAccessToken("clientF"));
     	assert(!pdp.canAccessIntrospect("rs4"));

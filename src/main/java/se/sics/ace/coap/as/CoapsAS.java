@@ -84,7 +84,6 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
 
     private CoapAceEndpoint introspect;
 
-    
     /**
      * Constructor.
      * 
@@ -94,12 +93,14 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * @param time  time provider, must not be null
      * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
      *   can be null if the AS only ever does PSK handshakes
+     * @param port  the port number to run the server on
+     * 
      * @throws AceException 
      * @throws CoseException 
      * 
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey) throws AceException, CoseException {
+            OneKey asymmetricKey, int port) throws AceException, CoseException {
         if (asymmetricKey == null) {
             this.i = new Introspect(pdp, db, time, null);
         } else {
@@ -114,7 +115,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
         add(this.introspect);
 
        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-               new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+               new InetSocketAddress(port));
        if (asymmetricKey != null && 
                asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
            LOGGER.info("Starting CoapsAS with PSK and RPK");
@@ -134,6 +135,25 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
        config.setClientAuthenticationRequired(true);
        DTLSConnector connector = new DTLSConnector(config.build());
        addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
+    }
+    
+    
+    /**
+     * Constructor.
+     * 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
+     *   can be null if the AS only ever does PSK handshakes
+     * @throws AceException 
+     * @throws CoseException 
+     * 
+     */
+    public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
+            OneKey asymmetricKey) throws AceException, CoseException {
+        this(asId, db, pdp, time, asymmetricKey, CoAP.DEFAULT_COAP_SECURE_PORT);
     }
 
     @Override

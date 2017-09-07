@@ -113,6 +113,11 @@ public interface DBConnector {
      * The column name for client identifier
      */
     public String clientIdColumn = "ClientId";	
+    
+    /**
+     * The column name for noting that the client needs a client token
+     */
+    public String needClientToken = "NeedClientToken";
 	
 	/**
 	 * The column name for the default audience use by the client
@@ -222,13 +227,13 @@ public interface DBConnector {
 	 * Gets a common profile supported by a specific audience and client.
 	 * 
      * @param clientId  the client identifier
-	 * @param audience  the audience identifier
+	 * @param aud  the audiences
 	 * 
 	 * @return  a profile they all support or null if there isn't any
 	 * 
 	 * @throws AceException 
 	 */
-	public String getSupportedProfile(String clientId, String audience) 
+	public String getSupportedProfile(String clientId, Set<String> aud) 
 	            throws AceException;
     
 	/**
@@ -236,23 +241,23 @@ public interface DBConnector {
      * algorithm, or null if there isn't any.
      * 
      * @param clientId  the id of the client
-     * @param aud  the audience that this client is addressing 
+     * @param aud  the audiences that this client is addressing 
      * 
      * @return  a key type both support or null
 	 * @throws AceException 
      */
-    public String getSupportedPopKeyType(String clientId, String aud)
+    public String getSupportedPopKeyType(String clientId, Set<String> aud)
         throws AceException;
     
     /**
      * Returns a common token type, or null if there isn't any
      * 
-     * @param aud  the audience that is addressed
+     * @param aud  the audiences that are addressed
      * 
      * @return  a token type the audience supports or null
      * @throws AceException 
      */
-    public Integer getSupportedTokenType(String aud) throws AceException;
+    public Short getSupportedTokenType(Set<String> aud) throws AceException;
     
     /**
      * Returns a common set of COSE message parameters used to protect
@@ -261,12 +266,12 @@ public interface DBConnector {
      * Note: For a asymmetric key message like Sign0, we assume that the 
      * RS has the AS's public key and can handle public key operations.
      * 
-     * @param aud  the audience id
+     * @param aud  the audiences
      * @return  the COSE parameters or null
      * @throws AceException 
      * @throws CoseException 
      */
-    public COSEparams getSupportedCoseParams(String aud) 
+    public COSEparams getSupportedCoseParams(Set<String> aud) 
             throws AceException, CoseException;
     
 
@@ -322,12 +327,12 @@ public interface DBConnector {
      * Returns the smallest expiration time for the RS in this
      *     audience.
      *     
-     * @param aud  the audience of the access token
+     * @param aud  the audiences of the access token
      * @return  the expiration time in milliseconds
      * 
      * @throws AceException 
      */
-    public long getExpTime(String aud) throws AceException;
+    public long getExpTime(Set<String> aud) throws AceException;
     
     /**
      * Gets the audiences that this RS is part of.
@@ -412,7 +417,7 @@ public interface DBConnector {
 	 * @throws AceException 
 	 */
 	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
-            Set<String> auds, Set<String> keyTypes, Set<Integer> tokenTypes, 
+            Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
             Set<COSEparams> cose, long expiration, OneKey sharedKey, 
             OneKey publicKey) throws AceException;
 	/**
@@ -437,12 +442,13 @@ public interface DBConnector {
      *     there is none
      * @param publicKey  the COSE-encoded public key of this client or null if
      *      there is none
+	 * @param needClientToken this client a client token
      *       
 	 * @throws AceException 
 	 */
 	public void addClient(String clientId, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
-	        OneKey sharedKey, OneKey publicKey) 
+	        OneKey sharedKey, OneKey publicKey, boolean needClientToken) 
 	                throws AceException;
 	
 	/**
@@ -454,6 +460,13 @@ public interface DBConnector {
 	 */
 	public void deleteClient(String clientId) throws AceException;
 
+	/**
+	 * @param client  the identifier of the client 
+	 * @return  Does this client need a client token?
+	 * 
+	 * @throws AceException 
+	 */
+	public boolean needsClientToken(String client) throws AceException;
 	
 	/**
 	 * Adds a new token to the database
@@ -462,7 +475,7 @@ public interface DBConnector {
 	 * 
 	 * @throws AceException 
 	 */
-	public void addToken(String cti, Map<String, CBORObject> claims) 
+	public void addToken(String cti, Map<Short, CBORObject> claims) 
 	        throws AceException;
 	
 	/**
@@ -492,7 +505,7 @@ public interface DBConnector {
      *  
      * @throws AceException
      */
-    public Map<String, CBORObject> getClaims(String cti) throws AceException;
+    public Map<Short, CBORObject> getClaims(String cti) throws AceException;
     
     
     /**
