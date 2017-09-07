@@ -109,12 +109,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * Parameter: audience name
      */
 	protected PreparedStatement selectRS;
-
-	/**
-	 * A prepared SELECT statement to get all RSs
-	 */
-	protected PreparedStatement selectAllRS;
-
+    
 	/**
 	 * A prepared INSERT statement to add a profile supported
 	 * by a client or Resource Server
@@ -374,12 +369,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * token identified by its cti.
      */
     private PreparedStatement selectClientByCti;
-
-	/**
-	 * A prepared SELECT statement to select all registered clients.
-	 */
-	private PreparedStatement selectAllClients;
-
+    
     /**
      * A prepared SELECT statement to select the token identifiers (cti) 
      * held by a client
@@ -492,13 +482,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                 + DBConnector.audiencesTable
                 + " WHERE " + DBConnector.audColumn + "=? ORDER BY "
                         + DBConnector.rsIdColumn + ";"));
-
-		this.selectAllRS = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
-				+ DBConnector.rsIdColumn
-				+ " FROM "
-				+ DBConnector.rsTable
-				+ " ORDER BY "
-				+ DBConnector.rsIdColumn + ";"));
 		        
 		this.insertProfile = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		         + DBConnector.profilesTable
@@ -681,16 +664,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         this.insertCti2Client = this.conn.prepareStatement("INSERT INTO "
                 + DBConnector.cti2clientTable
                 + " VALUES (?,?);");
-
-		this.selectAllClients = this.conn.prepareStatement("SELECT "
-				+ DBConnector.clientIdColumn + " FROM "
-				+ DBConnector.cTable + ";");
-
-		this.selectClientByCti = this.conn.prepareStatement("SELECT "
+        
+        this.selectClientByCti = this.conn.prepareStatement("SELECT "
                     + DBConnector.clientIdColumn + " FROM "
                     + DBConnector.cti2clientTable
-                    + " WHERE " + DBConnector.ctiColumn + "=?;");
-
+                    + " WHERE " + DBConnector.ctiColumn + "=?;");   
+          
         this.selectCtisByClient= this.conn.prepareStatement("SELECT "
                 + DBConnector.ctiColumn + " FROM "
                 + DBConnector.cti2clientTable
@@ -1115,26 +1094,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         return rss;
     }
-
-	@Override
-	public synchronized Set<String> getRSS() throws AceException {
-		Set<String> rss = new HashSet<>();
-		try {
-			ResultSet result = this.selectAllRS.executeQuery();
-			while (result.next()) {
-				rss.add(result.getString(DBConnector.rsIdColumn));
-			}
-			result.close();
-		} catch (SQLException e) {
-			throw new AceException(e.getMessage());
-		}
-		if (rss.isEmpty()) {
-			return null;
-		}
-		return rss;
-	}
-
-
+    
     @Override
     public synchronized long getExpTime(String rsId) throws AceException {
         if (rsId == null) {
@@ -1667,22 +1627,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
     }
 
-	@Override
-	public synchronized Set<String> getClients() throws AceException {
-		Set<String> clients = new HashSet<>();
-		try {
-			ResultSet result = this.selectAllClients.executeQuery();
-			while (result.next()) {
-				clients.add(result.getString(DBConnector.clientIdColumn));
-			}
-			result.close();
-		} catch (SQLException e) {
-			throw new AceException(e.getMessage());
-		}
-		return clients;
-	}
-
-	@Override
+    @Override
     public synchronized String getClient4Cti(String cti) throws AceException {
         if (cti == null) {
             throw new AceException("getClient4Cti() requires non-null cti");
