@@ -150,11 +150,11 @@ public class TestDtlspAuthzInfo {
         dai = new CoapAuthzInfo(ai);
         
         //Set up a token to use
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(new byte[]{0x00}));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02}); 
@@ -162,7 +162,7 @@ public class TestDtlspAuthzInfo {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         payload = token.encode(ctx);
         

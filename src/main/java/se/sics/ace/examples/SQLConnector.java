@@ -36,10 +36,10 @@ import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Properties;
 import java.util.Set;
 
@@ -50,6 +50,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.DBConnector;
 
@@ -244,6 +245,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * Parameter: client id
 	 */
 	protected PreparedStatement deleteClient;
+	
+	/**
+     * A prepared SELECT statement to read whether the client needs a
+     * client token.
+     * 
+     * Parameter: client id
+     */
+    private PreparedStatement needClientToken;
 	
 	/**
 	 * A prepared SELECT statement to get the default audience for a client.
@@ -583,13 +592,18 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                      + DBConnector.audiencesTable
                     + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
                     + DBConnector.rsIdColumn + ";"));
-		
+
 		this.insertClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.cTable
-                + " VALUES (?,?,?,?,?);"));
+                + " VALUES (?,?,?,?,?,?);"));
 	
 		this.deleteClient = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("DELETE FROM "
                  + DBConnector.cTable
+                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
+		
+		this.needClientToken = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
+                + DBConnector.needClientToken + " FROM "
+                + DBConnector.cTable
                 + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 		
 		this.selectDefaultAudience = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -653,7 +667,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        + DBConnector.ctiColumn + "," + DBConnector.claimValueColumn
 		        + " FROM "
 		        + DBConnector.claimsTable
-		        + " WHERE " + DBConnector.claimNameColumn + "='exp';"));
+		        + " WHERE " + DBConnector.claimNameColumn + "=" + Constants.EXP + ";"));
 		        
 		this.insertClaim = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                  + DBConnector.claimsTable
@@ -678,23 +692,23 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                  + DBConnector.ctiCounterTable
                 + " SET " + DBConnector.ctiCounterColumn + "=?;"));
         
-        this.insertCti2Client = this.conn.prepareStatement("INSERT INTO "
+        this.insertCti2Client = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                 + DBConnector.cti2clientTable
-                + " VALUES (?,?);");
+                + " VALUES (?,?);"));
 
 		this.selectAllClients = this.conn.prepareStatement("SELECT "
 				+ DBConnector.clientIdColumn + " FROM "
 				+ DBConnector.cTable + ";");
         
-        this.selectClientByCti = this.conn.prepareStatement("SELECT "
+        this.selectClientByCti = this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                     + DBConnector.clientIdColumn + " FROM "
                     + DBConnector.cti2clientTable
-                    + " WHERE " + DBConnector.ctiColumn + "=?;");   
+                    + " WHERE " + DBConnector.ctiColumn + "=?;"));   
           
-        this.selectCtisByClient= this.conn.prepareStatement("SELECT "
+        this.selectCtisByClient= this.conn.prepareStatement(dbAdapter.updateEngineSpecificSQL("SELECT "
                 + DBConnector.ctiColumn + " FROM "
                 + DBConnector.cti2clientTable
-                + " WHERE " + DBConnector.clientIdColumn + "=?;");   
+                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
     
 	}
 
@@ -824,37 +838,40 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	
     @Override
     public synchronized String getSupportedProfile(
-            String clientId, String audience) throws AceException {
+            String clientId, Set<String> audience) throws AceException {
         if (clientId == null || audience == null) {
             throw new AceException(
                     "getSupportedProfile() requires non-null parameters");
         }
         Map<String, Set<String>> rsProfiles = new HashMap<>();
         Set<String> clientProfiles = new HashSet<>();
-        try {
-            this.selectProfiles.setString(1, audience);
-            this.selectProfiles.setString(2, clientId);
-            ResultSet result = this.selectProfiles.executeQuery();
-            this.selectProfiles.clearParameters();
+        for (String aud : audience) {
+            try {
+                this.selectProfiles.setString(1, aud);
+                this.selectProfiles.setString(2, clientId);
+                ResultSet result = this.selectProfiles.executeQuery();
+                this.selectProfiles.clearParameters();
 
-            while(result.next()) {
-                String id = result.getString(DBConnector.idColumn);
-                String profile = result.getString(DBConnector.profileColumn);
-                if (id.equals(clientId)) {
-                    clientProfiles.add(profile);
-                } else if (rsProfiles.containsKey(id)) {
-                    Set<String> foo = rsProfiles.get(id);
-                    foo.add(profile);
-                    rsProfiles.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(profile);
-                    rsProfiles.put(id, bar);
+                while(result.next()) {
+                    String id = result.getString(DBConnector.idColumn);
+                    String profile = result.getString(
+                            DBConnector.profileColumn);
+                    if (id.equals(clientId)) {
+                        clientProfiles.add(profile);
+                    } else if (rsProfiles.containsKey(id)) {
+                        Set<String> foo = rsProfiles.get(id);
+                        foo.add(profile);
+                        rsProfiles.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(profile);
+                        rsProfiles.put(id, bar);
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-        result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientProfiles, rsProfiles);
       
@@ -862,43 +879,46 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
     @Override
     public synchronized String getSupportedPopKeyType(
-            String clientId, String aud) throws AceException {
+            String clientId, Set<String> aud) throws AceException {
         if (clientId == null || aud == null) {
             throw new AceException(
                     "getSupportedPopKeyType() requires non-null parameters");
         }
         Map<String, Set<String>> rsKeyTypes = new HashMap<>();
         Set<String> clientKeyTypes = new HashSet<>();
-        try {
-            this.selectKeyTypes.setString(1, aud);
-            this.selectKeyTypes.setString(2, clientId);
-            ResultSet result = this.selectKeyTypes.executeQuery();
-            this.selectKeyTypes.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.idColumn);
-                String keyType = result.getString(DBConnector.keyTypeColumn);
-                if (id.equals(clientId)) {
-                    clientKeyTypes.add(keyType);
-                } else if (rsKeyTypes.containsKey(id)) {
-                    Set<String> foo = rsKeyTypes.get(id);
-                    foo.add(keyType);
-                    rsKeyTypes.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(keyType);
-                    rsKeyTypes.put(id, bar);
+        for (String audE : aud) {
+            try {
+                this.selectKeyTypes.setString(1, audE);
+                this.selectKeyTypes.setString(2, clientId);
+                ResultSet result = this.selectKeyTypes.executeQuery();
+                this.selectKeyTypes.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.idColumn);
+                    String keyType = result.getString(
+                            DBConnector.keyTypeColumn);
+                    if (id.equals(clientId)) {
+                        clientKeyTypes.add(keyType);
+                    } else if (rsKeyTypes.containsKey(id)) {
+                        Set<String> foo = rsKeyTypes.get(id);
+                        foo.add(keyType);
+                        rsKeyTypes.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(keyType);
+                        rsKeyTypes.put(id, bar);
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return getCommonValue(clientKeyTypes, rsKeyTypes);
         
     }
     
     @Override
-    public  synchronized Integer getSupportedTokenType(String aud) 
+    public  synchronized Short getSupportedTokenType(Set<String> aud) 
             throws AceException {
         if (aud == null) {
             throw new AceException(
@@ -906,31 +926,32 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         //Note: We store the token types as Strings in the DB
         Map<String, Set<String>> tokenTypes = new HashMap<>();
-        try {
-            this.selectTokenTypes.setString(1, aud);
-            ResultSet result = this.selectTokenTypes.executeQuery();
-            this.selectTokenTypes.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.rsIdColumn);
-                String tokenType = result.getString(
-                        DBConnector.tokenTypeColumn);
-               if (tokenTypes.containsKey(id)) {
-                    Set<String> foo = tokenTypes.get(id);
-                    foo.add(tokenType);
-                    tokenTypes.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(tokenType);
-                    tokenTypes.put(id, bar);
-                } 
+        for (String audE : aud) {
+            try {
+                this.selectTokenTypes.setString(1, audE);
+                ResultSet result = this.selectTokenTypes.executeQuery();
+                this.selectTokenTypes.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.rsIdColumn);
+                    String tokenType = result.getString(
+                            DBConnector.tokenTypeColumn);
+                    if (tokenTypes.containsKey(id)) {
+                        Set<String> foo = tokenTypes.get(id);
+                        foo.add(tokenType);
+                        tokenTypes.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(tokenType);
+                        tokenTypes.put(id, bar);
+                    } 
+                }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
-        
         Set<String> refSet = null;
-        for (Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
+        for (Map.Entry<String, Set<String>> rs : tokenTypes.entrySet()) {
             if (refSet == null) {
                 refSet = new HashSet<>();
                 refSet.addAll(rs.getValue());
@@ -949,7 +970,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         //Get the first remaining value
         if (refSet != null && !refSet.isEmpty()) {
             String tokenType = refSet.iterator().next();
-            for (int i=0; i<AccessTokenFactory.ABBREV.length; i++) {
+            for (short i=0; i<AccessTokenFactory.ABBREV.length; i++) {
                 if (tokenType.equals(AccessTokenFactory.ABBREV[i])) {
                     return i;
                 }
@@ -960,38 +981,40 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
-    public synchronized COSEparams getSupportedCoseParams(String aud) 
+    public synchronized COSEparams getSupportedCoseParams(Set<String> aud) 
             throws AceException, CoseException {
         if (aud == null) {
             throw new AceException(
                     "getSupportedCoseParams() requires non-null aud");
         }
         Map<String, Set<String>> cose = new HashMap<>();
-        try {
-            this.selectCOSE.setString(1, aud);
-            ResultSet result = this.selectCOSE.executeQuery();
-            this.selectCOSE.clearParameters();
-            while(result.next()) {
-                String id = result.getString(DBConnector.rsIdColumn);
-                String coseParam = result.getString(
-                        DBConnector.coseColumn);
-               if (cose.containsKey(id)) {
-                    Set<String> foo = cose.get(id);
-                    foo.add(coseParam);
-                    cose.put(id, foo);
-                } else {
-                    Set<String> bar = new HashSet<>();
-                    bar.add(coseParam);
-                    cose.put(id, bar);
-                } 
+        for (String audE : aud) {
+            try {
+                this.selectCOSE.setString(1, audE);
+                ResultSet result = this.selectCOSE.executeQuery();
+                this.selectCOSE.clearParameters();
+                while(result.next()) {
+                    String id = result.getString(DBConnector.rsIdColumn);
+                    String coseParam = result.getString(
+                            DBConnector.coseColumn);
+                    if (cose.containsKey(id)) {
+                        Set<String> foo = cose.get(id);
+                        foo.add(coseParam);
+                        cose.put(id, foo);
+                    } else {
+                        Set<String> bar = new HashSet<>();
+                        bar.add(coseParam);
+                        cose.put(id, bar);
+                    } 
+                }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         
         Set<String> refSet = null;
-        for (Entry<String, Set<String>> rs : cose.entrySet()) {
+        for (Map.Entry<String, Set<String>> rs : cose.entrySet()) {
             if (refSet == null) {
                 refSet = new HashSet<>();
                 refSet.addAll(rs.getValue());
@@ -1111,7 +1134,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }
         if (rss.isEmpty()) {
-            return null;
+            return Collections.emptySet();
         }
         return rss;
     }
@@ -1135,25 +1158,27 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	}
     
     @Override
-    public synchronized long getExpTime(String rsId) throws AceException {
-        if (rsId == null) {
+    public synchronized long getExpTime(Set<String> aud) throws AceException {
+        if (aud == null) {
             throw new AceException(
-                    "getExpTime() requires non-null rsId");
+                    "getExpTime() requires non-null audience");
         }
         long smallest = Long.MAX_VALUE;
-        try {
-            this.selectExpiration.setString(1, rsId);
-            ResultSet result = this.selectExpiration.executeQuery();
-            this.selectExpiration.clearParameters();
-            while (result.next()) {
-                long val = result.getLong(DBConnector.expColumn);
-                if (val < smallest) {
-                    smallest = val;
+        for (String audE : aud) {
+            try {
+                this.selectExpiration.setString(1, audE);
+                ResultSet result = this.selectExpiration.executeQuery();
+                this.selectExpiration.clearParameters();
+                while (result.next()) {
+                    long val = result.getLong(DBConnector.expColumn);
+                    if (val < smallest) {
+                        smallest = val;
+                    }
                 }
+                result.close();
+            } catch (SQLException e) {
+                throw new AceException(e.getMessage());
             }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
         }
         return smallest;
     }
@@ -1284,7 +1309,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     @Override
     public synchronized void addRS(String rsId, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
-            Set<Integer> tokenTypes, Set<COSEparams> cose, long expiration, 
+            Set<Short> tokenTypes, Set<COSEparams> cose, long expiration, 
             OneKey sharedKey, OneKey publicKey) throws AceException {
        
         if (rsId == null || rsId.isEmpty()) {
@@ -1373,7 +1398,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             }
             this.insertKeyType.clearParameters();
             
-            for (int tokenType : tokenTypes) {
+            for (short tokenType : tokenTypes) {
                 this.insertTokenType.setString(1, rsId);
                 this.insertTokenType.setString(2, 
                         AccessTokenFactory.ABBREV[tokenType]);
@@ -1433,7 +1458,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     @Override
     public synchronized void addClient(String clientId, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            OneKey sharedKey, OneKey publicKey) throws AceException {    
+            OneKey sharedKey, OneKey publicKey, boolean needsClientToken) 
+                    throws AceException {   
         if (clientId == null || clientId.isEmpty()) {
             throw new AceException(
                     "Client must have non-null, non-empty identifier");
@@ -1451,7 +1477,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         if (sharedKey == null && publicKey == null) {
             throw new AceException("Cannot register a client without a key");
         }
-        
+
         try {
             this.insertClient.setString(1, clientId);
             this.insertClient.setString(2, defaultAud);
@@ -1466,6 +1492,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             } else {
                 this.insertClient.setBytes(5, null);
             }
+            this.insertClient.setBoolean(6, needsClientToken);
             this.insertClient.execute();
             this.insertClient.clearParameters();
 
@@ -1511,8 +1538,28 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
+    public synchronized boolean needsClientToken(String client) throws AceException {
+        try {
+            this.needClientToken.setString(1, client);
+            ResultSet result = this.needClientToken.executeQuery();
+            this.needClientToken.clearParameters();
+            if (result.next()) {
+                boolean needCT = result.getBoolean(DBConnector.needClientToken);
+                result.close();
+                return needCT;
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        //This should never happen
+        throw new AceException("Information about the need "
+                + "for client token is missing");
+    }
+    
+    @Override
     public synchronized void addToken(String cti, 
-            Map<String, CBORObject> claims) throws AceException {
+            Map<Short, CBORObject> claims) throws AceException {
         if (cti == null || cti.isEmpty()) {
             throw new AceException(
                     "addToken() requires non-null, non-empty cti");
@@ -1522,9 +1569,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     "addToken() requires at least one claim");
         }
         try {
-            for (Entry<String, CBORObject> claim : claims.entrySet()) {
+            for (Map.Entry<Short, CBORObject> claim : claims.entrySet()) {
                 this.insertClaim.setString(1, cti);
-                this.insertClaim.setString(2, claim.getKey());
+                this.insertClaim.setShort(2, claim.getKey());
                 this.insertClaim.setBytes(3, claim.getValue().EncodeToBytes());
                 this.insertClaim.execute();
             }
@@ -1567,19 +1614,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
 
     @Override
-    public synchronized Map<String, CBORObject> getClaims(String cti) 
+    public synchronized Map<Short, CBORObject> getClaims(String cti) 
             throws AceException {
         if (cti == null) {
             throw new AceException("getClaims() requires non-null cti");
         }
-        Map<String, CBORObject> claims = new HashMap<>();
+        Map<Short, CBORObject> claims = new HashMap<>();
         try {
             this.selectClaims.setString(1, cti);
             ResultSet result = this.selectClaims.executeQuery();
             this.selectClaims.clearParameters();
             while (result.next()) {
-                String claimName 
-                    = result.getString(DBConnector.claimNameColumn);
+                Short claimName 
+                    = result.getShort(DBConnector.claimNameColumn);
                 CBORObject cbor = CBORObject.DecodeFromBytes(
                         result.getBytes(DBConnector.claimValueColumn));
                 claims.put(claimName, cbor);
@@ -1724,5 +1771,4 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         return ctis;
     }
-    
 }

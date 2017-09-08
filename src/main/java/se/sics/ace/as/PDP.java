@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.Set;
+
 import se.sics.ace.AceException;
 
 /**
@@ -64,7 +66,7 @@ public interface PDP {
 	 * audience and scope.
 	 * 
 	 * @param clientId  the identifier of the client
-	 * @param aud  the audience for which the client request access 
+	 * @param aud  the audiences for which the client request access 
 	 * @param scopes  the scope(s) requested for the access token, if present, 
 	 * 	           or null. Note that the scopes must be separated by spaces if
 	 * 			   there are several
@@ -73,6 +75,6 @@ public interface PDP {
 	 * 
 	 *  @throws AceException  
 	 */
-	public abstract String canAccess(String clientId, String aud, 
+	public abstract String canAccess(String clientId, Set<String> aud, 
 				String scopes) throws AceException;
 }

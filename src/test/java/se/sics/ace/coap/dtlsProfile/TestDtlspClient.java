@@ -74,7 +74,8 @@ public class TestDtlspClient {
     private static byte[] key128a 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-    private static String rsAddr;
+    private static String rsAddrC;
+    private static String rsAddrCS;
     
     private static CwtCryptoCtx ctx;
     
@@ -119,8 +120,9 @@ public class TestDtlspClient {
         srv = new RunTestServer();
         srv.run();       
         
-        rsAddr = "coaps://localhost/.well-known/authz-info";
-
+        rsAddrCS = "coaps://localhost/authz-info";
+        rsAddrC = "coap://localhost/authz-info";
+        
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
@@ -162,12 +164,12 @@ public class TestDtlspClient {
     @Test
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException {  
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPAI".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
         CBORObject kid = CBORObject.FromObject(
@@ -175,10 +177,10 @@ public class TestDtlspClient {
         key.add(KeyKeys.KeyId, kid);
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddr, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
@@ -197,12 +199,12 @@ public class TestDtlspClient {
     @Test
     public void testTokenPskId() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_helloWorld"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPI".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
@@ -212,7 +214,7 @@ public class TestDtlspClient {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
@@ -242,7 +244,7 @@ public class TestDtlspClient {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
-                CoAP.DEFAULT_COAP_SECURE_PORT), "someKey", key);
+                CoAP.DEFAULT_COAP_SECURE_PORT), kid.GetByteString(), key);
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
@@ -271,19 +273,19 @@ public class TestDtlspClient {
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_helloWorld"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
-                "tokenPRPK".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenRPK".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddr, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
         
@@ -293,6 +295,51 @@ public class TestDtlspClient {
         Assert.assertEquals("CONTENT", r2.getCode().name());
         Assert.assertEquals("Hello World!", r2.getResponseText());  
     }
+    
+    /** 
+     * Test post to authz-info with RPK then request
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testPostPSK() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException {
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourPSK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+               
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenPSK".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+        
+        CoapClient c = DTLSProfileRequests.getPskClient(
+                new InetSocketAddress("localhost", 
+                        CoAP.DEFAULT_COAP_SECURE_PORT), 
+                kid.GetByteString(),
+                key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r2 = c.get();
+        Assert.assertEquals("CONTENT", r2.getCode().name());
+        Assert.assertEquals("Hello World!", r2.getResponseText());  
+    }    
     
     /**
      * Test with a erroneous psk-identity
@@ -307,7 +354,7 @@ public class TestDtlspClient {
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
-                CoAP.DEFAULT_COAP_SECURE_PORT), "randomStuff", key);
+                CoAP.DEFAULT_COAP_SECURE_PORT), "randomStuff".getBytes(), key);
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         //Server should terminate handshake
@@ -327,12 +374,12 @@ public class TestDtlspClient {
     @Test
     public void testFailTokenNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_helloWorld"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenFailNM".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "otherKey";
@@ -342,7 +389,7 @@ public class TestDtlspClient {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128a));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
@@ -367,12 +414,12 @@ public class TestDtlspClient {
     @Test
     public void testFailActionNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_helloWorld"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenfailNAM".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "yetAnotherKey";
@@ -382,7 +429,7 @@ public class TestDtlspClient {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128a));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",

@@ -191,12 +191,12 @@ public class TestDtlspServer {
       //Add a test token to authz-info
       byte[] key128
           = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      Map<String, CBORObject> params = new HashMap<>(); 
-      params.put("scope", CBORObject.FromObject("r_temp"));
-      params.put("aud", CBORObject.FromObject("rs1"));
-      params.put("cti", CBORObject.FromObject(
+      Map<Short, CBORObject> params = new HashMap<>(); 
+      params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+      params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+      params.put(Constants.CTI, CBORObject.FromObject(
               "token1".getBytes(Constants.charset)));
-      params.put("iss", CBORObject.FromObject("TestAS"));
+      params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
       OneKey key = new OneKey();
       key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -208,7 +208,7 @@ public class TestDtlspServer {
 
       CBORObject cnf = CBORObject.NewMap();
       cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-      params.put("cnf", cnf);
+      params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
       ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
@@ -221,7 +221,7 @@ public class TestDtlspServer {
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
-      rs.getRoot().getChild(".well-known").add(authzInfo);
+      rs.add(authzInfo);
 
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
@@ -237,7 +237,10 @@ public class TestDtlspServer {
         DTLSConnector connector = new DTLSConnector(config.build());
         rs.addEndpoint(
                 new CoapEndpoint(connector, NetworkConfig.getStandard()));
-
+        //Add a CoAP (no 's') endpoint for authz-info
+        rs.addEndpoint(new CoapEndpoint(new InetSocketAddress(
+                CoAP.DEFAULT_COAP_PORT)));
+        
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");
@@ -279,6 +282,7 @@ public class TestDtlspServer {
         dpd.close();
         ai.close();
         tr.close();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
 

@@ -178,11 +178,11 @@ public class TestDtlspPskStore {
      */
     @Test
     public void testInvalidToken() throws Exception {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
@@ -192,7 +192,7 @@ public class TestDtlspPskStore {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -216,12 +216,12 @@ public class TestDtlspPskStore {
      */
     @Test
     public void testValidPskId() throws Exception {
-        Map<String, CBORObject> params = new HashMap<>(); 
-        params.put("scope", CBORObject.FromObject("r_temp"));
-        params.put("aud", CBORObject.FromObject("rs1"));
-        params.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
-        params.put("iss", CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
@@ -231,7 +231,7 @@ public class TestDtlspPskStore {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put("cnf", cnf);
+        params.put(Constants.CNF, cnf);
         
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -256,12 +256,12 @@ public class TestDtlspPskStore {
      */
     @Test
     public void testKid() throws Exception {
-        Map<String, CBORObject> claims = new HashMap<>(); 
-        claims.put("scope", CBORObject.FromObject("r_temp"));
-        claims.put("aud", CBORObject.FromObject("rs1"));
-        claims.put("cti", CBORObject.FromObject(
+        Map<Short, CBORObject> claims = new HashMap<>(); 
+        claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        claims.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        claims.put(Constants.CTI, CBORObject.FromObject(
                 "token3".getBytes(Constants.charset)));
-        claims.put("iss", CBORObject.FromObject("TestAS"));
+        claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
@@ -271,7 +271,7 @@ public class TestDtlspPskStore {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        claims.put("cnf", cnf);
+        claims.put(Constants.CNF, cnf);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 

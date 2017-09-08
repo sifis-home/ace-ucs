@@ -122,6 +122,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
+                + DBConnector.needClientToken + " tinyint(1), "
                 + " PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
         String createProfiles = "CREATE TABLE IF NOT EXISTS "
@@ -164,7 +165,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + this.dbName + "."
                 + DBConnector.claimsTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
-                + DBConnector.claimNameColumn + " varchar(8) NOT NULL,"
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " varbinary(255));";
 
         String createCtiCtr = "CREATE TABLE IF NOT EXISTS "
