@@ -384,7 +384,7 @@ public class TestDB {
     }
     
     /**
-     * Test the getRSS() function. 
+     * Test the getRSS(aud) function.
      * 
      * @throws Exception 
      */
@@ -398,6 +398,19 @@ public class TestDB {
         assert(rss.contains("rs1"));
         assert(rss.contains("rs2"));
         
+    }
+
+    /**
+     * Test the getRSS() function.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testGetAllRSS() throws Exception {
+        Set<String> rss = db.getRSS();
+        assert(rss.contains("rs1"));
+        assert(rss.contains("rs2"));
+        assert(rss.contains("rs3"));
     }
     
     /**
@@ -625,6 +638,18 @@ public class TestDB {
         assert(ctis.isEmpty());
         db.addCti2Client("cti1", "client2");
         Assert.fail("Duplicate Cti was added to DB");   
+    }
+
+    /**
+     * Tests for the Clients() method.
+     *
+     * @throws Exception
+     */
+    @Test
+    public void testGetClients() throws Exception {
+        Set<String> clients = db.getClients();
+        assert(clients.contains("clientA"));
+        assert(clients.contains("clientB"));
     }
     
     
