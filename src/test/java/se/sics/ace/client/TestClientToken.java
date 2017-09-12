@@ -17,7 +17,6 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -25,28 +24,21 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.KeyKeys;
-import COSE.MessageTag;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
-import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
-import se.sics.ace.rs.AuthzInfo;
-import se.sics.ace.rs.IntrospectionHandler4Tests;
 import se.sics.ace.rs.TokenRepository;
 
 /**
@@ -62,8 +54,7 @@ public class TestClientToken {
     static DBConnector db = null;
     
     private static String dbPwd = null;
-    
-    private static AuthzInfo ai = null;
+
     private static Introspect i; 
     private static TokenRepository tr = null;
     
@@ -134,17 +125,10 @@ public class TestClientToken {
                 myScopes);
         createTR(valid);
         tr = TokenRepository.getInstance();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, 
-                coseP.getAlg().AsCBOR());
+
         i = new Introspect(
                 KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
                 db, new KissTime(), null);
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);
         
         //Set up token for introspection
         Map<Short, CBORObject> params = new HashMap<>();
