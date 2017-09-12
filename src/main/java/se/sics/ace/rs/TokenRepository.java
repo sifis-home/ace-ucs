@@ -678,6 +678,13 @@ public class TokenRepository implements AutoCloseable {
             singleton = null;
         }
     }
+    
+    /**
+     * @return  a set of all token ids (cti) stored in this repository
+     */
+    public Set<String> getCtis() {
+        return new HashSet<>(this.cti2claims.keySet());
+    }
 
     
 }
