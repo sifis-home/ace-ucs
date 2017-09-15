@@ -769,5 +769,45 @@ public class TestToken {
         assert(ctiCtrEnd == ctiCtrStart+10);
         
     }
+    
+    /**
+     * Test the token endpoint by requesting multiple tokens and
+     * checking that the cti counter is correctly adjusted.
+     * This uses default audience and scope.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testTokenConfig() throws Exception {
+        Set<Short> tokenConfig = new HashSet<>();
+        tokenConfig.add(Constants.CTI);
+        t = new Token("testAS2", 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
+                db, new KissTime(), privateKey, tokenConfig);
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject("r_pressure"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
+        params.put(Constants.CNF, cnf);
+        Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get(Constants.ACCESS_TOKEN);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                token.GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
+        assert(claims.containsKey(Constants.CTI));
+        assert(claims.size() == 1);     
+        db.deleteToken(ctiStr);
+        t = new Token("AS", 
+                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
+                db, new KissTime(), privateKey); 
+    }
 
 }

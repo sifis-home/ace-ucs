@@ -549,8 +549,9 @@ public class Token implements Endpoint, AutoCloseable {
 		        }
 		        break;
 		    default:
-		           
-
+		       LOGGER.severe("Unknown claim type in /token "
+		               + "endpoint configuration: " + c);
+		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
 		}
 		
