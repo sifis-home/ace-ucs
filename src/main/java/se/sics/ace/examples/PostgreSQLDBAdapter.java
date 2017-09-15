@@ -217,8 +217,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " bytea);";
         
-        String createOldTokens = "CREATE TABLE IF NOT EXISTS "
-                + this.dbName + "."
+        String createOldTokens = "CREATE TABLE "
                 + DBConnector.oldTokensTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
@@ -232,7 +231,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiCounterTable
                 + " VALUES (0);";
 
-        String createTokenLog = "CREATE TABLE IF NOT EXISTS "
+        String createTokenLog = "CREATE TABLE "
                 + DBConnector.cti2clientTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
