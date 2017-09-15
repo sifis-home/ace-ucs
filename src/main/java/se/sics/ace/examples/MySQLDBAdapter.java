@@ -168,6 +168,13 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " varbinary(255));";
 
+        String createOldTokens = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.oldTokensTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " varbinary(255));";
+        
         String createCtiCtr = "CREATE TABLE IF NOT EXISTS "
                 + this.dbName + "."
                 + DBConnector.ctiCounterTable + "("
@@ -201,6 +208,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createAudiences);
             stmt.execute(createCose);
             stmt.execute(createClaims);
+            stmt.execute(createOldTokens);
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);

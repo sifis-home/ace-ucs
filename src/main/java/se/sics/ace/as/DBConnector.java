@@ -74,7 +74,15 @@ public interface DBConnector {
 	/**
 	 * The column for the token claim values
 	 */
-	public String claimValueColumn = "ClaimValue";
+	public String claimValueColumn = "ClaimValue"; 
+	
+	//******************New table********************************   
+
+    /**
+     * The table invalid (expired or revoked) tokens
+     */
+    public String oldTokensTable = "InvalidTokens";
+    
 	
 	//******************New table********************************	
 	/**

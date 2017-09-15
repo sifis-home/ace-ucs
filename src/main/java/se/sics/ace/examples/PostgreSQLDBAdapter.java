@@ -216,7 +216,14 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " bytea);";
-
+        
+        String createOldTokens = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.oldTokensTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " bytea);";
+        
         String createCtiCtr = "CREATE TABLE "
                 + DBConnector.ctiCounterTable + "("
                 + DBConnector.ctiCounterColumn + " bigint);";
@@ -248,6 +255,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createAudiences);
             stmt.execute(createCose);
             stmt.execute(createClaims);
+            stmt.execute(createOldTokens);
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
