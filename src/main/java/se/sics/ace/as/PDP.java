@@ -50,16 +50,20 @@ public interface PDP {
 	 * @param clientId  the identifier of the client.
 	 * 
 	 * @return  true if the client can access, false otherwise
+	 * @throws AceException 
 	 */
-	public abstract boolean canAccessToken(String clientId);
+	public abstract boolean canAccessToken(String clientId) 
+	        throws AceException;
 	
 	/**
 	 * Checks if this RS can access the /introspect endpoint.
 	 * 
 	 * @param rsId  the identifier of the RS.
 	 * @return  true if the RS can access, false otherwise
+	 * @throws AceException 
 	 */
-	public abstract boolean canAccessIntrospect(String rsId);
+	public abstract boolean canAccessIntrospect(String rsId)
+	        throws AceException;
 	
 	/**
 	 * Checks if the given client can get an access token for the given 

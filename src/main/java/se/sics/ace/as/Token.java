@@ -239,13 +239,19 @@ public class Token implements Endpoint, AutoCloseable {
 	    	    
 		//2. Check if this client can request tokens
 		String id = msg.getSenderId();  
-		if (!this.pdp.canAccessToken(id)) {
-		    CBORObject map = CBORObject.NewMap();
-		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-		    LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unauthorized client: " + id);
-			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		}
+		try {
+            if (!this.pdp.canAccessToken(id)) {
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "unauthorized client: " + id);
+            	return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+            }
+        } catch (AceException e) {
+            LOGGER.severe("Database error: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);

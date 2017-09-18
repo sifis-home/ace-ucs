@@ -64,7 +64,6 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
-import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -87,6 +86,7 @@ public class TestIntrospect {
       
     private static SQLConnector db = null;
     private static String dbPwd = null;
+    private static KissPDP pdp = null;
     private static Introspect i = null;
     
     /**
@@ -201,20 +201,23 @@ public class TestIntrospect {
         claims.put(Constants.CNF, cnf);
         db.addToken(cti2Str, claims);
         db.addCti2Client(cti2Str, "client1");
-        i = new Introspect(
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, time, publicKey);
+        pdp = new KissPDP(dbPwd, db);
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addIntrospectAccess("rs1");
+        pdp.addIntrospectAccess("rs2");
+        pdp.addIntrospectAccess("rs3");
+        i = new Introspect(pdp, db, time, publicKey);
     }
     
     
     /**
      * Deletes the test DB after the tests
      * 
-     * @throws AceException 
-     * @throws SQLException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws AceException, SQLException {
+    public static void tearDown() throws Exception {
+        pdp.close();
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);

@@ -86,13 +86,14 @@ public class TestAuthzInfo {
     static OneKey publicKey;
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    static DBConnector db = null;
+    static SQLConnector db = null;
     
     private static String dbPwd = null;
     
     private static AuthzInfo ai = null;
     private static Introspect i; 
     private static TokenRepository tr = null;
+    private static KissPDP pdp = null;
     
     /**
      * Set up tests.
@@ -166,9 +167,11 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        i = new Introspect(
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, new KissTime(), key);
+        
+        pdp = new KissPDP(dbPwd, db);
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addIntrospectAccess("rs1");
+        i = new Introspect(pdp, db, new KissTime(), key);
         ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),

@@ -140,12 +140,17 @@ public class Introspect implements Endpoint, AutoCloseable {
         	    
 	    //1. Check that this RS is allowed to introspect	    
 	    String id = msg.getSenderId();
-        if (!this.pdp.canAccessIntrospect(id)) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unauthorized client: " + id);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+        try {
+            if (!this.pdp.canAccessIntrospect(id)) {
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "unauthorized client: " + id);
+                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            }
+        } catch (AceException e) {
+            LOGGER.severe("Database error: " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 	    
 	    //2. Purge expired tokens from the database

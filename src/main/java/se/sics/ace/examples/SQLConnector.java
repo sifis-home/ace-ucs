@@ -405,6 +405,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * The singleton instance of this connector
      */
     private static SQLConnector connector = null;
+    
+    /**
+     * The DB adapter
+     */
+    private SQLDBAdapter adapter = null;
 
 	/**
 	 * Gets the singleton instance of this connector. Defaults to MySQL.
@@ -485,6 +490,8 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 			this.defaultPassword = pwd;
 		}
 
+		this.adapter = dbAdapter;
+		
         dbAdapter.setParams(this.defaultUser, this.defaultPassword, 
                 DBConnector.dbName, this.defaultDbUrl);
 
@@ -1830,5 +1837,37 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }
         return ctis;
+    }
+    
+    /**
+     * Extensibility method to allow other modules to prepare statements.
+     * 
+     * @param statement  the statement string
+     * 
+     * @return the prepared statement
+     * @throws AceException 
+     * 
+     */
+    public PreparedStatement prepareStatement(String statement) throws AceException {
+        PreparedStatement stmt = null;
+        try {
+            stmt = this.conn.prepareStatement(
+                    this.adapter.updateEngineSpecificSQL(statement));
+        } catch (SQLException e) {
+           throw new AceException(e.getMessage());
+        }
+        return stmt;
+        
+    }
+    
+    /**
+     * Get the SQL database adapter.  This method is for external modules 
+     * that need access to the database.
+     * 
+     * @return  the SQL database adapter
+     */
+    public SQLDBAdapter getAdapter() {
+        return this.adapter;
+        
     }
 }

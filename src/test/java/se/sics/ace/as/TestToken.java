@@ -66,7 +66,6 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
-import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -90,6 +89,7 @@ public class TestToken {
     private static Token t = null;
     private static String cti1;
     private static String cti2;
+    private static KissPDP pdp = null;
     
     /**
      * Set up tests.
@@ -324,19 +324,60 @@ public class TestToken {
         claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti2, claims);
-        t = new Token("AS", 
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, new KissTime(), privateKey); 
+        
+        pdp = new KissPDP(dbPwd, db);
+        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addTokenAccess("clientA");
+        pdp.addTokenAccess("clientB");
+        pdp.addTokenAccess("clientC");
+        pdp.addTokenAccess("clientD");
+        pdp.addTokenAccess("clientE");
+        
+        pdp.addAccess("clientA", "rs1", "r_temp");
+        pdp.addAccess("clientA", "rs1", "rw_config");
+        pdp.addAccess("clientA", "rs2", "r_light");
+        pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
+        
+        pdp.addAccess("clientB", "rs1", "r_temp");
+        pdp.addAccess("clientB", "rs1", "co2");
+        pdp.addAccess("clientB", "rs2", "r_light");
+        pdp.addAccess("clientB", "rs2", "r_config");
+        pdp.addAccess("clientB", "rs2", "failTokenType");
+        pdp.addAccess("clientB", "rs3", "rw_valve");
+        pdp.addAccess("clientB", "rs3", "r_pressure");
+        pdp.addAccess("clientB", "rs3", "failTokenType");
+        pdp.addAccess("clientB", "rs3", "failProfile");
+        pdp.addAccess("clientB", "rs4", "failProfile");
+        pdp.addAccess("clientB", "rs6", "co2");
+        pdp.addAccess("clientB", "rs7", "co2");
+        
+        pdp.addAccess("clientC", "rs3", "r_valve");
+        pdp.addAccess("clientC", "rs3", "r_pressure");
+        pdp.addAccess("clientC", "rs6", "r_valve");
+
+        pdp.addAccess("clientD", "rs1", "r_temp");
+        pdp.addAccess("clientD", "rs1", "rw_config");
+        pdp.addAccess("clientD", "rs2", "r_light");
+        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
+        pdp.addAccess("clientD", "rs1", "r_temp");
+        
+
+        pdp.addAccess("clientE", "rs3", "rw_valve");
+        pdp.addAccess("clientE", "rs3", "r_pressure");
+        pdp.addAccess("clientE", "rs3", "failTokenType");
+        pdp.addAccess("clientE", "rs3", "failProfile");
+        
+        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
     
     /**
      * Deletes the test DB after the tests
      * 
-     * @throws AceException 
-     * @throws SQLException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws AceException, SQLException {
+    public static void tearDown() throws Exception {
+        pdp.close();
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);
@@ -781,9 +822,8 @@ public class TestToken {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", 
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, new KissTime(), privateKey, tokenConfig);
+        t = new Token("testAS2", pdp, db, new KissTime(),
+                privateKey, tokenConfig);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
@@ -805,9 +845,7 @@ public class TestToken {
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);     
         db.deleteToken(ctiStr);
-        t = new Token("AS", 
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, new KissTime(), privateKey); 
+        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
 
 }

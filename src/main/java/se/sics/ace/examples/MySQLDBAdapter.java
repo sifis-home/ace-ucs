@@ -251,4 +251,9 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             throw new AceException(e.getMessage());
         }
     }
+
+    @Override
+    public String getDefaultRoot() {
+        return ROOT_USER;
+    }
 }
