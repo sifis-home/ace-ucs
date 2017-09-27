@@ -391,7 +391,8 @@ public class Token implements Endpoint, AutoCloseable {
                     + "Unsupported token type");
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
         }
-        		
+       
+        String keyType = null; //Save the key type for later
 		Map<Short, CBORObject> claims = new HashMap<>();
 		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF
 		for (Short c : this.claims) {
@@ -467,7 +468,6 @@ public class Token implements Endpoint, AutoCloseable {
 		            claims.put(Constants.CNF, cnf);
 		        } else {    
 		            //Find supported key type for proof-of-possession
-		            String keyType = "";
 		            try {
 		                keyType = this.db.getSupportedPopKeyType(id, aud);
 		            } catch (AceException e) {
@@ -572,7 +572,36 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		CBORObject rsInfo = CBORObject.NewMap();
 		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
-		rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+		if (keyType != null && keyType.equals("PSK")) {
+		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+		}  else if (keyType != null && keyType.equals("RPK")) {
+		    Set<String> rss = new HashSet<>();
+		    for (String audE : aud) {
+		        try {
+                    rss.addAll(this.db.getRSS(audE));
+                } catch (AceException e) {
+                    this.cti--; //roll-back
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		    }
+		    for (String rs : rss) {
+		        try {
+                    OneKey rsKey = this.db.getRsRPK(rs);
+                    CBORObject rscnf = CBORObject.NewMap();
+                    rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
+                    rsInfo.Add(Constants.RS_CNF, rscnf);
+                } catch (AceException e) {
+                    this.cti--; //roll-back
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		    }
+ 		}
 		if (!allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
