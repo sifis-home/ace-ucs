@@ -218,8 +218,7 @@ public class TestCoAPClient {
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
         assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(map.containsKey(Constants.PROFILE));
-        assert(map.get(Constants.PROFILE).AsString().equals("coap_oscoap"));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
         assert(map.containsKey(Constants.CNF));
         assert(map.containsKey(Constants.SCOPE));
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));

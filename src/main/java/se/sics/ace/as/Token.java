@@ -465,6 +465,7 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Malformed kid in 'cnf' parameter");
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
+		            keyType = "KID";
 		            claims.put(Constants.CNF, cnf);
 		        } else {    
 		            //Find supported key type for proof-of-possession
@@ -571,7 +572,19 @@ public class Token implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 		CBORObject rsInfo = CBORObject.NewMap();
-		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+		
+		
+		try {
+            if (!this.db.hasDefaultProfile(id)) {
+                rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+            }
+        } catch (AceException e) {
+            this.cti--; //roll-back
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+		
 		if (keyType != null && keyType.equals("PSK")) {
 		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 		}  else if (keyType != null && keyType.equals("RPK")) {
@@ -601,7 +614,8 @@ public class Token implements Endpoint, AutoCloseable {
                             Message.FAIL_INTERNAL_SERVER_ERROR, null);
                 }
 		    }
- 		}
+ 		} //Skip cnf if client requested specific KID.
+		
 		if (!allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}

@@ -690,6 +690,7 @@ public class TestToken {
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         assert(!claims.get(Constants.SCOPE).AsString().contains("foobar"));
+        assert(!params.containsKey(Constants.PROFILE));
     }
     
     
@@ -750,6 +751,7 @@ public class TestToken {
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
         params = Constants.getParams(rparams);
+        assert(params.containsKey(Constants.PROFILE));
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
@@ -847,5 +849,4 @@ public class TestToken {
         db.deleteToken(ctiStr);
         t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
-
 }

@@ -245,6 +245,20 @@ public interface DBConnector {
 	            throws AceException;
     
 	/**
+     * Checks if the client only supports a single profile.
+     * This is used to determine whether the client assumes 
+     * a default profile.
+     * 
+     * @param clientId  the client identifier 
+     * 
+     * @return  true if the client only supports one profile,
+     * false otherwise
+     * 
+     * @throws AceException 
+     */
+    public boolean hasDefaultProfile(String clientId) throws AceException;
+	
+	/**
      * Returns a common key type for the proof-of-possession
      * algorithm, or null if there isn't any.
      * 

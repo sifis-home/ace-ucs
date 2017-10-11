@@ -141,6 +141,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	protected PreparedStatement selectProfiles;
     
 	/**
+	 * A prepared SELECT statement to get the profiles
+	 * for a single client or RS.	
+	 */
+	protected PreparedStatement selectProfile;
+	
+	/**
 	 * A prepared INSERT statement to add the key types supported
      * by a client or Resource Server
      * 
@@ -548,6 +554,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + DBConnector.profilesTable
 		                + " WHERE " + DBConnector.idColumn + "=? ORDER BY "
 		                + DBConnector.idColumn + ";"));
+		
+		this.selectProfile = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
+                        + DBConnector.profilesTable
+                        + " WHERE " + DBConnector.idColumn + "=?;"));
 
 		this.insertKeyType = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
@@ -940,7 +951,28 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         return getCommonValue(clientProfiles, rsProfiles);
       
     }
-
+    
+    @Override
+    public boolean hasDefaultProfile(String clientId) throws AceException {
+        if (clientId == null ) {
+            throw new AceException(
+                    "hasDefaultProfile() requires non-null clientId");
+        }
+        try {
+            this.selectProfile.setString(1, clientId);
+            ResultSet result = this.selectProfile.executeQuery();
+            this.selectProfile.clearParameters();
+            int i = 0;
+            while (result.next()) {
+                i ++;
+            }
+            result.close();
+            return (i==1 ? true:false);
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
     @Override
     public synchronized String getSupportedPopKeyType(
             String clientId, Set<String> aud) throws AceException {
