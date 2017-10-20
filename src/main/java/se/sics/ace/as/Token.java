@@ -239,13 +239,19 @@ public class Token implements Endpoint, AutoCloseable {
 	    	    
 		//2. Check if this client can request tokens
 		String id = msg.getSenderId();  
-		if (!this.pdp.canAccessToken(id)) {
-		    CBORObject map = CBORObject.NewMap();
-		    map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-		    LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unauthorized client: " + id);
-			return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		}
+		try {
+            if (!this.pdp.canAccessToken(id)) {
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "unauthorized client: " + id);
+            	return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+            }
+        } catch (AceException e) {
+            LOGGER.severe("Database error: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 		
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
@@ -385,7 +391,8 @@ public class Token implements Endpoint, AutoCloseable {
                     + "Unsupported token type");
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
         }
-        		
+       
+        String keyType = null; //Save the key type for later
 		Map<Short, CBORObject> claims = new HashMap<>();
 		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF
 		for (Short c : this.claims) {
@@ -458,10 +465,10 @@ public class Token implements Endpoint, AutoCloseable {
 		                        "Malformed kid in 'cnf' parameter");
 		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		            }
+		            keyType = "KID";
 		            claims.put(Constants.CNF, cnf);
 		        } else {    
 		            //Find supported key type for proof-of-possession
-		            String keyType = "";
 		            try {
 		                keyType = this.db.getSupportedPopKeyType(id, aud);
 		            } catch (AceException e) {
@@ -549,8 +556,9 @@ public class Token implements Endpoint, AutoCloseable {
 		        }
 		        break;
 		    default:
-		           
-
+		       LOGGER.severe("Unknown claim type in /token "
+		               + "endpoint configuration: " + c);
+		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
 		}
 		
@@ -564,8 +572,50 @@ public class Token implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 		CBORObject rsInfo = CBORObject.NewMap();
-		rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
-		rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+		
+		
+		try {
+            if (!this.db.hasDefaultProfile(id)) {
+                rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+            }
+        } catch (AceException e) {
+            this.cti--; //roll-back
+            LOGGER.severe("Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+		
+		if (keyType != null && keyType.equals("PSK")) {
+		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+		}  else if (keyType != null && keyType.equals("RPK")) {
+		    Set<String> rss = new HashSet<>();
+		    for (String audE : aud) {
+		        try {
+                    rss.addAll(this.db.getRSS(audE));
+                } catch (AceException e) {
+                    this.cti--; //roll-back
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		    }
+		    for (String rs : rss) {
+		        try {
+                    OneKey rsKey = this.db.getRsRPK(rs);
+                    CBORObject rscnf = CBORObject.NewMap();
+                    rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
+                    rsInfo.Add(Constants.RS_CNF, rscnf);
+                } catch (AceException e) {
+                    this.cti--; //roll-back
+                    LOGGER.severe("Message processing aborted: "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		    }
+ 		} //Skip cnf if client requested specific KID.
+		
 		if (!allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}

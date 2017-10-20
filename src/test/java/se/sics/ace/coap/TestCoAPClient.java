@@ -33,11 +33,9 @@ package se.sics.ace.coap;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Base64;
 import java.util.HashMap;
@@ -62,7 +60,6 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.OneKey;
-import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.DBConnector;
@@ -90,8 +87,9 @@ public class TestCoAPClient {
 
         /**
          * Stop the server
+         * @throws Exception 
          */
-        public void stop() {
+        public void stop() throws Exception {
             TestCoAPServer.stop();
         }
         
@@ -101,7 +99,11 @@ public class TestCoAPClient {
                 TestCoAPServer.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
-                TestCoAPServer.stop();
+                try {
+                    TestCoAPServer.stop();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
         }
         
@@ -119,13 +121,10 @@ public class TestCoAPClient {
     
     /**
      * Deletes the test DB after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
-     * @throws IOException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, AceException, IOException {
+    public static void tearDown() throws Exception {
         srv.stop();
         String dbPwd = null;
         BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
@@ -219,8 +218,7 @@ public class TestCoAPClient {
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
         assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(map.containsKey(Constants.PROFILE));
-        assert(map.get(Constants.PROFILE).AsString().equals("coap_oscoap"));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
         assert(map.containsKey(Constants.CNF));
         assert(map.containsKey(Constants.SCOPE));
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));

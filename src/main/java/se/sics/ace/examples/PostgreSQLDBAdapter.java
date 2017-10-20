@@ -216,7 +216,13 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
                 + DBConnector.claimValueColumn + " bytea);";
-
+        
+        String createOldTokens = "CREATE TABLE "
+                + DBConnector.oldTokensTable + "("
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " bytea);";
+        
         String createCtiCtr = "CREATE TABLE "
                 + DBConnector.ctiCounterTable + "("
                 + DBConnector.ctiCounterColumn + " bigint);";
@@ -225,7 +231,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiCounterTable
                 + " VALUES (0);";
 
-        String createTokenLog = "CREATE TABLE IF NOT EXISTS "
+        String createTokenLog = "CREATE TABLE "
                 + DBConnector.cti2clientTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
@@ -234,7 +240,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         connectionProps = new Properties();
         connectionProps.put("user", this.user);
         connectionProps.put("password", this.password);
-        try (Connection rootConn = DriverManager.getConnection(this.actualDbUrl, connectionProps);
+        try (Connection rootConn = DriverManager.getConnection(
+                this.actualDbUrl, connectionProps);
              Statement stmt = rootConn.createStatement())
         {
             stmt.execute(createRs);
@@ -248,6 +255,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createAudiences);
             stmt.execute(createCose);
             stmt.execute(createClaims);
+            stmt.execute(createOldTokens);
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
@@ -263,13 +271,25 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     public String updateEngineSpecificSQL(String sqlQuery)
     {
         // In PostgreSQL, enums need casting.
-        if(sqlQuery.contains("INSERT") && sqlQuery.contains(DBConnector.keyTypesTable)) {
-            return "INSERT INTO " + DBConnector.keyTypesTable + " VALUES (?,?::keytype)";
+        if(sqlQuery.contains("INSERT") && sqlQuery.contains(
+                DBConnector.keyTypesTable)) {
+            return "INSERT INTO " + DBConnector.keyTypesTable 
+                    + " VALUES (?,?::keytype)";
         }
-        if(sqlQuery.contains("INSERT") && sqlQuery.contains(DBConnector.tokenTypesTable)) {
-            return "INSERT INTO " + DBConnector.tokenTypesTable + " VALUES (?,?::tokentype)";
+        if(sqlQuery.contains("INSERT") && sqlQuery.contains(
+                DBConnector.tokenTypesTable)) {
+            return "INSERT INTO " + DBConnector.tokenTypesTable 
+                    + " VALUES (?,?::tokentype)";
         }
-
+        //Create table statements do not take the db name in PostgreSQL
+        if (sqlQuery.contains("CREATE TABLE IF NOT EXISTS ")) {
+           String ret = sqlQuery.replace("CREATE TABLE IF NOT EXISTS ", 
+                    "CREATE TABLE ");
+           if (sqlQuery.contains(this.dbName + ".")) {
+               ret = sqlQuery.replace(this.dbName + ".", "");
+           }
+           return ret;
+        }        
         return sqlQuery;
     }
 
@@ -298,5 +318,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
+    }
+
+    @Override
+    public String getDefaultRoot() {
+        return ROOT_USER;
     }
 }

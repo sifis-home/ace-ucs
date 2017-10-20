@@ -226,7 +226,7 @@ public class TestDtlspClient {
     }
         
     /**
-     *  Test passing a kid through psk-identity
+     *  Test passing a kid through psk-identitygetRpkClient
      * @throws AceException 
      * @throws CoseException 
      * @throws InvalidCipherTextException 
@@ -289,7 +289,8 @@ public class TestDtlspClient {
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
         
-        CoapClient c = DTLSProfileRequests.getRpkClient(key);
+        //FIXME: add testing for the RS key here instead of null
+        CoapClient c = DTLSProfileRequests.getRpkClient(key, null);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();
         Assert.assertEquals("CONTENT", r2.getCode().name());

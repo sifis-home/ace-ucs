@@ -48,9 +48,9 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.CoapsAS;
@@ -80,9 +80,7 @@ public class TestCoAPServer {
     private static CoapDBConnector db = null;
     private static String dbPwd = null;
     private static CoapsAS as = null; 
-    
-    
-
+    private static KissPDP pdp = null;
   
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -166,18 +164,69 @@ public class TestCoAPServer {
         db.addCti2Client(cti, "clientA");
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        pdp = new KissPDP(dbPwd, db);
         
-        as = new CoapsAS("AS", db, 
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                time, asymmKey);
+        //Initialize data in PDP
+        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addTokenAccess("clientA");
+        pdp.addTokenAccess("clientB");
+        pdp.addTokenAccess("clientC");
+        pdp.addTokenAccess("clientD");
+        pdp.addTokenAccess("clientE");
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addIntrospectAccess("rs1");
+        pdp.addIntrospectAccess("rs2");
+        pdp.addIntrospectAccess("rs3");
+        pdp.addIntrospectAccess("rs5");
+        pdp.addIntrospectAccess("rs6");
+        pdp.addIntrospectAccess("rs7");
+
+        pdp.addAccess("clientA", "rs1", "r_temp");
+        pdp.addAccess("clientA", "rs1", "rw_config");
+        pdp.addAccess("clientA", "rs2", "r_light");
+        pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
+        
+        pdp.addAccess("clientB", "rs1", "r_temp");
+        pdp.addAccess("clientB", "rs1", "co2");
+        pdp.addAccess("clientB", "rs2", "r_light");
+        pdp.addAccess("clientB", "rs2", "r_config");
+        pdp.addAccess("clientB", "rs2", "failTokenType");
+        pdp.addAccess("clientB", "rs3", "rw_valve");
+        pdp.addAccess("clientB", "rs3", "r_pressure");
+        pdp.addAccess("clientB", "rs3", "failTokenType");
+        pdp.addAccess("clientB", "rs3", "failProfile");
+        pdp.addAccess("clientB", "rs4", "failProfile");
+        pdp.addAccess("clientB", "rs6", "co2");
+        pdp.addAccess("clientB", "rs7", "co2");
+        
+        pdp.addAccess("clientC", "rs3", "r_valve");
+        pdp.addAccess("clientC", "rs3", "r_pressure");
+        pdp.addAccess("clientC", "rs6", "r_valve");
+
+        pdp.addAccess("clientD", "rs1", "r_temp");
+        pdp.addAccess("clientD", "rs1", "rw_config");
+        pdp.addAccess("clientD", "rs2", "r_light");
+        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
+        pdp.addAccess("clientD", "rs1", "r_temp");
+        
+
+        pdp.addAccess("clientE", "rs3", "rw_valve");
+        pdp.addAccess("clientE", "rs3", "r_pressure");
+        pdp.addAccess("clientE", "rs3", "failTokenType");
+        pdp.addAccess("clientE", "rs3", "failProfile");
+        
+        as = new CoapsAS("AS", db, pdp, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }
     
     /**
      * Stops the server
+     * @throws Exception 
      */
-    public static void stop() {
+    public static void stop() throws Exception {
         as.stop();
+        pdp.close();
     }
+    
 }

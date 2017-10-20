@@ -51,10 +51,11 @@ public class TestClientToken {
     
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    static DBConnector db = null;
+    static SQLConnector db = null;
     
     private static String dbPwd = null;
 
+    private static KissPDP pdp = null;
     private static Introspect i; 
     private static TokenRepository tr = null;
     
@@ -125,10 +126,11 @@ public class TestClientToken {
                 myScopes);
         createTR(valid);
         tr = TokenRepository.getInstance();
-
-        i = new Introspect(
-                KissPDP.getInstance(TestConfig.testFilePath + "acl.json", db),
-                db, new KissTime(), null);
+        pdp = new KissPDP(dbPwd, db);
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addIntrospectAccess("rs1");
+        
+        i = new Introspect(pdp, db, new KissTime(), null);
         
         //Set up token for introspection
         Map<Short, CBORObject> params = new HashMap<>();

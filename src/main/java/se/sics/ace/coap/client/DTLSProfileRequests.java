@@ -301,11 +301,13 @@ public class DTLSProfileRequests {
     /**
      * Generates a Coap client for sending requests to an RS that will use
      * a raw public key to connect to the server.
-     * @param clientKey  the raw public key of the client
+     * 
+     * @param clientKey  the raw asymmetric key of the client
+     * @param rsPublicKey  the raw public key of the RS
      * @return   the CoAP client
      * @throws CoseException 
      */
-    public static CoapClient getRpkClient(OneKey clientKey) 
+    public static CoapClient getRpkClient(OneKey clientKey, OneKey rsPublicKey) 
             throws CoseException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
                 new InetSocketAddress(0));
@@ -319,7 +321,7 @@ public class DTLSProfileRequests {
         CoapEndpoint e = new CoapEndpoint(c, NetworkConfig.getStandard());
         CoapClient client = new CoapClient();
         client.setEndpoint(e);   
-
+        
         return client;    
     }    
 }

@@ -31,17 +31,15 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.util.HashMap;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.HashSet;
-import java.util.Iterator;
-import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
-
-import org.json.JSONArray;
-import org.json.JSONObject;
-import org.json.JSONTokener;
 
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
@@ -49,226 +47,509 @@ import se.sics.ace.as.PDP;
 
 /**
  * A simple PDP implementation for test purposes. Uses static ACLs for everything.
+ * This PDP backs up it's ACL's in the database.
+ * 
+ * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
  * 
  * @author Ludwig Seitz
  *
  */
 public class KissPDP implements PDP, AutoCloseable {
 
-    private DBConnector db = null;
+    private SQLConnector db = null;
     
-	/**
-	 * @param configurationFile  the file containing the PDP configuration in 
-	 * JSON format.
-	 * @param db  the database connector
-	 * @return  the PDP
-	 * @throws AceException 
-	 * @throws IOException 
-	 */
-	public static KissPDP getInstance(String configurationFile, DBConnector db) 
-				throws AceException, IOException {
-		FileInputStream fs = new FileInputStream(configurationFile);
-		JSONTokener parser = new JSONTokener(fs);
-		JSONArray config = new JSONArray(parser);
-		
-		//Parse the clients allowed to access this AS
-		if (!(config.get(0) instanceof JSONArray)) {
-			fs.close();
-			throw new AceException("Invalid PDP configuration");
-		}		
-		JSONArray clientsJ = (JSONArray)config.get(0);
-		Set<String> clients = new HashSet<>();
-		Iterator<Object> it = clientsJ.iterator();
-		while (it.hasNext()) {
-			Object next = it.next();
-			if (next instanceof String) {
-				clients.add((String)next);
-			} else {
-				fs.close();
-				throw new AceException("Invalid PDP configuration");
-			}
-		}
-		
-		//Parse the RS allowed to access this AS
-		if (!(config.get(1) instanceof JSONArray)) {
-			fs.close();
-			throw new AceException("Invalid PDP configuration");
-		}
-		JSONArray rsJ = (JSONArray)config.get(1);
-		Set<String> rs = new HashSet<>();
-		it = rsJ.iterator();
-		while (it.hasNext()) {
-			Object next = it.next();
-			if (next instanceof String) {
-				rs.add((String)next);
-			} else {
-				fs.close();
-				throw new AceException("Invalid PDP configuration");
-			}
-		}
-		
-		//Read the acl
-		if (!(config.get(2) instanceof JSONObject)) {
-			fs.close();
-			throw new AceException("Invalid PDP configuration");
-		}
-		JSONObject aclJ = (JSONObject)config.get(2);
-		Map<String, Map<String, Set<String>>> acl = new HashMap<>();
-		Iterator<String> clientACL = aclJ.keys();
-		//Iterate through the client_ids
-		while(clientACL.hasNext()) {
-			String client = clientACL.next();
-			if (!(aclJ.get(client) instanceof JSONObject)) {
-				fs.close();
-				throw new AceException("Invalid PDP configuration");
-			}
-			Map<String, Set<String>> audM = new HashMap<>(); 
-			JSONObject audJ = (JSONObject) aclJ.get(client);
-			Iterator<String> audACL = audJ.keys();
-			//Iterate through the audiences
-			while(audACL.hasNext()) {
-				String aud = audACL.next();
-				if (!(audJ.get(aud) instanceof JSONArray)) {
-					fs.close();
-					throw new AceException("Invalid PDP configuration");
-				}
-				Set<String> scopeS = new HashSet<>();
-				JSONArray scopes = (JSONArray)audJ.get(aud);
-				Iterator<Object> scopeI = scopes.iterator();
-				//Iterate through the scopes
-				while (scopeI.hasNext()) {
-					Object scope = scopeI.next();
-					if (!(scope instanceof String)) {
-						fs.close();
-						throw new AceException("Invalid PDP configuration");
-					}
-					scopeS.add((String)scope);				
-				}
-				audM.put(aud, scopeS);
-			}
-			acl.put(client, audM);
-		}
-		fs.close();
-		return new KissPDP(clients, rs, acl, db);
-	}
+    /**
+     * The name of the Token access control table 
+     */
+    public static String tokenTable = "PdpToken";
+    
+    /**
+     * The name of the Introspect access control table
+     */
+    public static String introspectTable = "PdpIntrospect";
+    
+    /**
+     * The name of the ACL table 
+     */    
+    public static String accessTable = "PdpAccess";
+    
+    private PreparedStatement canToken;    
+    private PreparedStatement canIntrospect;
+    private PreparedStatement canAccess;
+    
+    private PreparedStatement addTokenAccess;
+    private PreparedStatement addIntrospectAccess;
+    private PreparedStatement addAccess;
+    
+    private PreparedStatement deleteTokenAccess;
+    private PreparedStatement deleteIntrospectAccess;
+    private PreparedStatement deleteAccess;
+    private PreparedStatement deleteAllAccess;
+    private PreparedStatement deleteAllRsAccess;
 	
 	/**
-	 * The identifiers of the clients allowed to submit requests to /token
-	 */
-	private Set<String> clients;
-	
-	/**
-	 * The identifiers of the resource servers allowed to submit requests to 
-	 * /introspect
-	 */
-	private Set<String> rs;
-	
-	/**
-	 * Maps identifiers of client to a map that maps the audiences they may 
-	 * access to the scopes they may access for these audiences.
-	 *
-	 * Note that this storage assumes that scopes are split by whitespace as
-	 * per the standard's specification.
-	 */
-	private Map<String, Map<String, Set<String>>> acl;
-	
-	/**
-	 * Constructor.
+	 * Constructor, can supply an initial configuration.
+	 * All configuration parameters that are null are expected
+	 * to already be in the database.
 	 * 
-	 * @param clients  the clients authorized to make requests to /token
-	 * @param rs  the RSs authorized to make requests to /introspect
+	 * @param rootPwd  the database root password, needed to initialize
+	 *     the tables, if they don't already exist	 * 
+	 * @param clients  the clients authorized to make requests to /token. 
+	 *     Can be null
+	 * @param rs  the RSs authorized to make requests to /introspect.
+	 *     Can be null
 	 * @param acl   the access tokens clients can request. This maps
 	 * 	clientId to a map of audiences to a set of scopes. Where the scopes
 	 * 	are split up by whitespace (e.g. a scope of "r_basicprofile 
 	 * r_emailaddress rw_groups w_messages" would become four scopes 
 	 * "r_basicprofile", "r_emailaddress", "rw_groups" and "w_messages".
-	 * @param db  the database connector.
+	 *     Can be null
+	 * @param db  the database connector
+	 * @throws AceException 
 	 */
-	public KissPDP(Set<String> clients,
-			Set<String> rs,	Map<String, Map<String,Set<String>>> acl,
-			DBConnector db) {
-		this.clients = new HashSet<>();
-		this.clients.addAll(clients);
-		this.rs = new HashSet<>();
-		this.rs.addAll(rs);
-		this.acl = new HashMap<>();
-		this.acl.putAll(acl);
+	public KissPDP(String rootPwd, SQLConnector db) throws AceException {
+	    
+	    String createToken = db.getAdapter().updateEngineSpecificSQL(
+	            "CREATE TABLE IF NOT EXISTS "
+                + DBConnector.dbName + "."
+                + tokenTable + "("
+                + DBConnector.idColumn + " varchar(255) NOT NULL);");
+	    
+	    String createIntrospect = db.getAdapter().updateEngineSpecificSQL(
+                "CREATE TABLE IF NOT EXISTS "
+                + DBConnector.dbName + "."
+                + introspectTable + "("
+                + DBConnector.idColumn + " varchar(255) NOT NULL);");
+	            
+	    String createAccess = db.getAdapter().updateEngineSpecificSQL(
+                "CREATE TABLE IF NOT EXISTS "
+                + DBConnector.dbName + "."
+                + accessTable + "("
+                + DBConnector.idColumn + " varchar(255) NOT NULL,"
+                + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
+                + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
+
+	    Properties connectionProps = new Properties();
+	    connectionProps.put("user", db.getAdapter().getDefaultRoot());
+	    connectionProps.put("password", rootPwd);
+	    try (Connection rootConn = DriverManager.getConnection(
+	            db.getAdapter().getDefaultDBURL(), connectionProps);
+	            Statement stmt = rootConn.createStatement()) {
+	        stmt.execute(createToken);
+	        stmt.execute(createIntrospect);
+	        stmt.execute(createAccess);
+	    } catch (SQLException e) {
+	        e.printStackTrace();
+	        throw new AceException(e.getMessage());
+	    }
+	    
+	    this.canToken = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+                        + tokenTable
+                        + " WHERE " + DBConnector.idColumn + "=?;"));
+	    
+	    
+        this.canIntrospect = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+                        + introspectTable
+                        + " WHERE " + DBConnector.idColumn + "=?;"));
+        
+        //Gets only the access of the client, the PDP sorts out the audiences
+        //and scopes
+        this.canAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+                        + accessTable
+                        + " WHERE " + DBConnector.idColumn + "=?"
+                        + " AND " + DBConnector.rsIdColumn + "=?;"));
+        
+        
+        this.addTokenAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+                      + tokenTable + " VALUES (?);"));
+        
+        this.addIntrospectAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+                        + introspectTable + " VALUES (?);"));
+        
+        this.addAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+                        + accessTable + " VALUES (?,?,?);"));
+        
+        this.deleteTokenAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+                        + tokenTable + " WHERE " 
+                        + DBConnector.idColumn + "=?;"));
+        
+        this.deleteIntrospectAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+                        + introspectTable + " WHERE " 
+                        + DBConnector.idColumn + "=?;"));
+        
+        this.deleteAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+                        + accessTable + " WHERE " 
+                        + DBConnector.idColumn + "=?"
+                        + " AND " + DBConnector.rsIdColumn + "=?"
+                        + " AND " + DBConnector.scopeColumn + "=?;"));
+        
+        this.deleteAllAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+                        + accessTable + " WHERE " 
+                        + DBConnector.idColumn + "=?;"));
+
+        this.deleteAllRsAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+                        + accessTable + " WHERE " 
+                        + DBConnector.idColumn + "=?"
+                        + " AND " + DBConnector.rsIdColumn + "=?;"));
+	    
 		this.db = db;
 	}
 	
 	@Override
-	public boolean canAccessToken(String clientId) {
-		return this.clients.contains(clientId);
+	public boolean canAccessToken(String clientId) throws AceException {
+	    if (clientId == null) {
+            throw new AceException(
+                    "canAccessToken() requires non-null clientId");
+        }
+        try {
+            this.canToken.setString(1, clientId);
+            ResultSet result = this.canToken.executeQuery();
+            this.canToken.clearParameters();
+            if (result.next()) {
+                result.close();
+                return true;
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return false;
 	}
 
 	@Override
-	public boolean canAccessIntrospect(String rsId) {
-		return this.rs.contains(rsId);
+	public boolean canAccessIntrospect(String rsId) throws AceException {
+	      if (rsId == null) {
+	            throw new AceException(
+	                    "canAccessIntrospect() requires non-null rsId");
+	        }
+	        try {
+	            this.canIntrospect.setString(1, rsId);
+	            ResultSet result = this.canIntrospect.executeQuery();
+	            this.canIntrospect.clearParameters();
+	            if (result.next()) {
+	                result.close();
+	                return true;
+	            }
+	            result.close();
+	        } catch (SQLException e) {
+	            throw new AceException(e.getMessage());
+	        }
+	        return false;
 	}
 
 	@Override
 	public String canAccess(String clientId, Set<String> aud, String scope) 
 				throws AceException {
-		Map<String,Set<String>> clientACL = this.acl.get(clientId);
-		if (clientACL == null || clientACL.isEmpty()) {
-			return null;
-		}
+	    if (clientId == null) {
+            throw new AceException(
+                    "canAccess() requires non-null clientId");
+        }
 
-		Set<String> scopes = null;
-		Set<String> rss = new HashSet<>();
-		for (String audE : aud) {
-		    rss.addAll(this.db.getRSS(audE));
-		}
-		if (rss.isEmpty()) {
-		    return null;
-		}
-		for (String rs : rss) {
-		    if (scopes == null) {
-		        scopes = new HashSet<>();
-		        Set<String> bar = clientACL.get(rs);
-		        if (bar != null) {
-		            scopes.addAll(bar);
-		        }
-		    } else {
-		        Set<String> remains = new HashSet<>(scopes);
-		        for (String foo : scopes) {
-		            if (clientACL.get(rs) == null ) { 
-		                //The client can access nothing on this RS
-		                return null;
-		            }
-		            if (!clientACL.get(rs).contains(foo)) {
-		                remains.remove(foo);
-		            }
-		        }
-		        scopes = remains;
-		    }
-		}
-		   
-		if (scopes == null || scopes.isEmpty()) {
-			return null;
-		}
-		
-		String scopeStr = scope;
-		String[] requestedScopes = scopeStr.split(" ");
-		String grantedScopes = "";
-		for (int i=0; i<requestedScopes.length; i++) {
-			if (scopes.contains(requestedScopes[i])) {
-				if (!grantedScopes.isEmpty()) {
-					grantedScopes += " ";
-				}
-				grantedScopes += requestedScopes[i];
-			}
-		}
-		//all scopes found
-		if (grantedScopes.isEmpty()) {
-			return null;
-		}
-		return grantedScopes;
+	    if (aud == null) {
+	        throw new AceException(
+	                "canAccess() requires non-null audience");
+	    }
+	    
+	    if (scope == null) {
+	        throw new AceException(
+	                "canAccess() requires non-null scope");
+	    }
+	    
+	    Set<String> rss = new HashSet<>();
+        for (String audE : aud) {
+            rss.addAll(this.db.getRSS(audE));
+        }
+        if (rss.isEmpty()) {
+            return null;
+        }
+            
+	    Set<Set<String>> clientACL = new HashSet<>();
+	    
+	    for (String rs : rss) {
+	        Set<String> scopes = new HashSet<>();
+	        try {
+	            this.canAccess.setString(1, clientId);
+	            this.canAccess.setString(2, rs);
+	            ResultSet result = this.canAccess.executeQuery();
+	            this.canAccess.clearParameters();
+	            while (result.next()) {
+	                scopes.add(result.getString(DBConnector.scopeColumn));
+	            }
+	            result.close();
+	        } catch (SQLException e) {
+	            throw new AceException(e.getMessage());
+	        }
+	        if (scopes.isEmpty()) {
+	            //The client can access nothing on this RS
+	            return null;
+	        }
+	        clientACL.add(scopes);
+	    }
+	          
+        Set<String> scopes = null;
+        for (Set<String> rs : clientACL) {
+            if (scopes == null) {
+                scopes = new HashSet<>();
+                if (rs != null) {
+                    scopes.addAll(rs);
+                }
+            } else {
+                Set<String> remains = new HashSet<>(scopes);
+                for (String foo : scopes) {
+                    if (rs == null ) { 
+                        //The client can access nothing on this RS
+                        return null;
+                    }
+                    if (!rs.contains(foo)) {
+                        remains.remove(foo);
+                    }
+                }
+                scopes = remains;
+            }
+        }
+           
+        if (scopes == null || scopes.isEmpty()) {
+            return null;
+        }
+        
+        String scopeStr = scope;
+        String[] requestedScopes = scopeStr.split(" ");
+        String grantedScopes = "";
+        for (int i=0; i<requestedScopes.length; i++) {
+            if (scopes.contains(requestedScopes[i])) {
+                if (!grantedScopes.isEmpty()) {
+                    grantedScopes += " ";
+                }
+                grantedScopes += requestedScopes[i];
+            }
+        }
+        //all scopes found
+        if (grantedScopes.isEmpty()) {
+            return null;
+        }
+        return grantedScopes;
 	}
 
     @Override
     public void close() throws Exception {
        this.db.close();
     }
-
+    
+    /**
+     * Add access permission for the token endpoint
+     * 
+     * @param id  the identifier of the entity to be allowed access
+     * 
+     * @throws AceException
+     */
+    public void addTokenAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "addTokenAccess() requires non-null id");
+        }
+        try {
+            this.addTokenAccess.setString(1, id);
+            this.addTokenAccess.execute();
+            this.addTokenAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    } 
+    
+    /**
+     * Add access permission for the introspect endpoint
+     * 
+     * @param id  the identifier of the entity to be allowed access
+     * 
+     * @throws AceException
+     */
+    public void addIntrospectAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "addIntrospectAccess() requires non-null id");
+        }
+        try {
+            this.addIntrospectAccess.setString(1, id);
+            this.addIntrospectAccess.execute();
+            this.addIntrospectAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    } 
+    
+    /**
+     * Add access permission for a client
+     * 
+     * @param cid  the identifier of the client to be allowed access
+     * @param rid  the identifier of the RS to which access is allowed
+     * @param scope  the identifier of the scope for which access is allowed
+     * 
+     * @throws AceException
+     */
+    public void addAccess(String cid, String rid, String scope) 
+            throws AceException {
+        if (cid == null) {
+            throw new AceException(
+                    "addAccess() requires non-null cid");
+        }
+        if (rid == null) {
+            throw new AceException(
+                    "addAccess() requires non-null rid");
+        }
+        
+        if (scope == null) {
+            throw new AceException(
+                    "addAccess() requires non-null scope");
+        }
+        
+        try {
+            this.addAccess.setString(1, cid);
+            this.addAccess.setString(2, rid);
+            this.addAccess.setString(3, scope);
+            this.addAccess.execute();
+            this.addAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Revoke an access right to the Token endpoint
+     * 
+     * @param id  the identifier if the entity for which access is revoked
+     * 
+     * @throws AceException
+     */
+    public void revokeTokenAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "revokeTokenAccess() requires non-null id");
+        }
+        try {
+            this.deleteTokenAccess.setString(1, id);
+            this.deleteTokenAccess.execute();
+            this.deleteTokenAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Revoke an access right to the Introspect endpoint.
+     * 
+     * @param id  the identifier of the entity for which access is revoked
+     * 
+     * @throws AceException 
+     */
+    public void revokeIntrospectAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "revokeIntrospectAccess() requires non-null id");
+        }
+        try {
+            this.deleteIntrospectAccess.setString(1, id);
+            this.deleteIntrospectAccess.execute();
+            this.deleteIntrospectAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Revoke a specific access right from a client.
+     * 
+     * @param cid  the client's identifier
+     * @param rid  the RS's identifier
+     * @param scope  the scope to be revoked
+     * 
+     * @throws AceException
+     */
+    public void revokeAccess(String cid, String rid, String scope) 
+                throws AceException {
+        if (cid == null) {
+            throw new AceException(
+                    "revokeAccess() requires non-null cid");
+        }
+        if (rid == null) {
+            throw new AceException(
+                    "revokeAccess() requires non-null rid");
+        }
+        
+        if (scope == null) {
+            throw new AceException(
+                    "revokeAccess() requires non-null scope");
+        }
+        
+        try {
+            this.deleteAccess.setString(1, cid);
+            this.deleteAccess.setString(2, rid);
+            this.deleteAccess.setString(3, scope);
+            this.deleteAccess.execute();
+            this.deleteAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Revoke all access for a given client.
+     * 
+     * @param id  the client's identifier
+     * 
+     * @throws AceException
+     */
+    public void revokeAllAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "revokeAllAccess() requires non-null id");
+        }
+        try {
+            this.deleteAllAccess.setString(1, id);
+            this.deleteAllAccess.execute();
+            this.deleteAllAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Revoke all access to a specific RS for a given client.
+     * 
+     * @param cid  the client's identifier
+     * @param rid  the RS's identifier
+     * 
+     * @throws AceException
+     */
+    public void revokeAllRsAccess(String cid, String rid) 
+            throws AceException {
+        if (cid == null) {
+            throw new AceException(
+                    "revokeAllRsAccess() requires non-null cid");
+        }
+        
+        if (rid == null) {
+            throw new AceException(
+                    "revokeAllRsAccess() requires non-null rid");
+        }
+        
+        try {
+            this.deleteAllRsAccess.setString(1, cid);
+            this.deleteAllRsAccess.setString(2, rid);
+            this.deleteAllRsAccess.execute();
+            this.deleteAllRsAccess.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
 }

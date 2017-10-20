@@ -74,7 +74,15 @@ public interface DBConnector {
 	/**
 	 * The column for the token claim values
 	 */
-	public String claimValueColumn = "ClaimValue";
+	public String claimValueColumn = "ClaimValue"; 
+	
+	//******************New table********************************   
+
+    /**
+     * The table invalid (expired or revoked) tokens
+     */
+    public String oldTokensTable = "InvalidTokens";
+    
 	
 	//******************New table********************************	
 	/**
@@ -236,6 +244,20 @@ public interface DBConnector {
 	public String getSupportedProfile(String clientId, Set<String> aud) 
 	            throws AceException;
     
+	/**
+     * Checks if the client only supports a single profile.
+     * This is used to determine whether the client assumes 
+     * a default profile.
+     * 
+     * @param clientId  the client identifier 
+     * 
+     * @return  true if the client only supports one profile,
+     * false otherwise
+     * 
+     * @throws AceException 
+     */
+    public boolean hasDefaultProfile(String clientId) throws AceException;
+	
 	/**
      * Returns a common key type for the proof-of-possession
      * algorithm, or null if there isn't any.

@@ -63,7 +63,6 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.SQLConnector;
 
@@ -79,6 +78,8 @@ public class TestKissPDP {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
     private static String dbPwd = null;
+    private static KissPDP pdp = null;
+    
     
     /**
      * Tests for CWT code.
@@ -191,6 +192,13 @@ public class TestKissPDP {
                 expiration, null, publicKey);
         
         
+        db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, publicKey);
+        db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, publicKey);
+        db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, null, publicKey);
+        
         //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
@@ -227,16 +235,68 @@ public class TestKissPDP {
         claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr, claims);
+        
+
+       pdp =  new KissPDP(dbPwd, db);
+       
+       //Initialize data in PDP
+       pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+       pdp.addTokenAccess("clientA");
+       pdp.addTokenAccess("clientB");
+       pdp.addTokenAccess("clientC");
+       pdp.addTokenAccess("clientD");
+       pdp.addTokenAccess("clientE");
+       pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+       pdp.addIntrospectAccess("rs1");
+       pdp.addIntrospectAccess("rs2");
+       pdp.addIntrospectAccess("rs3");
+       pdp.addIntrospectAccess("rs5");
+       pdp.addIntrospectAccess("rs6");
+       pdp.addIntrospectAccess("rs7");
+
+       pdp.addAccess("clientA", "rs1", "r_temp");
+       pdp.addAccess("clientA", "rs1", "rw_config");
+       pdp.addAccess("clientA", "rs2", "r_light");
+       pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
+       
+       pdp.addAccess("clientB", "rs1", "r_temp");
+       pdp.addAccess("clientB", "rs1", "co2");
+       pdp.addAccess("clientB", "rs2", "r_light");
+       pdp.addAccess("clientB", "rs2", "r_config");
+       pdp.addAccess("clientB", "rs2", "failTokenType");
+       pdp.addAccess("clientB", "rs3", "rw_valve");
+       pdp.addAccess("clientB", "rs3", "r_pressure");
+       pdp.addAccess("clientB", "rs3", "failTokenType");
+       pdp.addAccess("clientB", "rs3", "failProfile");
+       pdp.addAccess("clientB", "rs4", "failProfile");
+       pdp.addAccess("clientB", "rs6", "co2");
+       pdp.addAccess("clientB", "rs7", "co2");
+       
+       pdp.addAccess("clientC", "rs3", "r_valve");
+       pdp.addAccess("clientC", "rs3", "r_pressure");
+       pdp.addAccess("clientC", "rs6", "r_valve");
+
+       pdp.addAccess("clientD", "rs1", "r_temp");
+       pdp.addAccess("clientD", "rs1", "rw_config");
+       pdp.addAccess("clientD", "rs2", "r_light");
+       pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
+       pdp.addAccess("clientD", "rs1", "r_temp");
+       
+
+       pdp.addAccess("clientE", "rs3", "rw_valve");
+       pdp.addAccess("clientE", "rs3", "r_pressure");
+       pdp.addAccess("clientE", "rs3", "failTokenType");
+       pdp.addAccess("clientE", "rs3", "failProfile");
     }
     
     /**
      * Deletes the test DB after the tests
      * 
-     * @throws AceException 
-     * @throws SQLException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws AceException, SQLException {
+    public static void tearDown() throws Exception {
+        pdp.close();
         Properties connectionProps = new Properties();
         connectionProps.put("user", "root");
         connectionProps.put("password", dbPwd);
@@ -260,15 +320,12 @@ public class TestKissPDP {
     public ExpectedException thrown = ExpectedException.none();
 
     /**
-     * Test parsing an example configuration and running access queries
+     * Test the basic example configuration with different access queries
      * 
      * @throws Exception 
      */
     @Test
-    public void testParseConfig() throws Exception {
-
-    	KissPDP pdp = KissPDP.getInstance(TestConfig.testFilePath 
-    	        + "acl.json", db);
+    public void testBaseConfig() throws Exception {
     	assert(pdp.canAccessToken("clientA"));
     	Set<String> rs1 = Collections.singleton("rs1");
     	Set<String> rs2 = Collections.singleton("rs2");
@@ -279,6 +336,44 @@ public class TestKissPDP {
     	assert(pdp.canAccessIntrospect("rs1"));
     	assert(!pdp.canAccessToken("clientF"));
     	assert(!pdp.canAccessIntrospect("rs4"));
-    	pdp.close();
+    }
+    
+    /**
+     * Test deleting and adding access
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testDeleteAdd() throws Exception {
+        pdp.addTokenAccess("testC");
+        assert(pdp.canAccessToken("testC"));
+        pdp.addIntrospectAccess("testRS");
+        assert(pdp.canAccessIntrospect("testRS"));
+        pdp.revokeTokenAccess("testC");
+        assert(!pdp.canAccessToken("testC"));
+        pdp.revokeIntrospectAccess("testRS");
+        assert(!pdp.canAccessIntrospect("testRS"));
+        pdp.addAccess("testC", "testRS1", "testScope1");
+        pdp.addAccess("testC", "testRS1", "testScope2");
+        pdp.addAccess("testC", "testRS2", "testScope3");
+        pdp.addAccess("testC", "testRS3", "testScope4");
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
+                "testScope1").equals("testScope1"));
+        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), 
+                "testScope1 testScope2 testScope3").equals(
+                        "testScope1 testScope2"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), 
+                "testScope3").equals("testScope3"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
+                "testScope4").equals("testScope4"));
+        pdp.revokeAccess("testC", "testRS3", "testScope4");
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
+                "testScope4") == null);
+        pdp.revokeAllRsAccess("testC", "testRS1");
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
+                "testScope1") == null);
+        pdp.revokeAllAccess("testC");
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"),
+                "testScope3") == null);
     }
 }
