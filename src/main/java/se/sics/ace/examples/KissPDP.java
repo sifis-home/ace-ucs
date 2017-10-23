@@ -37,9 +37,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.HashSet;
-import java.util.Properties;
-import java.util.Set;
+import java.util.*;
 
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
@@ -86,7 +84,9 @@ public class KissPDP implements PDP, AutoCloseable {
     private PreparedStatement deleteAccess;
     private PreparedStatement deleteAllAccess;
     private PreparedStatement deleteAllRsAccess;
-	
+
+    private PreparedStatement getAllAccess;
+
 	/**
 	 * Constructor, can supply an initial configuration.
 	 * All configuration parameters that are null are expected
@@ -94,16 +94,6 @@ public class KissPDP implements PDP, AutoCloseable {
 	 * 
 	 * @param rootPwd  the database root password, needed to initialize
 	 *     the tables, if they don't already exist	 * 
-	 * @param clients  the clients authorized to make requests to /token. 
-	 *     Can be null
-	 * @param rs  the RSs authorized to make requests to /introspect.
-	 *     Can be null
-	 * @param acl   the access tokens clients can request. This maps
-	 * 	clientId to a map of audiences to a set of scopes. Where the scopes
-	 * 	are split up by whitespace (e.g. a scope of "r_basicprofile 
-	 * r_emailaddress rw_groups w_messages" would become four scopes 
-	 * "r_basicprofile", "r_emailaddress", "rw_groups" and "w_messages".
-	 *     Can be null
 	 * @param db  the database connector
 	 * @throws AceException 
 	 */
@@ -133,7 +123,7 @@ public class KissPDP implements PDP, AutoCloseable {
 	    connectionProps.put("user", db.getAdapter().getDefaultRoot());
 	    connectionProps.put("password", rootPwd);
 	    try (Connection rootConn = DriverManager.getConnection(
-	            db.getAdapter().getDefaultDBURL(), connectionProps);
+	            db.getAdapter().getCurrentDBURL(), connectionProps);
 	            Statement stmt = rootConn.createStatement()) {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
@@ -202,6 +192,11 @@ public class KissPDP implements PDP, AutoCloseable {
                         + accessTable + " WHERE " 
                         + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?;"));
+
+        this.getAllAccess = db.prepareStatement(
+                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+                        + accessTable + " WHERE "
+                        + DBConnector.idColumn + "=?;"));
 	    
 		this.db = db;
 	}
@@ -449,8 +444,8 @@ public class KissPDP implements PDP, AutoCloseable {
      * Revoke an access right to the Introspect endpoint.
      * 
      * @param id  the identifier of the entity for which access is revoked
-     * 
-     * @throws AceException 
+     *
+     * @throws AceException
      */
     public void revokeIntrospectAccess(String id) throws AceException {
         if (id == null) {
@@ -552,4 +547,39 @@ public class KissPDP implements PDP, AutoCloseable {
             throw new AceException(e.getMessage());
         }
     }
+
+    /**
+     * Gets a map of all access configured for a given client.
+     *
+     * @param id  the client's identifier
+     *
+     * @return A map of RS ids associated to sets of scopes, configured for the given client id.
+     * @throws AceException
+     */
+    public Map<String, Set<String>> getAllAccess(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "getAllAccess() requires non-null id");
+        }
+        try {
+            this.getAllAccess.setString(1, id);
+            ResultSet result = this.getAllAccess.executeQuery();
+            this.getAllAccess.clearParameters();
+
+            Map<String, Set<String>> accessMap = new HashMap<>();
+            while(result.next()) {
+                String rsId = result.getString(DBConnector.rsIdColumn);
+                String scope = result.getString(DBConnector.scopeColumn);
+                if(!accessMap.containsKey(rsId)) {
+                    accessMap.put(rsId, new HashSet<>());
+                }
+                accessMap.get(rsId).add(scope);
+            }
+            result.close();
+            return accessMap;
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+
 }
