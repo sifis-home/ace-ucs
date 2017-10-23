@@ -171,13 +171,6 @@ public class Introspect implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 
-        // TODO: additional, non-standard parameter to allow client introspection.
-        CBORObject cborAudience = msg.getParameter((short)40);
-        if(cborAudience != null)
-        {
-            id = cborAudience.AsString();
-        }
-
         //parse the token
         AccessToken token;
         try {
