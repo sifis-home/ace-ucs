@@ -119,9 +119,7 @@ public class KissPDP implements PDP, AutoCloseable {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
-	    Properties connectionProps = new Properties();
-	    connectionProps.put("user", db.getAdapter().getDefaultRoot());
-	    connectionProps.put("password", rootPwd);
+	    Properties connectionProps = db.getCurrentUserProperties();
 	    try (Connection rootConn = DriverManager.getConnection(
 	            db.getAdapter().getCurrentDBURL(), connectionProps);
 	            Statement stmt = rootConn.createStatement()) {

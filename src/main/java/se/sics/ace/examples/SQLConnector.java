@@ -76,6 +76,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	private final String DEFAULT_PASSWORD = "password";
 
 	/**
+	 * The user configured for access.
+	 */
+	private String currentUser;
+
+	/**
+	 * The password configured for access.
+	 */
+	private String currentPassword;
+
+	/**
 	 * A prepared connection.
 	 */
 	private Connection conn = null;
@@ -480,20 +490,22 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		if (dbUrl == null) {
 			dbUrl = dbAdapter.getDefaultDBURL();
 		}
-		if (user == null) {
-			user = this.DEFAULT_USER;
+
+		this.currentUser = user;
+		if (this.currentUser == null) {
+			this.currentUser = this.DEFAULT_USER;
 		}
-		if (pwd == null) {
-			pwd = this.DEFAULT_PASSWORD;
+
+		this.currentPassword = pwd;
+		if (this.currentPassword == null) {
+			this.currentPassword = this.DEFAULT_PASSWORD;
 		}
 
 		this.adapter = dbAdapter;
 		
         dbAdapter.setParams(user, pwd, DBConnector.dbName, dbUrl);
 
-		Properties connectionProps = new Properties();      
-		connectionProps.put("user", user);
-		connectionProps.put("password", pwd);
+		Properties connectionProps = getCurrentUserProperties();
 		this.conn = DriverManager.getConnection(dbUrl + "/"
 		        + DBConnector.dbName, connectionProps);
 		SQLConnector.isConnected = true;
@@ -776,6 +788,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 	}
 
+	public Properties getCurrentUserProperties()
+	{
+		Properties connectionProps = new Properties();
+		connectionProps.put("user", this.currentUser);
+		connectionProps.put("password", this.currentPassword);
+		return connectionProps;
+	}
 
 	/**
 	 * Create the necessary database and tables. Requires the
