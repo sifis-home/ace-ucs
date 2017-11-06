@@ -10,7 +10,7 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
   protocol agnostic. However we provide [CoAP](https://tools.ietf.org/html/rfc7252) client and server support as an example of a protocol specific adaptation based on [Californium](https://www.eclipse.org/californium).
 * Since this is a Java library, it is not intended for resource constrained devices, rather it is intended to be used on the "other end", by the resource rich nodes
   talking to the resource constrained ones. We are planning to release code for constrained devices as well in the future.
-* Version: early_beta
+* Version: beta
 
 
 ### How do I get set up? ###
@@ -46,8 +46,8 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 
 ### Who do I talk to? ###
 
-* This code is owned by SICS Swedish ICT AB and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
-* Please contact ludwig at sics dot se if you have questions or suggestions.
+* This code is owned by RISE SICS and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
+* Please contact ludwig dot seitz at ri dot se if you have questions or suggestions.
 
 ### Acknowledgments ###
 This code is in the framework of the [CelticPlus](https://www.celticplus.eu/) project [CyberWI](http://www.cyberwi.eu/), with funding from [Vinnova](http://www.vinnova.se/sv/).
