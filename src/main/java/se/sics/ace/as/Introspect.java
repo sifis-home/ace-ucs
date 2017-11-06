@@ -170,7 +170,7 @@ public class Introspect implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Must provide 'token' parameter");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
-              
+
         //parse the token
         AccessToken token;
         try {

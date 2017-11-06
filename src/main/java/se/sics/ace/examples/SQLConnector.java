@@ -65,21 +65,26 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	/**
 	 * The default user of the database
 	 */
-	private String defaultUser = "aceuser";
+	private final String DEFAULT_USER = "aceuser";
 	
 	/**
-	 * The default password of the default user. 
+	 * The default password of the default user.
 	 * CAUTION! Only use this for testing, this is very insecure
 	 * (but then if you didn't figure that out yourself, I cannot help you
 	 * anyway).
 	 */
-	private String defaultPassword = "password";
-	
+	private final String DEFAULT_PASSWORD = "password";
+
 	/**
-	 * The default connection URL for the database.
+	 * The user configured for access.
 	 */
-	private String defaultDbUrl = "";
-	
+	private String currentUser;
+
+	/**
+	 * The password configured for access.
+	 */
+	private String currentPassword;
+
 	/**
 	 * A prepared connection.
 	 */
@@ -482,29 +487,26 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	protected SQLConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, 
 	        String pwd) throws SQLException {
-		if (dbUrl != null) {
-			this.defaultDbUrl = dbUrl;
+		if (dbUrl == null) {
+			dbUrl = dbAdapter.getDefaultDBURL();
 		}
-		else
-		{
-			this.defaultDbUrl = dbAdapter.getDefaultDBURL();
+
+		this.currentUser = user;
+		if (this.currentUser == null) {
+			this.currentUser = this.DEFAULT_USER;
 		}
-		if (user != null) {
-			this.defaultUser = user;
-		}
-		if (pwd != null) {
-			this.defaultPassword = pwd;
+
+		this.currentPassword = pwd;
+		if (this.currentPassword == null) {
+			this.currentPassword = this.DEFAULT_PASSWORD;
 		}
 
 		this.adapter = dbAdapter;
 		
-        dbAdapter.setParams(this.defaultUser, this.defaultPassword, 
-                DBConnector.dbName, this.defaultDbUrl);
+        dbAdapter.setParams(user, pwd, DBConnector.dbName, dbUrl);
 
-		Properties connectionProps = new Properties();      
-		connectionProps.put("user", this.defaultUser);
-		connectionProps.put("password", this.defaultPassword);
-		this.conn = DriverManager.getConnection(this.defaultDbUrl + "/" 
+		Properties connectionProps = getCurrentUserProperties();
+		this.conn = DriverManager.getConnection(dbUrl + "/"
 		        + DBConnector.dbName, connectionProps);
 		SQLConnector.isConnected = true;
 	        
@@ -786,6 +788,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 	}
 
+	public Properties getCurrentUserProperties()
+	{
+		Properties connectionProps = new Properties();
+		connectionProps.put("user", this.currentUser);
+		connectionProps.put("password", this.currentPassword);
+		return connectionProps;
+	}
 
 	/**
 	 * Create the necessary database and tables. Requires the

@@ -91,4 +91,10 @@ public interface SQLDBAdapter {
      * @return the default root user name
      */
     String getDefaultRoot();
+
+    /**
+     * Gets the currently set up DB URL for this adapter.
+     * @return The JDBC URL.
+     */
+    String getCurrentDBURL();
 }

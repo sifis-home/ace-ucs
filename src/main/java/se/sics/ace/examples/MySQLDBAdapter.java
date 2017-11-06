@@ -233,6 +233,12 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
+    public String getCurrentDBURL()
+    {
+        return this.dbUrl;
+    }
+
+    @Override
     public void wipeDB(String rootPwd) throws AceException
     {
         try

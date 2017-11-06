@@ -299,6 +299,11 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         return PostgreSQLDBAdapter.DEFAULT_DB_URL;
     }
 
+    @Override
+    public String getCurrentDBURL()
+    {
+        return this.actualDbUrl;
+    }
 
     @Override
     public void wipeDB(String rootPwd) throws AceException
