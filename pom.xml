@@ -60,12 +60,12 @@
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-core</artifactId>
-		<version>1.0.5</version>
+		<version>1.0.6</version>
 	</dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>scandium</artifactId>
-		<version>1.0.5</version>
+		<version>1.0.6</version>
 	</dependency>
 	<dependency>
 		<groupId>com.augustcellars.cose</groupId>
