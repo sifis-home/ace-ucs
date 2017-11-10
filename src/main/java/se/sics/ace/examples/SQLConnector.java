@@ -787,15 +787,27 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
 
 	}
-
-	public Properties getCurrentUserProperties()
-	{
+	
+	/**
+	 * @return  the properties of the current database user
+	 */
+	public Properties getCurrentUserProperties() {
 		Properties connectionProps = new Properties();
 		connectionProps.put("user", this.currentUser);
 		connectionProps.put("password", this.currentPassword);
 		return connectionProps;
 	}
-
+	
+	/**
+	 * Set the current user properties
+	 * @param user  the username of the new current user
+	 * @param password  the password of the new current user
+	 */
+	public void setCurrentUser(String user, String password) {
+	    this.currentUser = user;
+	    this.currentPassword = password;
+	}
+	
 	/**
 	 * Create the necessary database and tables. Requires the
 	 * root user password.
