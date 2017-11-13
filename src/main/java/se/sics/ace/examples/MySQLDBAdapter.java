@@ -87,7 +87,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         String cUser = "CREATE USER IF NOT EXISTS'" + this.user
                 + "'@'localhost' IDENTIFIED BY '" + this.password
                 + "';";
-        String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE ON "
+        String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE, CREATE ON "
                 + this.dbName + ".* TO '" + this.user + "'@'localhost';";
         try (Connection rootConn = DriverManager.getConnection(
                 this.dbUrl, connectionProps);

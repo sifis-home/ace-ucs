@@ -800,7 +800,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
 
 	}
-
+	
 	/**
 	 * @return  the properties of the current database user
 	 */
@@ -820,7 +820,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	    this.currentUser = user;
 	    this.currentPassword = password;
 	}
-
+	
 	/**
 	 * Create the necessary database and tables. Requires the
 	 * root user password.
