@@ -240,10 +240,8 @@ public class TestDtlspPskStore {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
         String psk_identity = Base64.getEncoder().encodeToString(
-                cbor.EncodeToBytes()); 
+                tokenCB.EncodeToBytes()); 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);
@@ -277,10 +275,8 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         tr.addToken(claims, ctx, null);
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         String psk_identity = Base64.getEncoder().encodeToString(
-                cbor.EncodeToBytes()); 
+                "ourKey".getBytes(Constants.charset)); 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);

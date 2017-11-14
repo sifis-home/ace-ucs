@@ -55,7 +55,6 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -227,12 +226,9 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
-        
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), 
-                token);
+       
         String identity = Base64.getEncoder().encodeToString(
-                cbor.EncodeToBytes());
+                token.EncodeToBytes());
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());
@@ -281,11 +277,8 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
-        
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(KeyKeys.KeyId.AsCBOR(), kid);
-        String identity = Base64.getEncoder().encodeToString(
-                cbor.EncodeToBytes());
+
+        String identity = Base64.getEncoder().encodeToString(kid);
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());
