@@ -191,12 +191,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	protected PreparedStatement deleteScopes;
     
     /**
-     * A prepared SELECT statement to get a set of Scopes for a specific RS
+     * A prepared SELECT statement to get a set of Scopes for a specific audience
      * 
-     * Parameter: rs id
+     * Parameter: audience id
      */
 	protected PreparedStatement selectScopes;
-    
+
+	/**
+	 * A prepared SELECT statement to get a set of Scopes for a specific RS
+	 *
+	 * Parameter: rs id
+	 */
+	protected PreparedStatement selectScopesForRS;
+
     /**
      * A prepared INSERT statement to add an audience a 
      * Resource Server identifies with
@@ -602,6 +609,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + DBConnector.audiencesTable
 		                + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
 		                + DBConnector.rsIdColumn + ";"));
+
+		this.selectScopesForRS = this.conn.prepareStatement(
+				dbAdapter.updateEngineSpecificSQL("SELECT * FROM "
+						+ DBConnector.scopesTable
+						+ " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
+						+ DBConnector.rsIdColumn + ";"));
 
 		this.insertAudience = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
@@ -1322,6 +1335,28 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         return auds;
     }
+
+    @Override
+    public synchronized Set<String> getScopes(String rsId) throws AceException
+	{
+		if (rsId == null) {
+			throw new AceException(
+					"getScopes() requires non-null rsId");
+		}
+		Set<String> scopes = new HashSet<>();
+		try {
+			this.selectScopesForRS.setString(1, rsId);
+			ResultSet result = this.selectScopesForRS.executeQuery();
+			this.selectScopesForRS.clearParameters();
+			while (result.next()) {
+				scopes.add(result.getString(DBConnector.scopeColumn));
+			}
+			result.close();
+		} catch (SQLException e) {
+			throw new AceException(e.getMessage());
+		}
+		return scopes;
+	}
 
     @Override
     public synchronized OneKey getRsPSK(String rsId) throws AceException {

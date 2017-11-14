@@ -376,7 +376,18 @@ public interface DBConnector {
      * @throws AceException 
      */
     public Set<String> getAudiences(String rsId) 
-                throws AceException;  
+                throws AceException;
+
+	/**
+	 * Gets the scopes associated to this RS.
+	 *
+	 * @param rsId  the rs identifier
+	 *
+	 * @return  the scope strings that this RS uses
+	 *
+	 * @throws AceException
+	 */
+    Set<String> getScopes(String rsId) throws AceException;
 
     /**
      * Get the shared symmetric key (PSK) with this RS
