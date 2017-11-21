@@ -42,6 +42,7 @@ import se.sics.ace.rs.ScopeValidator;
 
 /**
  * Simple audience and scope validator for testing purposes.
+ * This validator expects the scopes to be Strings as in OAuth 2.0.
  * 
  * @author Ludwig Seitz
  *
@@ -76,8 +77,11 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	}
 
     @Override
-    public boolean scopeMatch(String scope, String resourceId, String actionId)
+    public boolean scopeMatch(Object scope, String resourceId, String actionId)
             throws AceException {
+        if (!(scope instanceof String)) {
+            throw new AceException("Scope must be a String in KissValidator");
+        }
         Map<String, Set<String>> resources = this.myScopes.get(scope);
         if (resources == null) {
             return false;
@@ -89,8 +93,11 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
     }
 
     @Override
-    public boolean scopeMatchResource(String scope, String resourceId)
+    public boolean scopeMatchResource(Object scope, String resourceId)
             throws AceException {
+        if (!(scope instanceof String)) {
+            throw new AceException("Scope must be a String in KissValidator");
+        }
         Map<String, Set<String>> resources = this.myScopes.get(scope);
         if (resources == null) {
             return false;

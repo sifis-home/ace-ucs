@@ -32,7 +32,10 @@
 package se.sics.ace.rs;
 
 import org.junit.Assert;
+import org.junit.BeforeClass;
 import org.junit.Test;
+
+import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
 import se.sics.ace.examples.RESTscope;
@@ -45,6 +48,26 @@ import se.sics.ace.examples.RESTscope;
  */
 public class TestRESTscope {
    
+    private static CBORObject scope;
+    private static RESTscope s = new RESTscope();
+    
+    /**
+     * Set up tests.
+     */
+    @BeforeClass
+    public static void setUp()  {
+        scope = CBORObject.NewArray();
+        CBORObject authz1 = CBORObject.NewArray();
+        CBORObject authz2 = CBORObject.NewArray();
+        authz1.Add("sensors/temp");
+        authz1.Add(1);
+        authz2.Add("config/security");
+        authz2.Add(5);
+        scope.Add(authz1);
+        scope.Add(authz2);
+    }
+    
+    
     /**
      * Test a scope against a resource URI that is not covered 
      * 
@@ -52,8 +75,6 @@ public class TestRESTscope {
      */
     @Test
     public void testNoResource() throws AceException {
-        String scope = "sensors/temp|1 config/security|5";
-        RESTscope s = new RESTscope();
         Assert.assertFalse(s.scopeMatchResource(scope, "sensors/co2"));
         Assert.assertFalse(s.scopeMatch(scope, "blah", "GET"));
     }
@@ -66,8 +87,6 @@ public class TestRESTscope {
     @Test
     public void testNoPermission() throws AceException {
         // 1 = GET  5 = GET and PUT
-        String scope = "sensors/temp|1 config/security|5";
-        RESTscope s = new RESTscope();
         Assert.assertTrue(s.scopeMatchResource(scope, "sensors/temp"));
         Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", "DELETE"));
         Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", "PUT"));
@@ -89,9 +108,7 @@ public class TestRESTscope {
      */
     @Test (expected = AceException.class)
     public void testInvalidAction() throws AceException {
-        String scope = "sensors/temp:1 config/security:5";
-        RESTscope s = new RESTscope();
-        s.scopeMatch(scope, "sensors/temp", "PATCH");
+         s.scopeMatch(scope, "sensors/temp", "BLAH");
         
     }
 }
