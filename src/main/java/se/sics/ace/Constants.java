@@ -469,7 +469,7 @@ public class Constants {
                 } else {
                     throw new AceException("Malformed parameter map");
                 }
-            } else if (key.GetTags().equals(CBORType.TextString)) {
+            } else if (key.getType().equals(CBORType.TextString)) {
                 keyStr = key.AsString();
             } else {
                 throw new AceException("Malformed parameter map");
