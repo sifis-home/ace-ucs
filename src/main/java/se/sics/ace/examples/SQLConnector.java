@@ -494,8 +494,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	protected SQLConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, 
 	        String pwd) throws SQLException {
-		if (dbUrl == null) {
-			dbUrl = dbAdapter.getDefaultDBURL();
+		String url = dbUrl; //avoid parameter assignment
+        if (url == null) {
+			url = dbAdapter.getDefaultDBURL();
 		}
 
 		this.currentUser = user;
@@ -510,10 +511,10 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 		this.adapter = dbAdapter;
 		
-        dbAdapter.setParams(user, pwd, DBConnector.dbName, dbUrl);
+        dbAdapter.setParams(user, pwd, DBConnector.dbName, url);
 
 		Properties connectionProps = getCurrentUserProperties();
-		this.conn = DriverManager.getConnection(dbUrl + "/"
+		this.conn = DriverManager.getConnection(url + "/"
 		        + DBConnector.dbName, connectionProps);
 		SQLConnector.isConnected = true;
 	        
