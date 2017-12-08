@@ -19,7 +19,7 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 * Configuration: You need to set up a MySQL database to run the Junit tests. 
   To run in production you need to configure everything, starting with
   your resource servers (out of scope here), the access control policies for
-  the authorization server (KissPDP has a demo format in JSON, check the
+  the authorization server (KissPDP has a demo format backed in the database, check the
   test resources), the discovery of AS (out of scope again). If you don't
   know where to start you probably shouldn't use this in production settings.
 * Dependencies: Lots, check the .pom file
