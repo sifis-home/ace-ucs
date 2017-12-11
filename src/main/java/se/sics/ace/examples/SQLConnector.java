@@ -65,7 +65,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	/**
 	 * The default user of the database
 	 */
-	private final String DEFAULT_USER = "aceuser";
+	public final static String DEFAULT_USER = "aceuser";
 	
 	/**
 	 * The default password of the default user.
@@ -73,7 +73,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * (but then if you didn't figure that out yourself, I cannot help you
 	 * anyway).
 	 */
-	private final String DEFAULT_PASSWORD = "password";
+	private final static String DEFAULT_PASSWORD = "password";
 
 	/**
 	 * The user configured for access.
@@ -501,12 +501,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 		this.currentUser = user;
 		if (this.currentUser == null) {
-			this.currentUser = this.DEFAULT_USER;
+			this.currentUser = SQLConnector.DEFAULT_USER;
 		}
 
 		this.currentPassword = pwd;
 		if (this.currentPassword == null) {
-			this.currentPassword = this.DEFAULT_PASSWORD;
+			this.currentPassword = SQLConnector.DEFAULT_PASSWORD;
 		}
 
 		this.adapter = dbAdapter;
