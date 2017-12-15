@@ -116,7 +116,7 @@ public class TestCoAPServer {
                 "jdbc:mysql://localhost:3306");
 
 
-        db = new CoapDBConnector(null, null, null);
+        db = CoapDBConnector.getInstance(null, null, null);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
