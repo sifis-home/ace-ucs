@@ -172,5 +172,17 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     public String getIdentity(InetSocketAddress inetAddress) {
         return null;
     }
+    
+    /**
+     * Close the connections. After this any other method calls to this
+     * object will lead to an exception.
+     * 
+     * @throws AceException
+     */
+    @Override
+    public synchronized void close() throws AceException {
+       super.close();
+       CoapDBConnector.connector = null;
+    }
 
 }

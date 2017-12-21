@@ -163,6 +163,9 @@ public class CoapsIntrospection implements IntrospectionHandler {
         CoapResponse response =  this.client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    
+        if (response == null) {
+            throw new AceException("AS didn't respond");
+        }
         if (!response.getCode().equals(ResponseCode.CREATED)) {
             //Some error happened
             if (response.getPayload() == null) {//This was a server error
