@@ -55,6 +55,7 @@ import java.util.logging.Logger;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A PskStore implementation based on BKS.
@@ -284,6 +285,12 @@ public class BksStore implements PskStore {
             throw new KeyStoreException("No keystore loaded");
         }
         throw new KeyStoreException("Key identity can not be null");
+    }
+
+    @Override
+    public byte[] getKey(ServerNames arg0, String identity) {
+        //TODO: ServerNames extension not supported for this Store
+        return null;
     }
     
     

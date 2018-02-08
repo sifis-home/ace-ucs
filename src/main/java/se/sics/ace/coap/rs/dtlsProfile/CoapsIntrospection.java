@@ -93,15 +93,17 @@ public class CoapsIntrospection implements IntrospectionHandler {
      */
     public CoapsIntrospection(OneKey rpk, String introspectAddress) 
             throws CoseException, IOException {
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(0));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+                .setAddress(new InetSocketAddress(0));
         builder.setIdentity(rpk.AsPrivateKey(), 
                 rpk.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
-                NetworkConfig.getStandard());
+        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
+                .setConnector(dtlsConnector)
+                .setNetworkConfig(NetworkConfig.getStandard())
+                .build();
         LOGGER.fine("Creating CoAPS client for introspection to: " 
                 + introspectAddress + " with RPK");
         this.client = new CoapClient(introspectAddress);
@@ -135,8 +137,8 @@ public class CoapsIntrospection implements IntrospectionHandler {
             String introspectAddress) throws CoseException, IOException,
             NoSuchAlgorithmException, CertificateException, KeyStoreException,
             NoSuchProviderException {
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(0));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+                .setAddress(new InetSocketAddress(0));
         BksStore.init(keystoreLocation, keystorePwd, addr2idFile);
         BksStore keystore = new BksStore(
                 keystoreLocation, keystorePwd, addr2idFile);
@@ -144,8 +146,10 @@ public class CoapsIntrospection implements IntrospectionHandler {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, 
-                NetworkConfig.getStandard());
+        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
+                .setConnector(dtlsConnector)
+                .setNetworkConfig(NetworkConfig.getStandard())
+                .build();
         LOGGER.fine("Creating CoAPS client for introspection to: " 
                 + introspectAddress + " with RPK");
         this.client = new CoapClient(introspectAddress);

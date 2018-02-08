@@ -34,6 +34,7 @@ package se.sics.ace.coap.dtlsProfile;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 import java.util.Base64;
 import java.util.Collections;
@@ -41,7 +42,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -50,9 +50,10 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.scandium.ScandiumLogger;
+import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -88,11 +89,6 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspAuthzInfo {
 
-    static {
-        ScandiumLogger.initialize();
-        ScandiumLogger.setLevel(Level.FINE);
-    }
-    
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static TokenRepository tr;
@@ -199,26 +195,37 @@ public class TestDtlspAuthzInfo {
     
     /**
      * Test a POST to /authz-info
-     * @throws UnknownHostException 
      * @throws AceException 
      * @throws IntrospectionException 
+     * @throws IOException 
      */
     @Test
     public void testPOSTtoken() 
-            throws UnknownHostException, AceException, IntrospectionException {
+            throws AceException, IntrospectionException, IOException {
         Request req = new Request(Code.POST);
         req.setPayload(payload.EncodeToBytes());
-        req.setDestination(InetAddress.getLocalHost());
-        req.setSenderIdentity(new PreSharedKeyIdentity("psk"));
+        AddressEndpointContext destCtx = new AddressEndpointContext(
+                new InetSocketAddress(
+                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new PreSharedKeyIdentity("psk"));
+        req.setDestinationContext(destCtx);
+        
+
         req.setType(Type.NON);
         req.setAcknowledged(false);
-        req.setSource(InetAddress.getLocalHost());
-        req.setSourcePort(CoAP.DEFAULT_COAP_PORT);
+        AddressEndpointContext srcCtx = new AddressEndpointContext(
+                new InetSocketAddress(InetAddress.getLocalHost(),
+                        CoAP.DEFAULT_COAP_PORT));
+        req.setSourceContext(srcCtx);
+        
         req.setToken(new byte[]{0x01});
         Exchange iex = new Exchange(req, Origin.REMOTE);
-        iex.setRequest(req);       
-        iex.setEndpoint(new CoapEndpoint());
+        iex.setRequest(req);   
+        CoapEndpoint cep = new CoapEndpointBuilder().build();
+        cep.start();
+        iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
+        //FIXME: MessageIdProvider is null here
         dai.handlePOST(ex);
       
         String kid = Base64.getEncoder().encodeToString(new byte[]{0x01, 0x02});

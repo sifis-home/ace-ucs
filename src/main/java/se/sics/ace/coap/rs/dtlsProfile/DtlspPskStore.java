@@ -36,6 +36,7 @@ import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -139,6 +140,13 @@ public class DtlspPskStore implements PskStore {
     @Override
     public String getIdentity(InetSocketAddress inetAddress) {
         // Not needed here, this PskStore is for servers only
+        return null;
+    }
+
+
+    @Override
+    public byte[] getKey(ServerNames serverNames, String identity) {
+        //TODO: No support for ServerNames extension yet
         return null;
     }
 

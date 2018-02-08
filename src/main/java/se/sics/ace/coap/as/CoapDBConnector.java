@@ -36,6 +36,7 @@ import java.sql.SQLException;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -183,6 +184,12 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     public synchronized void close() throws AceException {
        super.close();
        CoapDBConnector.connector = null;
+    }
+
+    @Override
+    public byte[] getKey(ServerNames serverNames, String identity) {
+        // TODO: We don't support the server names extension.
+        return null;
     }
 
 }

@@ -162,8 +162,8 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
             add(this.introspect);    
         }
 
-       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-               new InetSocketAddress(port));
+       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+               .setAddress(new InetSocketAddress(port));
        if (asymmetricKey != null && 
                asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
            LOGGER.info("Starting CoapsAS with PSK and RPK");
@@ -182,7 +182,10 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
        }
        config.setClientAuthenticationRequired(true);
        DTLSConnector connector = new DTLSConnector(config.build());
-       addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
+       
+       addEndpoint(new CoapEndpoint.CoapEndpointBuilder()
+               .setConnector(connector).setNetworkConfig(
+                       NetworkConfig.getStandard()).build());
         
     }
 

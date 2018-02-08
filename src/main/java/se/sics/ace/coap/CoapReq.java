@@ -38,6 +38,7 @@ import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.elements.EndpointContext;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -98,7 +99,11 @@ public class CoapReq implements Message {
 
     @Override
     public String getSenderId() {
-        Principal p = this.request.getSenderIdentity();
+        EndpointContext ctx = this.request.getSourceContext();
+        if (ctx==null) {
+            return null;
+        }
+        Principal p = ctx.getPeerIdentity();
         if (p==null) {
             return null;
         }
