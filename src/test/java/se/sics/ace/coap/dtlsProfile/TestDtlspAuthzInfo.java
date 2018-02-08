@@ -35,7 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;

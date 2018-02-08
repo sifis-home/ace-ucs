@@ -121,11 +121,6 @@ public interface DBConnector {
      * The column name for client identifier
      */
     public String clientIdColumn = "ClientId";	
-    
-    /**
-     * The column name for noting that the client needs a client token
-     */
-    public String needClientToken = "NeedClientToken";
 	
 	/**
 	 * The column name for the default audience use by the client
@@ -484,13 +479,12 @@ public interface DBConnector {
      *     there is none
      * @param publicKey  the COSE-encoded public key of this client or null if
      *      there is none
-	 * @param needClientToken this client a client token
      *       
 	 * @throws AceException 
 	 */
 	public void addClient(String clientId, Set<String> profiles, 
 	        String defaultScope, String defaultAud, Set<String> keyTypes, 
-	        OneKey sharedKey, OneKey publicKey, boolean needClientToken) 
+	        OneKey sharedKey, OneKey publicKey) 
 	                throws AceException;
 	
 	/**
@@ -501,14 +495,6 @@ public interface DBConnector {
 	 * @throws AceException 
 	 */
 	public void deleteClient(String clientId) throws AceException;
-
-	/**
-	 * @param client  the identifier of the client 
-	 * @return  Does this client need a client token?
-	 * 
-	 * @throws AceException 
-	 */
-	public boolean needsClientToken(String client) throws AceException;
 	
 	/**
 	 * Adds a new token to the database

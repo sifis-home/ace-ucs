@@ -122,7 +122,6 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.defaultScope + " varchar(255), "
                 + DBConnector.pskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
-                + DBConnector.needClientToken + " tinyint(1), "
                 + " PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
         String createProfiles = "CREATE TABLE IF NOT EXISTS "

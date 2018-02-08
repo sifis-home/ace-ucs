@@ -169,8 +169,7 @@ public class TestIntrospect {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");
-        db.addClient("client1", profiles, null, null, keyTypes, key, 
-                null, true);
+        db.addClient("client1", profiles, null, null, keyTypes, key, null);
                 
         KissTime time = new KissTime();
         
@@ -359,27 +358,5 @@ public class TestIntrospect {
        
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
-    }
-    
-    /**
-     * Test the introspect endpoint. Expired token purged before introspected.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testSuccessRefClientToken() throws Exception {
-        ReferenceToken t = new ReferenceToken(new byte[]{0x01});
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, t.encode());
-        String senderId = new RawPublicKeyIdentity(
-                publicKey.AsPublicKey()).getName().trim();
-        Message response = i.processMessage(
-                new LocalMessage(-1, senderId, "TestAS", params));
-        assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
-        params = Constants.getParams(rparams);
-        assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
-        assert(params.get(Constants.CLIENT_TOKEN) != null);
     }
 }

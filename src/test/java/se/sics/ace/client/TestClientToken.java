@@ -142,8 +142,7 @@ public class TestClientToken {
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        db.addClient("client", profiles, null, null, keyTypes, k_c_as, 
-                null, true);
+        db.addClient("client", profiles, null, null, keyTypes, k_c_as, null);
        
         
         Set<String> actions = new HashSet<>();
@@ -235,38 +234,4 @@ public class TestClientToken {
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
-
-    /**
-     * Test successful submission to AuthzInfo
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testClientToken() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        
-        //Do the introspection manually, return the result
-        ReferenceToken t = new ReferenceToken(new byte[]{0x08});
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, t.encode());
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", params));
-        
-        //Now process the returned client token
-        Map<Short, CBORObject> claims 
-            = GetToken.handleClientToken(response.getRawPayload(), key128);
-        
-        assert(claims.get(Constants.CNF) != null);
-        CBORObject cnf = claims.get(Constants.CNF);
-        OneKey key = new OneKey(cnf.get(Constants.COSE_KEY_CBOR));
-        Assert.assertArrayEquals(key128a, 
-                key.get(KeyKeys.Octet_K).GetByteString());
-        assert(claims.get(Constants.PROFILE).equals(
-                CBORObject.FromObject("coap_dtls")));
-    }
-        
-
 }
