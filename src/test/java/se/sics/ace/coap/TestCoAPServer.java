@@ -38,9 +38,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.logging.Level;
-
-import org.eclipse.californium.scandium.ScandiumLogger;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -68,11 +65,6 @@ import se.sics.ace.examples.SQLConnector;
  *
  */
 public class TestCoAPServer {
-        
-    static {
-        ScandiumLogger.initialize();
-        ScandiumLogger.setLevel(Level.FINE);
-    }
 
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
@@ -116,7 +108,7 @@ public class TestCoAPServer {
                 "jdbc:mysql://localhost:3306");
 
 
-        db = new CoapDBConnector(null, null, null);
+        db = CoapDBConnector.getInstance(null, null, null);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -150,7 +142,7 @@ public class TestCoAPServer {
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
-                keyTypes, skey, null, false);        
+                keyTypes, skey, null);        
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});

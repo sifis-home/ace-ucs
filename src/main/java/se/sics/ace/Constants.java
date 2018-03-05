@@ -205,18 +205,13 @@ public class Constants {
 	 * A boolean indicating if a token is active in an introspection response
 	 */
 	public static final short ACTIVE = 29; // boolean
-	
-	/**
-	 * The client token returned in an introspection response for
-	 * passing on to the client
-	 */
-	public static final short CLIENT_TOKEN = 30; //5
+
 	
 	/**
 	 * Information about the key that the RS uses to
      * authenticate towards the client.
 	 */
-	public static final short RS_CNF = 31; //5
+	public static final short RS_CNF = 30; //5
 	
 	/**
 	 * CWT claims
@@ -237,7 +232,7 @@ public class Constants {
     */
 	public static final short[] INTROSPECT_PAR = {ACTIVE, USERNAME, CLIENT_ID,
 	        SCOPE, ERROR, ERROR_DESCRIPTION, ERROR_URI, TOKEN_TYPE, EXP, IAT,
-	        NBF, SUB, AUD, ISS, CTI, CNF, CLIENT_TOKEN, RS_CNF};
+	        NBF, SUB, AUD, ISS, CTI, CNF, RS_CNF};
 	
 	/**
 	 * Abbreviations for OAuth error codes
@@ -429,7 +424,7 @@ public class Constants {
         "redirect_uri", "scope", "state", "code", "error", "error_description", 
         "error_uri", "grant_type", "access_token", "token_type", "expires_in",
         "username", "password", "refresh_token", "cnf", "profile", "token",
-        "token_type_hint", "active", "client_token", "rs_cnf"};
+        "token_type_hint", "active", "rs_cnf"};
     
     /**
      * The string values for the grant type abbreviations (use for debugging)
@@ -469,7 +464,7 @@ public class Constants {
                 } else {
                     throw new AceException("Malformed parameter map");
                 }
-            } else if (key.GetTags().equals(CBORType.TextString)) {
+            } else if (key.getType().equals(CBORType.TextString)) {
                 keyStr = key.AsString();
             } else {
                 throw new AceException("Malformed parameter map");

@@ -36,6 +36,7 @@ import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -99,7 +100,6 @@ public class DtlspPskStore implements PskStore {
         }          
 
         //We don't have that key, try if the identity is an access token
-        //or a structure referring to a kid
         CBORObject payload = null;
         try {
             payload = CBORObject.DecodeFromBytes(
@@ -109,41 +109,8 @@ public class DtlspPskStore implements PskStore {
                     + e.getMessage());
             return null;
         }
-
-        if (!payload.getType().equals(CBORType.Map)) {
-            LOGGER.severe("Error decoding the psk_identity: "
-                    + "No CBOR Map found");
-            return null;
-        }
-        CBORObject kidCB = payload.get(KeyKeys.KeyId.AsCBOR());
-        if (kidCB != null) {//We have a kid: 
-            String kid = Base64.getEncoder().encodeToString(
-                    kidCB.GetByteString());
-            try {
-                key = this.authzInfo.getKey(kid);
-                if (key != null) {
-                    return key.get(KeyKeys.Octet_K).GetByteString();
-                }
-                //Couldn't find a key for that kid
-                LOGGER.warning("Coudln't find a key for kid: " + kid);
-                return null;
-            } catch (AceException e) {
-                LOGGER.severe("Error fetching a key for kid: " + kid
-                        + " Message: " + e.getMessage());
-                return null;
-            }
-            
-        } 
-        //Do we have an access-token?
-        payload = payload.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
-        if (payload == null) {
-            //We have something unknown
-            LOGGER.severe("Error decoding the psk_identity: "
-                    + "No kid or access-token found in the CBOR Map");
-            return null;
-        }
         
-        //We have an access token, continue processing it        
+        //We may have an access token, continue processing it        
         LocalMessage message = new LocalMessage(0, identity, null, payload);
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
@@ -173,6 +140,13 @@ public class DtlspPskStore implements PskStore {
     @Override
     public String getIdentity(InetSocketAddress inetAddress) {
         // Not needed here, this PskStore is for servers only
+        return null;
+    }
+
+
+    @Override
+    public byte[] getKey(ServerNames serverNames, String identity) {
+        //TODO: No support for ServerNames extension yet
         return null;
     }
 

@@ -31,14 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.client;
 
-import java.util.Map;
-
-import org.bouncycastle.crypto.InvalidCipherTextException;
-
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.CoseException;
-import COSE.Encrypt0Message;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
@@ -201,35 +195,5 @@ public class GetToken {
             payload.Add(Constants.CNF, cnf);
         }
         return payload;
-    }
-    
-    
-    /**
-     * Takes the payload of a response to a postToken() call and tries to 
-     * extract the client token, returning the claims of that token.
-     * 
-     * @param p  the payload presumably containing a client token
-     * @param k_c_as  the shared key between client and AS
-     * 
-     * @return  the claims of the client token
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws InvalidCipherTextException 
-     */
-    public static Map<Short, CBORObject> handleClientToken(
-            byte[] p, byte[] k_c_as) throws AceException, CoseException,
-            InvalidCipherTextException {
-        if (p == null) {
-            throw new AceException("Payload is null, expecting client token");
-        }
-        CBORObject resP = CBORObject.DecodeFromBytes(p);
-        CBORObject ct = resP.get(CBORObject.FromObject(Constants.CLIENT_TOKEN));
-        if (ct == null) {
-            throw new AceException("Client token not found in payload");
-        }
-        Encrypt0Message ctE = (Encrypt0Message) COSE.Message.DecodeFromBytes(
-                ct.EncodeToBytes());
-        CBORObject clientToken = CBORObject.DecodeFromBytes(ctE.decrypt(k_c_as));
-        return Constants.getParams(clientToken);
     }
 }

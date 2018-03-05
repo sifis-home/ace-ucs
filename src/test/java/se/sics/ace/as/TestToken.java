@@ -272,21 +272,21 @@ public class TestToken {
         keyTypes.add("RPK");
         db.addClient(
                 "clientA", profiles, null, null, 
-                keyTypes, null, publicKey, false);
+                keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "rs1", 
-                keyTypes, skey, null, false);
+                keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("TST");        
         db.addClient("clientC", profiles, "co2", "sensors", 
-                keyTypes, skey, null, false);
+                keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -294,7 +294,7 @@ public class TestToken {
         keyTypes.add("RPK");
         keyTypes.add("PSK");
         db.addClient("clientD", profiles, null, null, 
-                keyTypes, skey, null, false);
+                keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -303,7 +303,7 @@ public class TestToken {
         keyTypes.add("RPK");
         keyTypes.add("PSK");
         db.addClient("clientE", profiles, null, null, 
-                keyTypes, skey, publicKey, false);
+                keyTypes, skey, publicKey);
         
         //Setup token entries
         byte[] cti = new byte[] {0x00};

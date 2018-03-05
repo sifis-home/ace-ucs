@@ -57,7 +57,6 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
-import COSE.Encrypt0Message;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -144,9 +143,9 @@ public class TestAuthzInfo {
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         db.addClient("client1", profiles, null, null, keyTypes, null, 
-                publicKey, false);
+                publicKey);
         db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
-                publicKey, true);
+                publicKey);
         
         Set<String> actions = new HashSet<>();
         actions.add("GET");
@@ -656,65 +655,6 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x09});
     }    
-    
-    /**
-     * Test successful submission to AuthzInfo
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testClientToken() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x10}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
-        key.add(KeyKeys.KeyId, kid);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put(Constants.CNF, cbor);
-        
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x10}), params);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x10});
-        db.addCti2Client(ctiStr, "client2");
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client2", "rs1", 
-                token.encode(ctx));
-                
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        System.out.println(response.toString());
-        assert(response.getMessageCode() == Message.CREATED);
-        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
-        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x10});
-        CBORObject ct = resP.get(CBORObject.FromObject(Constants.CLIENT_TOKEN));
-        Assert.assertNotNull(ct);
-        Encrypt0Message ctE = (Encrypt0Message) COSE.Message.DecodeFromBytes(
-                ct.EncodeToBytes());
-        CBORObject clientToken = CBORObject.DecodeFromBytes(ctE.decrypt(key128));
-        Assert.assertNotNull(clientToken.get(
-                CBORObject.FromObject(Constants.CNF)));
-    }  
     
     /**
      * Test successful submission to AuthzInfo with an array of audiences

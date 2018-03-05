@@ -1,3 +1,34 @@
+/*******************************************************************************
+ * Copyright (c) 2017, RISE SICS AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 package se.sics.ace.client;
 
 import java.io.BufferedReader;
@@ -16,28 +47,23 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
-import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.Message;
-import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
-import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.rs.TokenRepository;
 
@@ -111,8 +137,7 @@ public class TestClientToken {
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        db.addClient("client", profiles, null, null, keyTypes, k_c_as, 
-                null, true);
+        db.addClient("client", profiles, null, null, keyTypes, k_c_as, null);
        
         
         Set<String> actions = new HashSet<>();
@@ -204,38 +229,4 @@ public class TestClientToken {
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
-
-    /**
-     * Test successful submission to AuthzInfo
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testClientToken() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        
-        //Do the introspection manually, return the result
-        ReferenceToken t = new ReferenceToken(new byte[]{0x08});
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, t.encode());
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", params));
-        
-        //Now process the returned client token
-        Map<Short, CBORObject> claims 
-            = GetToken.handleClientToken(response.getRawPayload(), key128);
-        
-        assert(claims.get(Constants.CNF) != null);
-        CBORObject cnf = claims.get(Constants.CNF);
-        OneKey key = new OneKey(cnf.get(Constants.COSE_KEY_CBOR));
-        Assert.assertArrayEquals(key128a, 
-                key.get(KeyKeys.Octet_K).GetByteString());
-        assert(claims.get(Constants.PROFILE).equals(
-                CBORObject.FromObject("coap_dtls")));
-    }
-        
-
 }

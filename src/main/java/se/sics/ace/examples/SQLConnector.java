@@ -65,7 +65,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	/**
 	 * The default user of the database
 	 */
-	private final String DEFAULT_USER = "aceuser";
+	public final static String DEFAULT_USER = "aceuser";
 	
 	/**
 	 * The default password of the default user.
@@ -73,7 +73,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * (but then if you didn't figure that out yourself, I cannot help you
 	 * anyway).
 	 */
-	private final String DEFAULT_PASSWORD = "password";
+	private final static String DEFAULT_PASSWORD = "password";
 
 	/**
 	 * The user configured for access.
@@ -263,15 +263,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * Parameter: client id
 	 */
 	protected PreparedStatement deleteClient;
-	
-	/**
-     * A prepared SELECT statement to read whether the client needs a
-     * client token.
-     * 
-     * Parameter: client id
-     */
-    private PreparedStatement needClientToken;
-	
+
 	/**
 	 * A prepared SELECT statement to get the default audience for a client.
 	 * 
@@ -494,26 +486,27 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 */
 	protected SQLConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, 
 	        String pwd) throws SQLException {
-		if (dbUrl == null) {
-			dbUrl = dbAdapter.getDefaultDBURL();
+		String url = dbUrl; //avoid parameter assignment
+        if (url == null) {
+			url = dbAdapter.getDefaultDBURL();
 		}
 
 		this.currentUser = user;
 		if (this.currentUser == null) {
-			this.currentUser = this.DEFAULT_USER;
+			this.currentUser = SQLConnector.DEFAULT_USER;
 		}
 
 		this.currentPassword = pwd;
 		if (this.currentPassword == null) {
-			this.currentPassword = this.DEFAULT_PASSWORD;
+			this.currentPassword = SQLConnector.DEFAULT_PASSWORD;
 		}
 
 		this.adapter = dbAdapter;
 		
-        dbAdapter.setParams(user, pwd, DBConnector.dbName, dbUrl);
+        dbAdapter.setParams(user, pwd, DBConnector.dbName, url);
 
 		Properties connectionProps = getCurrentUserProperties();
-		this.conn = DriverManager.getConnection(dbUrl + "/"
+		this.conn = DriverManager.getConnection(url + "/"
 		        + DBConnector.dbName, connectionProps);
 		SQLConnector.isConnected = true;
 	        
@@ -655,18 +648,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		this.insertClient = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.cTable
-		                + " VALUES (?,?,?,?,?,?);"));
+		                + " VALUES (?,?,?,?,?);"));
 
 		this.deleteClient = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
 		                + DBConnector.cTable
 		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 
-		this.needClientToken = this.conn.prepareStatement(
-		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.needClientToken + " FROM "
-		                + DBConnector.cTable
-		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 
 		this.selectDefaultAudience = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -1610,7 +1598,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     @Override
     public synchronized void addClient(String clientId, Set<String> profiles,
             String defaultScope, String defaultAud, Set<String> keyTypes,
-            OneKey sharedKey, OneKey publicKey, boolean needsClientToken) 
+            OneKey sharedKey, OneKey publicKey) 
                     throws AceException {   
         if (clientId == null || clientId.isEmpty()) {
             throw new AceException(
@@ -1644,7 +1632,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             } else {
                 this.insertClient.setBytes(5, null);
             }
-            this.insertClient.setBoolean(6, needsClientToken);
             this.insertClient.execute();
             this.insertClient.clearParameters();
 
@@ -1687,26 +1674,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }   
-    }
-    
-    @Override
-    public synchronized boolean needsClientToken(String client) throws AceException {
-        try {
-            this.needClientToken.setString(1, client);
-            ResultSet result = this.needClientToken.executeQuery();
-            this.needClientToken.clearParameters();
-            if (result.next()) {
-                boolean needCT = result.getBoolean(DBConnector.needClientToken);
-                result.close();
-                return needCT;
-            }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
-        //This should never happen
-        throw new AceException("Information about the need "
-                + "for client token is missing");
     }
     
     @Override

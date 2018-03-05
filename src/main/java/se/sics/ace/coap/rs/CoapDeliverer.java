@@ -96,6 +96,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
     private AsInfo asInfo;
   
     /**
+     * FIXME: Implement with solution proposed by Kai/Achim 
      * The ServerMessageDeliverer that processes the request
      * after access control has been done
      */
@@ -136,14 +137,16 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
             return;
         }      
        
-        if (request.getSenderIdentity() == null) {
+        if (request.getSourceContext() == null 
+                || request.getSourceContext().getPeerIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");
             r = new Response(ResponseCode.UNAUTHORIZED);
             r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
             ex.sendResponse(r);
             return;
         }
-        String subject = request.getSenderIdentity().getName();
+        String subject = request.getSourceContext()
+                .getPeerIdentity().getName();
 
         String kid = this.tr.getKid(subject);
         if (kid == null) {//Check if this was the Base64 encoded kid map

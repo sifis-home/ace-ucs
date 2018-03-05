@@ -41,6 +41,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -357,9 +358,19 @@ public class TestDtlspClient {
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
                 CoAP.DEFAULT_COAP_SECURE_PORT), "randomStuff".getBytes(), key);
         c.setURI("coaps://localhost/temp");
-        CoapResponse r = c.get();
+        try {
+            c.get();
+        } catch (RuntimeException ex) {
+            Object cause = ex.getCause();
+            if (cause instanceof HandshakeException) {
+                HandshakeException he = (HandshakeException)cause;
+                System.out.println(he.getAlert().toString());
+                //Everything ok
+                return;
+            }
+        }
         //Server should terminate handshake
-        Assert.assertNull(r);
+        Assert.fail("Hanshake should fail");
     }
     
     

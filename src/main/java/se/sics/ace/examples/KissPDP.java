@@ -93,7 +93,7 @@ public class KissPDP implements PDP, AutoCloseable {
 	 * to already be in the database.
 	 * 
 	 * @param rootPwd  the database root password, needed to initialize
-	 *     the tables, if they don't already exist	 * 
+	 *     the tables, if they don't already exist 
 	 * @param db  the database connector
 	 * @throws AceException 
 	 */

@@ -44,6 +44,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -225,8 +226,10 @@ public class TestDtlspServer {
 
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
-      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-              new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+      
+      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+              .setAddress(
+                      new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
         config.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -235,12 +238,13 @@ public class TestDtlspServer {
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
         DTLSConnector connector = new DTLSConnector(config.build());
-        rs.addEndpoint(
-                new CoapEndpoint(connector, NetworkConfig.getStandard()));
+        CoapEndpoint cep = new CoapEndpointBuilder().setConnector(connector)
+                .setNetworkConfig(NetworkConfig.getStandard()).build();
+        rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
-        rs.addEndpoint(new CoapEndpoint(new InetSocketAddress(
-                CoAP.DEFAULT_COAP_PORT)));
-        
+        CoapEndpoint aiep = new CoapEndpointBuilder().setInetSocketAddress(
+                new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
+        rs.addEndpoint(aiep);
         rs.setMessageDeliverer(dpd);
         rs.start();
         System.out.println("Server starting");

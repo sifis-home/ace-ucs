@@ -100,41 +100,9 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * 
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey, int port) throws AceException, CoseException {
-        if (asymmetricKey == null) {
-            this.i = new Introspect(pdp, db, time, null);
-        } else {
-            this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
-        }
-        this.t = new Token(asId, pdp, db, time, asymmetricKey); 
-    
-        this.token = new CoapAceEndpoint(this.t);
-        this.introspect = new CoapAceEndpoint(this.i);
-
-        add(this.token);
-        add(this.introspect);
-
-       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(
-               new InetSocketAddress(port));
-       if (asymmetricKey != null && 
-               asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
-           LOGGER.info("Starting CoapsAS with PSK and RPK");
-           config.setSupportedCipherSuites(new CipherSuite[]{
-                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
-                   CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-       } else {
-           LOGGER.info("Starting CoapsAS with PSK only");
-           config.setSupportedCipherSuites(new CipherSuite[]{
-                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-       }
-       config.setPskStore(db);
-       if (asymmetricKey != null) {
-           config.setIdentity(asymmetricKey.AsPrivateKey(), 
-                   asymmetricKey.AsPublicKey());
-       }
-       config.setClientAuthenticationRequired(true);
-       DTLSConnector connector = new DTLSConnector(config.build());
-       addEndpoint(new CoapEndpoint(connector, NetworkConfig.getStandard()));
+            OneKey asymmetricKey, int port) 
+                    throws AceException, CoseException {
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port);
     }
     
     
@@ -153,7 +121,72 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException, CoseException {
-        this(asId, db, pdp, time, asymmetricKey, CoAP.DEFAULT_COAP_SECURE_PORT);
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
+                CoAP.DEFAULT_COAP_SECURE_PORT);
+    }
+    
+    /**
+     * Constructor with endpoint names
+     * 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS for RPK handshakes,
+     *   can be null if the AS only ever does PSK handshakes
+     * @param tokenName  the name of the token endpoint 
+     *  (will be converted into the address as well)
+     * @param introspectName  the name of the introspect endpoint 
+     *  (will be converted into the address as well), if this is null,
+     *  no introspection endpoint will be offered
+     * @param port  the port number to run the server on
+     * @throws AceException 
+     * @throws CoseException 
+     * 
+     */
+    public CoapsAS(String asId, CoapDBConnector db, PDP pdp, 
+            TimeProvider time, OneKey asymmetricKey, String tokenName,
+            String introspectName, int port) 
+                    throws AceException, CoseException {
+        this.t = new Token(asId, pdp, db, time, asymmetricKey); 
+        this.token = new CoapAceEndpoint(tokenName, this.t);    
+        add(this.token);
+        
+        if (introspectName != null) {
+            if (asymmetricKey == null) {
+                this.i = new Introspect(pdp, db, time, null);
+            } else {
+                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+            }
+            this.introspect = new CoapAceEndpoint(introspectName, this.i);
+            add(this.introspect);    
+        }
+
+       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+               .setAddress(new InetSocketAddress(port));
+       if (asymmetricKey != null && 
+               asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
+           LOGGER.info("Starting CoapsAS with PSK and RPK");
+           config.setSupportedCipherSuites(new CipherSuite[]{
+                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+                   CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+       } else {
+           LOGGER.info("Starting CoapsAS with PSK only");
+           config.setSupportedCipherSuites(new CipherSuite[]{
+                   CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+       }
+       config.setPskStore(db);
+       if (asymmetricKey != null) {
+           config.setIdentity(asymmetricKey.AsPrivateKey(), 
+                   asymmetricKey.AsPublicKey());
+       }
+       config.setClientAuthenticationRequired(true);
+       DTLSConnector connector = new DTLSConnector(config.build());
+       
+       addEndpoint(new CoapEndpoint.CoapEndpointBuilder()
+               .setConnector(connector).setNetworkConfig(
+                       NetworkConfig.getStandard()).build());
+        
     }
 
     @Override

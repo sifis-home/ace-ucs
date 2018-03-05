@@ -205,14 +205,14 @@ public class TestKissPDP {
         keyTypes.clear();
         keyTypes.add("RPK");
         db.addClient("clientA", profiles, null, null, 
-                keyTypes, null, publicKey, false);
+                keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscoap");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", 
-                keyTypes, skey, null, false);
+                keyTypes, skey, null);
         
         //Setup token entries
         byte[] cti = new byte[]{0x01};

@@ -46,9 +46,11 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
@@ -164,13 +166,16 @@ public class TestCoAPClient {
      */
     @Test
     public void testNoClientAuthN() throws Exception {
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(0));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        builder.setAddress(new InetSocketAddress(0));
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setClientOnly();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
+        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        ceb.setConnector(dtlsConnector);
+        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/introspect");
         client.setEndpoint(e);
         dtlsConnector.start();
@@ -178,10 +183,21 @@ public class TestCoAPClient {
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, at.encode());
-        CoapResponse response = client.post(
+        try {
+            client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
-        Assert.assertNull(response);        
+        } catch (RuntimeException ex) {
+            Object cause = ex.getCause();
+            if (cause instanceof HandshakeException) {
+                HandshakeException he = (HandshakeException)cause;
+                System.out.println(he.getAlert().toString());
+                //Everything ok
+                return;
+            }
+        }
+        
+        Assert.fail("Server should not accept DTLS connection");       
     }
     
     
@@ -193,15 +209,18 @@ public class TestCoAPClient {
     @Test
     public void testCoapToken() throws Exception {
         OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(0));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientA", key256));
         builder.setIdentity(asymmetricKey.AsPrivateKey(), 
                 asymmetricKey.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
+        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        ceb.setConnector(dtlsConnector);
+        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/token");
         client.setEndpoint(e);
         dtlsConnector.start();
@@ -233,8 +252,8 @@ public class TestCoAPClient {
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(
-                new InetSocketAddress(0));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        builder.setAddress(new InetSocketAddress(0));
         //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), 
                 key.AsPublicKey());
@@ -242,7 +261,10 @@ public class TestCoAPClient {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
-        CoapEndpoint e = new CoapEndpoint(dtlsConnector, NetworkConfig.getStandard());
+        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        ceb.setConnector(dtlsConnector);
+        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/introspect");
         client.setEndpoint(e);
         dtlsConnector.start();

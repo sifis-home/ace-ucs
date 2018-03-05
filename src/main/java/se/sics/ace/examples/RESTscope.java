@@ -33,6 +33,9 @@ package se.sics.ace.examples;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
 import se.sics.ace.AceException;
 import se.sics.ace.rs.ScopeValidator;
 
@@ -42,9 +45,9 @@ import se.sics.ace.rs.ScopeValidator;
  * Each statement in the scope is a capability, in a format inspired by 
  * draft-bormann-core-ace-aif.
  * 
- *    o The entries in the table that specify the same local-part are
- *      merged into a single entry that specifies the union of the
- *      permission sets
+ *    o The entries in the table that specify the same local-part
+ *      (Uri-Path & Uri-Query in CoAP) are merged into a single entry
+ *       that specifies the union of the permission sets
  *
  *    o The methods in the permission sets are converted into their CoAP
  *      method numbers, minus 1
@@ -70,40 +73,75 @@ public class RESTscope implements ScopeValidator {
     }
 
 	@Override
-	public boolean scopeMatchResource(String scope, String resourceId) 
+	public boolean scopeMatchResource(Object scope, String resourceId) 
 			throws AceException {
-		String[] subscope = scope.split(" ");
-		for (int i=0; i<subscope.length; i++) {
-		    String parts[] = subscope[i].split("\\|");
-		    if (parts.length != 2) {
-		        throw new AceException("Scope format not recognized");
-		    }
-		    if (resourceId.equals(parts[0])) {
-		        return true;
-		    }
-		}
+	    if (!(scope instanceof CBORObject)) {
+	        throw new AceException("Scope must be CBORObject");
+	    }
+	    CBORObject scp = (CBORObject)scope;
+	    if (!scp.getType().equals(CBORType.Array)) {
+	        throw new AceException("Scope must be CBOR array");
+	    }
+	    
+	    for (int i = 0; i < scp.size();i++) {
+	        CBORObject authz = scp.get(i);
+	        if (!authz.getType().equals(CBORType.Array)) {
+	            throw new AceException("Authorization must be CBOR array");
+	        }
+	        if (authz.size() != 2) {
+	            throw new AceException("Malformed Authorization element");
+	        }
+	        CBORObject path = authz.get(0);
+	        if (!path.getType().equals(CBORType.TextString)) {
+	            throw new AceException("Path must be text string");
+	        }
+	        if (path.AsString().equals(resourceId)) {
+	            //XXX: URI-Query would make this different
+	            return true;
+	        }
+	        
+	    }
 		return false;
 	}
 
 	@Override
-	public boolean scopeMatch(String scope, String resource, String actionId) 
+	public boolean scopeMatch(Object scope, String resource, String actionId) 
 			throws AceException {
-	    String[] subscope = scope.split(" ");
-	    for (int i=0; i<subscope.length; i++) {
-            String parts[] = subscope[i].split("\\|");
-            if (parts.length != 2) {
-                throw new AceException("Scope format not recognized");
+	    if (!(scope instanceof CBORObject)) {
+            throw new AceException("RESTscope expects scopes to be CBORObject");
+        }
+	    CBORObject scp = (CBORObject)scope;
+        if (!scp.getType().equals(CBORType.Array)) {
+            throw new AceException("Scope must be CBOR array");
+        }
+        
+        for (int i = 0; i < scp.size();i++) {
+            CBORObject authz = scp.get(i);
+            if (!authz.getType().equals(CBORType.Array)) {
+                throw new AceException("Authorization must be CBOR array");
             }
-            if (resource.equals(parts[0])) {
-               int action = 1 << (actionTranslator(actionId)-1);
-               int permissions = Integer.parseInt(parts[1]);
-               if ((permissions | action) == permissions) {
-                   return true;
-               } 
-               //There should not be more than one subscope with 
-               //the same resource Uri part so we can abort here
-               return false;
+            if (authz.size() != 2) {
+                throw new AceException("Malformed Authorization element");
             }
+            CBORObject path = authz.get(0);
+            if (!path.getType().equals(CBORType.TextString)) {
+                throw new AceException("Path must be text string");
+            }
+            CBORObject permission = authz.get(1);
+            if (!permission.getType().equals(CBORType.Number)) {
+                throw new AceException("Permission must be a number");
+            }
+                        
+            if (path.AsString().equals(resource)) {
+                short action = (short) (1 << (actionTranslator(actionId)-1));
+                if ((action & permission.AsInt16()) != 0) {
+                    return true;
+                }
+                //There should not be more than one authorization with 
+                //the same resource Uri part so we can abort here
+                return false;
+            }
+            
         }
         return false;
 	}
@@ -117,13 +155,16 @@ public class RESTscope implements ScopeValidator {
 	 *     
 	 * @return  the final substring for the scope
 	 */
-	public String generateScope(String resourceUri, Code[] permission) {
+	public CBORObject generateScope(String resourceUri, Code[] permission) {
 	    int finalPermission = 0;
 	    for (int i=0; i<permission.length; i++) {
 	        int number = 1 << (permission[i].value-1);
 	        finalPermission |= number;
 	    }
-	    return resourceUri + "|" + finalPermission;
+	    CBORObject authz = CBORObject.NewArray();
+	    authz.Add(resourceUri);
+	    authz.Add(finalPermission);
+	    return authz;
 	}
 	
 	/**
@@ -132,7 +173,7 @@ public class RESTscope implements ScopeValidator {
 	 * @return  the action number from RFC7252
 	 * @throws AceException 
 	 */
-	public int actionTranslator(String action) throws AceException {
+	public short actionTranslator(String action) throws AceException {
 	    if (action.equalsIgnoreCase("GET")) {
 	        return 1;
 	    } else if (action.equalsIgnoreCase("POST")) {
@@ -141,7 +182,13 @@ public class RESTscope implements ScopeValidator {
 	        return 3;
 	    } else if (action.equalsIgnoreCase("DELETE")) {
 	        return 4;
-	    }
+	    } else if (action.equalsIgnoreCase("FETCH")) {
+	        return 5;
+	    } else if (action.equalsIgnoreCase("PATCH")) {
+            return 6;
+        } else if (action.equalsIgnoreCase("iPATCH")) {
+            return 7;
+        }
 	    throw new AceException("Unknown CoAP action name: " + action);
 	}
 }

@@ -55,6 +55,7 @@ import java.util.logging.Logger;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A PskStore implementation based on BKS.
@@ -92,6 +93,16 @@ public class BksStore implements PskStore {
      */
     private Map<InetSocketAddress, String> addr2id = new HashMap<>();
     
+    /**
+     * The file storing the keystore
+     */
+    private String keystoreFile;
+    
+    /**
+     * The keystore password
+     */
+    private String keystorePwd;
+    
     static {
         Security.addProvider(
                 new org.bouncycastle.jce.provider.BouncyCastleProvider());
@@ -113,7 +124,8 @@ public class BksStore implements PskStore {
     public BksStore(String keystoreLocation, String keystorePwd, String addr2idFile) 
             throws NoSuchAlgorithmException, CertificateException, 
             IOException, KeyStoreException, NoSuchProviderException {
-
+        this.keystoreFile = keystoreLocation;
+        this.keystorePwd = keystorePwd;
         InputStream keystoreStream = new FileInputStream(keystoreLocation);
         this.keystore = KeyStore.getInstance("BKS", "BC");
         this.keystore.load(keystoreStream, keystorePwd.toCharArray());
@@ -208,14 +220,24 @@ public class BksStore implements PskStore {
      * @param identity  the key identity
      * @param password  the password to protect this key entry
      * @throws KeyStoreException 
+     * @throws IOException 
+     * @throws FileNotFoundException 
+     * @throws CertificateException 
+     * @throws NoSuchAlgorithmException 
      */
-    public void addKey(byte[] key, String identity, String password) throws KeyStoreException {
+    public void addKey(byte[] key, String identity, String password) 
+            throws KeyStoreException, NoSuchAlgorithmException, 
+            CertificateException, FileNotFoundException, IOException {
         if (identity == null || key == null) {
             throw new KeyStoreException("Key and identity must not be null");
         }
         if (this.keystore != null) {
             Key k = new SecretKeySpec(key, "");
-            this.keystore.setKeyEntry(identity, k, password.toCharArray(), null);
+            this.keystore.setKeyEntry(identity, k, 
+                    password.toCharArray(), null);
+            FileOutputStream fos = new FileOutputStream(this.keystoreFile);
+            this.keystore.store(fos, this.keystorePwd.toCharArray());
+            fos.close();
         }
     }
     
@@ -244,18 +266,31 @@ public class BksStore implements PskStore {
      * 
      * @param identity  the key identity
      * @throws KeyStoreException 
+     * @throws IOException 
+     * @throws CertificateException 
+     * @throws NoSuchAlgorithmException 
      */
-    public void removeKey(String identity) throws KeyStoreException {
+    public void removeKey(String identity) throws KeyStoreException, 
+           NoSuchAlgorithmException, CertificateException, IOException {
         if (identity != null) {
             if (this.keystore != null) {
                 if (this.keystore.isKeyEntry(identity)) {
                     this.keystore.deleteEntry(identity);
+                    FileOutputStream fos = new FileOutputStream(this.keystoreFile);
+                    this.keystore.store(fos, this.keystorePwd.toCharArray());
+                    fos.close();
                 }
                 return;
             }
             throw new KeyStoreException("No keystore loaded");
         }
         throw new KeyStoreException("Key identity can not be null");
+    }
+
+    @Override
+    public byte[] getKey(ServerNames arg0, String identity) {
+        //TODO: ServerNames extension not supported for this Store
+        return null;
     }
     
     
