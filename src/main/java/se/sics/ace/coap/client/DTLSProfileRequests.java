@@ -34,6 +34,7 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Base64;
+import java.util.Collections;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
@@ -44,10 +45,12 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -322,7 +325,13 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
-
+        if (rsPublicKey != null) {
+            InMemoryRpkTrustStore store = new InMemoryRpkTrustStore(
+                    Collections.singleton(new RawPublicKeyIdentity(
+                            rsPublicKey.AsPublicKey())));
+            builder.setRpkTrustStore(store);
+        }
+        
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
