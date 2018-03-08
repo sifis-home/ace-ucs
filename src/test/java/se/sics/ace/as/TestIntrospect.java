@@ -58,6 +58,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import COSE.HeaderKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -69,6 +70,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
+import se.sics.ace.examples.MySQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -116,10 +118,10 @@ public class TestIntrospect {
         //Just to be sure no old test pollutes the DB
         SQLConnector.wipeDatabase(dbPwd);
         
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
+        SQLConnector.createUser(dbPwd, "aceuser", "password",
+                MySQLDBAdapter.DEFAULT_DB_URL);
         SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
+                MySQLDBAdapter.DEFAULT_DB_URL);
 
         privateKey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
@@ -321,13 +323,19 @@ public class TestIntrospect {
                 "rw_valve r_pressure foobar"));
         params.put(Constants.AUD, CBORObject.FromObject("rs3"));
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
+
+        // Add the audience as the KID in the header, so it can be referenced by introspection requests.
+        Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
+        uHeaders.put(HeaderKeys.KID, CBORObject.FromObject("rs1"));
+
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());
         params.clear();
-        params.put(Constants.TOKEN, token.encode(ctx));
+        params.put(Constants.TOKEN, token.encode(ctx, null, uHeaders));
+
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
