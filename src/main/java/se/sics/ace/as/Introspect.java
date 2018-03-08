@@ -167,7 +167,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         //parse the token
         AccessToken token;
         try {
-            token = parseToken(cbor, id);
+            token = parseToken(cbor);
         } catch (AceException e) {
             LOGGER.log(Level.INFO, e.getMessage());
             CBORObject map = CBORObject.NewMap();
@@ -215,13 +215,12 @@ public class Introspect implements Endpoint, AutoCloseable {
      * Parses a CBOR object presumably containing an access token.
      * 
      * @param token  the object
-     * @param rsid  the RS identifier
-     * 
+     *
      * @return  the parsed access token
      * 
      * @throws AceException 
      */
-    public AccessToken parseToken(CBORObject token, String rsid) 
+    public AccessToken parseToken(CBORObject token)
             throws AceException {
         if (token == null) {
             throw new AceException("Access token parser indata was null");
@@ -229,6 +228,9 @@ public class Introspect implements Endpoint, AutoCloseable {
      
         if (token.getType().equals(CBORType.Array)) {
             try {
+                // Get the RS id (audience) from the COSE KID header.
+                COSE.Message coseRaw = COSE.Message.DecodeFromBytes(token.EncodeToBytes());
+                String rsid = coseRaw.findAttribute(HeaderKeys.KID).AsString();
                 CwtCryptoCtx ctx = makeCtx(rsid);
                 return CWT.processCOSE(token.EncodeToBytes(), ctx);
             } catch (Exception e) {

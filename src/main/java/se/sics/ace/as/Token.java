@@ -642,7 +642,12 @@ public class Token implements Endpoint, AutoCloseable {
 		    }
 		    CWT cwt = (CWT)token;
 		    try {
-                rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx));
+                // Add the audience as the KID in the header, so it can be referenced by introspection requests.
+                CBORObject requestedAud = msg.getParameter(Constants.AUD);
+                Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
+                uHeaders.put(HeaderKeys.KID, requestedAud);
+
+                rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx, null, uHeaders));
             } catch (IllegalStateException | InvalidCipherTextException
                     | CoseException | AceException e) {
                 this.cti--; //roll-back
