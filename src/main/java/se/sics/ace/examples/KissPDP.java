@@ -70,6 +70,11 @@ public class KissPDP implements PDP, AutoCloseable {
      * The name of the ACL table 
      */    
     public static String accessTable = "PdpAccess";
+
+    /**
+     * The name of the column that indicates if this device has access to all detailed claims when introspecting.
+     */
+    public static String introspectClaimsColumn = "claimsAccess";
     
     private PreparedStatement canToken;    
     private PreparedStatement canIntrospect;
@@ -109,7 +114,8 @@ public class KissPDP implements PDP, AutoCloseable {
                 "CREATE TABLE IF NOT EXISTS "
                 + DBConnector.dbName + "."
                 + introspectTable + "("
-                + DBConnector.idColumn + " varchar(255) NOT NULL);");
+                + DBConnector.idColumn + " varchar(255) NOT NULL,"
+                + introspectClaimsColumn + " boolean NOT NULL);");
 	            
 	    String createAccess = db.getAdapter().updateEngineSpecificSQL(
                 "CREATE TABLE IF NOT EXISTS "
@@ -157,7 +163,7 @@ public class KissPDP implements PDP, AutoCloseable {
         
         this.addIntrospectAccess = db.prepareStatement(
                 db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
-                        + introspectTable + " VALUES (?);"));
+                        + introspectTable + " VALUES (?,?);"));
         
         this.addAccess = db.prepareStatement(
                 db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
@@ -221,24 +227,32 @@ public class KissPDP implements PDP, AutoCloseable {
 	}
 
 	@Override
-	public boolean canAccessIntrospect(String rsId) throws AceException {
+	public IntrospectAccessLevel getIntrospectAccessLevel(String rsId) throws AceException {
 	      if (rsId == null) {
 	            throw new AceException(
-	                    "canAccessIntrospect() requires non-null rsId");
+	                    "getIntrospectAccessLevel() requires non-null rsId");
 	        }
 	        try {
 	            this.canIntrospect.setString(1, rsId);
 	            ResultSet result = this.canIntrospect.executeQuery();
 	            this.canIntrospect.clearParameters();
 	            if (result.next()) {
+	                boolean canAccessClaims = result.getBoolean(introspectClaimsColumn);
 	                result.close();
-	                return true;
+	                if (canAccessClaims)
+                    {
+                        return IntrospectAccessLevel.ACTIVE_AND_CLAIMS;
+                    }
+                    else
+                    {
+                        return IntrospectAccessLevel.ACTIVE_ONLY;
+                    }
 	            }
 	            result.close();
 	        } catch (SQLException e) {
 	            throw new AceException(e.getMessage());
 	        }
-	        return false;
+	        return IntrospectAccessLevel.NONE;
 	}
 
 	@Override
@@ -358,22 +372,40 @@ public class KissPDP implements PDP, AutoCloseable {
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
-    } 
-    
+    }
+
+    /**
+     * Add access permission for the introspect endpoint, defaulting to access to activeness and claims.
+     *
+     * @param id  the identifier of the entity to be allowed access
+     *
+     * @throws AceException
+     */
+    public void addIntrospectAccess(String id) throws AceException {
+        addIntrospectAccess(id, IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+    }
+
     /**
      * Add access permission for the introspect endpoint
      * 
      * @param id  the identifier of the entity to be allowed access
+     * @param accessLevel the level of access to give when introspecting
      * 
      * @throws AceException
      */
-    public void addIntrospectAccess(String id) throws AceException {
+    public void addIntrospectAccess(String id, IntrospectAccessLevel accessLevel) throws AceException {
         if (id == null) {
             throw new AceException(
                     "addIntrospectAccess() requires non-null id");
         }
+        if (accessLevel.equals(IntrospectAccessLevel.NONE)) {
+            throw new AceException(
+                    "addIntrospectAccess() requires non-NONE access level");
+        }
         try {
+            boolean hasClaimsAccess = accessLevel.equals(IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
             this.addIntrospectAccess.setString(1, id);
+            this.addIntrospectAccess.setBoolean(2, hasClaimsAccess);
             this.addIntrospectAccess.execute();
             this.addIntrospectAccess.clearParameters();
         } catch (SQLException e) {
