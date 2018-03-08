@@ -34,6 +34,7 @@ package se.sics.ace.coap.dtlsProfile;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -144,6 +145,9 @@ public class TestDtlspServer {
     
     private static CoapDeliverer dpd = null;
     
+    private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
+    
+    
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -174,7 +178,8 @@ public class TestDtlspServer {
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
-        OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
+                Base64.getDecoder().decode(rpk)));
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 

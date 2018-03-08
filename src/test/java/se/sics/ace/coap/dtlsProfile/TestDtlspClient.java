@@ -33,6 +33,7 @@ package se.sics.ace.coap.dtlsProfile;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -74,7 +75,11 @@ public class TestDtlspClient {
 
     private static byte[] key128a 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    
+    private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
 
+    private static OneKey rsRPK;
+    
     private static String rsAddrC;
     private static String rsAddrCS;
     
@@ -115,9 +120,10 @@ public class TestDtlspClient {
     
     /**
      * Set up tests.
+     * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() {
+    public static void setUp() throws CoseException {
         srv = new RunTestServer();
         srv.run();       
         
@@ -127,6 +133,8 @@ public class TestDtlspClient {
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+        rsRPK = new OneKey(CBORObject.DecodeFromBytes(
+                Base64.getDecoder().decode(rpk)));
     }
     
     /**
@@ -289,14 +297,66 @@ public class TestDtlspClient {
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
-        
-        //FIXME: add testing for the RS key here instead of null
-        CoapClient c = DTLSProfileRequests.getRpkClient(key, null);
+              
+        CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();
         Assert.assertEquals("CONTENT", r2.getCode().name());
         Assert.assertEquals("Hello World!", r2.getResponseText());  
     }
+    
+    /** 
+     * Test post to authz-info with RPK then request 
+     * where RS rpk is not trusted.
+     * 
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testUntrustedRPK() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException {
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourRPK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenRPK".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+             
+        OneKey bogusRPK = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        CoapClient c = DTLSProfileRequests.getRpkClient(key, bogusRPK);
+        c.setURI("coaps://localhost/helloWorld");       
+        try {
+            c.get();
+        } catch (RuntimeException ex) {
+            Object cause = ex.getCause();
+            if (cause instanceof HandshakeException) {
+                HandshakeException he = (HandshakeException)cause;
+                System.out.println(he.getAlert().toString());
+                //Everything ok
+                return;
+            }
+        }
+        
+        Assert.fail("Client should not accept DTLS connection");    
+    }
+    
     
     /** 
      * Test post to authz-info with RPK then request
