@@ -51,6 +51,7 @@ import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 import org.wso2.balana.xacml3.Attributes;
 
 import se.sics.ace.AceException;
+import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
 
 /**
@@ -172,7 +173,8 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	public boolean canAccessIntrospect(String rsId) {
+	// TODO: check if there is a case where this method would return ACTIVE_ONLY.
+	public IntrospectAccessLevel getIntrospectAccessLevel(String rsId) {
 		Set<Attributes> attributes = new HashSet<>();
 		attributes.add(introspectResource);
 		StringAttribute subjectAV = new StringAttribute(rsId);
@@ -186,10 +188,10 @@ public class XacmlPDP implements PDP {
         while (results.hasNext()) {
         	AbstractResult result = results.next();
         	if (result.getDecision() != AbstractResult.DECISION_PERMIT) {
-        		return false;
+        		return IntrospectAccessLevel.NONE;
         	}
         }
-        return true;
+        return IntrospectAccessLevel.ACTIVE_AND_CLAIMS;
 	}
 
 	@Override

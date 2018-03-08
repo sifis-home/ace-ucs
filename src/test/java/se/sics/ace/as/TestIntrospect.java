@@ -116,7 +116,7 @@ public class TestIntrospect {
             br.close();
         }
         //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd);
+        SQLConnector.wipeDatabase(dbPwd, "aceuser");
         
         SQLConnector.createUser(dbPwd, "aceuser", "password",
                 MySQLDBAdapter.DEFAULT_DB_URL);
@@ -203,10 +203,10 @@ public class TestIntrospect {
         db.addToken(cti2Str, claims);
         db.addCti2Client(cti2Str, "client1");
         pdp = new KissPDP(dbPwd, db);
-        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        pdp.addIntrospectAccess("rs1");
-        pdp.addIntrospectAccess("rs2");
-        pdp.addIntrospectAccess("rs3");
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        pdp.addIntrospectAccess("rs3", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         i = new Introspect(pdp, db, time, publicKey);
     }
     
