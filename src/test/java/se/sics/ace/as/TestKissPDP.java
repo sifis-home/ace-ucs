@@ -122,8 +122,8 @@ public class TestKissPDP {
         }
 
         // Using MYSQL to test by default.
-        adapter = new PostgreSQLDBAdapter();
-        dbUrl = PostgreSQLDBAdapter.DEFAULT_DB_URL;
+        adapter = new MySQLDBAdapter();
+        dbUrl = MySQLDBAdapter.DEFAULT_DB_URL;
 
         //Just to be sure no old test pollutes the DB
         SQLConnector.wipeDatabase(adapter, dbPwd, username);
