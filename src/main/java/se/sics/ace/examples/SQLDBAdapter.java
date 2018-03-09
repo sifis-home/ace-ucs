@@ -66,9 +66,10 @@ public interface SQLDBAdapter {
      * Totally deletes a DB.
      *
      * @param rootPwd the root or base password to use.
+     * @param dbOwner the name of the user owner of this DB.
      * @throws AceException
      */
-    void wipeDB(String rootPwd) throws AceException;
+    void wipeDB(String rootPwd, String dbOwner) throws AceException;
 
     /**
      * Updates any SQL queries that need to be specific for each DB engine.

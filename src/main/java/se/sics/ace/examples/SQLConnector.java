@@ -860,12 +860,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * It's main function is to clean the database during test runs.
      * 
 	 * @param rootPwd  the root user password.
-	 * 
+	 * @param dbOwner the name of the user owner of this DB.
 	 * @throws AceException
 	 */
-	public static void wipeDatabase(String rootPwd) throws AceException {
+	public static void wipeDatabase(String rootPwd, String dbOwner) throws AceException {
 		MySQLDBAdapter dbAdapter = new MySQLDBAdapter();
-		SQLConnector.wipeDatabase(dbAdapter, rootPwd);
+		SQLConnector.wipeDatabase(dbAdapter, rootPwd, dbOwner);
 	}
 	
 	/**
@@ -876,11 +876,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * 
 	 * @param dbAdapter handler for engine-db specific commands
 	 * @param rootPwd  the root password
+	 * @param dbOwner the name of the user owner of this DB.
 	 * @throws AceException 
 	 * @throws SQLException 
 	 */
-	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
-		dbAdapter.wipeDB(rootPwd);
+	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd, String dbOwner) throws AceException {
+		dbAdapter.wipeDB(rootPwd, dbOwner);
 	}
 	
 	/**

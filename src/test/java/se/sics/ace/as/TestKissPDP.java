@@ -64,7 +64,10 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissPDP;
+import se.sics.ace.examples.MySQLDBAdapter;
+import se.sics.ace.examples.PostgreSQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.examples.SQLDBAdapter;
 
 /**
  * Test the KissPDP class.
@@ -79,8 +82,13 @@ public class TestKissPDP {
     private static SQLConnector db = null;
     private static String dbPwd = null;
     private static KissPDP pdp = null;
-    
-    
+
+    private static String username = "aceuser";
+    private static String password = "password";
+
+    private static SQLDBAdapter adapter;
+    private static String dbUrl;
+
     /**
      * Tests for CWT code.
      */
@@ -112,19 +120,21 @@ public class TestKissPDP {
         } finally {
             br.close();
         }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd);
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
 
+        // Using MYSQL to test by default.
+        adapter = new MySQLDBAdapter();
+        dbUrl = MySQLDBAdapter.DEFAULT_DB_URL;
+
+        //Just to be sure no old test pollutes the DB
+        SQLConnector.wipeDatabase(adapter, dbPwd, username);
+        
+        SQLConnector.createUser(adapter, dbPwd, username, password, dbUrl);
+        SQLConnector.createDB(adapter, dbPwd, username, password, null, dbUrl);
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
         
-        db = SQLConnector.getInstance(null, null, null);
+        db = SQLConnector.getInstance(adapter,null, null, null);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -253,6 +263,7 @@ public class TestKissPDP {
        pdp.addIntrospectAccess("rs5");
        pdp.addIntrospectAccess("rs6");
        pdp.addIntrospectAccess("rs7");
+       pdp.addIntrospectAccess("rs8", PDP.IntrospectAccessLevel.ACTIVE_ONLY);
 
        pdp.addAccess("clientA", "rs1", "r_temp");
        pdp.addAccess("clientA", "rs1", "rw_config");
@@ -297,19 +308,7 @@ public class TestKissPDP {
     @AfterClass
     public static void tearDown() throws Exception {
         pdp.close();
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);
-        stmt.close();
-        rootConn.close();
+        SQLConnector.wipeDatabase(adapter, dbPwd, username);
         db.close();
     }
     
@@ -333,9 +332,10 @@ public class TestKissPDP {
     	assert(pdp.canAccess("clientC", rs1, "r_temp")==null);
     	assert(pdp.canAccess("clientA", rs1, "r_temp").equals("r_temp"));
     	assert(pdp.canAccess("clientB", rs1, "r_config")==null);
-    	assert(pdp.canAccessIntrospect("rs1"));
+    	assert(pdp.getIntrospectAccessLevel("rs1").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
+        assert(pdp.getIntrospectAccessLevel("rs8").equals(PDP.IntrospectAccessLevel.ACTIVE_ONLY));
     	assert(!pdp.canAccessToken("clientF"));
-    	assert(!pdp.canAccessIntrospect("rs4"));
+    	assert(pdp.getIntrospectAccessLevel("rs4").equals(PDP.IntrospectAccessLevel.NONE));
     }
     
     /**
@@ -347,12 +347,12 @@ public class TestKissPDP {
     public void testDeleteAdd() throws Exception {
         pdp.addTokenAccess("testC");
         assert(pdp.canAccessToken("testC"));
-        pdp.addIntrospectAccess("testRS");
-        assert(pdp.canAccessIntrospect("testRS"));
+        pdp.addIntrospectAccess("testRS", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        assert(pdp.getIntrospectAccessLevel("testRS").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
         pdp.revokeTokenAccess("testC");
         assert(!pdp.canAccessToken("testC"));
         pdp.revokeIntrospectAccess("testRS");
-        assert(!pdp.canAccessIntrospect("testRS"));
+        assert(pdp.getIntrospectAccessLevel("testRS").equals(PDP.IntrospectAccessLevel.NONE));
         pdp.addAccess("testC", "testRS1", "testScope1");
         pdp.addAccess("testC", "testRS1", "testScope2");
         pdp.addAccess("testC", "testRS2", "testScope3");

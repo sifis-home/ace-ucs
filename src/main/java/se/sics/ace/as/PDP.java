@@ -44,6 +44,13 @@ import se.sics.ace.AceException;
  */
 public interface PDP {
 
+	enum IntrospectAccessLevel
+	{
+		NONE,
+		ACTIVE_ONLY,
+		ACTIVE_AND_CLAIMS;
+	}
+
 	/**
 	 * Checks if this client can access the /token endpoint.
 	 * 
@@ -56,13 +63,13 @@ public interface PDP {
 	        throws AceException;
 	
 	/**
-	 * Checks if this RS can access the /introspect endpoint.
+	 * Checks if this RS can access the /introspect endpoint, returning the access level.
 	 * 
 	 * @param rsId  the identifier of the RS.
-	 * @return  true if the RS can access, false otherwise
+	 * @return  A value of IntrospectAccessLevel indicating the introspection access level.
 	 * @throws AceException 
 	 */
-	public abstract boolean canAccessIntrospect(String rsId)
+	public abstract IntrospectAccessLevel getIntrospectAccessLevel(String rsId)
 	        throws AceException;
 	
 	/**

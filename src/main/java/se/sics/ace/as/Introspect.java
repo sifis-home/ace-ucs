@@ -133,8 +133,10 @@ public class Introspect implements Endpoint, AutoCloseable {
         	    
 	    //1. Check that this RS is allowed to introspect	    
 	    String id = msg.getSenderId();
+        PDP.IntrospectAccessLevel accessLevel;
         try {
-            if (!this.pdp.canAccessIntrospect(id)) {
+            accessLevel = this.pdp.getIntrospectAccessLevel(id);
+            if (accessLevel.equals(PDP.IntrospectAccessLevel.NONE)) {
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -199,8 +201,21 @@ public class Introspect implements Endpoint, AutoCloseable {
             //No need to check for client token, the token is invalid anyways
             return msg.successReply(Message.CREATED, payload); 
         }
-        payload = Constants.getCBOR(claims);
+
+        // The NONE option was checked above. Check if we have claims access, or only to the activeness of the token.
+        if (accessLevel.equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS))
+        {
+            // We have access to all claims; add them to reply.
+            payload = Constants.getCBOR(claims);
+        }
+        else
+        {
+            // Only access to activeness.
+            payload = CBORObject.NewMap();
+        }
+
         payload.Add(Constants.ACTIVE, CBORObject.True);
+
         try {
             LOGGER.log(Level.INFO, "Returning introspection result: " 
                     + payload.toString() + " for " + token.getCti());

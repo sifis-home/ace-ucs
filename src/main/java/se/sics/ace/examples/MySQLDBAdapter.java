@@ -238,18 +238,19 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public void wipeDB(String rootPwd) throws AceException
+    public void wipeDB(String rootPwd, String dbOwner) throws AceException
     {
         try
         {
-            //Just to be sure if a previous test didn't exit cleanly
             Properties connectionProps = new Properties();
             connectionProps.put("user", ROOT_USER);
             connectionProps.put("password", rootPwd);
             Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL, connectionProps);
             String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
+            String dropUser = "DROP USER IF EXISTS '" + dbOwner + "'@'localhost';";
             Statement stmt = rootConn.createStatement();
             stmt.execute(dropDB);
+            stmt.execute(dropUser);
             stmt.close();
             rootConn.close();
         } catch (SQLException e) {

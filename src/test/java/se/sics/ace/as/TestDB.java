@@ -107,7 +107,7 @@ public class TestDB {
         }
 
         //Just to be sure that not old test pollutes the DB
-        SQLConnector.wipeDatabase(dbAdapter, dbPwd);
+        SQLConnector.wipeDatabase(dbAdapter, dbPwd, testUsername);
 
         dbAdapter.setParams(testUsername, testPassword, DBConnector.dbName, null);
         SQLConnector.createUser(dbAdapter, dbPwd, testUsername, testPassword,null);

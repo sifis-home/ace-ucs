@@ -100,7 +100,7 @@ public class TestCoAPServer {
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         
         //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd);
+        SQLConnector.wipeDatabase(dbPwd, "aceuser");
         
         SQLConnector.createUser(dbPwd, "aceuser", "password", 
                 "jdbc:mysql://localhost:3306");
