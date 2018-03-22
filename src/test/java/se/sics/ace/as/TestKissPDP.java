@@ -145,7 +145,7 @@ public class TestKissPDP {
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         
         Set<String> scopes = new HashSet<>();
         scopes.add("temp");
@@ -173,7 +173,7 @@ public class TestKissPDP {
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, skey, publicKey);
         
-        profiles.remove("coap_oscoap");
+        profiles.remove("coap_oscore");
         scopes.clear();
         auds.remove("actuators");
         auds.add("fail");
@@ -184,7 +184,7 @@ public class TestKissPDP {
                 expiration, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
@@ -218,7 +218,7 @@ public class TestKissPDP {
                 keyTypes, null, publicKey);
   
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", 

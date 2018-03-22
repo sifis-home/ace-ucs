@@ -78,17 +78,17 @@ public class TestCoapsIntrospection {
      * @throws Exception 
         */
        public void stop() throws Exception {
-           TestCoAPServer.stop();
+           TestCoapAS.stop();
        }
        
        @Override
        public void run() {
            try {
-               TestCoAPServer.main(null);
+               TestCoapAS.main(null);
            } catch (final Throwable t) {
                System.err.println(t.getMessage());
                try {
-                TestCoAPServer.stop();
+                TestCoapAS.stop();
             } catch (Exception e) {
                 e.printStackTrace();
             }

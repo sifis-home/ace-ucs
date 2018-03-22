@@ -364,16 +364,17 @@ public class Token implements Endpoint, AutoCloseable {
         
 
         //Find supported profile
-        String profile = null;
+
+        String profileStr = null;
         try {
-            profile = this.db.getSupportedProfile(id, aud);
+            profileStr = this.db.getSupportedProfile(id, aud);
         } catch (AceException e) {
             this.cti--; //roll-back
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-        if (profile == null) {
+        if (profileStr == null) {
             this.cti--; //roll-back
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, "No compatible profile found");
@@ -381,6 +382,7 @@ public class Token implements Endpoint, AutoCloseable {
                     + "No compatible profile found");
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
         }
+        short profile = Constants.getProfileAbbrev(profileStr);
         
         if (tokenType != AccessTokenFactory.CWT_TYPE 
                 && tokenType != AccessTokenFactory.REF_TYPE) {
@@ -647,7 +649,8 @@ public class Token implements Endpoint, AutoCloseable {
                 Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
                 uHeaders.put(HeaderKeys.KID, requestedAud);
 
-                rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx, null, uHeaders));
+                rsInfo.Add(Constants.ACCESS_TOKEN, 
+                        cwt.encode(ctx, null, uHeaders).EncodeToBytes());
             } catch (IllegalStateException | InvalidCipherTextException
                     | CoseException | AceException e) {
                 this.cti--; //roll-back
@@ -656,7 +659,7 @@ public class Token implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
-		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode());
+		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode().EncodeToBytes());
 		}
 		
 		try {

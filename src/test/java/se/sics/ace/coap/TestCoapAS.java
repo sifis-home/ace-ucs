@@ -64,7 +64,7 @@ import se.sics.ace.examples.SQLConnector;
  * @author Ludwig Seitz
  *
  */
-public class TestCoAPServer {
+public class TestCoapAS {
 
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
@@ -118,7 +118,7 @@ public class TestCoAPServer {
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         Set<String> scopes = new HashSet<>();
         scopes.add("rw_valve");
         scopes.add("r_pressure");
@@ -138,7 +138,7 @@ public class TestCoAPServer {
                 expiration, skey, akey);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 

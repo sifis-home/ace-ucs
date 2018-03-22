@@ -51,7 +51,6 @@ import org.wso2.balana.finder.impl.FileBasedPolicyFinderModule;
 import org.wso2.balana.xacml3.Attributes;
 
 import se.sics.ace.AceException;
-import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
 
 /**

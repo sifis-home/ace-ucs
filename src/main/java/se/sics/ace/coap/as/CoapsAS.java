@@ -32,6 +32,7 @@
 package se.sics.ace.coap.as;
 
 import java.net.InetSocketAddress;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
@@ -102,7 +103,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey, int port) 
                     throws AceException, CoseException {
-        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port);
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port, null);
     }
     
     
@@ -122,7 +123,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException, CoseException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
-                CoAP.DEFAULT_COAP_SECURE_PORT);
+                CoAP.DEFAULT_COAP_SECURE_PORT, null);
     }
     
     /**
@@ -140,15 +141,21 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      *  (will be converted into the address as well), if this is null,
      *  no introspection endpoint will be offered
      * @param port  the port number to run the server on
+     * @param claims  the claim types to include in tokens issued by this 
+     *                AS, can be null to use default set.
      * @throws AceException 
      * @throws CoseException 
      * 
      */
     public CoapsAS(String asId, CoapDBConnector db, PDP pdp, 
             TimeProvider time, OneKey asymmetricKey, String tokenName,
-            String introspectName, int port) 
+            String introspectName, int port, Set<Short> claims) 
                     throws AceException, CoseException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey); 
+        if (claims == null) {
+            this.t = new Token(asId, pdp, db, time, asymmetricKey);
+        } else {
+            this.t = new Token(asId, pdp, db, time, asymmetricKey, claims);
+        }
         this.token = new CoapAceEndpoint(tokenName, this.t);    
         add(this.token);
         
