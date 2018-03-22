@@ -127,7 +127,7 @@ public class TestDB {
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         
         Set<String> scopes = new HashSet<>();
         scopes.add("temp");
@@ -155,7 +155,7 @@ public class TestDB {
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, skey, publicKey);
         
-        profiles.remove("coap_oscoap");
+        profiles.remove("coap_oscore");
         scopes.clear();
         auds.remove("actuators");
         keyTypes.remove("PSK");
@@ -165,7 +165,7 @@ public class TestDB {
                 expiration, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
@@ -191,7 +191,7 @@ public class TestDB {
                 publicKey);
   
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", keyTypes, 

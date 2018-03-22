@@ -139,7 +139,7 @@ public class TestToken {
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         
         Set<String> scopes = new HashSet<>();
         scopes.add("temp");
@@ -168,7 +168,7 @@ public class TestToken {
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, skey, publicKey);
         
-        profiles.remove("coap_oscoap");
+        profiles.remove("coap_oscore");
         scopes.clear();
         auds.clear();
         auds.add("sensors");
@@ -180,7 +180,7 @@ public class TestToken {
                 expiration, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
@@ -232,7 +232,7 @@ public class TestToken {
                 expiration, null, publicKey);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         keyTypes.clear();
@@ -249,7 +249,7 @@ public class TestToken {
         
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("failCWTpar");
@@ -275,14 +275,14 @@ public class TestToken {
                 keyTypes, null, publicKey);
   
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "rs1", 
                 keyTypes, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("TST");        
         db.addClient("clientC", profiles, "co2", "sensors", 
@@ -298,7 +298,7 @@ public class TestToken {
         
         profiles.clear();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");

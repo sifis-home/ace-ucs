@@ -118,7 +118,7 @@ public class TestCoapAS {
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         Set<String> scopes = new HashSet<>();
         scopes.add("rw_valve");
         scopes.add("r_pressure");
@@ -138,7 +138,7 @@ public class TestCoapAS {
                 expiration, skey, akey);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
