@@ -84,7 +84,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class TestDtlspServer {
+public class TestDtlspRS {
 
 
     /**
