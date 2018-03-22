@@ -318,7 +318,7 @@ public class Constants {
 	/**
 	 * RESTful action names
 	 */
-	public static final String[] RESTactionS 
+	public static final String[] RESTACTIONS 
 	    = {"GET", "POST", "PUT", "DELETE"};
 
 	
@@ -433,6 +433,31 @@ public class Constants {
             "authorization_code", "client_credentials", "refresh_token"};
 
 
+    /**
+     * The abbreviation code for the DTLS profile
+     */
+    public static short COAP_DTLS = 1;
+    
+    /**
+     * The abbreviation code for the OSCORE profile
+     */
+    public static short COAP_OSCORE = 2;
+    
+    /**
+     * Return the abbreviated profile id for the full profile name.
+     * 
+     * @param profileStr  profile name
+     * @return  the abbreviation
+     */
+    public static short getProfileAbbrev(String profileStr) {
+        if (profileStr.equals("coap_dtls")) {
+            return COAP_DTLS;
+        } else if (profileStr.equals("coap_oscore")) {
+            return COAP_OSCORE;
+        } else {
+            return -1;
+        }
+    }
     
     /**
      * Maps a parameter map to the unabbreviated version.

@@ -364,16 +364,17 @@ public class Token implements Endpoint, AutoCloseable {
         
 
         //Find supported profile
-        String profile = null;
+
+        String profileStr = null;
         try {
-            profile = this.db.getSupportedProfile(id, aud);
+            profileStr = this.db.getSupportedProfile(id, aud);
         } catch (AceException e) {
             this.cti--; //roll-back
             LOGGER.severe("Message processing aborted: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-        if (profile == null) {
+        if (profileStr == null) {
             this.cti--; //roll-back
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, "No compatible profile found");
@@ -381,6 +382,7 @@ public class Token implements Endpoint, AutoCloseable {
                     + "No compatible profile found");
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
         }
+        short profile = Constants.getProfileAbbrev(profileStr);
         
         if (tokenType != AccessTokenFactory.CWT_TYPE 
                 && tokenType != AccessTokenFactory.REF_TYPE) {
