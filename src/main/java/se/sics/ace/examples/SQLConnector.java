@@ -412,6 +412,31 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     private PreparedStatement selectCtisByClient;
     
     /**
+     * A prepared SELECT statement to select the token identifier (cti) 
+     * for an authorization grant
+     */
+    private PreparedStatement selectCtisByGrant;
+    
+    /**
+     * A prepared INSERT statement to add a new authorization grant to
+     * access token cti mapping.
+     */
+    private PreparedStatement insertGrant2Cti;
+    
+    
+    /**
+     * A prepared UPDATE statement to mark an authorization grant
+     * as used.
+     */
+    private PreparedStatement updateGrant;
+
+    /**
+     * A prepared SELECT statement to select the RS information
+     * for an authorization grant
+     */
+    private PreparedStatement selectRsInfoByGrant;
+    
+    /**
      * The singleton instance of this connector
      */
     private static SQLConnector connector = null;
@@ -785,8 +810,30 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.ctiColumn + " FROM "
 		                + DBConnector.cti2clientTable
-		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
+		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));  
+		
+		this.selectCtisByGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.ctiColumn + " FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;")); 
 
+		this.insertGrant2Cti = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+                        + DBConnector.grant2ctiTable
+                        + " VALUES (?,?);"));
+		
+		this.updateGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("UPDATE "
+                        + DBConnector.grant2ctiTable
+                        + " SET " + DBConnector.grantValidColumn + "=?;"));
+		
+		this.selectRsInfoByGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.claimNameColumn + ","
+                        + DBConnector.claimValueColumn + " FROM " 
+                        + DBConnector.grant2RSInfoTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
 	}
 	
 	/**
@@ -1893,6 +1940,31 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }
         return ctis;
+    }
+
+    @Override
+    public String getCti4Grant(String code) throws AceException {
+        // TODO Auto-generated method stub
+        return null;
+    }
+
+    @Override
+    public void addGrant(String code, String cti, Map<Short, CBORObject> claims,
+            Map<Short, CBORObject> rsInfo) throws AceException {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public void useGrant(String code) throws AceException {
+        // TODO Auto-generated method stub
+        
+    }
+
+    @Override
+    public Map<Short, CBORObject> getRsInfo(String code) throws AceException {
+        // TODO Auto-generated method stub
+        return null;
     }
     
     /**

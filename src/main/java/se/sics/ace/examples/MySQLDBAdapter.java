@@ -190,6 +190,15 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
+        
+        String createGrant2Cti = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.grant2ctiTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.grantValidColumn + " BOOLEAN DEFAULT TRUE, "
+                + " PRIMARY KEY (" + DBConnector.grantColumn + ","
+                + DBConnector.ctiColumn + "));";
 
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
@@ -211,6 +220,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
+            stmt.execute(createGrant2Cti);
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {
