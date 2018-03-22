@@ -131,11 +131,17 @@ public class Token implements Endpoint, AutoCloseable {
 	private OneKey privateKey;
     
     /**
-     * The client credentials grant type as CBOR-string
+     * The client credentials grant type as CBOR-integer
      */
 	public static CBORObject clientCredentials 
 	    = CBORObject.FromObject(Constants.GT_CLI_CRED);
 
+	/**
+	 * The authorizaton_code grant type as CBOR-integer
+	 */
+	public static CBORObject authzCode 
+	    = CBORObject.FromObject(Constants.GT_AUTHZ_CODE);
+	
 	/**
 	 * Converter to create the byte array from the cti number
 	 */
@@ -174,7 +180,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    this(asId, pdp, db, time, privateKey, defaultClaims);
 	}
 	
-	/**
+	/**   
 	 * Constructor that allows configuration of the claims included in the token.
 	 *  
      * @param asId  the identifier of this AS
@@ -226,33 +232,44 @@ public class Token implements Endpoint, AutoCloseable {
 	    LOGGER.log(Level.INFO, "Token received message: " 
 	            + msg.getParameters());
 	    
-	    //1. Check that this is a client credentials grant type    
-	    if (msg.getParameter(Constants.GRANT_TYPE) == null 
-	            || !msg.getParameter(Constants.GRANT_TYPE)
-	                .equals(clientCredentials)) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unsupported_grant_type");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	    }
-	    	    
-		//2. Check if this client can request tokens
-		String id = msg.getSenderId();  
-		try {
+	    //1. Check if this client can request tokens
+        String id = msg.getSenderId();  
+        try {
             if (!this.pdp.canAccessToken(id)) {
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 LOGGER.log(Level.INFO, "Message processing aborted: "
                         + "unauthorized client: " + id);
-            	return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
         } catch (AceException e) {
             LOGGER.severe("Database error: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-		
+   
+	    //2. Check that this is a supported grant type
+	    if (msg.getParameter(Constants.GRANT_TYPE) == null) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "grant_type missing");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	    }
+	      
+	    if (msg.getParameter(Constants.GRANT_TYPE).equals(clientCredentials)) {
+	        return processCC(msg, id);
+	    } else if (msg.getParameter(Constants.GRANT_TYPE).equals(authzCode)) {
+	        return processAC(msg, id);
+	    }
+	    CBORObject map = CBORObject.NewMap();
+	    map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
+	    LOGGER.log(Level.INFO, "Message processing aborted: "
+	            + "unsupported_grant_type");
+	    return msg.failReply(Message.FAIL_BAD_REQUEST, map); 	    
+	}
+	
+	private Message processCC(Message msg, String id) {
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
 		String scope = null;
@@ -671,6 +688,27 @@ public class Token implements Endpoint, AutoCloseable {
         }
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
 		return msg.successReply(Message.CREATED, rsInfo);
+	}
+	
+	private Message processAC(Message msg, String id) {
+	    //FIXME
+	    
+	       //3. Check if the request has a grant
+        CBORObject cbor = msg.getParameter(Constants.CODE);
+        if (cbor == null ) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "No code found for message");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "No code found for message");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+        
+	    //2. Check if grant valid and unused
+	    //3. Look up the corresponding token in the DB
+	    //4. Mark grant invalid
+	    //5. Return token
+	    return null;
 	}
 	
 	/**
