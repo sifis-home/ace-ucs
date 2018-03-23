@@ -635,7 +635,10 @@ public class TestToken {
         assert(response.getMessageCode() 
                 == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+        CWT cwt = CWT.processCOSE(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).EncodeToBytes(),
+                CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.AUD).AsString().equals("rs1"));
     }
@@ -659,7 +662,9 @@ public class TestToken {
         assert(response.getMessageCode() 
                 == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.SCOPE).AsString().equals("co2"));
     }
@@ -685,8 +690,10 @@ public class TestToken {
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
-        Map<Short, CBORObject> claims = db.getClaims(cti);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         assert(!claims.get(Constants.SCOPE).AsString().contains("foobar"));
@@ -726,8 +733,10 @@ public class TestToken {
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
-        Map<Short, CBORObject> claims = db.getClaims(cti);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
     }
     
@@ -755,7 +764,8 @@ public class TestToken {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                token.GetByteString());
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         CBORObject cnf2 = claims.get(Constants.CNF);
@@ -842,7 +852,8 @@ public class TestToken {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                token.GetByteString());
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);     
