@@ -645,7 +645,10 @@ public class Token implements Endpoint, AutoCloseable {
 		    CWT cwt = (CWT)token;
 		    try {
                 // Add the audience as the KID in the header, so it can be referenced by introspection requests.
-                CBORObject requestedAud = msg.getParameter(Constants.AUD);
+                CBORObject requestedAud = CBORObject.NewArray();
+                for (String a : aud) {
+                    requestedAud.Add(a);
+                }
                 Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
                 uHeaders.put(HeaderKeys.KID, requestedAud);
 
