@@ -245,7 +245,9 @@ public class Introspect implements Endpoint, AutoCloseable {
             try {
                 // Get the RS id (audience) from the COSE KID header.
                 COSE.Message coseRaw = COSE.Message.DecodeFromBytes(token.EncodeToBytes());
-                String rsid = coseRaw.findAttribute(HeaderKeys.KID).AsString();
+                String rsid = CBORObject.DecodeFromBytes(
+                        coseRaw.findAttribute(
+                                HeaderKeys.KID).GetByteString()).AsString();
                 CwtCryptoCtx ctx = makeCtx(rsid);
                 return CWT.processCOSE(token.EncodeToBytes(), ctx);
             } catch (Exception e) {
