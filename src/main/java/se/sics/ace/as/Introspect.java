@@ -157,7 +157,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         }
 
 	    //Get the token from the payload
-        CBORObject cbor = msg.getParameter(Constants.TOKEN);
+        CBORObject cbor = CBORObject.DecodeFromBytes(msg.getParameter(Constants.TOKEN).GetByteString());
         if (cbor == null) {
             LOGGER.log(Level.INFO,
                     "Request didn't provide 'token' parameter");
@@ -240,14 +240,15 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (token == null) {
             throw new AceException("Access token parser indata was null");
         }
-     
+
         if (token.getType().equals(CBORType.Array)) {
             try {
                 // Get the RS id (audience) from the COSE KID header.
                 COSE.Message coseRaw = COSE.Message.DecodeFromBytes(token.EncodeToBytes());
-                String rsid = CBORObject.DecodeFromBytes(
+                CBORObject audArray = CBORObject.DecodeFromBytes(
                         coseRaw.findAttribute(
-                                HeaderKeys.KID).GetByteString()).AsString();
+                                HeaderKeys.KID).GetByteString());
+                String rsid = audArray.get(0).AsString();
                 CwtCryptoCtx ctx = makeCtx(rsid);
                 return CWT.processCOSE(token.EncodeToBytes(), ctx);
             } catch (Exception e) {
