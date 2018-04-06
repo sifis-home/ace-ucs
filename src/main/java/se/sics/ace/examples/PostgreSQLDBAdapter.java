@@ -78,21 +78,6 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public String getDBUser() {
-        return this.user;
-    }
-
-    @Override
-    public String getDBPassword() {
-        return this.password;
-    }
-
-    @Override
-    public String getDBName() {
-        return this.dbName;
-    }
-
-    @Override
     public Connection getRootConnection(String rootPwd) throws SQLException {
         Properties connectionProps = new Properties();
         connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);

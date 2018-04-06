@@ -49,24 +49,6 @@ public interface SQLDBAdapter {
     void setParams (String user, String pwd, String dbName, String dbUrl);
 
     /**
-     * Returns the user assigned to connect to this DB.
-     * @return the username.
-     */
-    String getDBUser();
-
-    /**
-     * Returns the password associated to the user used to connect to this DB.
-     * @return the password.
-     */
-    String getDBPassword();
-
-    /**
-     * Returns the DB name the adapter will connect to.
-     * @return the DB name.
-     */
-    String getDBName();
-
-    /**
      * Returns a connection to the DB engine with root credentials.
      * @param rootPwd the root password.
      * @return an SQL Connection.
