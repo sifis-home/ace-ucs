@@ -239,7 +239,7 @@ public class TestIntrospect {
     public void testSuccessPurgedInactive() throws Exception {
         ReferenceToken purged = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, purged.encode());
+        params.put(Constants.TOKEN, CBORObject.FromObject(purged.encode().EncodeToBytes()));
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -260,7 +260,7 @@ public class TestIntrospect {
     public void testSuccessNotExistInactive() throws Exception {
         CBORObject notExist = CBORObject.FromObject(new byte[] {0x03});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, notExist);
+        params.put(Constants.TOKEN, CBORObject.FromObject(notExist.EncodeToBytes()));
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -318,7 +318,7 @@ public class TestIntrospect {
     public void testSuccessRef() throws Exception {
         ReferenceToken t = new ReferenceToken(new byte[]{0x01});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, t.encode());
+        params.put(Constants.TOKEN, CBORObject.FromObject(t.encode().EncodeToBytes()));
         String senderId = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName().trim();
         Message response = i.processMessage(
