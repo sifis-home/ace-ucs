@@ -236,7 +236,7 @@ public class TestCoAPClient {
        
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.TOKEN, at.encode());
+        params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
