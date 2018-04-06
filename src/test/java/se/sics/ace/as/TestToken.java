@@ -65,6 +65,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -85,7 +86,6 @@ public class TestToken {
     private static OneKey privateKey; 
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
-    private static String dbPwd = null;
     private static Token t = null;
     private static String cti1;
     private static String cti2;
@@ -100,35 +100,14 @@ public class TestToken {
      */
     @BeforeClass
     public static void setUp() throws AceException, SQLException, IOException, CoseException {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
 
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(System.getProperty("line.separator"), "");         
-        } finally {
-            br.close();
-        }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
-
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey(); 
         publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
                 "myKey".getBytes(Constants.charset)));
-        
-        db = SQLConnector.getInstance(null, null, null);
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -325,7 +304,7 @@ public class TestToken {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti2, claims);
         
-        pdp = new KissPDP(dbPwd, db);
+        pdp = new KissPDP(db);
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");
         pdp.addTokenAccess("clientB");
@@ -378,20 +357,8 @@ public class TestToken {
     @AfterClass
     public static void tearDown() throws Exception {
         pdp.close();
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);
-        stmt.close();
-        rootConn.close();
-        db.close();
+
+        DBHelper.tearDownDB();
     }
     
     

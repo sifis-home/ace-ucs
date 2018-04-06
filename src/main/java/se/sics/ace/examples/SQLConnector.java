@@ -421,93 +421,35 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
     private SQLDBAdapter adapter = null;
 
-	/**
-	 * Gets the singleton instance of this connector. Defaults to MySQL.
-	 *
-	 * @param dbUrl     the database URL, if null the default will be used
-	 * @param user      the database user, if null the default will be used
-	 * @param pwd       the database user's password, if null the default
-	 *
-	 * @return  the singleton instance
-	 *
-	 * @throws SQLException
-	 */
-	public static SQLConnector getInstance(String dbUrl, String user, String pwd)
-			throws SQLException {
-		return SQLConnector.getInstance(new MySQLDBAdapter(), dbUrl, user, pwd);
-	}
-
     /**
      * Gets the singleton instance of this connector.
      * 
-     * @param dbCreator a creator instance for the specific DB type being used.
-     * @param dbUrl     the database URL, if null the default will be used
-     * @param user      the database user, if null the default will be used
-     * @param pwd       the database user's password, if null the default
-     * 
+     * @param dbAdapter a creator instance for the specific DB type being used.
+     *
      * @return  the singleton instance
      * 
      * @throws SQLException
      */
-    public static SQLConnector getInstance(SQLDBAdapter dbCreator, 
-            String dbUrl, String user, String pwd) throws SQLException {
+    public static SQLConnector getInstance(SQLDBAdapter dbAdapter) throws SQLException {
         if (SQLConnector.connector == null) {
             SQLConnector.connector 
-                = new SQLConnector(dbCreator, dbUrl, user, pwd);
+                = new SQLConnector(dbAdapter);
         }
         return SQLConnector.connector;
     }
 
 	/**
-	 * Create a new database connector either from given values or the
-	 * defaults. Defaults to MySQL for the DB creation.
-	 *
-	 * @param dbUrl     the database URL, if null the default will be used
-	 * @param user      the database user, if null the default will be used
-	 * @param pwd       the database user's password, if null the default
-	 * 				    will be used
-	 * @throws SQLException
-	 */
-	protected SQLConnector(String dbUrl, String user, String pwd)
-			throws SQLException {
-		this(new MySQLDBAdapter(), dbUrl, user, pwd);
-	}
-    
-	/**
 	 * Create a new database connector either from given values or the 
 	 * defaults.
 	 *
      * @param dbAdapter handler for engine-db specific commands.
-	 * @param dbUrl     the database URL, if null the default will be used
-	 * @param user      the database user, if null the default will be used
-	 * @param pwd       the database user's password, if null the default
-	 * 				    will be used
+	 *
 	 * @throws SQLException 
 	 */
-	protected SQLConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, 
-	        String pwd) throws SQLException {
-		String url = dbUrl; //avoid parameter assignment
-        if (url == null) {
-			url = dbAdapter.getDefaultDBURL();
-		}
-
-		this.currentUser = user;
-		if (this.currentUser == null) {
-			this.currentUser = SQLConnector.DEFAULT_USER;
-		}
-
-		this.currentPassword = pwd;
-		if (this.currentPassword == null) {
-			this.currentPassword = SQLConnector.DEFAULT_PASSWORD;
-		}
-
+	protected SQLConnector(SQLDBAdapter dbAdapter) throws SQLException {
 		this.adapter = dbAdapter;
-		
-        dbAdapter.setParams(user, pwd, DBConnector.dbName, url);
 
-		Properties connectionProps = getCurrentUserProperties();
-		this.conn = DriverManager.getConnection(url + "/"
-		        + DBConnector.dbName, connectionProps);
+		this.conn = dbAdapter.getDBConnection();
 		SQLConnector.isConnected = true;
 	        
 		this.insertRS = this.conn.prepareStatement(
@@ -808,28 +750,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	    this.currentUser = user;
 	    this.currentPassword = password;
 	}
-	
-	/**
-	 * Create the necessary database and tables. Requires the
-	 * root user password.
-	 *
-	 * @param rootPwd  the root user password
-	 * @param username the username of the database owner, default if null
-	 * @param userPwd  the password of the database owner, default if null
-	 * @param dbName   the name of the database, default if null
-	 * @param dbUrl    the URL of the database, default if null
-	 * @throws AceException
-	 */
-	public static void createDB(String rootPwd, String username,
-	        String userPwd, String dbName, String dbUrl) throws AceException {
-	    if (rootPwd == null) {
-	        throw new AceException(
-	                "Cannot initialize the database without the password");
-	    }
-
-	    SQLConnector.createDB(new MySQLDBAdapter(), rootPwd, username, 
-	            userPwd, dbName, dbUrl);
-	}
 
 	/**
 	 * Create the necessary database and tables. Requires the
@@ -837,51 +757,33 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	 * @param dbAdapter 
 	 * 
 	 * @param rootPwd  the root user password
-     * @param username the username of the database owner, default if null
-     * @param userPwd  the password of the database owner, default if null
-     * @param dbName   the name of the database, default if null
-     * @param dbUrl    the URL of the database, default if null
-	 * @throws AceException 
+	 * @throws AceException
 	 */
-	public static void createDB(SQLDBAdapter dbAdapter, String rootPwd, String username,
-								String userPwd, String dbName, String dbUrl) throws AceException {
+	public static void createDB(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
 		if (rootPwd == null) {
 			throw new AceException(
 					"Cannot initialize the database without the password");
 		}
-		dbAdapter.setParams(username, userPwd, dbName, dbUrl);
         dbAdapter.createDBAndTables(rootPwd);
 	}
 
-	/**
-	 * Deletes the whole database assuming MySQL.
-	 * 
-	 * CAUTION: This method really does what is says, without asking you again!
-     * It's main function is to clean the database during test runs.
-     * 
-	 * @param rootPwd  the root user password.
-	 * @param dbOwner the name of the user owner of this DB.
-	 * @throws AceException
-	 */
-	public static void wipeDatabase(String rootPwd, String dbOwner) throws AceException {
-		MySQLDBAdapter dbAdapter = new MySQLDBAdapter();
-		SQLConnector.wipeDatabase(dbAdapter, rootPwd, dbOwner);
-	}
-	
 	/**
 	 * Deletes the whole database.
 	 * 
 	 * CAUTION: This method really does what is says, without asking you again!
 	 * It's main function is to clean the database during test runs.
 	 * 
-	 * @param dbAdapter handler for engine-db specific commands
+	 * @param dbAdapter handler for engine-db specific commands, containing DB name and owner data as well.
 	 * @param rootPwd  the root password
-	 * @param dbOwner the name of the user owner of this DB.
-	 * @throws AceException 
+	 * @throws AceException
 	 * @throws SQLException 
 	 */
-	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd, String dbOwner) throws AceException {
-		dbAdapter.wipeDB(rootPwd, dbOwner);
+	public static void wipeDatabase(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
+		if(SQLConnector.connector != null)
+		{
+			SQLConnector.connector.close();
+		}
+		dbAdapter.wipeDB(rootPwd);
 	}
 	
 	/**
@@ -893,14 +795,14 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	@Override
 	public synchronized void close() throws AceException {
 	    if (SQLConnector.isConnected) {
+			SQLConnector.isConnected = false;
 	        try {
 	            this.conn.close();
 	            SQLConnector.connector = null;
-	            SQLConnector.isConnected = false;
-	        } catch (SQLException e) {
-	            SQLConnector.isConnected = false;
-	            throw new AceException(e.getMessage());
-	        }	        
+	        } catch (SQLException e)
+			{
+				throw new AceException(e.getMessage());
+			}
 	    }
 	}
 	
@@ -1787,35 +1689,15 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }    
     }
 
-	/**
-	 * Creates the user that manages this database. Defaults to MySQL.
-	 *
-	 * @param rootPwd  the database root password
-	 * @param username  the name of the user
-	 * @param userPwd   the password for the user
-	 * @param dbUrl  the URL of the database
-	 *
-	 * @throws AceException
-	 */
-	public synchronized static void createUser(String rootPwd, String username,
-											   String userPwd, String dbUrl) throws AceException {
-		SQLConnector.createUser(new MySQLDBAdapter(), rootPwd, username, userPwd, dbUrl);
-	}
-    
     /**
      * Creates the user that manages this database.
      *
 	 * @param dbAdapter an adapter instance for the specific DB type being used.
      * @param rootPwd  the database root password
-     * @param username  the name of the user
-     * @param userPwd   the password for the user
-     * @param dbUrl  the URL of the database
-     * 
+     *
      * @throws AceException 
      */
-    public synchronized static void createUser(SQLDBAdapter dbAdapter, String rootPwd, String username,
-											   String userPwd, String dbUrl) throws AceException {
-		dbAdapter.setParams(username, userPwd, DBConnector.dbName, dbUrl);
+    public synchronized static void createUser(SQLDBAdapter dbAdapter, String rootPwd) throws AceException {
 		dbAdapter.createUser(rootPwd);
     }
     

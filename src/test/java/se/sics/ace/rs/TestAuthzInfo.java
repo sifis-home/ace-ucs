@@ -63,6 +63,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
@@ -86,9 +87,7 @@ public class TestAuthzInfo {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static SQLConnector db = null;
-    
-    private static String dbPwd = null;
-    
+
     private static AuthzInfo ai = null;
     private static Introspect i; 
     private static TokenRepository tr = null;
@@ -104,28 +103,9 @@ public class TestAuthzInfo {
     @BeforeClass
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
-        
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), "");     
-        } finally {
-            br.close();
-        }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
+
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
@@ -135,9 +115,7 @@ public class TestAuthzInfo {
         sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         sharedKey.add(KeyKeys.KeyId, CBORObject.FromObject(new byte[]{0x74, 0x11}));
         sharedKey.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-       
-        db = SQLConnector.getInstance(null, null, null);
-        
+
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
@@ -167,7 +145,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         
-        pdp = new KissPDP(dbPwd, db);
+        pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         i = new Introspect(pdp, db, new KissTime(), key);
@@ -212,21 +190,9 @@ public class TestAuthzInfo {
      * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, AceException {
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);        
-        stmt.close();
-        rootConn.close();
-        db.close();
+    public static void tearDown() throws SQLException, AceException, Exception {
+        DBHelper.tearDownDB();
+        pdp.close();
         i.close();
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
