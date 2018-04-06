@@ -63,19 +63,6 @@ import se.sics.ace.as.DBConnector;
 public class SQLConnector implements DBConnector, AutoCloseable {
 
 	/**
-	 * The default user of the database
-	 */
-	public final static String DEFAULT_USER = "aceuser";
-	
-	/**
-	 * The default password of the default user.
-	 * CAUTION! Only use this for testing, this is very insecure
-	 * (but then if you didn't figure that out yourself, I cannot help you
-	 * anyway).
-	 */
-	private final static String DEFAULT_PASSWORD = "password";
-
-	/**
 	 * The user configured for access.
 	 */
 	private String currentUser;
@@ -424,7 +411,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     /**
      * Gets the singleton instance of this connector.
      * 
-     * @param dbAdapter a creator instance for the specific DB type being used.
+     * @param dbAdapter an adapter already set up with the database information, specific for each engine.
      *
      * @return  the singleton instance
      * 

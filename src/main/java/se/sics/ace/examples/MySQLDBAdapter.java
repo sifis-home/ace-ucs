@@ -66,8 +66,20 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     @Override
     public void setParams(String user, String pwd, String dbName, String dbUrl) {
         this.user = user;
+        if(this.user == null)
+        {
+            this.user = DBConnector.DEFAULT_USER;
+        }
         this.password = pwd;
+        if(this.password == null)
+        {
+            this.password = DBConnector.DEFAULT_PASSWORD;
+        }
         this.dbName = dbName;
+        if(this.dbName == null)
+        {
+            this.dbName = DBConnector.DEFAULT_DB_NAME;
+        }
         this.dbUrl = dbUrl;
         if(this.dbUrl == null)
         {
