@@ -31,20 +31,14 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import COSE.HeaderKeys;
@@ -68,7 +62,6 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
-import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;

@@ -53,13 +53,11 @@ public class DBHelper
     /**
      * Easy place to change which DB adapter wants to be used for all tests.
      */
-    private static final SQLDBAdapter dbAdapter = new PostgreSQLDBAdapter();
+    private static final SQLDBAdapter dbAdapter = new MySQLDBAdapter(); //PostgreSQLDBAdapter();
 
     private static final String testUsername = "testuser";
     private static final String testPassword = "testpwd";
     private static final String testDBName = "testdb";
-
-    static SQLConnector sqlConnector = null;
 
     private static String dbRootPwd = null;
 
@@ -69,7 +67,7 @@ public class DBHelper
     public static void setUpDB() throws AceException, IOException
     {
         // First load the DB root password from an external file.
-        dbRootPwd = loadRootPassword();
+        loadRootPassword();
 
         // Set parameters for the DB.
         dbAdapter.setParams(testUsername, testPassword, testDBName, null);
@@ -106,12 +104,10 @@ public class DBHelper
 
     /**
      * Loads the root password form an external file.
-     * @return a string with the root password.
      * @throws IOException
      */
-    private static String loadRootPassword() throws IOException
+    private static void loadRootPassword() throws IOException
     {
-        String password = "";
         BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
         try
         {
@@ -123,11 +119,11 @@ public class DBHelper
                 sb.append(System.lineSeparator());
                 line = br.readLine();
             }
-            password = sb.toString().replace(System.getProperty("line.separator"), "");
-        } finally
+            dbRootPwd = sb.toString().replace(System.getProperty("line.separator"), "");
+        }
+        finally
         {
             br.close();
         }
-        return password;
     }
 }
