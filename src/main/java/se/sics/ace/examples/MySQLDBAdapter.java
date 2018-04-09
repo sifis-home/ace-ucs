@@ -98,9 +98,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     @Override
     public Connection getDBConnection() throws SQLException {
         Properties connectionProps = new Properties();
-        connectionProps.put("user", user);
-        connectionProps.put("password", password);
-        return DriverManager.getConnection(this.dbUrl + "/" + this.dbName, connectionProps);
+        connectionProps.put("user", this.user);
+        connectionProps.put("password", this.password);
+        return DriverManager.getConnection(this.dbUrl + "/" 
+                + this.dbName, connectionProps);
     }
 
     @Override
@@ -245,8 +246,9 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement())
         {
-            String dropDB = "DROP DATABASE IF EXISTS " + dbName + ";";
-            String dropUser = "DROP USER IF EXISTS '" + user + "'@'localhost';";
+            String dropDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
+            String dropUser = "DROP USER IF EXISTS '" + this.user 
+                    + "'@'localhost';";
             stmt.execute(dropDB);
             stmt.execute(dropUser);
         } catch (SQLException e) {

@@ -44,8 +44,14 @@ import se.sics.ace.AceException;
  */
 public interface PDP {
 
-	enum IntrospectAccessLevel
-	{
+	/**
+	 * The different access rights for introspection.
+	 * NONE has no right to introspect,
+	 * ACTIVE_ONLY only gets to see if the token is active
+	 * ACTIVE_AND_CLAIMS gets to see the claims in the token as well
+	 *
+	 */
+	enum IntrospectAccessLevel {
 		NONE,
 		ACTIVE_ONLY,
 		ACTIVE_AND_CLAIMS;

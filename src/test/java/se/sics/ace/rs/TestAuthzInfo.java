@@ -189,12 +189,10 @@ public class TestAuthzInfo {
     
     /**
      * Deletes the test DB after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, AceException, Exception {
+    public static void tearDown() throws Exception {
         DBHelper.tearDownDB();
         pdp.close();
         i.close();
@@ -369,8 +367,9 @@ public class TestAuthzInfo {
         claims.put(Constants.EXP, CBORObject.FromObject(10000));
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
+        
         LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-               CBORObject.FromObject(cwt.encode(ctx, null, getHeadersWithKID("rs1")).EncodeToBytes()));
+              cwt.encode(ctx, null, getHeadersWithKID("rs1")));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);

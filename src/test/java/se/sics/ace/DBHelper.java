@@ -29,7 +29,7 @@ package se.sics.ace;
 
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.examples.MySQLDBAdapter;
-import se.sics.ace.examples.PostgreSQLDBAdapter;
+//import se.sics.ace.examples.PostgreSQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.examples.SQLDBAdapter;
 
@@ -59,6 +59,9 @@ public class DBHelper
 
     /**
      * Sets up the DB using the current default adapter.
+     * 
+     * @throws AceException 
+     * @throws IOException 
      */
     public static void setUpDB() throws AceException, IOException
     {
@@ -76,12 +79,20 @@ public class DBHelper
         SQLConnector.createDB(dbAdapter, dbRootPwd);
     }
 
+    /**
+     * @return  the SQLConnector instance
+     * @throws SQLException
+     */
     public static SQLConnector getSQLConnector() throws SQLException
     {
         // Get a connection to the test DB.
         return SQLConnector.getInstance(dbAdapter);
     }
 
+    /**
+     * @return the CoapDBConnector instance
+     * @throws SQLException
+     */
     public static CoapDBConnector getCoapDBConnector() throws SQLException
     {
         // Get a connection to the test DB.
