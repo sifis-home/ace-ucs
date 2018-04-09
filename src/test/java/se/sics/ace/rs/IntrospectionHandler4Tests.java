@@ -77,7 +77,7 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
             throws IntrospectionException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, 
-                CBORObject.FromObject(tokenReference));
+                CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
         params.put(Constants.TOKEN_TYPE_HINT, 
                 CBORObject.FromObject("pop"));
         
