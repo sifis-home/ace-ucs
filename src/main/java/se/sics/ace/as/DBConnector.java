@@ -52,7 +52,21 @@ public interface DBConnector {
 	/**
 	 * The default database name
 	 */
-	public String dbName = "aceasdb";
+	public final static String DEFAULT_DB_NAME = "aceasdb";
+
+	/**
+	 * The default user of the database
+	 */
+	public final static String DEFAULT_USER = "aceuser";
+
+	/**
+	 * The default password of the default user.
+	 * CAUTION! Only use this for testing, this is very insecure
+	 * (but then if you didn't figure that out yourself, I cannot help you
+	 * anyway).
+	 */
+	public final static String DEFAULT_PASSWORD = "password";
+
 	
 	//******************New table********************************	
 

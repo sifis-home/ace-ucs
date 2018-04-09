@@ -63,6 +63,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.MySQLDBAdapter;
 import se.sics.ace.examples.PostgreSQLDBAdapter;
@@ -80,14 +81,7 @@ public class TestKissPDP {
     private static OneKey publicKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
-    private static String dbPwd = null;
     private static KissPDP pdp = null;
-
-    private static String username = "aceuser";
-    private static String password = "password";
-
-    private static SQLDBAdapter adapter;
-    private static String dbUrl;
 
     /**
      * Tests for CWT code.
@@ -106,35 +100,12 @@ public class TestKissPDP {
     @BeforeClass
     public static void setUp() 
             throws AceException, SQLException, IOException, CoseException {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), ""); 
-        } finally {
-            br.close();
-        }
 
-        // Using MYSQL to test by default.
-        adapter = new MySQLDBAdapter();
-        dbUrl = MySQLDBAdapter.DEFAULT_DB_URL;
-
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(adapter, dbPwd, username);
-        
-        SQLConnector.createUser(adapter, dbPwd, username, password, dbUrl);
-        SQLConnector.createDB(adapter, dbPwd, username, password, null, dbUrl);
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
-        
-        db = SQLConnector.getInstance(adapter,null, null, null);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -247,7 +218,7 @@ public class TestKissPDP {
         db.addToken(ctiStr, claims);
         
 
-       pdp =  new KissPDP(dbPwd, db);
+       pdp =  new KissPDP(db);
        
        //Initialize data in PDP
        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -308,8 +279,7 @@ public class TestKissPDP {
     @AfterClass
     public static void tearDown() throws Exception {
         pdp.close();
-        SQLConnector.wipeDatabase(adapter, dbPwd, username);
-        db.close();
+        DBHelper.tearDownDB();
     }
     
     /**

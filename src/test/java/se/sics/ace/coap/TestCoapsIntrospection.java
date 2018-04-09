@@ -31,14 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.Map;
-import java.util.Properties;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -49,7 +43,6 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.OneKey;
 
 import se.sics.ace.Constants;
-import se.sics.ace.as.DBConnector;
 import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
 
 /**
@@ -78,17 +71,17 @@ public class TestCoapsIntrospection {
      * @throws Exception 
         */
        public void stop() throws Exception {
-           TestCoapAS.stop();
+           CoapASTestServer.stop();
        }
        
        @Override
        public void run() {
            try {
-               TestCoapAS.main(null);
+               CoapASTestServer.main(null);
            } catch (final Throwable t) {
                System.err.println(t.getMessage());
                try {
-                TestCoapAS.stop();
+                CoapASTestServer.stop();
             } catch (Exception e) {
                 e.printStackTrace();
             }
@@ -114,34 +107,6 @@ public class TestCoapsIntrospection {
    @AfterClass
    public static void tearDown() throws Exception {
        srv.stop();
-       String dbPwd = null;
-       BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-       try {
-           StringBuilder sb = new StringBuilder();
-           String line = br.readLine();
-           while (line != null) {
-               sb.append(line);
-               sb.append(System.lineSeparator());
-               line = br.readLine();
-           }
-           dbPwd = sb.toString().replace(
-                   System.getProperty("line.separator"), "");     
-       } finally {
-           br.close();
-       }
-       Properties connectionProps = new Properties();
-       connectionProps.put("user", "root");
-       connectionProps.put("password", dbPwd);
-       Connection rootConn = DriverManager.getConnection(
-               "jdbc:mysql://localhost:3306", connectionProps);
-
-       String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-       String dropUser = "DROP USER 'aceuser'@'localhost';";
-       Statement stmt = rootConn.createStatement();
-       stmt.execute(dropDB);
-       stmt.execute(dropUser);    
-       stmt.close();
-       rootConn.close();   
    }
    
    /**

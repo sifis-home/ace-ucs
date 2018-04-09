@@ -31,8 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Base64;
@@ -43,7 +41,8 @@ import java.util.Map;
 import java.util.Set;
 
 import org.junit.Assert;
-import org.junit.Ignore;
+import org.junit.BeforeClass;
+import org.junit.AfterClass;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -56,9 +55,9 @@ import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.AceException;
-import se.sics.ace.examples.SQLDBAdapter;
 
 
 /**
@@ -67,57 +66,32 @@ import se.sics.ace.examples.SQLDBAdapter;
  * @author Ludwig Seitz
  *
  */
-@Ignore
 public class TestDB {
   
     static OneKey publicKey;
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     static String testUsername = "userace";
-    static String testPassword = "pwd";
 
     static SQLConnector db = null;
-    
-    protected static String dbPwd = null;
 
     /**
      * Set up tests.
-     * @param dbAdapter 
-     * @throws SQLException 
+     * @throws SQLException
      * @throws AceException 
      * @throws IOException 
      * @throws CoseException 
      */
-    public static void setUp(SQLDBAdapter dbAdapter)
+    @BeforeClass
+    public static void setUp()
             throws SQLException, AceException, IOException, CoseException {
-        
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), "");     
-        } finally {
-            br.close();
-        }
 
-        //Just to be sure that not old test pollutes the DB
-        SQLConnector.wipeDatabase(dbAdapter, dbPwd, testUsername);
-
-        dbAdapter.setParams(testUsername, testPassword, DBConnector.dbName, null);
-        SQLConnector.createUser(dbAdapter, dbPwd, testUsername, testPassword,null);
-        SQLConnector.createDB(dbAdapter, dbPwd, testUsername, testPassword, DBConnector.dbName, null);
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
 
-        db = SQLConnector.getInstance(dbAdapter,null, testUsername, testPassword);
-        
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
@@ -215,7 +189,18 @@ public class TestDB {
         db.addToken(cid, claims);
     }
 
-    
+    /**
+     * Removes DB setup.
+     * @throws SQLException
+     * @throws AceException
+     * @throws IOException
+     */
+    @AfterClass
+    public static void tearDown() throws AceException
+    {
+        DBHelper.tearDownDB();
+    }
+
     /**
      * Test adding a RS that is already in the DB
      * (should fail)
@@ -250,8 +235,7 @@ public class TestDB {
                 keyTypes, null, null);
         Assert.fail("Duplicate client was added to DB");
     }
-    
-     
+
     /**
      * Test the getProfiles() method. 
      * 

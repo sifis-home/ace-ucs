@@ -29,6 +29,9 @@ package se.sics.ace.examples;
 
 import se.sics.ace.AceException;
 
+import java.sql.Connection;
+import java.sql.SQLException;
+
 /**
  * Handles creating user, database and tables to store authorization data.
  *
@@ -44,6 +47,21 @@ public interface SQLDBAdapter {
      * @param dbUrl the URL to connect to this database type. Can be null, and default URL will be used.
      */
     void setParams (String user, String pwd, String dbName, String dbUrl);
+
+    /**
+     * Returns a connection to the DB engine with root credentials.
+     * @param rootPwd the root password.
+     * @return an SQL Connection.
+     * @throws SQLException
+     */
+    Connection getRootConnection(String rootPwd) throws SQLException;
+
+    /**
+     * Returns a connection to the current DB.
+     * @return an SQL Connection.
+     * @throws SQLException
+     */
+    Connection getDBConnection() throws SQLException;
 
     /**
      * Creates a new user in the DB.
@@ -63,13 +81,12 @@ public interface SQLDBAdapter {
 
 
     /**
-     * Totally deletes a DB.
+     * Totally deletes a DB as well as the user that owns it.
      *
      * @param rootPwd the root or base password to use.
-     * @param dbOwner the name of the user owner of this DB.
      * @throws AceException
      */
-    void wipeDB(String rootPwd, String dbOwner) throws AceException;
+    void wipeDB(String rootPwd) throws AceException;
 
     /**
      * Updates any SQL queries that need to be specific for each DB engine.
@@ -80,22 +97,4 @@ public interface SQLDBAdapter {
      * 
      */
     String updateEngineSpecificSQL(String sqlQuery);
-
-    /**
-     * Gets the default DB URL for this adapter.
-     * @return The JDBC URL.
-     */
-    String getDefaultDBURL();
-    
-    /**
-     * Gets the default root user name for this adapter.
-     * @return the default root user name
-     */
-    String getDefaultRoot();
-
-    /**
-     * Gets the currently set up DB URL for this adapter.
-     * @return The JDBC URL.
-     */
-    String getCurrentDBURL();
 }

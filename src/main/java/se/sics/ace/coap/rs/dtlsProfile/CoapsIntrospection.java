@@ -162,7 +162,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
             throws AceException, IntrospectionException {
         LOGGER.info("Sending introspection request on " + tokenReference);
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.TOKEN,  CBORObject.FromObject(tokenReference));
+        params.put(Constants.TOKEN, CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
         params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop")); 
         CoapResponse response =  this.client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 

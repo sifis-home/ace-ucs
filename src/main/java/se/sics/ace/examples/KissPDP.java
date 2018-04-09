@@ -97,38 +97,32 @@ public class KissPDP implements PDP, AutoCloseable {
 	 * All configuration parameters that are null are expected
 	 * to already be in the database.
 	 * 
-	 * @param rootPwd  the database root password, needed to initialize
-	 *     the tables, if they don't already exist 
-	 * @param db  the database connector
+	 * @param connection  the database connector
 	 * @throws AceException 
 	 */
-	public KissPDP(String rootPwd, SQLConnector db) throws AceException {
+	public KissPDP(SQLConnector connection) throws AceException {
+        this.db = connection;
 	    
 	    String createToken = db.getAdapter().updateEngineSpecificSQL(
 	            "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + tokenTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL);");
 	    
 	    String createIntrospect = db.getAdapter().updateEngineSpecificSQL(
                 "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + introspectTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL,"
                 + introspectClaimsColumn + " boolean NOT NULL);");
 	            
 	    String createAccess = db.getAdapter().updateEngineSpecificSQL(
                 "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + accessTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL,"
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
-	    Properties connectionProps = db.getCurrentUserProperties();
-	    try (Connection rootConn = DriverManager.getConnection(
-	            db.getAdapter().getCurrentDBURL(), connectionProps);
-	            Statement stmt = rootConn.createStatement()) {
+	    try (Connection conn = db.getAdapter().getDBConnection();
+             Statement stmt = conn.createStatement()) {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
 	        stmt.execute(createAccess);
@@ -201,8 +195,6 @@ public class KissPDP implements PDP, AutoCloseable {
                 db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable + " WHERE "
                         + DBConnector.idColumn + "=?;"));
-	    
-		this.db = db;
 	}
 	
 	@Override
