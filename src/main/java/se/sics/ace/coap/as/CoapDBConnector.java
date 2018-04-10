@@ -44,7 +44,6 @@ import com.upokecenter.cbor.CBORType;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
-import se.sics.ace.examples.MySQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.examples.SQLDBAdapter;
 

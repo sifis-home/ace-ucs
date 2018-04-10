@@ -58,7 +58,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     /**
      * The default connection URL for the database.
      */
-    public static final String DEFAULT_DB_URL = "jdbc:postgresql://localhost:5432";
+    public static final String DEFAULT_DB_URL 
+        = "jdbc:postgresql://localhost:5432";
 
     protected String user;
     protected String password;
@@ -94,14 +95,15 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         Properties connectionProps = new Properties();
         connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
-        return DriverManager.getConnection(this.baseDbUrl + "/" + PostgreSQLDBAdapter.BASE_DB, connectionProps);
+        return DriverManager.getConnection(this.baseDbUrl + "/" 
+                + PostgreSQLDBAdapter.BASE_DB, connectionProps);
     }
 
     @Override
     public Connection getDBConnection() throws SQLException {
         Properties connectionProps = new Properties();
-        connectionProps.put("user", user);
-        connectionProps.put("password", password);
+        connectionProps.put("user", this.user);
+        connectionProps.put("password", this.password);
         return DriverManager.getConnection(this.baseDbUrl + "/" + this.dbName, connectionProps);
     }
 
@@ -115,7 +117,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 "      FROM   pg_catalog.pg_user\n" +
                 "      WHERE  usename = '" +  this.user + "') THEN\n" +
                 "\n" +
-                "      CREATE ROLE " +  this.user + " LOGIN PASSWORD '" +  this.password + "';\n" +
+                "      CREATE ROLE " +  this.user + " LOGIN PASSWORD '" 
+                    +  this.password + "';\n" +
                 "   END IF;\n" +
                 "END\n" +
                 "$body$;";
@@ -131,9 +134,11 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createDBAndTables(String rootPwd) throws AceException {
+    public synchronized void createDBAndTables(String rootPwd) 
+            throws AceException {
         // First check it DB exists.
-        String checkDB = "SELECT datname FROM pg_catalog.pg_database WHERE datname = '" + this.dbName + "';";
+        String checkDB = "SELECT datname FROM pg_catalog.pg_database "
+                + "WHERE datname = '" + this.dbName + "';";
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement();
              ResultSet result = stmt.executeQuery(checkDB))
@@ -150,8 +155,9 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
         // Create the database.
         String createDB = "CREATE DATABASE " + this.dbName
-                + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
-                " CONNECTION LIMIT = -1;";
+                + " WITH OWNER= " + this.user 
+                + " ENCODING = 'UTF8' TEMPLATE = template0 " 
+                + " CONNECTION LIMIT = -1;";
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement())
         {
@@ -194,7 +200,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);";
 
-        String tokenType = "CREATE TYPE tokenType AS ENUM ('CWT', 'REF', 'TST');";
+        String tokenType 
+            = "CREATE TYPE tokenType AS ENUM ('CWT', 'REF', 'TST');";
 
         String createTokenTypes = "CREATE TABLE "
                 + DBConnector.tokenTypesTable + "("
@@ -237,8 +244,9 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
 
-        // Table creation in PostgreSQL needs to be done with a connection using the local user and not the root user,
-        // so that the local user will be automatically set as the owner of the tables.
+        // Table creation in PostgreSQL needs to be done with a connection 
+        //using the local user and not the root user, so that the local 
+        //user will be automatically set as the owner of the tables.
         try (Connection rootConn = getDBConnection();
              Statement stmt = rootConn.createStatement())
         {
@@ -296,12 +304,13 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement())
         {
-            String dropConnections = "SELECT pg_terminate_backend(pg_stat_activity.pid) " +
-                    "    FROM pg_stat_activity " +
-                    "    WHERE pg_stat_activity.datname = '" + dbName + "'" +
-                    "      AND pid <> pg_backend_pid();";
-            String dropDB = "DROP DATABASE IF EXISTS " + dbName + ";";
-            String dropUser = "DROP USER IF EXISTS " + user + ";";
+            String dropConnections = "SELECT pg_terminate_backend(pg_stat_activity.pid) " 
+                    + "    FROM pg_stat_activity " 
+                    + "    WHERE pg_stat_activity.datname = '" 
+                    + this.dbName + "'" 
+                    + "      AND pid <> pg_backend_pid();";
+            String dropDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
+            String dropUser = "DROP USER IF EXISTS " + this.user + ";";
             stmt.execute(dropConnections);
             stmt.execute(dropDB);
             stmt.execute(dropUser);

@@ -31,18 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -61,7 +55,6 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
