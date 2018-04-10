@@ -287,9 +287,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         }
 
         // Create table statements do not take the db name in PostgreSQL.
-        if (sqlQuery.contains("CREATE TABLE IF NOT EXISTS ")) {
-           String ret = sqlQuery.replace("CREATE TABLE IF NOT EXISTS ", 
-                    "CREATE TABLE ");
+        if (sqlQuery.contains("CREATE TABLE")) {
+           String ret = sqlQuery;
            if (sqlQuery.contains(this.dbName + ".")) {
                ret = sqlQuery.replace(this.dbName + ".", "");
            }
