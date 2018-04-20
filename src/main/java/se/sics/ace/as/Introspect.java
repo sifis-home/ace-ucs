@@ -170,7 +170,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         //parse the token
         AccessToken token;
         try {
-            token = parseToken(tokenAsCbor);
+            token = parseToken(tokenAsCbor, id);
         } catch (AceException e) {
             LOGGER.log(Level.INFO, e.getMessage());
             CBORObject map = CBORObject.NewMap();
@@ -234,34 +234,37 @@ public class Introspect implements Endpoint, AutoCloseable {
      * Parses a CBOR object presumably containing an access token.
      * 
      * @param token  the object
-     *not v
+     * @param senderId  the sender's id from the secure connection
+     * 
      * @return  the parsed access token
      * 
      * @throws AceException 
      */
-    public AccessToken parseToken(CBORObject token)
+    public AccessToken parseToken(CBORObject token, String senderId)
             throws AceException {
         if (token == null) {
             throw new AceException("Access token parser indata was null");
         }
-
         if (token.getType().equals(CBORType.Array)) {
             try {
                 // Get the RS id (audience) from the COSE KID header.
                 COSE.Message coseRaw = COSE.Message.DecodeFromBytes(
                         token.EncodeToBytes());
                 CBORObject kid = coseRaw.findAttribute(HeaderKeys.KID);
-                if(kid == null)
-                {
-                    throw new AceException("KID required header was "
-                          + "not present in COSE wrapper.");
-                }
-                CBORObject audArray = CBORObject.DecodeFromBytes(
-                        kid.GetByteString());
                 Set<String> aud = new HashSet<>();
-                for (int i=0; i<audArray.size();i++) {
-                    aud.add(audArray.get(i).AsString());
-                }
+                if(kid == null) {
+                    if (senderId == null) {
+                        throw new AceException("Cannot determine Audience"
+                                + "of the token for introspection");
+                    }
+                    aud.add(senderId);
+                } else {
+                    CBORObject audArray = CBORObject.DecodeFromBytes(
+                            kid.GetByteString());
+                    for (int i=0; i<audArray.size();i++) {
+                        aud.add(audArray.get(i).AsString());
+                    }
+                }            
                 CwtCryptoCtx ctx = EndpointUtils.makeCommonCtx(aud, this.db,
                         this.keyPair, verify);
                 return CWT.processCOSE(token.EncodeToBytes(), ctx);
