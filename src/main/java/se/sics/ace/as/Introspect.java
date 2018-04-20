@@ -31,26 +31,20 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.util.Collections;
-import java.util.List;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.Attribute;
-import COSE.CoseException;
 import COSE.HeaderKeys;
-import COSE.KeyKeys;
-import COSE.MessageTag;
 import COSE.OneKey;
-import COSE.Recipient;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
@@ -71,6 +65,11 @@ public class Introspect implements Endpoint, AutoCloseable {
      */
     private static final Logger LOGGER 
         = Logger.getLogger(Introspect.class.getName() );
+
+    /**
+     * Boolean for verify
+     */
+    private static boolean verify = true;
     
     /**
      * The PDP this endpoint uses to make access control decisions.
@@ -88,9 +87,9 @@ public class Introspect implements Endpoint, AutoCloseable {
     private TimeProvider time;
     
     /**
-     * The public key of the AS
+     * The asymmetric key pair of the AS
      */
-    private OneKey publicKey;
+    private OneKey keyPair;
     
     /**
      * Constructor.
@@ -98,12 +97,13 @@ public class Introspect implements Endpoint, AutoCloseable {
      * @param pdp   the PDP for deciding access
      * @param db  the database connector
      * @param time  the time provider
-     * @param publicKey  the public key of the AS or null if there isn't any
+     * @param keyPair the asymmetric key pair of the AS or null
+     * @param publicKey
      * 
      * @throws AceException  if fetching the cti from the database fails
      */
     public Introspect(PDP pdp, DBConnector db, 
-            TimeProvider time, OneKey publicKey) throws AceException {
+            TimeProvider time, OneKey keyPair) throws AceException {
         if (pdp == null) {
             LOGGER.severe("Introspect endpoint's PDP was null");
             throw new AceException(
@@ -122,7 +122,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         this.pdp = pdp;
         this.db = db;
         this.time = time;  
-        this.publicKey = publicKey;
+        this.keyPair = keyPair;
     }
     
     
@@ -192,18 +192,21 @@ public class Introspect implements Endpoint, AutoCloseable {
         CBORObject payload = CBORObject.NewMap();
         if (claims == null || claims.isEmpty()) {
             try {
-                LOGGER.log(Level.INFO, "Returning introspection result: inactive "
+                LOGGER.log(Level.INFO, 
+                        "Returning introspection result: inactive "
                         + "for " + token.getCti());
             } catch (AceException e) {
                 LOGGER.severe("Couldn't get cti from CWT: " + e.getMessage());
-                return  msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                return  msg.failReply
+                        (Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }  
             payload.Add(Constants.ACTIVE, CBORObject.False);
             //No need to check for client token, the token is invalid anyways
             return msg.successReply(Message.CREATED, payload); 
         }
 
-        // The NONE option was checked above. Check if we have claims access, or only to the activeness of the token.
+        // The NONE option was checked above. Check if we have claims access, 
+        // or only to the activeness of the token.
         if (accessLevel.equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS))
         {
             // We have access to all claims; add them to reply.
@@ -211,7 +214,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         }
         else
         {
-            // Only access to activeness.
+            // Only access tnot vo activeness.
             payload = CBORObject.NewMap();
         }
 
@@ -231,7 +234,7 @@ public class Introspect implements Endpoint, AutoCloseable {
      * Parses a CBOR object presumably containing an access token.
      * 
      * @param token  the object
-     *
+     *not v
      * @return  the parsed access token
      * 
      * @throws AceException 
@@ -245,15 +248,22 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (token.getType().equals(CBORType.Array)) {
             try {
                 // Get the RS id (audience) from the COSE KID header.
-                COSE.Message coseRaw = COSE.Message.DecodeFromBytes(token.EncodeToBytes());
+                COSE.Message coseRaw = COSE.Message.DecodeFromBytes(
+                        token.EncodeToBytes());
                 CBORObject kid = coseRaw.findAttribute(HeaderKeys.KID);
                 if(kid == null)
                 {
-                    throw new AceException("KID required header was not present in COSE wrapper.");
+                    throw new AceException("KID required header was "
+                          + "not present in COSE wrapper.");
                 }
-                CBORObject audArray = CBORObject.DecodeFromBytes(kid.GetByteString());
-                String rsid = audArray.get(0).AsString();
-                CwtCryptoCtx ctx = makeCtx(rsid);
+                CBORObject audArray = CBORObject.DecodeFromBytes(
+                        kid.GetByteString());
+                Set<String> aud = new HashSet<>();
+                for (int i=0; i<audArray.size();i++) {
+                    aud.add(audArray.get(i).AsString());
+                }
+                CwtCryptoCtx ctx = EndpointUtils.makeCommonCtx(aud, this.db,
+                        this.keyPair, verify);
                 return CWT.processCOSE(token.EncodeToBytes(), ctx);
             } catch (Exception e) {
                 LOGGER.severe("Error while processing CWT: " + e.getMessage());
@@ -263,79 +273,6 @@ public class Introspect implements Endpoint, AutoCloseable {
             return ReferenceToken.parse(token);
         }
         throw new AceException("Unknown access token format");        
-    }
-    
-    /**
-     * Create a  CWT crypto context for the given RS.
-     * 
-     * @param rsid  the identifier of the RS
-     * 
-     * @return  the CWT crytpo context
-     * @throws CoseException 
-     * @throws AceException 
-     */
-    private CwtCryptoCtx makeCtx(String rsid) 
-            throws AceException, CoseException {
-        COSEparams cose = this.db.getSupportedCoseParams(
-                Collections.singleton(rsid));
-        if (cose == null) {
-            return null;
-        }
-        MessageTag tag = cose.getTag();
-        switch (tag) {
-        case Encrypt:
-            return CwtCryptoCtx.encrypt(makeRecipient(cose, rsid), 
-                   cose.getAlg().AsCBOR());
-        case Encrypt0:
-            OneKey ek = this.db.getRsPSK(rsid);
-            byte[] ekey = ek.get(KeyKeys.Octet_K).GetByteString();
-            if (ekey == null) {
-                return null;
-            }
-            return CwtCryptoCtx.encrypt0(ekey, cose.getAlg().AsCBOR());
-        case MAC:
-            return CwtCryptoCtx.mac(makeRecipient(cose, rsid), 
-                    cose.getAlg().AsCBOR());
-        case MAC0:
-            OneKey mk = this.db.getRsPSK(rsid);
-            byte[] mkey = mk.get(KeyKeys.Octet_K).GetByteString();
-            if (mkey == null) {
-                return null;
-            }
-            return CwtCryptoCtx.mac0(mkey, cose.getAlg().AsCBOR());
-        case Sign:
-            // Access tokens with multiple signers not supported
-            return null;
-        case Sign1:
-            return CwtCryptoCtx.sign1Verify(this.publicKey, 
-                    cose.getAlg().AsCBOR());
-        default:
-            throw new IllegalArgumentException("Unknown COSE message type");
-        }
-    }
-    
-    /**
-     * Creates the singleton list of recipients for MAC and Encrypt messages.
-     * 
-     * @param cose  the cose parameters
-     * @param rsid  the RS identifier
-     * 
-     * @return  the recipients list
-     * @throws AceException 
-     * @throws CoseException 
-     */
-    private List<Recipient> makeRecipient(COSEparams cose, String rsid) 
-            throws AceException, CoseException {
-        Recipient rs = new Recipient();  
-        rs.addAttribute(HeaderKeys.Algorithm, 
-             cose.getKeyWrap().AsCBOR(), Attribute.UNPROTECTED);
-        CBORObject key = CBORObject.NewMap();
-        key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
-                this.db.getRsPSK(rsid)));
-        OneKey coseKey = new OneKey(key);
-        rs.SetKey(coseKey); 
-        return Collections.singletonList(rs);
     }
 
 
