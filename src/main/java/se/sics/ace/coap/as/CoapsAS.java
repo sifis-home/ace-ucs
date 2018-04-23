@@ -155,13 +155,8 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
             String introspectName, int port, Set<Short> claims, 
             boolean setAudHeader) 
                     throws AceException, CoseException {
-        if (claims == null) {
-            this.t = new Token(asId, pdp, db, time, asymmetricKey);
-        } else {
-            this.t = new Token(asId, pdp, db, time, asymmetricKey, 
-                    claims, setAudHeader);
-        }
-        this.token = new CoapAceEndpoint(tokenName, this.t);    
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
+        this.token = new CoapAceEndpoint(tokenName, this.t);
         add(this.token);
         
         if (introspectName != null) {

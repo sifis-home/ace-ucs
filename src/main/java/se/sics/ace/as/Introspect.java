@@ -98,8 +98,7 @@ public class Introspect implements Endpoint, AutoCloseable {
      * @param db  the database connector
      * @param time  the time provider
      * @param keyPair the asymmetric key pair of the AS or null
-     * @param publicKey
-     * 
+     *
      * @throws AceException  if fetching the cti from the database fails
      */
     public Introspect(PDP pdp, DBConnector db, 
