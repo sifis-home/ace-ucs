@@ -795,7 +795,7 @@ public class TestToken {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
         t = new Token("testAS2", pdp, db, new KissTime(),
-                privateKey, tokenConfig);
+                privateKey, tokenConfig, false);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
