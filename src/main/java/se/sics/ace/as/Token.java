@@ -198,9 +198,9 @@ public class Token implements Endpoint, AutoCloseable {
 	public Token(String asId, PDP pdp, DBConnector db, 
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
             boolean setAudInCwtHeader) throws AceException {
-		if(claims == null)
-		{
-			claims = defaultClaims;
+		Set<Short> localClaims = claims;
+        if(localClaims == null) {
+			localClaims = defaultClaims;
 		}
 
 	    //Time for checks
@@ -232,7 +232,7 @@ public class Token implements Endpoint, AutoCloseable {
         this.privateKey = privateKey;
         this.cti = db.getCtiCounter();
         this.claims = new HashSet<>();
-        this.claims.addAll(claims);
+        this.claims.addAll(localClaims);
         this.setAudHeader = setAudInCwtHeader;
 	}
 
@@ -349,7 +349,7 @@ public class Token implements Endpoint, AutoCloseable {
 
 		
 		//5. Check if the scope is allowed
-		String allowedScopes = null;
+		Object allowedScopes = null;
         try {
             allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
         } catch (AceException e) {
