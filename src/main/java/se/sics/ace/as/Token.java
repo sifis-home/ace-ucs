@@ -197,7 +197,12 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
-            boolean setAudInCwtHeader) throws AceException {     
+            boolean setAudInCwtHeader) throws AceException {
+		if(claims == null)
+		{
+			claims = defaultClaims;
+		}
+
 	    //Time for checks
         if (asId == null || asId.isEmpty()) {
             LOGGER.severe("Token endpoint's AS identifier was null or empty");
