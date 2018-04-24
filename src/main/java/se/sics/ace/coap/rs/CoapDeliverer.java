@@ -96,7 +96,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
     private AsInfo asInfo;
   
     /**
-     * FIXME: Implement with solution proposed by Kai/Achim 
+     * XXX: Implement with solution proposed by Kai/Achim 
      * The ServerMessageDeliverer that processes the request
      * after access control has been done
      */

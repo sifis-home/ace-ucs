@@ -265,7 +265,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
-		String scope = null;
+		Object scope = null;
 		if (cbor == null ) {
 			try {
                 scope = this.db.getDefaultScope(id);
@@ -275,7 +275,19 @@ public class Token implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
-		    scope = cbor.AsString();
+		    if (cbor.getType().equals(CBORType.TextString)) {
+		        scope = cbor.AsString();
+		    } else if (cbor.getType().equals(CBORType.ByteString)) {
+		        scope = cbor.GetByteString();		        
+		    } else {
+		        CBORObject map = CBORObject.NewMap();
+		        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Invalid datatype for scope");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Invalid datatype for scope in message");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		    }
 		}
 		if (scope == null) {
 		    CBORObject map = CBORObject.NewMap();

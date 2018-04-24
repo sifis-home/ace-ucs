@@ -93,5 +93,5 @@ public interface PDP {
 	 *  @throws AceException  
 	 */
 	public abstract String canAccess(String clientId, Set<String> aud, 
-				String scopes) throws AceException;
+				Object scopes) throws AceException;
 }
