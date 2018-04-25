@@ -48,7 +48,7 @@ import se.sics.ace.examples.RESTscope;
  */
 public class TestRESTscope {
    
-    private static CBORObject scope;
+    private static byte[] scope;
     private static RESTscope s = new RESTscope();
     
     /**
@@ -56,15 +56,16 @@ public class TestRESTscope {
      */
     @BeforeClass
     public static void setUp()  {
-        scope = CBORObject.NewArray();
+        CBORObject scopeCB = CBORObject.NewArray();
         CBORObject authz1 = CBORObject.NewArray();
         CBORObject authz2 = CBORObject.NewArray();
         authz1.Add("sensors/temp");
         authz1.Add(1);
         authz2.Add("config/security");
         authz2.Add(5);
-        scope.Add(authz1);
-        scope.Add(authz2);
+        scopeCB.Add(authz1);
+        scopeCB.Add(authz2);
+        scope = scopeCB.EncodeToBytes();
     }
     
     
