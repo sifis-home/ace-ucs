@@ -198,9 +198,9 @@ public class Token implements Endpoint, AutoCloseable {
 	public Token(String asId, PDP pdp, DBConnector db, 
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
             boolean setAudInCwtHeader) throws AceException {
-		if(claims == null)
-		{
-			claims = defaultClaims;
+		Set<Short> localClaims = claims;
+        if(localClaims == null) {
+			localClaims = defaultClaims;
 		}
 
 	    //Time for checks
@@ -232,7 +232,7 @@ public class Token implements Endpoint, AutoCloseable {
         this.privateKey = privateKey;
         this.cti = db.getCtiCounter();
         this.claims = new HashSet<>();
-        this.claims.addAll(claims);
+        this.claims.addAll(localClaims);
         this.setAudHeader = setAudInCwtHeader;
 	}
 
@@ -270,7 +270,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
-		String scope = null;
+		Object scope = null;
 		if (cbor == null ) {
 			try {
                 scope = this.db.getDefaultScope(id);
@@ -280,7 +280,19 @@ public class Token implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
-		    scope = cbor.AsString();
+		    if (cbor.getType().equals(CBORType.TextString)) {
+		        scope = cbor.AsString();
+		    } else if (cbor.getType().equals(CBORType.ByteString)) {
+		        scope = cbor.GetByteString();		        
+		    } else {
+		        CBORObject map = CBORObject.NewMap();
+		        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Invalid datatype for scope");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Invalid datatype for scope in message");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		    }
 		}
 		if (scope == null) {
 		    CBORObject map = CBORObject.NewMap();
@@ -337,7 +349,7 @@ public class Token implements Endpoint, AutoCloseable {
 
 		
 		//5. Check if the scope is allowed
-		String allowedScopes = null;
+		Object allowedScopes = null;
         try {
             allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
         } catch (AceException e) {

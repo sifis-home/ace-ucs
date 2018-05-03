@@ -244,7 +244,7 @@ public class KissPDP implements PDP, AutoCloseable {
 	}
 
 	@Override
-	public String canAccess(String clientId, Set<String> aud, String scope) 
+	public String canAccess(String clientId, Set<String> aud, Object scope) 
 				throws AceException {
 	    if (clientId == null) {
             throw new AceException(
@@ -317,8 +317,13 @@ public class KissPDP implements PDP, AutoCloseable {
         if (scopes == null || scopes.isEmpty()) {
             return null;
         }
-        
-        String scopeStr = scope;
+        String scopeStr;
+        if (scope instanceof String) {
+            scopeStr = (String)scope;
+        } else {
+            throw new AceException(
+                    "KissPDP does not support non-String scopes");
+        }
         String[] requestedScopes = scopeStr.split(" ");
         String grantedScopes = "";
         for (int i=0; i<requestedScopes.length; i++) {

@@ -75,12 +75,12 @@ public class RESTscope implements ScopeValidator {
 	@Override
 	public boolean scopeMatchResource(Object scope, String resourceId) 
 			throws AceException {
-	    if (!(scope instanceof CBORObject)) {
-	        throw new AceException("Scope must be CBORObject");
+	    if (!(scope instanceof byte[])) {
+	        throw new AceException("Scope must be a byte array");
 	    }
-	    CBORObject scp = (CBORObject)scope;
+	    CBORObject scp = CBORObject.DecodeFromBytes((byte[]) scope);
 	    if (!scp.getType().equals(CBORType.Array)) {
-	        throw new AceException("Scope must be CBOR array");
+	        throw new AceException("Scope must decode to CBOR array");
 	    }
 	    
 	    for (int i = 0; i < scp.size();i++) {
@@ -107,12 +107,13 @@ public class RESTscope implements ScopeValidator {
 	@Override
 	public boolean scopeMatch(Object scope, String resource, String actionId) 
 			throws AceException {
-	    if (!(scope instanceof CBORObject)) {
-            throw new AceException("RESTscope expects scopes to be CBORObject");
+	    if (!(scope instanceof byte[])) {
+            throw new AceException(
+                    "RESTscope expects scopes to be byte array");
         }
-	    CBORObject scp = (CBORObject)scope;
+	    CBORObject scp = CBORObject.DecodeFromBytes((byte[]) scope);
         if (!scp.getType().equals(CBORType.Array)) {
-            throw new AceException("Scope must be CBOR array");
+            throw new AceException("Scope must decode to CBOR array");
         }
         
         for (int i = 0; i < scp.size();i++) {

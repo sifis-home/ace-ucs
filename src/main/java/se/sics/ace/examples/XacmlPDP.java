@@ -194,7 +194,7 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	public String canAccess(String clientId, Set<String> aud, String scopes) 
+	public String canAccess(String clientId, Set<String> aud, Object scopes) 
 			throws AceException {
 		Set<Attributes> attributes = new HashSet<>();
 		StringAttribute subjectAV = new StringAttribute(clientId);
@@ -222,9 +222,15 @@ public class XacmlPDP implements PDP {
 		Attributes resourceCat = new Attributes(
 				RESOURCE_CAT, resources);
 		attributes.add(resourceCat);
-		
-		String scopeStr = scopes;
-		if (scopes == null || scopes.isEmpty()) {
+      
+		String scopeStr;
+        if (scopes instanceof String) {
+            scopeStr = (String)scopes;
+        } else {
+            throw new AceException(
+                    "KissPDP does not support non-String scopes");
+        }
+		if (scopeStr.isEmpty()) {
 			if (this.defaultScope.isEmpty()) {
 				return null;
 			}
