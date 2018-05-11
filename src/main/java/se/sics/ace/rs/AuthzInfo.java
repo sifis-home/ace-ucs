@@ -128,13 +128,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
-	    
-		//1. Check whether it is a CWT or REF type
-	    CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
+        CBORObject tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
+        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
 	    Map<Short, CBORObject> claims = null;
-	    if (cbor.getType().equals(CBORType.ByteString)) {
+	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
 	        try {
-                claims = processRefrenceToken(msg);
+                claims = processRefrenceToken(tokenAsCbor);
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -149,9 +148,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
                 map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
                 return msg.failReply(e.getCode(), map);
             }
-	    } else if (cbor.getType().equals(CBORType.Array)) {
+	    } else if (tokenAsCbor.getType().equals(CBORType.Array)) {
 	        try {
-	            claims = processCWT(msg);
+	            claims = processCWT(tokenAsCbor);
 	        } catch (IntrospectionException e) {
                 LOGGER.info("Introspection error, "
                         + "message processing aborted: " + e.getMessage());
@@ -304,7 +303,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * to those of the CWT, possibly overwriting CWT claims with
 	 * "fresher" introspection claim having the same id.
 	 * 
-	 * @param msg  the message
+	 * @param token  the token as CBOR
 	 * 
 	 * @return  the claims of the CWT
 	 * 
@@ -314,10 +313,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	 * 
 	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<Short,CBORObject> processCWT(Message msg) 
+	private Map<Short,CBORObject> processCWT(CBORObject token)
 	        throws IntrospectionException, AceException, 
 	        CoseException, Exception {
-	    CWT cwt = CWT.processCOSE(msg.getRawPayload(), this.ctx);
+	    CWT cwt = CWT.processCOSE(token.EncodeToBytes(), this.ctx);
 	    //Check if we can introspect this token
 	    Map<Short, CBORObject> claims = cwt.getClaims();
 	   if (this.intro != null) {
@@ -336,17 +335,15 @@ public class AuthzInfo implements Endpoint, AutoCloseable{
 	/**
 	 * Process a message containing a reference token.
 	 * 
-	 * @param msg  the message
+	 * @param token  the token as CBOR
 	 * 
 	 * @return  the claims of the reference token
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    private Map<Short, CBORObject> processRefrenceToken(Message msg)
+    private Map<Short, CBORObject> processRefrenceToken(CBORObject token)
                 throws AceException, IntrospectionException {
-        
-        // This should be a CBOR String
-        CBORObject token = CBORObject.DecodeFromBytes(msg.getRawPayload());
+		// This should be a CBOR String
         if (token.getType() != CBORType.ByteString) {
             throw new AceException("Reference Token processing error");
         }
