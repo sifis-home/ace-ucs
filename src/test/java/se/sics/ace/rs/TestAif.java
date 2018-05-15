@@ -63,9 +63,9 @@ public class TestAif {
         CBORObject authz1 = CBORObject.NewArray();
         CBORObject authz2 = CBORObject.NewArray();
         authz1.Add("sensors/temp");
-        authz1.Add(1);
+        authz1.Add(1);  // == 2^GET(0) ==  2^0
         authz2.Add("config/security");
-        authz2.Add(5);
+        authz2.Add(1|4); // == GET and PUT
         scopeCB.Add(authz1);
         scopeCB.Add(authz2);
         scope = scopeCB.EncodeToBytes();
@@ -93,24 +93,16 @@ public class TestAif {
     public void testNoPermission() throws AceException {
         // 1 = GET  5 = GET and PUT
         Assert.assertTrue(s.scopeMatchResource(scope, "sensors/temp"));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
-                (short)CoAP.Code.DELETE.value));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
-                (short)CoAP.Code.PUT.value));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
-                (short) CoAP.Code.POST.value));
-        Assert.assertTrue(s.scopeMatch(scope, "sensors/temp", 
-                (short)CoAP.Code.GET.value));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", Aif.DELETE));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", Aif.PUT));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", Aif.POST));
+        Assert.assertTrue(s.scopeMatch(scope, "sensors/temp", Aif.GET));
         
         Assert.assertTrue(s.scopeMatchResource(scope, "config/security"));
-        Assert.assertFalse(s.scopeMatch(scope, "config/security", 
-                (short)CoAP.Code.DELETE.value));
-        Assert.assertTrue(s.scopeMatch(scope, "config/security", 
-                (short)CoAP.Code.PUT.value));
-        Assert.assertFalse(s.scopeMatch(scope, "config/security", 
-                (short)CoAP.Code.POST.value));
-        Assert.assertTrue(s.scopeMatch(scope, "config/security", 
-                (short)CoAP.Code.GET.value));
+        Assert.assertFalse(s.scopeMatch(scope, "config/security", Aif.DELETE));
+        Assert.assertTrue(s.scopeMatch(scope, "config/security", Aif.PUT));
+        Assert.assertFalse(s.scopeMatch(scope, "config/security", Aif.POST));
+        Assert.assertTrue(s.scopeMatch(scope, "config/security", Aif.GET));
         
     }
     

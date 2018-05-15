@@ -82,6 +82,12 @@ public class Aif implements ScopeValidator {
      */
     public static short iPATCH = 6;
     
+    
+    /**
+     * The powers of two starting with 0 up to 6
+     */
+    private static short[] powers = {1, 2, 4, 8, 16, 32, 64};
+    
     /**
      * 
      */
@@ -116,7 +122,7 @@ public class Aif implements ScopeValidator {
             short action = scopeElement.get(1).AsInt16();
             if (resource.equals(resourceId)) {
                 //Check action
-                if ((action & (short)actionId) != 0) {
+                if ((action & powers[(short)actionId]) != 0) {
                     return true;
                 }
             }
