@@ -65,7 +65,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * @author Ludwig Seitz
  *
  */
-public class AuthzInfo implements Endpoint, AutoCloseable{
+public class AuthzInfo implements Endpoint, AutoCloseable {
 	
     /**
      * The logger

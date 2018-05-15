@@ -188,7 +188,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);    
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -225,7 +226,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
                 CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
         c.setURI("coaps://localhost/helloWorld");
@@ -235,7 +237,7 @@ public class TestDtlspClient {
     }
         
     /**
-     *  Test passing a kid through psk-identitygetRpkClient
+     *  Test passing a kid through psk-identity
      * @throws AceException 
      * @throws CoseException 
      * @throws InvalidCipherTextException 
@@ -293,7 +295,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -334,7 +337,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -387,7 +391,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -463,7 +468,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
                 CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
         c.setURI("coaps://localhost/temp");
@@ -503,7 +509,8 @@ public class TestDtlspClient {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
         CoapClient c = DTLSProfileRequests.getPskClient(new InetSocketAddress("localhost",
                 CoAP.DEFAULT_COAP_SECURE_PORT), payload, key);
         c.setURI("coaps://localhost/helloWorld");

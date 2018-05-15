@@ -159,7 +159,7 @@ public class TestDtlspAuthzInfo {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        payload = token.encode(ctx);
+        payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());
         
         
     }
