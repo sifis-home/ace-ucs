@@ -51,7 +51,7 @@ public interface ScopeValidator {
 	 * @return  true if the scope includes the resource and the action, false if not.
 	 * @throws AceException 
 	 */
-	boolean scopeMatch(Object scope, String resourceId, String actionId)
+	boolean scopeMatch(Object scope, String resourceId, Object actionId)
 	        throws AceException;
 	
     /**
