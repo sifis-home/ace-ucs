@@ -80,7 +80,8 @@ public class TestAif {
     @Test
     public void testNoResource() throws AceException {
         Assert.assertFalse(s.scopeMatchResource(scope, "sensors/co2"));
-        Assert.assertFalse(s.scopeMatch(scope, "blah", CoAP.Code.GET));
+        Assert.assertFalse(s.scopeMatch(scope, "blah", 
+                (short)CoAP.Code.GET.value));
     }
     
     /**
@@ -92,16 +93,24 @@ public class TestAif {
     public void testNoPermission() throws AceException {
         // 1 = GET  5 = GET and PUT
         Assert.assertTrue(s.scopeMatchResource(scope, "sensors/temp"));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", CoAP.Code.DELETE));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", CoAP.Code.PUT));
-        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", CoAP.Code.POST));
-        Assert.assertTrue(s.scopeMatch(scope, "sensors/temp", CoAP.Code.GET));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
+                (short)CoAP.Code.DELETE.value));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
+                (short)CoAP.Code.PUT.value));
+        Assert.assertFalse(s.scopeMatch(scope, "sensors/temp", 
+                (short) CoAP.Code.POST.value));
+        Assert.assertTrue(s.scopeMatch(scope, "sensors/temp", 
+                (short)CoAP.Code.GET.value));
         
         Assert.assertTrue(s.scopeMatchResource(scope, "config/security"));
-        Assert.assertFalse(s.scopeMatch(scope, "config/security", CoAP.Code.DELETE));
-        Assert.assertTrue(s.scopeMatch(scope, "config/security", CoAP.Code.PUT));
-        Assert.assertFalse(s.scopeMatch(scope, "config/security", CoAP.Code.POST));
-        Assert.assertTrue(s.scopeMatch(scope, "config/security", CoAP.Code.GET));
+        Assert.assertFalse(s.scopeMatch(scope, "config/security", 
+                (short)CoAP.Code.DELETE.value));
+        Assert.assertTrue(s.scopeMatch(scope, "config/security", 
+                (short)CoAP.Code.PUT.value));
+        Assert.assertFalse(s.scopeMatch(scope, "config/security", 
+                (short)CoAP.Code.POST.value));
+        Assert.assertTrue(s.scopeMatch(scope, "config/security", 
+                (short)CoAP.Code.GET.value));
         
     }
     
