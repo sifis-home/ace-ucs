@@ -77,7 +77,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	}
 
     @Override
-    public boolean scopeMatch(Object scope, String resourceId, String actionId)
+    public boolean scopeMatch(Object scope, String resourceId, Object actionId)
             throws AceException {
         if (!(scope instanceof String)) {
             throw new AceException("Scope must be a String in KissValidator");

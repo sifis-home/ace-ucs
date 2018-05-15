@@ -32,17 +32,17 @@
 package se.sics.ace.coap.as;
 
 /**
- * An Authorization Server that offers secure connections and authentication via OSCOAP.
+ * An Authorization Server that offers secure connections and authentication via OSCORE.
  * 
  * @author Ludwig Seitz
  *
  */
-public class OscoapAS {
+public class OscoreAS {
 
     /**
      * Not implemented in this branch
      */
-    public OscoapAS() {
+    public OscoreAS() {
 
     }
 

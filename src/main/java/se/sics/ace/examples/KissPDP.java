@@ -32,7 +32,6 @@
 package se.sics.ace.examples;
 
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -97,38 +96,32 @@ public class KissPDP implements PDP, AutoCloseable {
 	 * All configuration parameters that are null are expected
 	 * to already be in the database.
 	 * 
-	 * @param rootPwd  the database root password, needed to initialize
-	 *     the tables, if they don't already exist 
-	 * @param db  the database connector
+	 * @param connection  the database connector
 	 * @throws AceException 
 	 */
-	public KissPDP(String rootPwd, SQLConnector db) throws AceException {
+	public KissPDP(SQLConnector connection) throws AceException {
+        this.db = connection;
 	    
-	    String createToken = db.getAdapter().updateEngineSpecificSQL(
+	    String createToken = this.db.getAdapter().updateEngineSpecificSQL(
 	            "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + tokenTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL);");
 	    
-	    String createIntrospect = db.getAdapter().updateEngineSpecificSQL(
+	    String createIntrospect = this.db.getAdapter().updateEngineSpecificSQL(
                 "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + introspectTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL,"
                 + introspectClaimsColumn + " boolean NOT NULL);");
 	            
-	    String createAccess = db.getAdapter().updateEngineSpecificSQL(
+	    String createAccess = this.db.getAdapter().updateEngineSpecificSQL(
                 "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
                 + accessTable + "("
                 + DBConnector.idColumn + " varchar(255) NOT NULL,"
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
-	    Properties connectionProps = db.getCurrentUserProperties();
-	    try (Connection rootConn = DriverManager.getConnection(
-	            db.getAdapter().getCurrentDBURL(), connectionProps);
-	            Statement stmt = rootConn.createStatement()) {
+	    try (Connection conn = this.db.getAdapter().getDBConnection();
+             Statement stmt = conn.createStatement()) {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
 	        stmt.execute(createAccess);
@@ -137,72 +130,70 @@ public class KissPDP implements PDP, AutoCloseable {
 	        throw new AceException(e.getMessage());
 	    }
 	    
-	    this.canToken = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+	    this.canToken = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + tokenTable
                         + " WHERE " + DBConnector.idColumn + "=?;"));
 	    
 	    
-        this.canIntrospect = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+        this.canIntrospect = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + introspectTable
                         + " WHERE " + DBConnector.idColumn + "=?;"));
         
         //Gets only the access of the client, the PDP sorts out the audiences
         //and scopes
-        this.canAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+        this.canAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable
                         + " WHERE " + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?;"));
         
         
-        this.addTokenAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+        this.addTokenAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                       + tokenTable + " VALUES (?);"));
         
-        this.addIntrospectAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+        this.addIntrospectAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + introspectTable + " VALUES (?,?);"));
         
-        this.addAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+        this.addAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + accessTable + " VALUES (?,?,?);"));
         
-        this.deleteTokenAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+        this.deleteTokenAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + tokenTable + " WHERE " 
                         + DBConnector.idColumn + "=?;"));
         
-        this.deleteIntrospectAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+        this.deleteIntrospectAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + introspectTable + " WHERE " 
                         + DBConnector.idColumn + "=?;"));
         
-        this.deleteAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+        this.deleteAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + accessTable + " WHERE " 
                         + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?"
                         + " AND " + DBConnector.scopeColumn + "=?;"));
         
-        this.deleteAllAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+        this.deleteAllAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + accessTable + " WHERE " 
                         + DBConnector.idColumn + "=?;"));
 
-        this.deleteAllRsAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
+        this.deleteAllRsAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + accessTable + " WHERE " 
                         + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?;"));
 
-        this.getAllAccess = db.prepareStatement(
-                db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+        this.getAllAccess = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable + " WHERE "
                         + DBConnector.idColumn + "=?;"));
-	    
-		this.db = db;
 	}
 	
 	@Override
@@ -243,10 +234,7 @@ public class KissPDP implements PDP, AutoCloseable {
                     {
                         return IntrospectAccessLevel.ACTIVE_AND_CLAIMS;
                     }
-                    else
-                    {
-                        return IntrospectAccessLevel.ACTIVE_ONLY;
-                    }
+                    return IntrospectAccessLevel.ACTIVE_ONLY;
 	            }
 	            result.close();
 	        } catch (SQLException e) {
@@ -256,7 +244,7 @@ public class KissPDP implements PDP, AutoCloseable {
 	}
 
 	@Override
-	public String canAccess(String clientId, Set<String> aud, String scope) 
+	public String canAccess(String clientId, Set<String> aud, Object scope) 
 				throws AceException {
 	    if (clientId == null) {
             throw new AceException(
@@ -329,8 +317,13 @@ public class KissPDP implements PDP, AutoCloseable {
         if (scopes == null || scopes.isEmpty()) {
             return null;
         }
-        
-        String scopeStr = scope;
+        String scopeStr;
+        if (scope instanceof String) {
+            scopeStr = (String)scope;
+        } else {
+            throw new AceException(
+                    "KissPDP does not support non-String scopes");
+        }
         String[] requestedScopes = scopeStr.split(" ");
         String grantedScopes = "";
         for (int i=0; i<requestedScopes.length; i++) {

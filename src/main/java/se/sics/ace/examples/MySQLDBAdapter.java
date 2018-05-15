@@ -66,11 +66,19 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     @Override
     public void setParams(String user, String pwd, String dbName, String dbUrl) {
         this.user = user;
+        if(this.user == null)
+        {
+            this.user = DBConnector.DEFAULT_USER;
+        }
         this.password = pwd;
+        if(this.password == null)
+        {
+            this.password = DBConnector.DEFAULT_PASSWORD;
+        }
         this.dbName = dbName;
         if(this.dbName == null)
         {
-            this.dbName = DBConnector.dbName;
+            this.dbName = DBConnector.DEFAULT_DB_NAME;
         }
         this.dbUrl = dbUrl;
         if(this.dbUrl == null)
@@ -80,21 +88,34 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createUser(String rootPwd) throws AceException {
+    public Connection getRootConnection(String rootPwd) throws SQLException {
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
+        return DriverManager.getConnection(this.dbUrl, connectionProps);
+    }
+
+    @Override
+    public Connection getDBConnection() throws SQLException {
+        Properties connectionProps = new Properties();
+        connectionProps.put("user", this.user);
+        connectionProps.put("password", this.password);
+        return DriverManager.getConnection(this.dbUrl + "/" 
+                + this.dbName, connectionProps);
+    }
+
+    @Override
+    public synchronized void createUser(String rootPwd) throws AceException {
         String cUser = "CREATE USER IF NOT EXISTS'" + this.user
                 + "'@'localhost' IDENTIFIED BY '" + this.password
                 + "';";
         String authzUser = "GRANT DELETE, INSERT, SELECT, UPDATE, CREATE ON "
                 + this.dbName + ".* TO '" + this.user + "'@'localhost';";
-        try (Connection rootConn = DriverManager.getConnection(
-                this.dbUrl, connectionProps);
-             Statement stmt = rootConn.createStatement();) {
+
+        try (Connection rootConn = getRootConnection(rootPwd);
+             Statement stmt = rootConn.createStatement()) {
             stmt.execute(cUser);
             stmt.execute(authzUser);
-            stmt.close();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
@@ -185,7 +206,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + " VALUES (0);";
 
         String createTokenLog = "CREATE TABLE IF NOT EXISTS "
-                + DBConnector.dbName + "."
+                + this.dbName + "."
                 + DBConnector.cti2clientTable + "("
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
@@ -200,11 +221,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + " PRIMARY KEY (" + DBConnector.grantColumn + ","
                 + DBConnector.ctiColumn + "));";
 
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
-        connectionProps.put("password", rootPwd);
-        try (Connection rootConn = DriverManager.getConnection(
-                this.dbUrl, connectionProps);
+        try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement()) {
             stmt.execute(createDB);
             stmt.execute(createRs);
@@ -236,40 +253,18 @@ public class MySQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public String getDefaultDBURL()
+    public void wipeDB(String rootPwd) throws AceException
     {
-        return MySQLDBAdapter.DEFAULT_DB_URL;
-    }
-
-    @Override
-    public String getCurrentDBURL()
-    {
-        return this.dbUrl;
-    }
-
-    @Override
-    public void wipeDB(String rootPwd, String dbOwner) throws AceException
-    {
-        try
+        try (Connection rootConn = getRootConnection(rootPwd);
+             Statement stmt = rootConn.createStatement())
         {
-            Properties connectionProps = new Properties();
-            connectionProps.put("user", ROOT_USER);
-            connectionProps.put("password", rootPwd);
-            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL, connectionProps);
-            String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-            String dropUser = "DROP USER IF EXISTS '" + dbOwner + "'@'localhost';";
-            Statement stmt = rootConn.createStatement();
+            String dropDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
+            String dropUser = "DROP USER IF EXISTS '" + this.user 
+                    + "'@'localhost';";
             stmt.execute(dropDB);
             stmt.execute(dropUser);
-            stmt.close();
-            rootConn.close();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
-    }
-
-    @Override
-    public String getDefaultRoot() {
-        return ROOT_USER;
     }
 }

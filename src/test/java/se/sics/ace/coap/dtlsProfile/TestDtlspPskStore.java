@@ -200,10 +200,12 @@ public class TestDtlspPskStore {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(CBORObject.FromObject(Constants.ACCESS_TOKEN), tokenCB);
+        
+        CBORObject tokenAsBytes = CBORObject.FromObject(
+                tokenCB.EncodeToBytes());
+        
         String psk_identity = Base64.getEncoder().encodeToString(
-                cbor.EncodeToBytes()); 
+                tokenAsBytes.EncodeToBytes()); 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertNull(psk);
@@ -240,8 +242,12 @@ public class TestDtlspPskStore {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
+        
+        CBORObject tokenAsBytes = CBORObject.FromObject(
+                tokenCB.EncodeToBytes());
+        
         String psk_identity = Base64.getEncoder().encodeToString(
-                tokenCB.EncodeToBytes()); 
+                tokenAsBytes.EncodeToBytes()); 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);

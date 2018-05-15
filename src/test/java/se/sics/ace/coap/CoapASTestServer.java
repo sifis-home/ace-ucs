@@ -31,8 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.coap;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -48,12 +46,12 @@ import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.CoapsAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.SQLConnector;
 
 /**
  * The server to run the client tests against.
@@ -64,14 +62,13 @@ import se.sics.ace.examples.SQLConnector;
  * @author Ludwig Seitz
  *
  */
-public class TestCoapAS {
-
+public class CoapASTestServer
+{
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
     
     private static CoapDBConnector db = null;
-    private static String dbPwd = null;
-    private static CoapsAS as = null; 
+    private static CoapsAS as = null;
     private static KissPDP pdp = null;
   
     /**
@@ -81,35 +78,12 @@ public class TestCoapAS {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), "");     
-        } finally {
-            br.close();
-        }
+        DBHelper.setUpDB();
+        db = DBHelper.getCoapDBConnector();
 
         OneKey akey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-        
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
 
-
-        db = CoapDBConnector.getInstance(null, null, null);
-        
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
@@ -118,7 +92,7 @@ public class TestCoapAS {
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         Set<String> scopes = new HashSet<>();
         scopes.add("rw_valve");
         scopes.add("r_pressure");
@@ -138,7 +112,7 @@ public class TestCoapAS {
                 expiration, skey, akey);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
@@ -156,7 +130,7 @@ public class TestCoapAS {
         db.addCti2Client(cti, "clientA");
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        pdp = new KissPDP(dbPwd, db);
+        pdp = new KissPDP(db);
         
         //Initialize data in PDP
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -219,6 +193,7 @@ public class TestCoapAS {
     public static void stop() throws Exception {
         as.stop();
         pdp.close();
+        DBHelper.tearDownDB();
     }
     
 }

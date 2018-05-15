@@ -332,7 +332,7 @@ public class CWT implements AccessToken {
 	        return;
 	    }
 	    for (Map.Entry<HeaderKeys, CBORObject> h : headers.entrySet()) {
-            m.addAttribute(h.getKey(), h.getValue(), 
+            m.addAttribute(h.getKey(), h.getValue().EncodeToBytes(), 
                     (protect ? Attribute.PROTECTED : Attribute.UNPROTECTED));
         }   
 	}

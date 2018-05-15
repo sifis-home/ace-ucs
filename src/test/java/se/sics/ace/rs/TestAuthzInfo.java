@@ -31,22 +31,17 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
-import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
+import COSE.HeaderKeys;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -63,10 +58,10 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
-import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -86,9 +81,7 @@ public class TestAuthzInfo {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static SQLConnector db = null;
-    
-    private static String dbPwd = null;
-    
+
     private static AuthzInfo ai = null;
     private static Introspect i; 
     private static TokenRepository tr = null;
@@ -104,28 +97,9 @@ public class TestAuthzInfo {
     @BeforeClass
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
-        
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), "");     
-        } finally {
-            br.close();
-        }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
+
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
@@ -135,9 +109,7 @@ public class TestAuthzInfo {
         sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         sharedKey.add(KeyKeys.KeyId, CBORObject.FromObject(new byte[]{0x74, 0x11}));
         sharedKey.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-       
-        db = SQLConnector.getInstance(null, null, null);
-        
+
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
@@ -146,7 +118,7 @@ public class TestAuthzInfo {
                 publicKey);
         db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
                 publicKey);
-        
+
         Set<String> actions = new HashSet<>();
         actions.add("GET");
         Map<String, Set<String>> myResource = new HashMap<>();
@@ -166,8 +138,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        
-        pdp = new KissPDP(dbPwd, db);
+
+        pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         i = new Introspect(pdp, db, new KissTime(), key);
@@ -175,6 +147,16 @@ public class TestAuthzInfo {
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 valid, ctx);
+    }
+
+    private static  Map<HeaderKeys, CBORObject> getHeadersWithKID(String audience)
+    {
+        // Add the audience as the KID in the header, so it can be referenced by introspection requests.
+        CBORObject requestedAud = CBORObject.NewArray();
+        requestedAud.Add(audience);
+        Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
+        uHeaders.put(HeaderKeys.KID, requestedAud);
+        return uHeaders;
     }
     
     /**
@@ -207,26 +189,12 @@ public class TestAuthzInfo {
     
     /**
      * Deletes the test DB after the tests
-     * 
-     * @throws SQLException 
-     * @throws AceException 
+     * @throws Exception 
      */
     @AfterClass
-    public static void tearDown() throws SQLException, AceException {
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);        
-        stmt.close();
-        rootConn.close();
-        db.close();
+    public static void tearDown() throws Exception {
+        DBHelper.tearDownDB();
+        pdp.close();
         i.close();
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
@@ -244,8 +212,8 @@ public class TestAuthzInfo {
     public void testRefInactive() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         ReferenceToken token = new ReferenceToken(20);
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-                token.encode());
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+               CBORObject.FromObject(token.encode().EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
@@ -296,8 +264,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
@@ -335,8 +303,8 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
 
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-                cwt.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+                CBORObject.FromObject(cwt.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -358,8 +326,8 @@ public class TestAuthzInfo {
     public void testInvalidTokenFormat() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         CBORObject token = CBORObject.False;
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-               token);
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+                CBORObject.FromObject(token.EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -399,8 +367,9 @@ public class TestAuthzInfo {
         claims.put(Constants.EXP, CBORObject.FromObject(10000));
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                cwt.encode(ctx));
+        
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(cwt.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
@@ -438,8 +407,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
@@ -480,8 +449,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
@@ -518,8 +487,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
@@ -557,8 +526,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
@@ -595,8 +564,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
@@ -644,8 +613,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
@@ -699,8 +668,8 @@ public class TestAuthzInfo {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1", 
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());

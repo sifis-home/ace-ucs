@@ -58,33 +58,53 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     /**
      * The default connection URL for the database.
      */
-    public static final String DEFAULT_DB_URL = "jdbc:postgresql://localhost:5432";
+    public static final String DEFAULT_DB_URL 
+        = "jdbc:postgresql://localhost:5432";
 
     protected String user;
     protected String password;
     protected String baseDbUrl;
     protected String dbName;
 
-    protected String internalDbURL;
-    protected String actualDbUrl;
-
     @Override
     public void setParams(String user, String pwd, String dbName, String dbUrl) {
         this.user = user;
+        if(this.user == null)
+        {
+            this.user = DBConnector.DEFAULT_USER;
+        }
         this.password = pwd;
+        if(this.password == null)
+        {
+            this.password = DBConnector.DEFAULT_PASSWORD;
+        }
         this.dbName = dbName;
         if(this.dbName == null)
         {
-            this.dbName = DBConnector.dbName;
+            this.dbName = DBConnector.DEFAULT_DB_NAME;
         }
         this.baseDbUrl = dbUrl;
         if(this.baseDbUrl == null)
         {
             this.baseDbUrl = DEFAULT_DB_URL;
         }
+    }
 
-        this.internalDbURL = this.baseDbUrl + "/" + PostgreSQLDBAdapter.BASE_DB;
-        this.actualDbUrl = this.baseDbUrl + "/" + this.dbName;
+    @Override
+    public Connection getRootConnection(String rootPwd) throws SQLException {
+        Properties connectionProps = new Properties();
+        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
+        connectionProps.put("password", rootPwd);
+        return DriverManager.getConnection(this.baseDbUrl + "/" 
+                + PostgreSQLDBAdapter.BASE_DB, connectionProps);
+    }
+
+    @Override
+    public Connection getDBConnection() throws SQLException {
+        Properties connectionProps = new Properties();
+        connectionProps.put("user", this.user);
+        connectionProps.put("password", this.password);
+        return DriverManager.getConnection(this.baseDbUrl + "/" + this.dbName, connectionProps);
     }
 
     @Override
@@ -97,20 +117,16 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 "      FROM   pg_catalog.pg_user\n" +
                 "      WHERE  usename = '" +  this.user + "') THEN\n" +
                 "\n" +
-                "      CREATE ROLE " +  this.user + " LOGIN PASSWORD '" +  this.password + "';\n" +
+                "      CREATE ROLE " +  this.user + " LOGIN PASSWORD '" 
+                    +  this.password + "';\n" +
                 "   END IF;\n" +
                 "END\n" +
                 "$body$;";
 
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
-        connectionProps.put("password", rootPwd);
-        try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
+        try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement())
         {
             stmt.execute(createUser);
-            rootConn.close();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
             throw new AceException(e.getMessage());
@@ -118,28 +134,20 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public synchronized void createDBAndTables(String rootPwd) throws AceException {
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", PostgreSQLDBAdapter.ROOT_USER);
-        connectionProps.put("password", rootPwd);
-
+    public synchronized void createDBAndTables(String rootPwd) 
+            throws AceException {
         // First check it DB exists.
-        String checkDB = "SELECT datname FROM pg_catalog.pg_database WHERE datname = '" + this.dbName + "';";
-        try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
-             Statement stmt = rootConn.createStatement())
+        String checkDB = "SELECT datname FROM pg_catalog.pg_database "
+                + "WHERE datname = '" + this.dbName + "';";
+        try (Connection rootConn = getRootConnection(rootPwd);
+             Statement stmt = rootConn.createStatement();
+             ResultSet result = stmt.executeQuery(checkDB))
         {
-            ResultSet result = stmt.executeQuery(checkDB);
             if (result.next())
             {
-                // For consistency with other DB adapters, do nothing in this case.
-                result.close();
-                rootConn.close();
-                stmt.close();
+                // Treat this as a "create if not exist", so if it exists, end method without doing anything.
                 return;
             }
-            result.close();
-            rootConn.close();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
             throw new AceException(e.getMessage());
@@ -147,14 +155,13 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
 
         // Create the database.
         String createDB = "CREATE DATABASE " + this.dbName
-                + " WITH OWNER= " + this.user + " ENCODING = 'UTF8' TEMPLATE = template0 " +
-                " CONNECTION LIMIT = -1;";
-        try (Connection rootConn = DriverManager.getConnection(this.internalDbURL, connectionProps);
+                + " WITH OWNER= " + this.user 
+                + " ENCODING = 'UTF8' TEMPLATE = template0 " 
+                + " CONNECTION LIMIT = -1;";
+        try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement())
         {
             stmt.execute(createDB);
-            rootConn.close();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
             throw new AceException(e.getMessage());
@@ -193,7 +200,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);";
 
-        String tokenType = "CREATE TYPE tokenType AS ENUM ('CWT', 'REF', 'TST');";
+        String tokenType 
+            = "CREATE TYPE tokenType AS ENUM ('CWT', 'REF', 'TST');";
 
         String createTokenTypes = "CREATE TABLE "
                 + DBConnector.tokenTypesTable + "("
@@ -236,11 +244,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
 
-        connectionProps = new Properties();
-        connectionProps.put("user", this.user);
-        connectionProps.put("password", this.password);
-        try (Connection rootConn = DriverManager.getConnection(
-                this.actualDbUrl, connectionProps);
+        // Table creation in PostgreSQL needs to be done with a connection 
+        //using the local user and not the root user, so that the local 
+        //user will be automatically set as the owner of the tables.
+        try (Connection rootConn = getDBConnection();
              Statement stmt = rootConn.createStatement())
         {
             stmt.execute(createRs);
@@ -258,8 +265,6 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
-            rootConn.close();
-            stmt.close();
         } catch (SQLException e) {
             e.printStackTrace();
             throw new AceException(e.getMessage());
@@ -280,10 +285,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             return "INSERT INTO " + DBConnector.tokenTypesTable 
                     + " VALUES (?,?::tokentype)";
         }
-        //Create table statements do not take the db name in PostgreSQL
-        if (sqlQuery.contains("CREATE TABLE IF NOT EXISTS ")) {
-           String ret = sqlQuery.replace("CREATE TABLE IF NOT EXISTS ", 
-                    "CREATE TABLE ");
+
+        // Create table statements do not take the db name in PostgreSQL.
+        if (sqlQuery.contains("CREATE TABLE")) {
+           String ret = sqlQuery;
            if (sqlQuery.contains(this.dbName + ".")) {
                ret = sqlQuery.replace(this.dbName + ".", "");
            }
@@ -293,40 +298,23 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
     }
 
     @Override
-    public String getDefaultDBURL()
+    public void wipeDB(String rootPwd) throws AceException
     {
-        return PostgreSQLDBAdapter.DEFAULT_DB_URL;
-    }
-
-    @Override
-    public String getCurrentDBURL()
-    {
-        return this.actualDbUrl;
-    }
-
-    @Override
-    public void wipeDB(String rootPwd, String dbOwner) throws AceException
-    {
-        try
+        try (Connection rootConn = getRootConnection(rootPwd);
+             Statement stmt = rootConn.createStatement())
         {
-            Properties connectionProps = new Properties();
-            connectionProps.put("user", ROOT_USER);
-            connectionProps.put("password", rootPwd);
-            Connection rootConn = DriverManager.getConnection(DEFAULT_DB_URL + "/" + BASE_DB, connectionProps);
-            String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-            String dropUser = "DROP USER IF EXISTS " + dbOwner + ";";
-            Statement stmt = rootConn.createStatement();
+            String dropConnections = "SELECT pg_terminate_backend(pg_stat_activity.pid) " 
+                    + "    FROM pg_stat_activity " 
+                    + "    WHERE pg_stat_activity.datname = '" 
+                    + this.dbName + "'" 
+                    + "      AND pid <> pg_backend_pid();";
+            String dropDB = "DROP DATABASE IF EXISTS " + this.dbName + ";";
+            String dropUser = "DROP USER IF EXISTS " + this.user + ";";
+            stmt.execute(dropConnections);
             stmt.execute(dropDB);
             stmt.execute(dropUser);
-            stmt.close();
-            rootConn.close();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
-    }
-
-    @Override
-    public String getDefaultRoot() {
-        return ROOT_USER;
     }
 }

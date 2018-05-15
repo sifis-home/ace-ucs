@@ -159,7 +159,7 @@ public class TestDtlspAuthzInfo {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        payload = token.encode(ctx);
+        payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());
         
         
     }
@@ -224,7 +224,6 @@ public class TestDtlspAuthzInfo {
         cep.start();
         iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
-        //FIXME: MessageIdProvider is null here
         dai.handlePOST(ex);
       
         String kid = Base64.getEncoder().encodeToString(new byte[]{0x01, 0x02});

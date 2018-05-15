@@ -31,18 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
@@ -63,6 +57,7 @@ import COSE.HeaderKeys;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.cwt.CWT;
@@ -70,7 +65,6 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
-import se.sics.ace.examples.MySQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -87,7 +81,6 @@ public class TestIntrospect {
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
       
     private static SQLConnector db = null;
-    private static String dbPwd = null;
     private static KissPDP pdp = null;
     private static Introspect i = null;
     
@@ -101,34 +94,13 @@ public class TestIntrospect {
     @BeforeClass
     public static void setUp() 
             throws AceException, SQLException, IOException, CoseException {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(
-                    System.getProperty("line.separator"), "");     
-        } finally {
-            br.close();
-        }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password",
-                MySQLDBAdapter.DEFAULT_DB_URL);
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                MySQLDBAdapter.DEFAULT_DB_URL);
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         privateKey = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
-        db = SQLConnector.getInstance(null, null, null);
-        
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
@@ -138,7 +110,7 @@ public class TestIntrospect {
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         
         Set<String> scopes = new HashSet<>();
         scopes.add("temp");
@@ -202,7 +174,7 @@ public class TestIntrospect {
         claims.put(Constants.CNF, cnf);
         db.addToken(cti2Str, claims);
         db.addCti2Client(cti2Str, "client1");
-        pdp = new KissPDP(dbPwd, db);
+        pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
@@ -218,21 +190,9 @@ public class TestIntrospect {
      */
     @AfterClass
     public static void tearDown() throws Exception {
-        pdp.close();
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);    
-        stmt.close();
-        rootConn.close();
-        db.close();
+        if(pdp != null)
+            pdp.close();
+        DBHelper.tearDownDB();
     }
     
     /**
@@ -279,7 +239,7 @@ public class TestIntrospect {
     public void testSuccessPurgedInactive() throws Exception {
         ReferenceToken purged = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, purged.encode());
+        params.put(Constants.TOKEN, CBORObject.FromObject(purged.encode().EncodeToBytes()));
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -300,7 +260,7 @@ public class TestIntrospect {
     public void testSuccessNotExistInactive() throws Exception {
         CBORObject notExist = CBORObject.FromObject(new byte[] {0x03});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, notExist);
+        params.put(Constants.TOKEN, CBORObject.FromObject(notExist.EncodeToBytes()));
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
@@ -325,8 +285,11 @@ public class TestIntrospect {
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
 
         // Add the audience as the KID in the header, so it can be referenced by introspection requests.
+        CBORObject requestedAud = CBORObject.NewArray();
+        requestedAud.Add("rs1");
         Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
-        uHeaders.put(HeaderKeys.KID, CBORObject.FromObject("rs1"));
+        uHeaders.put(HeaderKeys.KID, requestedAud);
+
 
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
@@ -334,7 +297,7 @@ public class TestIntrospect {
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());
         params.clear();
-        params.put(Constants.TOKEN, token.encode(ctx, null, uHeaders));
+        params.put(Constants.TOKEN, CBORObject.FromObject(token.encode(ctx,null, uHeaders).EncodeToBytes()));
 
         Message response = i.processMessage(
                 new LocalMessage(-1, "rs1", "TestAS", params));
@@ -355,7 +318,7 @@ public class TestIntrospect {
     public void testSuccessRef() throws Exception {
         ReferenceToken t = new ReferenceToken(new byte[]{0x01});
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, t.encode());
+        params.put(Constants.TOKEN, CBORObject.FromObject(t.encode().EncodeToBytes()));
         String senderId = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName().trim();
         Message response = i.processMessage(

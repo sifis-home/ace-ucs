@@ -44,7 +44,6 @@ import com.upokecenter.cbor.CBORType;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
-import se.sics.ace.examples.MySQLDBAdapter;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.examples.SQLDBAdapter;
 
@@ -66,37 +65,17 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
      * The singleton instance
      */
     private static CoapDBConnector connector;
-    
-    /**
-     * Constructor.
-     *  
-     * @param dbUrl  the database URL, if null the default will be used
-     * @param user   the database user, if null the default will be used
-     * @param pwd    the database user's password, if null the default 
-     *               will be used
-     *
-     * @throws SQLException
-     */
-    protected CoapDBConnector(String dbUrl, String user, String pwd)
-            throws SQLException {
-        super(dbUrl, user, pwd);
-
-    }
 
     /**
      * Constructor.
      *
      * @param dbAdapter handler for engine-db specific commands.
-     * @param dbUrl     the database URL, if null the default will be used
-     * @param user      the database user, if null the default will be used
-     * @param pwd       the database user's password, if null the default
-     *                  will be used
      *
      * @throws SQLException
      */
-    protected CoapDBConnector(SQLDBAdapter dbAdapter, String dbUrl, String user, String pwd)
+    protected CoapDBConnector(SQLDBAdapter dbAdapter)
             throws SQLException {
-        super(dbAdapter, dbUrl, user, pwd);
+        super(dbAdapter);
     }
 
     @Override
@@ -131,40 +110,20 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
           
         
     }
-    
-    /**
-     * Gets the singleton instance of this connector. Defaults to MySQL.
-    *
-    * @param dbUrl     the database URL, if null the default will be used
-    * @param user      the database user, if null the default will be used
-    * @param pwd       the database user's password, if null the default
-    *
-    * @return  the singleton instance
-    *
-    * @throws SQLException
-    */
-   public static CoapDBConnector getInstance(String dbUrl, String user, String pwd)
-           throws SQLException {
-       return CoapDBConnector.getInstance(new MySQLDBAdapter(), dbUrl, user, pwd);
-   }
 
    /**
     * Gets the singleton instance of this connector.
     * 
     * @param dbCreator a creator instance for the specific DB type being used.
-    * @param dbUrl     the database URL, if null the default will be used
-    * @param user      the database user, if null the default will be used
-    * @param pwd       the database user's password, if null the default
-    * 
+    *
     * @return  the singleton instance
     * 
     * @throws SQLException
     */
-   public static CoapDBConnector getInstance(SQLDBAdapter dbCreator, 
-           String dbUrl, String user, String pwd) throws SQLException {
+   public static CoapDBConnector getInstance(SQLDBAdapter dbCreator) throws SQLException {
        if (CoapDBConnector.connector == null) {
            CoapDBConnector.connector 
-               = new CoapDBConnector(dbCreator, dbUrl, user, pwd);
+               = new CoapDBConnector(dbCreator);
        }
        return CoapDBConnector.connector;
    }

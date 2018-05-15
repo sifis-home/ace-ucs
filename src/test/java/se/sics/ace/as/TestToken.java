@@ -31,18 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
@@ -61,10 +55,10 @@ import COSE.HeaderKeys;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -85,7 +79,6 @@ public class TestToken {
     private static OneKey privateKey; 
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
-    private static String dbPwd = null;
     private static Token t = null;
     private static String cti1;
     private static String cti2;
@@ -100,35 +93,14 @@ public class TestToken {
      */
     @BeforeClass
     public static void setUp() throws AceException, SQLException, IOException, CoseException {
-        BufferedReader br = new BufferedReader(new FileReader("db.pwd"));
-        try {
-            StringBuilder sb = new StringBuilder();
-            String line = br.readLine();
 
-            while (line != null) {
-                sb.append(line);
-                sb.append(System.lineSeparator());
-                line = br.readLine();
-            }
-            dbPwd = sb.toString().replace(System.getProperty("line.separator"), "");         
-        } finally {
-            br.close();
-        }
-        //Just to be sure no old test pollutes the DB
-        SQLConnector.wipeDatabase(dbPwd, "aceuser");
-        
-        SQLConnector.createUser(dbPwd, "aceuser", "password", 
-                "jdbc:mysql://localhost:3306");
-        SQLConnector.createDB(dbPwd, "aceuser", "password", null,
-                "jdbc:mysql://localhost:3306");
-
+        DBHelper.setUpDB();
+        db = DBHelper.getSQLConnector();
 
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey(); 
         publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
                 "myKey".getBytes(Constants.charset)));
-        
-        db = SQLConnector.getInstance(null, null, null);
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -139,7 +111,7 @@ public class TestToken {
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         
         Set<String> scopes = new HashSet<>();
         scopes.add("temp");
@@ -168,7 +140,7 @@ public class TestToken {
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, skey, publicKey);
         
-        profiles.remove("coap_oscoap");
+        profiles.remove("coap_oscore");
         scopes.clear();
         auds.clear();
         auds.add("sensors");
@@ -180,7 +152,7 @@ public class TestToken {
                 expiration, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("actuators");
@@ -232,7 +204,7 @@ public class TestToken {
                 expiration, null, publicKey);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         keyTypes.clear();
@@ -249,7 +221,7 @@ public class TestToken {
         
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
         auds.add("failCWTpar");
@@ -275,14 +247,14 @@ public class TestToken {
                 keyTypes, null, publicKey);
   
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "rs1", 
                 keyTypes, skey, null);
         
         profiles.clear();
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("TST");        
         db.addClient("clientC", profiles, "co2", "sensors", 
@@ -298,7 +270,7 @@ public class TestToken {
         
         profiles.clear();
         profiles.add("coap_dtls");
-        profiles.add("coap_oscoap");
+        profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
@@ -325,7 +297,7 @@ public class TestToken {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti2, claims);
         
-        pdp = new KissPDP(dbPwd, db);
+        pdp = new KissPDP(db);
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addTokenAccess("clientA");
         pdp.addTokenAccess("clientB");
@@ -378,20 +350,8 @@ public class TestToken {
     @AfterClass
     public static void tearDown() throws Exception {
         pdp.close();
-        Properties connectionProps = new Properties();
-        connectionProps.put("user", "root");
-        connectionProps.put("password", dbPwd);
-        Connection rootConn = DriverManager.getConnection(
-                "jdbc:mysql://localhost:3306", connectionProps);
-              
-        String dropDB = "DROP DATABASE IF EXISTS " + DBConnector.dbName + ";";
-        String dropUser = "DROP USER 'aceuser'@'localhost';";
-        Statement stmt = rootConn.createStatement();
-        stmt.execute(dropDB);
-        stmt.execute(dropUser);
-        stmt.close();
-        rootConn.close();
-        db.close();
+
+        DBHelper.tearDownDB();
     }
     
     
@@ -635,7 +595,10 @@ public class TestToken {
         assert(response.getMessageCode() 
                 == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+        CWT cwt = CWT.processCOSE(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).EncodeToBytes(),
+                CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.AUD).AsString().equals("rs1"));
     }
@@ -659,7 +622,9 @@ public class TestToken {
         assert(response.getMessageCode() 
                 == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(token.EncodeToBytes(), CwtCryptoCtx.sign1Verify(
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.SCOPE).AsString().equals("co2"));
     }
@@ -685,8 +650,10 @@ public class TestToken {
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
-        Map<Short, CBORObject> claims = db.getClaims(cti);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         assert(!claims.get(Constants.SCOPE).AsString().contains("foobar"));
@@ -726,8 +693,10 @@ public class TestToken {
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        String cti = Base64.getEncoder().encodeToString(token.GetByteString());
-        Map<Short, CBORObject> claims = db.getClaims(cti);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
     }
     
@@ -755,7 +724,8 @@ public class TestToken {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                token.GetByteString());
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         CBORObject cnf2 = claims.get(Constants.CNF);
@@ -825,7 +795,7 @@ public class TestToken {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
         t = new Token("testAS2", pdp, db, new KissTime(),
-                privateKey, tokenConfig);
+                privateKey, tokenConfig, false);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
@@ -842,7 +812,8 @@ public class TestToken {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                token.GetByteString());
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);     

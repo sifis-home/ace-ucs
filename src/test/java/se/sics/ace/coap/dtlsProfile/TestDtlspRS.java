@@ -216,7 +216,9 @@ public class TestDtlspRS {
       cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
       params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
-      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
+      CBORObject tokenAsBytes = CBORObject.FromObject(
+              token.encode(ctx).EncodeToBytes());
+      ai.processMessage(new LocalMessage(0, null, null, tokenAsBytes));
 
       AsInfo asi 
       = new AsInfo("coaps://blah/authz-info/");
