@@ -478,7 +478,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @param kid  the key identifier used for proof-of-possession.
 	 * @param subject  the authenticated subject if there is any, can be null
 	 * @param resource  the resource that is accessed
-	 * @param action  the RESTful action on that resource
+	 * @param action  the RESTful action code.
 	 * @param time  the time provider
 	 * @param intro  the introspection handler, can be null
 	 * @return  1 if there is a token giving access, 0 if there is no token 
@@ -488,7 +488,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws IntrospectionException 
 	 */
 	public int canAccess(String kid, String subject, String resource, 
-	        String action, TimeProvider time, IntrospectionHandler intro) 
+	        short action, TimeProvider time, IntrospectionHandler intro) 
 			        throws AceException, IntrospectionException {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
@@ -503,7 +503,6 @@ public class TokenRepository implements AutoCloseable {
 	        }
 	    }
 	 
-	    
 	    boolean methodNA = false;   
 	    for (String cti : ctis) { //All tokens linked to that pop key
 	        //Check if we have the claims for that cti

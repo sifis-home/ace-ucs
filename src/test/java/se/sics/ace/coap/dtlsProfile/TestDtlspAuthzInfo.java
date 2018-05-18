@@ -111,17 +111,17 @@ public class TestDtlspAuthzInfo {
             IllegalStateException, InvalidCipherTextException {
         
         //Set up DTLSProfileTokenRepository
-        Set<String> actions = new HashSet<>();
-        actions.add("GET");
-        Map<String, Set<String>> myResource = new HashMap<>();
+        Set<Short> actions = new HashSet<>();
+        actions.add(Constants.GET);
+        Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("temp", actions);
-        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        Set<String> actions2 = new HashSet<>();
-        actions.add("GET");
-        actions.add("POST");
-        Map<String, Set<String>> myResource2 = new HashMap<>();
+        Set<Short> actions2 = new HashSet<>();
+        actions.add(Constants.GET);
+        actions.add(Constants.POST);
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource.put("co2", actions2);
         myScopes.put("rw_co2", myResource2);
         
@@ -234,7 +234,7 @@ public class TestDtlspAuthzInfo {
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "temp", "GET", 
+                tr.canAccess(kid, kid, "temp", Constants.GET, 
                         new KissTime(), null));
     }
          

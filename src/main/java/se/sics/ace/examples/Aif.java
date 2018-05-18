@@ -40,8 +40,6 @@ import se.sics.ace.rs.ScopeValidator;
 /**
  * This implements the scope format proposed in draft-bormann-core-ace-aif
  * 
- * FIXME: WORK IN PROGRESS
- * 
  * @author Ludwig Seitz
  *
  */

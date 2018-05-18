@@ -91,14 +91,14 @@ public class TestDtlspPskStore {
     public static void setUp() throws AceException, IOException {
         
         
-        Set<String> actions = new HashSet<>();
-        actions.add("GET");
-        Map<String, Set<String>> myResource = new HashMap<>();
+        Set<Short> actions = new HashSet<>();
+        actions.add(Constants.GET);
+        Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("temp", actions);
-        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        Map<String, Set<String>> myResource2 = new HashMap<>();
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         

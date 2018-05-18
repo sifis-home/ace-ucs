@@ -44,18 +44,24 @@ import se.sics.ace.rs.ScopeValidator;
  * Simple audience and scope validator for testing purposes.
  * This validator expects the scopes to be Strings as in OAuth 2.0.
  * 
+ * The actions are expected to be integers corresponding to the 
+ * values for RESTful actions in <code>Constants</code>.
+ * 
  * @author Ludwig Seitz
  *
  */
 public class KissValidator implements AudienceValidator, ScopeValidator {
 
+    /**
+     * The audiences we recognize
+     */
 	private Set<String> myAudiences;
 	
 	/**
 	 * Maps the scopes to a map that maps the scope's resources to the actions 
 	 * allowed on that resource
 	 */
-	private Map<String, Map<String, Set<String>>> myScopes;  
+	private Map<String, Map<String, Set<Short>>> myScopes;  
 	
 	/**
 	 * Constructor.
@@ -64,7 +70,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	 * @param myScopes  the scopes that this validator should accept
 	 */
 	public KissValidator(Set<String> myAudiences, 
-	        Map<String, Map<String, Set<String>>> myScopes) {
+	        Map<String, Map<String, Set<Short>>> myScopes) {
 		this.myAudiences = new HashSet<>();
 		this.myScopes = new HashMap<>();
 		this.myAudiences.addAll(myAudiences);
@@ -82,7 +88,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
         if (!(scope instanceof String)) {
             throw new AceException("Scope must be a String in KissValidator");
         }
-        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        Map<String, Set<Short>> resources = this.myScopes.get(scope);
         if (resources == null) {
             return false;
         }
@@ -98,7 +104,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
         if (!(scope instanceof String)) {
             throw new AceException("Scope must be a String in KissValidator");
         }
-        Map<String, Set<String>> resources = this.myScopes.get(scope);
+        Map<String, Set<Short>> resources = this.myScopes.get(scope);
         if (resources == null) {
             return false;
         }

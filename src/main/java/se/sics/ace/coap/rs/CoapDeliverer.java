@@ -182,7 +182,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         }
                
         String resource = request.getOptions().getUriPathString();
-        String action = request.getCode().toString();  
+        short action = (short) request.getCode().value;  
       
         try {
             int res = this.tr.canAccess(kid, subject, resource, action, 

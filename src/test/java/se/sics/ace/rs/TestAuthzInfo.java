@@ -41,8 +41,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-import COSE.HeaderKeys;
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -119,14 +119,14 @@ public class TestAuthzInfo {
         db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
                 publicKey);
 
-        Set<String> actions = new HashSet<>();
-        actions.add("GET");
-        Map<String, Set<String>> myResource = new HashMap<>();
+        Set<Short> actions = new HashSet<>();
+        actions.add(Constants.GET);
+        Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("temp", actions);
-        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        Map<String, Set<String>> myResource2 = new HashMap<>();
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
@@ -149,16 +149,6 @@ public class TestAuthzInfo {
                 valid, ctx);
     }
 
-    private static  Map<HeaderKeys, CBORObject> getHeadersWithKID(String audience)
-    {
-        // Add the audience as the KID in the header, so it can be referenced by introspection requests.
-        CBORObject requestedAud = CBORObject.NewArray();
-        requestedAud.Add(audience);
-        Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
-        uHeaders.put(HeaderKeys.KID, requestedAud);
-        return uHeaders;
-    }
-    
     /**
      * Create the Token repository if not already created,
      * if already create ignore.
@@ -273,8 +263,8 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
         String kidStr = Base64.getEncoder().encodeToString(
                 new byte[]{0x31, 0x42});
-        assert(1 == tr.canAccess(
-                kidStr, null, "co2", "GET", new KissTime(), null));
+        assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET,
+                new KissTime(), null));
 
     }
     
