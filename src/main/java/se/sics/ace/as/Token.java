@@ -241,32 +241,39 @@ public class Token implements Endpoint, AutoCloseable {
 	    LOGGER.log(Level.INFO, "Token received message: " 
 	            + msg.getParameters());
 	    
-	    //1. Check that this is a client credentials grant type    
-	    if (msg.getParameter(Constants.GRANT_TYPE) == null 
-	            || !msg.getParameter(Constants.GRANT_TYPE)
-	                .equals(clientCredentials)) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "unsupported_grant_type");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	    }
-	    	    
-		//2. Check if this client can request tokens
+	    //1. Check if this client can request tokens
 		String id = msg.getSenderId();  
+		if (id == null) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "unauthorized client: " + id);
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+		}
 		try {
             if (!this.pdp.canAccessToken(id)) {
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 LOGGER.log(Level.INFO, "Message processing aborted: "
                         + "unauthorized client: " + id);
-            	return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+            	return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
             }
         } catch (AceException e) {
             LOGGER.severe("Database error: "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
+		
+		//2. Check that this is a client credentials grant type    
+        if (msg.getParameter(Constants.GRANT_TYPE) == null 
+                || !msg.getParameter(Constants.GRANT_TYPE)
+                    .equals(clientCredentials)) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "unsupported_grant_type");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+        }        
 		
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);

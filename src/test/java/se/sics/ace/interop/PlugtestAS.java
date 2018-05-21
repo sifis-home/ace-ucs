@@ -132,9 +132,9 @@ public class PlugtestAS {
         cRpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         CBORObject c_x = CBORObject.FromObject(hexString2byteArray(cX));
         CBORObject c_y = CBORObject.FromObject(hexString2byteArray(cY));
-        rsRpkData.Add(KeyKeys.EC2_X.AsCBOR(), c_x);
-        rsRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), c_y);
-        OneKey cKey = new OneKey(rsRpkData);
+        cRpkData.Add(KeyKeys.EC2_X.AsCBOR(), c_x);
+        cRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), c_y);
+        OneKey cKey = new OneKey(cRpkData);
                 
         //Just to be sure no old test pollutes the DB
         DBHelper.setUpDB();

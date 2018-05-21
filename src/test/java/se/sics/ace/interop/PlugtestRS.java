@@ -150,7 +150,7 @@ public class PlugtestRS {
 
         @Override
         public void handleGET(CoapExchange exchange) {
-            exchange.respond(ResponseCode.CONTENT, locked 
+            exchange.respond(ResponseCode.CONTENT, this.locked 
                     ? CBORObject.True.EncodeToBytes() :
                             CBORObject.False.EncodeToBytes());
         }
@@ -161,7 +161,7 @@ public class PlugtestRS {
                 CBORObject newState = CBORObject.FromObject(
                         exchange.getRequestPayload());
                 if (newState.getType().equals(CBORType.Boolean)) {
-                    locked = newState.AsBoolean();
+                    this.locked = newState.AsBoolean();
                     exchange.respond(ResponseCode.CHANGED);
                 }
             }
@@ -264,7 +264,7 @@ public class PlugtestRS {
       ai.processMessage(new LocalMessage(0, null, null, payload));
 
       AsInfo asi 
-      = new AsInfo("coaps://blah/authz-info/");
+      = new AsInfo("coaps://blah/token");
       Resource hello = new HelloWorldResource();
       Resource lock = new LockResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
