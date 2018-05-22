@@ -160,6 +160,7 @@ public class TestToken {
         auds.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
+        keyTypes.add("RPK");
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
@@ -366,7 +367,7 @@ public class TestToken {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         LocalMessage msg = new LocalMessage(-1, "client_1", "TestAS", params); 
         Message response = t.processMessage(msg);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
         Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
@@ -510,13 +511,12 @@ public class TestToken {
     
     /**
      * Test the token endpoint. 
-     * Request should fail since the client failed to provide an
-     * RPK. 
+     * Request should fail since the audience does not support PSK
      * 
      * @throws Exception
      */
     @Test
-    public void testFailRpkNotProvided() throws Exception { 
+    public void testFailPskNotSupported() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -525,8 +525,7 @@ public class TestToken {
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        cbor.Add(Constants.ERROR_DESCRIPTION, "Client failed to provide RPK");
+        cbor.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }

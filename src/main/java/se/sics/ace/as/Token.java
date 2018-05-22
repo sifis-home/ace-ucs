@@ -484,17 +484,67 @@ public class Token implements Endpoint, AutoCloseable {
 		                CBORObject.FromObject(allowedScopes));
 		        break;
 		    case Constants.CNF:
-		        //Check if client requested a specific kid,
-		        // if so, assume the client knows what it's doing
-		        // i.e. that the RS has that key and can process it
 		        CBORObject cnf = msg.getParameter(Constants.CNF);
-		        if (cnf != null && cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
+		        
+		        if (cnf == null) { //The client wants to use PSK
+		            keyType = "PSK"; //save for later
+		            
+		            //check if PSK is supported for proof-of-possession
+		            try {
+		                if (!isSupported(keyType, aud)) {
+		                    this.cti--; //roll-back
+	                        CBORObject map = CBORObject.NewMap();
+	                        map.Add(Constants.ERROR, 
+	                                Constants.UNSUPPORTED_POP_KEY);
+	                        LOGGER.log(Level.INFO, 
+	                                "Message processing aborted: "
+	                                + "Unsupported pop key type PSK");
+	                        return msg.failReply(
+	                                Message.FAIL_BAD_REQUEST, map);
+		                }
+		            } catch (AceException e) {
+                        this.cti--; //roll-back
+                        LOGGER.severe("Message processing aborted: "
+                                + e.getMessage());
+                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                    }   
+ 
+		            //Audience supports PSK, make a new PSK
+                    try {
+                        KeyGenerator kg = KeyGenerator.getInstance("AES");
+                        SecretKey key = kg.generateKey();
+                        CBORObject keyData = CBORObject.NewMap();
+                        keyData.Add(KeyKeys.KeyType.AsCBOR(), 
+                                KeyKeys.KeyType_Octet);
+                        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                                CBORObject.FromObject(key.getEncoded()));
+                        //Note: kid is the same as cti 
+                        byte[] kid = ctiB;               
+                        keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+
+                        OneKey psk = new OneKey(keyData);
+                        CBORObject coseKey = CBORObject.NewMap();
+                        coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
+                        claims.put(Constants.CNF, coseKey);
+                    } catch (NoSuchAlgorithmException | CoseException e) {
+                        this.cti--; //roll-back
+                        LOGGER.severe("Message processing aborted: "
+                                + e.getMessage());
+                        return msg.failReply(
+                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                    }
+		            
+		        } else if (cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
+		            //The client requested a specific kid,
+	                // assume the client knows what it's doing
+	                // i.e. that the RS has that key and can process it
+		            
 		            //Check that the kid is well-formed
 		            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
 		            if (!kidC.getType().equals(CBORType.ByteString)) {
 		                this.cti--; //roll-back
 		                LOGGER.info("Message processing aborted: "
-		                       + " Malformed kid in request parameter 'cnf'");
+		                        + " Malformed kid in request parameter 'cnf'");
 		                CBORObject map = CBORObject.NewMap();
 		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                map.Add(Constants.ERROR_DESCRIPTION, 
@@ -503,178 +553,162 @@ public class Token implements Endpoint, AutoCloseable {
 		            }
 		            keyType = "KID";
 		            claims.put(Constants.CNF, cnf);
-		        } else {    
-		            //Find supported key type for proof-of-possession
+		        } else {//Client has provided a key 
+		            //Check what key the client provided
+		            OneKey key = null;
 		            try {
-		                keyType = this.db.getSupportedPopKeyType(id, aud);
+		                key = getKey(cnf, id);
+		            } catch (AceException | CoseException e) {
+		                this.cti--; //roll-back
+		                LOGGER.severe("Message processing aborted: "
+		                        + e.getMessage());
+		                if (e.getMessage().startsWith("Malformed")) {
+		                    CBORObject map = CBORObject.NewMap();
+		                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		                    map.Add(Constants.ERROR_DESCRIPTION, 
+		                            "Malformed 'cnf' parameter in request");
+		                    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		                } 
+		                return msg.failReply(
+		                        Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		            }
+		            if (key == null) {
+		                this.cti--; //roll-back
+		                CBORObject map = CBORObject.NewMap();
+		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		                map.Add(Constants.ERROR_DESCRIPTION, 
+		                        "Couldn't retrieve RPK");
+		                LOGGER.log(Level.INFO, "Message processing aborted: "
+		                        + "Couldn't retrieve RPK");
+		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		            }
+		            
+		            if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
+		                //Client tried to submit a symmetric key => reject
+		                this.cti--; //roll-back
+		                CBORObject map = CBORObject.NewMap();
+		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+		                map.Add(Constants.ERROR_DESCRIPTION, 
+		                        "Client tried to provide cnf PSK");
+		                LOGGER.log(Level.INFO, "Message processing aborted: "
+		                        + "Client tried to provide cnf PSK");
+		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+		            }
+                    
+		            //At this point we assume the client wants to use RPK
+		            keyType = "RPK";
+                       
+		            //Can the audience support this?
+		            try {
+		                if (!isSupported(keyType, aud)) {
+		                    this.cti--; //roll-back
+		                    CBORObject map = CBORObject.NewMap();
+		                    map.Add(Constants.ERROR, 
+                                Constants.UNSUPPORTED_POP_KEY);
+		                    LOGGER.log(Level.INFO, 
+		                            "Message processing aborted: "
+		                                    + "Unsupported pop key type RPK");
+		                    return msg.failReply(
+		                            Message.FAIL_BAD_REQUEST, map);
+		                }
 		            } catch (AceException e) {
 		                this.cti--; //roll-back
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
 		                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		            }
-		            switch (keyType) {
-		            case "PSK":
-		                try {
-		                    KeyGenerator kg = KeyGenerator.getInstance("AES");
-		                    SecretKey key = kg.generateKey();
-		                    CBORObject keyData = CBORObject.NewMap();
-		                    keyData.Add(KeyKeys.KeyType.AsCBOR(), 
-		                            KeyKeys.KeyType_Octet);
-		                    keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-		                            CBORObject.FromObject(key.getEncoded()));
-		                    //Note: kid is the same as cti 
-		                    byte[] kid = ctiB;               
-		                    keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
-
-		                    OneKey psk = new OneKey(keyData);
-		                    CBORObject coseKey = CBORObject.NewMap();
-		                    coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
-		                    claims.put(Constants.CNF, coseKey);
-		                } catch (NoSuchAlgorithmException | CoseException e) {
-		                    this.cti--; //roll-back
-		                    LOGGER.severe("Message processing aborted: "
-		                            + e.getMessage());
-		                    return msg.failReply(
-		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		                }       
-		                break;
-		            case "RPK":
-		                if (cnf == null) {
-		                    this.cti--; //roll-back
-		                    CBORObject map = CBORObject.NewMap();
-		                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-		                    map.Add(Constants.ERROR_DESCRIPTION, 
-		                            "Client failed to provide RPK");
-		                    LOGGER.log(Level.INFO, "Message processing aborted: "
-		                            + "Client failed to provide RPK");
-		                    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		                }
-		                OneKey rpk = null;
-		                try {
-		                    rpk = getKey(cnf, id);
-		                } catch (AceException | CoseException e) {
-		                    this.cti--; //roll-back
-		                    LOGGER.severe("Message processing aborted: "
-		                            + e.getMessage());
-		                    if (e.getMessage().startsWith("Malformed")) {
-		                        CBORObject map = CBORObject.NewMap();
-		                        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-		                        map.Add(Constants.ERROR_DESCRIPTION, 
-		                                "Malformed 'cnf' parameter in request");
-		                        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		                    } 
-		                    return msg.failReply(
-		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		                }
-		                if (rpk == null) {
-		                    this.cti--; //roll-back
-		                    CBORObject map = CBORObject.NewMap();
-		                    map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-		                    map.Add(Constants.ERROR_DESCRIPTION, 
-		                            "Client failed to provide RPK");
-		                    LOGGER.log(Level.INFO, "Message processing aborted: "
-		                            + "Client failed to provide RPK");
-		                    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		                }
-		                CBORObject coseKey = CBORObject.NewMap();
-		                coseKey.Add(Constants.COSE_KEY, rpk.AsCBOR());
-		                claims.put(Constants.CNF, coseKey);
-		                break;
-		            default :
-		                this.cti--; //roll-back
-		                CBORObject map = CBORObject.NewMap();
-		                map.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-		                LOGGER.log(Level.INFO, "Message processing aborted: "
-		                        + "Unsupported pop key");
-		                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-		            }
+		            }   
+                    
+		            //Audience support RPK, use provided RPK
+		            CBORObject coseKey = CBORObject.NewMap();
+		            coseKey.Add(Constants.COSE_KEY, key.AsCBOR());
+		            claims.put(Constants.CNF, coseKey);
 		        }
 		        break;
-		    default:
+		            
+		    default :
 		       LOGGER.severe("Unknown claim type in /token "
 		               + "endpoint configuration: " + c);
-		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);   
 		    }
 		}
-		
+
 		AccessToken token = null;
-        try {
-            token = AccessTokenFactory.generateToken(tokenType, claims);
-        } catch (AceException e) {
-            this.cti--; //roll-back
-            LOGGER.severe("Message processing aborted: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
-		CBORObject rsInfo = CBORObject.NewMap();
-		
-		
 		try {
-            if (!this.db.hasDefaultProfile(id)) {
-                rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
-            }
-        } catch (AceException e) {
-            this.cti--; //roll-back
-            LOGGER.severe("Message processing aborted: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
-		
+		    token = AccessTokenFactory.generateToken(tokenType, claims);
+		} catch (AceException e) {
+		    this.cti--; //roll-back
+		    LOGGER.severe("Message processing aborted: "
+		            + e.getMessage());
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		}
+		CBORObject rsInfo = CBORObject.NewMap();
+
+
+		try {
+		    if (!this.db.hasDefaultProfile(id)) {
+		        rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+		    }
+		} catch (AceException e) {
+		    this.cti--; //roll-back
+		    LOGGER.severe("Message processing aborted: "
+		            + e.getMessage());
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		}
+
 		if (keyType != null && keyType.equals("PSK")) {
 		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 		}  else if (keyType != null && keyType.equals("RPK")) {
 		    Set<String> rss = new HashSet<>();
 		    for (String audE : aud) {
 		        try {
-                    rss.addAll(this.db.getRSS(audE));
-                } catch (AceException e) {
-                    this.cti--; //roll-back
-                    LOGGER.severe("Message processing aborted: "
-                            + e.getMessage());
-                    return msg.failReply(
-                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                }
+		            rss.addAll(this.db.getRSS(audE));
+		        } catch (AceException e) {
+		            this.cti--; //roll-back
+		            LOGGER.severe("Message processing aborted: "
+		                    + e.getMessage());
+		            return msg.failReply(
+		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		        }
 		    }
 		    for (String rs : rss) {
 		        try {
-                    OneKey rsKey = this.db.getRsRPK(rs);
-                    CBORObject rscnf = CBORObject.NewMap();
-                    rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
-                    rsInfo.Add(Constants.RS_CNF, rscnf);
-                } catch (AceException e) {
-                    this.cti--; //roll-back
-                    LOGGER.severe("Message processing aborted: "
-                            + e.getMessage());
-                    return msg.failReply(
-                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-                }
+		            OneKey rsKey = this.db.getRsRPK(rs);
+		            CBORObject rscnf = CBORObject.NewMap();
+		            rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
+		            rsInfo.Add(Constants.RS_CNF, rscnf);
+		        } catch (AceException e) {
+		            this.cti--; //roll-back
+		            LOGGER.severe("Message processing aborted: "
+		                    + e.getMessage());
+		            return msg.failReply(
+		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		        }
 		    }
- 		} //Skip cnf if client requested specific KID.
-		
+		} //Skip cnf if client requested specific KID.
+
 		if (!allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
 
 		if (token instanceof CWT) {
-		    		    
+
 		    CwtCryptoCtx ctx = null;
-            try {
-                ctx = EndpointUtils.makeCommonCtx(aud, this.db, 
-                        this.privateKey, sign);
-            } catch (AceException | CoseException e) {
-                this.cti--; //roll-back
-                LOGGER.severe("Message processing aborted: "
-                        + e.getMessage());
-                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-            }
+		    try {
+		        ctx = EndpointUtils.makeCommonCtx(aud, this.db, 
+		                this.privateKey, sign);
+		    } catch (AceException | CoseException e) {
+		        this.cti--; //roll-back
+		        LOGGER.severe("Message processing aborted: "
+		                + e.getMessage());
+		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		    }
 		    if (ctx == null) {
-	            this.cti--; //roll-back
+		        this.cti--; //roll-back
 		        CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, 
-	                    "No common security context found for audience");
-	            LOGGER.log(Level.INFO, "Message processing aborted: "
-	                    + "No common security context found for audience");
+		        map.Add(Constants.ERROR, 
+		                "No common security context found for audience");
+		        LOGGER.log(Level.INFO, "Message processing aborted: "
+		                + "No common security context found for audience");
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
@@ -701,21 +735,28 @@ public class Token implements Endpoint, AutoCloseable {
 		} else {
 		    rsInfo.Add(Constants.ACCESS_TOKEN, token.encode().EncodeToBytes());
 		}
-		
+
 		try {
-            this.db.addToken(ctiStr, claims);
-            this.db.addCti2Client(ctiStr, id);
-            this.db.saveCtiCounter(this.cti);
-        } catch (AceException e) {
-            this.cti--; //roll-back
-            LOGGER.severe("Message processing aborted: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
-        }
+		    this.db.addToken(ctiStr, claims);
+		    this.db.addCti2Client(ctiStr, id);
+		    this.db.saveCtiCounter(this.cti);
+		} catch (AceException e) {
+		    this.cti--; //roll-back
+		    LOGGER.severe("Message processing aborted: "
+		            + e.getMessage());
+		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		}
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
+
 	
+	private boolean isSupported(String keyType, Set<String> aud) 
+	        throws AceException {
+	    Set<String> keyTypes = this.db.getSupportedPopKeyTypes(aud);
+	    return keyTypes.contains(keyType);	    
+	}
+
 	/**
 	 * Retrieves a key from a cnf structure.
 	 * 

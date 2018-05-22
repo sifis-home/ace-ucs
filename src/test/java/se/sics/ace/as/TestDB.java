@@ -260,12 +260,15 @@ public class TestDB {
     @Test
     public void testGetKeyTypes() throws Exception {
             
-        String keyType = db.getSupportedPopKeyType("clientB", 
-                Collections.singleton("rs1"));
-        assert(keyType.equals("PSK"));
+        Set<String> keyType = db.getSupportedPopKeyTypes( 
+                Collections.singleton("sensors"));
+        assert(keyType.contains("RPK"));
         
-        keyType =  db.getSupportedPopKeyType("clientB", 
-                Collections.singleton("rs2"));
+        Set<String> allRS = new HashSet<>();
+        allRS.add("rs1");
+        allRS.add("rs2");
+        allRS.add("rs3");
+        keyType =  db.getSupportedPopKeyTypes(allRS);
         assert(keyType == null);
     }
     
