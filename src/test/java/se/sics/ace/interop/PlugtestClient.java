@@ -91,8 +91,7 @@ public class PlugtestClient {
         byte[] kid = Base64.decode(kidStr);
         pskData.Add(KeyKeys.KeyId.AsCBOR(), kid);
         OneKey psk = new OneKey(pskData);
-        CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KEY, psk);
+       
         
         
         int testcase = Integer.parseInt(args[0]);
@@ -279,6 +278,8 @@ public class PlugtestClient {
             params.put(Constants.SCOPE, 
                     CBORObject.FromObject("HelloWorld"));
             params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+            CBORObject cnf = CBORObject.NewMap();
+            cnf.Add(Constants.COSE_KEY, psk.AsCBOR());
             params.put(Constants.CNF, cnf);
             res = client.post(
                     Constants.getCBOR(params).EncodeToBytes(), 
