@@ -264,14 +264,16 @@ public class PlugtestRS {
       ai.processMessage(new LocalMessage(0, null, null, payload));
 
       AsInfo asi 
-      = new AsInfo("coaps://blah/token");
+          = new AsInfo("coaps://testAS/token");
       Resource hello = new HelloWorldResource();
       Resource lock = new LockResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
 
       rs = new CoapServer();
-      rs.add(hello);
-      rs.add(lock);
+      Resource ace = new CoapResource("ace");
+      ace.add(hello);
+      ace.add(lock);
+      rs.add(ace);
       rs.add(authzInfo);
 
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 

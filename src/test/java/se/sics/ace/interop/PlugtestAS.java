@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.log4j.BasicConfigurator;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -101,6 +102,27 @@ public class PlugtestAS {
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
 
+        
+        if (args.length != 2) { 
+            // args[0] is the logging config
+            // agrs[1] is the test case
+            return;
+        }
+        
+        //Setup PSKs
+        CBORObject keyDataC = CBORObject.NewMap();
+        keyDataC.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataC.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey clientPSK = new OneKey(keyDataC);
+        
+        CBORObject keyDataRS = CBORObject.NewMap();
+        keyDataRS.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataRS.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256));
+        OneKey rsPSK = new OneKey(keyDataRS);
+        
+        //Setup RPKs
         CBORObject asRpkData = CBORObject.NewMap();
         asRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
         asRpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
@@ -135,22 +157,12 @@ public class PlugtestAS {
         cRpkData.Add(KeyKeys.EC2_X.AsCBOR(), c_x);
         cRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), c_y);
         OneKey cKey = new OneKey(cRpkData);
-                
+        String clientId = new RawPublicKeyIdentity(
+                cKey.AsPublicKey()).getName();
+        
         //Just to be sure no old test pollutes the DB
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
-        
-        CBORObject keyDataC = CBORObject.NewMap();
-        keyDataC.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyDataC.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
-        OneKey clientPSK = new OneKey(keyDataC);
-        
-        CBORObject keyDataRS = CBORObject.NewMap();
-        keyDataRS.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyDataRS.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
-        OneKey rsPSK = new OneKey(keyDataRS);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
@@ -170,30 +182,80 @@ public class PlugtestAS {
                 AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
-        db.addRS("coap://localhost", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, rsPSK, rsKey);
-                
+         
+        //Setup C entries
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
-        keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, clientPSK, cKey);        
+        keyTypes.add("PSK");  
+        keyTypes.add("RPK");
+        db.addClient(clientId, profiles, null, null, 
+                keyTypes, clientPSK, cKey);  
         
+        
+        //Setup time provider
         KissTime time = new KissTime();
+        
+        //Setup PDP
         pdp = new KissPDP(db);
         
-        //Initialize data in PDP
-        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        pdp.addTokenAccess("clientA");
-       
-        pdp.addAccess("clientA", "rs1", "HelloWorld");
-        pdp.addAccess("clientA", "rs1", "r_Lock");
-        pdp.addAccess("clientA", "rs1", "rw_Lock");
-        
-        as = new CoapsAS("AS", db, pdp, time, asKey);
-        as.start();
-        System.out.println("Server starting");
+        int testcase = Integer.parseInt(args[1]);
+    
+        switch (testcase) {
+        case 1 : //Unauthorized Resource Request 1.
+            return;
+        case 2 : //Token Endpoint Test 2.1
+            as = new CoapsAS("AS", db, pdp, time, asKey);
+            as.start();
+            System.out.println("Server starting");
+            break;
+        case 3 : //Token Endpoint Test 2.2
+            as = new CoapsAS("AS", db, pdp, time, asKey);
+            as.start();
+            System.out.println("Server starting");
+            break;
+        case 4 : //Token Endpoint Test 2.3
+          //Fallthrough   
+        case 5 : //Token Endpoint Test 2.4
+            //Fallthrough
+        case 6 : //Token Endpoint Test 2.5
+            //Initialize data in PDP
+            pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+            pdp.addTokenAccess("clientA");
+           
+            pdp.addAccess(clientId, "rs1", "HelloWorld");
+            pdp.addAccess(clientId, "rs1", "r_Lock");
+            pdp.addAccess(clientId, "rs1", "rw_Lock");
+            as = new CoapsAS("AS", db, pdp, time, asKey);
+            as.start();
+            System.out.println("Server starting");
+            break;
+        case 7 : //Token Endpoint Test 2.6
+        case 8 : //Token Endpoint Test 2.7
+        case 9 : //Token Endpoint Test 2.8
+        case 10 : //Token Endpoint Test 2.9
+        case 11 : //Token Endpoint Test 2.10
+        case 12 : //Token Endpoint Test 2.11
+        case 13 : //Introspection Endpoint Test 3.1
+        case 14 : //Introspection Endpoint Test 3.2
+        case 15 : //Introspection Endpoint Test 3.3
+        case 16 : //Introspection Endpoint Test 3.4
+        case 17 : //Authorization Information Endpoint Test 4.1
+        case 18 : //Authorization Information Endpoint Test 4.2  
+        case 19 : //Authorization Information Endpoint Test 4.3      
+        case 20 : //Authorization Information Endpoint Test 4.4     
+        case 21 : //Authorization Information Endpoint Test 4.5 
+        case 22 : //Access Request Test 5.1
+        case 23 : //Access Request Test 5.2
+        case 24 : //Access Request Test 5.3
+        case 25 : //Access Request Test 5.4
+        case 26 : //Access Request Test 5.5
+        default:
+            break;
+            
+        }
     }
     
     /**
