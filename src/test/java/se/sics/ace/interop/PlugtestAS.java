@@ -63,14 +63,24 @@ import se.sics.ace.examples.KissTime;
  */
 public class PlugtestAS {
 
-    private static byte[] key128 = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
+    private static byte[] client1 = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
-    private static byte[] key256 = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11, 0x12,
-            0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1a, 0x1b, 0x1c, 0x1d,
-            0x1e, 0x1f, 0x20};
-
+    private static byte[] client2 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+    private static byte[] client4 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+ 
+    private static byte[] rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10};
+    
+    private static byte[] rs2 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10};
+    
     private static String asX 
         = "058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781";
     private static String asY 
@@ -101,26 +111,37 @@ public class PlugtestAS {
      */
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
-
-        
-        if (args.length != 2) { 
-            // args[0] is the logging config
-            // agrs[1] is the test case
-            return;
-        }
         
         //Setup PSKs
-        CBORObject keyDataC = CBORObject.NewMap();
-        keyDataC.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyDataC.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
-        OneKey clientPSK = new OneKey(keyDataC);
+        CBORObject keyDataC1 = CBORObject.NewMap();
+        keyDataC1.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataC1.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(client1));
+        OneKey client1PSK = new OneKey(keyDataC1);
         
-        CBORObject keyDataRS = CBORObject.NewMap();
-        keyDataRS.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyDataRS.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
-        OneKey rsPSK = new OneKey(keyDataRS);
+        CBORObject keyDataC2 = CBORObject.NewMap();
+        keyDataC2.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataC2.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(client2));
+        OneKey client2PSK = new OneKey(keyDataC2);
+        
+        CBORObject keyDataC4 = CBORObject.NewMap();
+        keyDataC4.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataC4.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(client4));
+        OneKey client4PSK = new OneKey(keyDataC4);
+        
+        CBORObject keyDataRS1 = CBORObject.NewMap();
+        keyDataRS1.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataRS1.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(rs1));
+        OneKey rs1PSK = new OneKey(keyDataRS1);
+        
+        CBORObject keyDataRS2 = CBORObject.NewMap();
+        keyDataRS2.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataRS2.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(rs2));
+        OneKey rs2PSK = new OneKey(keyDataRS2);
         
         //Setup RPKs
         CBORObject asRpkData = CBORObject.NewMap();
@@ -134,7 +155,7 @@ public class PlugtestAS {
         asRpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
         asRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
         asRpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
-        OneKey asKey = new OneKey(asRpkData);  
+        OneKey asRPK = new OneKey(asRpkData);  
         
         CBORObject rsRpkData = CBORObject.NewMap();
         rsRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -145,7 +166,7 @@ public class PlugtestAS {
         CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
         rsRpkData.Add(KeyKeys.EC2_X.AsCBOR(), rs_x);
         rsRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), rs_y);
-        OneKey rsKey = new OneKey(rsRpkData);
+        OneKey rsRPK = new OneKey(rsRpkData);
         
         CBORObject cRpkData = CBORObject.NewMap();
         cRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -156,43 +177,65 @@ public class PlugtestAS {
         CBORObject c_y = CBORObject.FromObject(hexString2byteArray(cY));
         cRpkData.Add(KeyKeys.EC2_X.AsCBOR(), c_x);
         cRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), c_y);
-        OneKey cKey = new OneKey(cRpkData);
+        OneKey cRPK = new OneKey(cRpkData);
         String clientId = new RawPublicKeyIdentity(
-                cKey.AsPublicKey()).getName();
+                cRPK.AsPublicKey()).getName();
         
         //Just to be sure no old test pollutes the DB
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
         
-        //Setup RS entries
+        //Setup common RS parameters
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
-        Set<String> scopes = new HashSet<>();
-        scopes.add("HelloWorld");
-        scopes.add("r_Lock");
-        scopes.add("rw_Lock");
-        Set<String> auds = new HashSet<>();
-        Set<String> keyTypes = new HashSet<>();
-        keyTypes.add("PSK");
-        keyTypes.add("RPK");
-        Set<Short> tokenTypes = new HashSet<>();
-        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
-        cose.add(coseP);
+        cose.add(coseP);        
+        Set<String> scopes = new HashSet<>();
+        scopes.add("HelloWorld");
+        scopes.add("r_Lock");
+        scopes.add("rw_Lock");   
+        Set<String> auds = new HashSet<>();
+        Set<String> keyTypes = new HashSet<>();
+        Set<Short> tokenTypes = new HashSet<>();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         long expiration = 30000L;
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, rsPSK, rsKey);
+        
+        //Setup RS1
+        keyTypes.add("PSK");       
+        db.addRS("RS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, rs1PSK, null);
+      
+        //Setup RS2
+        keyTypes.add("RPK");
+        db.addRS("RS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+        expiration, rs2PSK, rsRPK);
          
-        //Setup C entries
-        profiles.clear();
-        profiles.add("coap_dtls");
+        //Setup C1 
         keyTypes.clear();
-        keyTypes.add("PSK");  
+        keyTypes.add("RPK");
+        db.addClient("client1", profiles, null, null, 
+                keyTypes, client1PSK, cRPK);  
+        
+        //Setup C2
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        db.addClient("client1", profiles, null, null, 
+                keyTypes, client2PSK, null);
+        
+        //Setup C3
+        keyTypes.clear();
+        keyTypes.add("PSK");
         keyTypes.add("RPK");
         db.addClient(clientId, profiles, null, null, 
-                keyTypes, clientPSK, cKey);  
+                keyTypes, null, cRPK);
+        
+        //Setup C4
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        db.addClient("client4", profiles, null, null, 
+                keyTypes, client4PSK, null);
         
         
         //Setup time provider
@@ -200,62 +243,31 @@ public class PlugtestAS {
         
         //Setup PDP
         pdp = new KissPDP(db);
-        
-        int testcase = Integer.parseInt(args[1]);
     
-        switch (testcase) {
-        case 1 : //Unauthorized Resource Request 1.
-            return;
-        case 2 : //Token Endpoint Test 2.1
-            as = new CoapsAS("AS", db, pdp, time, asKey);
-            as.start();
-            System.out.println("Server starting");
-            break;
-        case 3 : //Token Endpoint Test 2.2
-            as = new CoapsAS("AS", db, pdp, time, asKey);
-            as.start();
-            System.out.println("Server starting");
-            break;
-        case 4 : //Token Endpoint Test 2.3
-          //Fallthrough   
-        case 5 : //Token Endpoint Test 2.4
-            //Fallthrough
-        case 6 : //Token Endpoint Test 2.5
-            //Initialize data in PDP
-            pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-            pdp.addTokenAccess("clientA");
-           
-            pdp.addAccess(clientId, "rs1", "HelloWorld");
-            pdp.addAccess(clientId, "rs1", "r_Lock");
-            pdp.addAccess(clientId, "rs1", "rw_Lock");
-            as = new CoapsAS("AS", db, pdp, time, asKey);
-            as.start();
-            System.out.println("Server starting");
-            break;
-        case 7 : //Token Endpoint Test 2.6
-        case 8 : //Token Endpoint Test 2.7
-        case 9 : //Token Endpoint Test 2.8
-        case 10 : //Token Endpoint Test 2.9
-        case 11 : //Token Endpoint Test 2.10
-        case 12 : //Token Endpoint Test 2.11
-        case 13 : //Introspection Endpoint Test 3.1
-        case 14 : //Introspection Endpoint Test 3.2
-        case 15 : //Introspection Endpoint Test 3.3
-        case 16 : //Introspection Endpoint Test 3.4
-        case 17 : //Authorization Information Endpoint Test 4.1
-        case 18 : //Authorization Information Endpoint Test 4.2  
-        case 19 : //Authorization Information Endpoint Test 4.3      
-        case 20 : //Authorization Information Endpoint Test 4.4     
-        case 21 : //Authorization Information Endpoint Test 4.5 
-        case 22 : //Access Request Test 5.1
-        case 23 : //Access Request Test 5.2
-        case 24 : //Access Request Test 5.3
-        case 25 : //Access Request Test 5.4
-        case 26 : //Access Request Test 5.5
-        default:
-            break;
-            
-        }
+        //Initialize data in PDP
+        pdp.addTokenAccess("client2");
+        pdp.addTokenAccess(clientId); //client3
+        pdp.addTokenAccess("client4");
+        
+        pdp.addAccess("client2", "RS1", "HelloWorld");
+        pdp.addAccess("client2", "RS1", "r_Lock");
+        pdp.addAccess("client2", "RS1", "rw_Lock");
+        pdp.addAccess("client2", "RS2", "HelloWorld");
+        pdp.addAccess("client2", "RS2", "r_Lock");
+        pdp.addAccess("client2", "RS2", "rw_Lock");
+        
+        pdp.addAccess(clientId, "RS1", "HelloWorld");
+        pdp.addAccess(clientId, "RS1", "r_Lock");
+        pdp.addAccess(clientId, "RS1", "rw_Lock");
+        pdp.addAccess(clientId, "RS2", "HelloWorld");
+        pdp.addAccess(clientId, "RS2", "r_Lock");
+        pdp.addAccess(clientId, "RS2", "rw_Lock");
+        
+        pdp.addAccess("client4", "RS1", "r_Lock");
+        
+        as = new CoapsAS("AS", db, pdp, time, asRPK);
+        as.start();
+        System.out.println("Server starting");
     }
     
     /**
@@ -268,6 +280,12 @@ public class PlugtestAS {
     }
     
     
+    /**
+     * Reads the keys and transforms to bytes from Strings.
+     * 
+     * @param hex  the hex String representation of a key
+     * @return  the byte array representation
+     */
     public static byte[] hexString2byteArray(String hex) {
         int len = hex.length();
         byte[] data = new byte[len / 2];
