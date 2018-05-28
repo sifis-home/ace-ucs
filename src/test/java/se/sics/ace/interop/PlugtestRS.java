@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -102,11 +102,7 @@ public class PlugtestRS {
         = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
     private static String rsD 
         = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
-    private static String cX 
-        = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
-    private static String cY 
-        = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";             
-    
+  
     /**
      * Definition of the Hello-World Resource
      */
