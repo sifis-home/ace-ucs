@@ -410,6 +410,6 @@ public class PlugtestRS {
         dpd.close();
         ai.close();
         tr.close();
-        new File("tokens.json").delete();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }

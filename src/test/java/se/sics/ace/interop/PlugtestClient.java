@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.interop;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,10 +60,11 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.as.Token;
+import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -113,6 +115,9 @@ public class PlugtestClient {
         = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
     private static String rsY 
         = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+    
+    private static byte[] kid = 
+        {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBC};
     
     
     /**
@@ -245,7 +250,7 @@ public class PlugtestClient {
             CBORObject payload = CBORObject.FromObject("blah");
             LOGGER.finest("Sending request");
             try {
-                CoapResponse res = client.post(payload.EncodeToBytes(), 
+                client.post(payload.EncodeToBytes(), 
                         MediaTypeRegistry.APPLICATION_CBOR);
             } catch (RuntimeException r) {
                 System.out.println(r.getMessage());
@@ -453,23 +458,78 @@ public class PlugtestClient {
             
         case 2: //Tests against RS1
             System.out.println("=====Starting Test 2.1======");
-            
+            Connector c = new UDPConnector();
+            e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
+                    .setNetworkConfig(NetworkConfig.getStandard()).build();
+            uri = uri.replace("coaps:", "coap:");
+            uri = uri + "/ace/helloWorld"; 
+            client = new CoapClient(uri);
+            client.setEndpoint(e);   
+            try {
+                c.start();
+            } catch (IOException ex) {
+                LOGGER.severe("Failed to start Connector: " 
+                        + ex.getMessage());
+                throw new AceException(ex.getMessage());
+            }
+            LOGGER.finest("Sending request");
+            res = client.get();
+            System.out.print(res.getCode().codeClass + "." 
+                    + "0" + res.getCode().codeDetail);
+            System.out.println(" " + res.getCode().name());
+            System.out.println(CBORObject.DecodeFromBytes(res.getPayload()));
+            c.stop();
             System.out.println("=====End Test 2.1======");
             
             System.out.println("=====Starting Test 2.2======");
-            
+            uri = uri.replace("ace/helloWorld", "authz-info");
+            res = DTLSProfileRequests.postToken(
+                    uri, CBORObject.FromObject("test"), null);
+            printResults(res);
             System.out.println("=====End Test 2.2======");
             
             System.out.println("=====Starting Test 2.3======");
-            
+            //Make the token
+            Map<Short, CBORObject> claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            OneKey key = new OneKey();
+            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+            CBORObject kidCB = CBORObject.FromObject(kid);
+            key.add(KeyKeys.KeyId, kidCB);
+            //Using client1 here just for testing, could be random
+            key.add(KeyKeys.Octet_K, CBORObject.FromObject(client1));
+            CBORObject cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+            claims.put(Constants.CNF, cbor);
+            CWT token = new CWT(claims);
+            CBORObject tokenCB = token.encode(ctx2);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.3======");
             
             System.out.println("=====Starting Test 2.4======");
-            
+            //Encrypt token with correct key this time
+            tokenCB = token.encode(ctx1);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.4======");
             
             System.out.println("=====Starting Test 2.5======");
-            
+            //Make the token
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("test"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS1"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            claims.put(Constants.CNF, cbor);
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx1);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.5======");
             
             System.out.println("=====Starting Test 2.6======");
@@ -488,6 +548,7 @@ public class PlugtestClient {
             
             System.out.println("=====End Test 2.9======");
             break;
+            
         case 3: //Tests against RS2
             System.out.println("=====Starting Test 2.10======");
             
@@ -515,34 +576,7 @@ public class PlugtestClient {
             break;
         default : //Error
             throw new RuntimeException("Unkown test series, use 1,2 or 3");
-        }
-
-//        case 1 : //Unauthorized Resource Request 1.
-//            System.out.println("=====Starting Test 1.======");
-//            Connector c = new UDPConnector();
-//            CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
-//                    .setNetworkConfig(NetworkConfig.getStandard()).build();
-//            uri = uri.replace("coaps:", "coap:");
-//            uri = uri + "/"; 
-//            CoapClient client = new CoapClient(uri);
-//            client.setEndpoint(e);   
-//            try {
-//                c.start();
-//            } catch (IOException ex) {
-//                LOGGER.severe("Failed to start Connector: " 
-//                        + ex.getMessage());
-//                throw new AceException(ex.getMessage());
-//            }
-//                   LOGGER.finest("Sending request");
-//            CoapResponse res = client.get();
-//            System.out.print(res.getCode().codeClass + "." 
-//                    + "0" + res.getCode().codeDetail);
-//            System.out.println(" " + res.getCode().name());
-//            System.out.println(CBORObject.DecodeFromBytes(
-//                    res.getPayload()).toString());
-//            System.out.println("=====End Test 1.======");
-//            return;
-     
+        }     
     }
 
     
