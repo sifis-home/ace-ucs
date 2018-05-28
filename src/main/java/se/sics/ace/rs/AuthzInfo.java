@@ -292,7 +292,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //7. Store the claims of this token
+	    //7. Check if any part of the scope is meaningful to us
+	    
+	    
+	    //8. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
@@ -303,7 +306,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    //8. Create success message
+	    //9. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);

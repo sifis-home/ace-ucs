@@ -42,7 +42,6 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;

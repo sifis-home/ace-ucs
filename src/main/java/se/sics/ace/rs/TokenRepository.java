@@ -554,32 +554,30 @@ public class TokenRepository implements AutoCloseable {
                  
              }
              
-             String[] scopes = scope.AsString().split(" ");
-             for (String subscope : scopes) {
-                 if (this.scopeValidator.scopeMatchResource(subscope, resource)) {
-                     if (this.scopeValidator.scopeMatch(subscope, resource, action)) {
-                       //Check if we should introspect this token
-                         if (intro != null) {
-                             byte[] ctiB = Base64.getDecoder().decode(cti);
-                             Map<Short,CBORObject> introspect = intro.getParams(ctiB);
-                             if (introspect != null 
-                                     && introspect.get(Constants.ACTIVE) == null) {
-                                 throw new AceException("Token introspection didn't "
-                                         + "return an 'active' parameter");
-                             }
-                             if (introspect != null && introspect.get(
-                                     Constants.ACTIVE).isTrue()) {
-                                 return OK; // Token is active and passed all other tests
-                             }
+             if (this.scopeValidator.scopeMatchResource(scope, resource)) {
+                 if (this.scopeValidator.scopeMatch(scope, resource, action)) {
+                     //Check if we should introspect this token
+                     if (intro != null) {
+                         byte[] ctiB = Base64.getDecoder().decode(cti);
+                         Map<Short,CBORObject> introspect = intro.getParams(ctiB);
+                         if (introspect != null 
+                                 && introspect.get(Constants.ACTIVE) == null) {
+                             throw new AceException("Token introspection didn't "
+                                     + "return an 'active' parameter");
                          }
-                        return OK; //We didn't introspect, but the token is ok otherwise
+                         if (introspect != null && introspect.get(
+                                 Constants.ACTIVE).isTrue()) {
+                             return OK; // Token is active and passed all other tests
+                         }
+                     } else {
+                       //We didn't introspect, but the token is ok otherwise
+                         return OK;
                      }
-                    methodNA = true; //scope did match resource but not action
                  }
+                 methodNA = true; //scope did match resource but not action
              }
 	    }
-	    return ((methodNA) ? METHODNA : FORBID);
-	   
+	    return ((methodNA) ? METHODNA : FORBID); 
 	}
 
 	/**
@@ -685,6 +683,15 @@ public class TokenRepository implements AutoCloseable {
         return new HashSet<>(this.cti2claims.keySet());
     }
 
-    
+    /**
+     * Checks if a given scope is meaningful for this repository.
+     * 
+     * @param scope  the Scope can be CBOR String or CBOR array
+     * @return true if the scope is meaningful, false otherwise 
+     * @throws AceException 
+     */
+    public boolean checkScope(CBORObject scope) throws AceException {
+        return this.scopeValidator.isScopeMeaningful(scope);
+    }
 }
 

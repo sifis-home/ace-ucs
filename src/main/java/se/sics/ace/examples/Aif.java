@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -87,32 +90,32 @@ public class Aif implements ScopeValidator {
     private static short[] powers = {1, 2, 4, 8, 16, 32, 64};
     
     /**
-     * 
+     * The resources served by this Aif
      */
-    public Aif() {
-        
+    private Set<String> resources;
+    
+    /**
+     * @param resources  the resources served by this Aif.
+     */
+    public Aif(Set<String> resources) {
+        this.resources = new HashSet<>();
+        this.resources.addAll(resources);
     }
     
     @Override
-    public boolean scopeMatch(Object scope, String resourceId, Object actionId)
+    public boolean scopeMatch(CBORObject scope, String resourceId, Object actionId)
             throws AceException {
-         
-        
+                 
         if (!(actionId instanceof Short)) {
             throw new AceException("actionId must be a short");
         }
         
-        if (!(scope instanceof byte[])) {  
-            throw new AceException("scope must be a byte array");
+        if (!scope.getType().equals(CBORType.Array)) {  
+            throw new AceException("scope must be a CBOR array in Aif");
         }
         
-        CBORObject scopeCB = CBORObject.DecodeFromBytes((byte[]) scope);
-        if (!scopeCB.getType().equals(CBORType.Array)) {
-            throw new AceException("scope must decode to CBOR array");
-        }
-
-        for (int i=0; i<scopeCB.size();i++) {
-            CBORObject scopeElement = scopeCB.get(i);
+        for (int i=0; i<scope.size();i++) {
+            CBORObject scopeElement = scope.get(i);
             if (!scopeElement.getType().equals(CBORType.Array)) {
                 throw new AceException("Invalid scope format");
             }
@@ -129,20 +132,15 @@ public class Aif implements ScopeValidator {
     }
 
     @Override
-    public boolean scopeMatchResource(Object scope, String resourceId)
+    public boolean scopeMatchResource(CBORObject scope, String resourceId)
             throws AceException {
         
-        if (!(scope instanceof byte[])) {  
-            throw new AceException("scope must be a byte array");
-        }
-        
-        CBORObject scopeCB = CBORObject.DecodeFromBytes((byte[]) scope);
-        if (!scopeCB.getType().equals(CBORType.Array)) {
-            throw new AceException("scope must decode to CBOR array");
+        if (!scope.getType().equals(CBORType.Array)) {
+            throw new AceException("scope must be a CBOR array in Aif");
         }
 
-        for (int i=0; i<scopeCB.size();i++) {
-            CBORObject scopeElement = scopeCB.get(i);
+        for (int i=0; i<scope.size();i++) {
+            CBORObject scopeElement = scope.get(i);
             if (!scopeElement.getType().equals(CBORType.Array)) {
                 throw new AceException("Invalid scope format");
             }
@@ -153,4 +151,25 @@ public class Aif implements ScopeValidator {
         }
         return false;
     }
+
+    @Override
+    public boolean isScopeMeaningful(CBORObject scope) throws AceException {
+        if (!scope.getType().equals(CBORType.Array)) {
+            throw new AceException("Scope must be a CBOR array in Aif");
+        }
+        
+        //Find the resource
+        for (int i=0; i<scope.size();i++) {
+            CBORObject scopeElement = scope.get(i);
+            if (!scopeElement.getType().equals(CBORType.Array)) {
+                throw new AceException("Invalid scope format");
+            }
+            String resource = scopeElement.get(0).AsString();
+            if (this.resources.contains(resource)) {
+                return true;
+            }
+        }
+        return false; //No resource found
+    }
+    
 }

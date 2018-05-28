@@ -32,6 +32,8 @@
 package se.sics.ace.rs;
 
 
+import com.upokecenter.cbor.CBORObject;
+
 import se.sics.ace.AceException;
 
 /**
@@ -43,26 +45,35 @@ import se.sics.ace.AceException;
 public interface ScopeValidator {
 	
 	/**
-	 * Does the given scope match the given resource and action
+	 * Does the given scope matches the given resource and action
 	 * 
-	 * @param scope  the scope, can be a String or CBORObject
+	 * @param scope  the scope, can be a CBOR String or CBOR array
 	 * @param resourceId  the resource
 	 * @param actionId  the action on the resource
 	 * @return  true if the scope includes the resource and the action, false if not.
 	 * @throws AceException 
 	 */
-	boolean scopeMatch(Object scope, String resourceId, Object actionId)
+	boolean scopeMatch(CBORObject scope, String resourceId, Object actionId)
 	        throws AceException;
 	
     /**
-     * Does the given scope match the given resource
+     * Does the given scope matches the given resource
      * 
-     * @param scope  the scope,  can be a String or CBORObject
+     * @param scope  the scope,  can be a CBOR String or CBOR array
      * @param resourceId  the resource
      * @return  true if the scope includes the resource, false if not.
      * @throws AceException 
      */
-    boolean scopeMatchResource(Object scope, String resourceId)
+    boolean scopeMatchResource(CBORObject scope, String resourceId)
             throws AceException;
 	
+    /**
+     * Is the given scope meaningful for this validator.
+     * 
+     * 
+     * @param scope  the scope, can be a CBOR String or CBOR array
+     * @return  true if the scope is meaningful, false if not
+     * @throws AceException 
+     */
+    boolean isScopeMeaningful(CBORObject scope) throws AceException;
 }
