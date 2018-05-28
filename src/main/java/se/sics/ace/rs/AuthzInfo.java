@@ -293,7 +293,25 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    //7. Check if any part of the scope is meaningful to us
-	    
+	    boolean meaningful = false;
+	    try {
+	        meaningful = this.tr.checkScope(scope);
+	    } catch (AceException e) {
+	        LOGGER.info("Invalid scope, "
+                    + "message processing aborted: " + e.getMessage());
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+            map.Add(Constants.ERROR_DESCRIPTION, "Scope has invalid format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	    }
+	    if (!meaningful) {
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+            map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token's scope does not apply");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
 	    
 	    //8. Store the claims of this token
 	    CBORObject cti = null;
