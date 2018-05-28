@@ -60,7 +60,6 @@ import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.TestConfig;
-import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.Aif;
@@ -81,8 +80,7 @@ public class TestAuthzInfoAif {
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static SQLConnector db = null;
 
-    private static AuthzInfo ai = null;
-    private static Introspect i; 
+    private static AuthzInfo ai = null; 
     private static TokenRepository tr = null;
     private static KissPDP pdp = null;
     
