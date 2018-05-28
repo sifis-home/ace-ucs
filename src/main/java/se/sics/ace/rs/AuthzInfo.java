@@ -128,8 +128,25 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
-        CBORObject tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
-        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
+	    CBORObject tokenAsByteString = null;
+	    try {
+	        tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    } catch (Exception e) {
+	        LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
+	    
+	    CBORObject tokenAsCbor = null;
+	    try {
+	        tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
+	    } catch (Exception e) {
+	           LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+	           CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
 	    Map<Short, CBORObject> claims = null;
 	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
 	        try {

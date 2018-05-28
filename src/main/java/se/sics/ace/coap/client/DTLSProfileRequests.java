@@ -190,15 +190,17 @@ public class DTLSProfileRequests {
         CoapClient client = new CoapClient(rsAddr);
         client.setEndpoint(e);   
         try {
-            c.start();
+            e.start();
         } catch (IOException ex) {
             LOGGER.severe("Failed to start DTLSConnector: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
                LOGGER.finest("Sending request payload: " + payload);
-        return client.post(
+        CoapResponse r = client.post(
                 payload.EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
+        e.stop();
+        return r;
     }
     
     
