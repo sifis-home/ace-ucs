@@ -62,6 +62,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -69,11 +70,9 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
-import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
-import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.TokenRepository;
@@ -103,7 +102,11 @@ public class PlugtestRS {
         = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
     private static String rsD 
         = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
-              
+    private static String cX 
+        = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
+    private static String cY 
+        = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";             
+    
     /**
      * Definition of the Hello-World Resource
      */
@@ -180,7 +183,7 @@ public class PlugtestRS {
     private static CwtCryptoCtx ctx = null;
     
     private static OneKey rpk = null;
-    
+       
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
      *  
@@ -191,7 +194,7 @@ public class PlugtestRS {
         BasicConfigurator.configure();
         
         if (args.length != 1) { 
-            // args[0] is the test case, 
+            System.out.println("Need 1 argument: 1 for RS1 and 2 for RS2");
             return;
         }
         int testcase = Integer.parseInt(args[0]);     
@@ -200,144 +203,19 @@ public class PlugtestRS {
 
         switch (testcase) {
 
-        case 1 : //Unauthorized Resource Request 
+        case 1 : 
             startRS1();
             break;
-            
-        //AS token endpoint tests  
-        case 2 : //2.1
-        case 3 : //2.2
-        case 4 : //2.3
-        case 5 : //2.4
-        case 6 : //2.5
-        case 7 : //2.6
-        case 8 : //2.7
-        case 9 : //2.8
-        case 10 : //2.9
-        case 11 : //2.10
-        case 12 : //2.11
-        case 13 : //2.12
-            return;
-           
-        //authz-info tests
-        case 14 : //3.1
-        case 15 : //3.2        
-        case 16 : //3.3       
-        case 17 : //3.4       
-        case 18 : //3.5
-            startRS1();
-            break;    
-        case 19 : //3.6
-        case 20 : //3.7
-        case 21 : //3.8
+
+        case 2 :
             startRS2();
             break;
             
-            //access tests
-        case 22 : //4.1
-        case 23 : //4.2
-            startRS1();
-            //Add a test token to authz-info
-            Map<Short, CBORObject> params = new HashMap<>();
-            params.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
-            params.put(Constants.AUD, CBORObject.FromObject("RS1"));
-            params.put(Constants.ISS, CBORObject.FromObject("AS"));
-
-            OneKey key = new OneKey();
-            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-            CBORObject kid = CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray("91ECB5CB5DBC"));
-            key.add(KeyKeys.KeyId, kid);
-            key.add(KeyKeys.Octet_K, CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray(
-                            "6162630405060708090A0B0C0D0E0F10")));
-
-            CBORObject cnf = CBORObject.NewMap();
-            cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-            params.put(Constants.CNF, cnf);
-            CWT token = new CWT(params);
-            CBORObject payload = CBORObject.FromObject(
-                    token.encode(ctx).EncodeToBytes());
-            ai.processMessage(new LocalMessage(0, null, null, payload));            
-            break;
-
-        case 24 : //4.3
-            startRS2();
-            params = new HashMap<>();
-            params.put(Constants.SCOPE, CBORObject.FromObject("r_Lock"));
-            params.put(Constants.AUD, CBORObject.FromObject("RS2"));
-            params.put(Constants.ISS, CBORObject.FromObject("AS"));
-
-            key = new OneKey();
-            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-            kid = CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray("91ECB5CB5DBD"));
-            key.add(KeyKeys.KeyId, kid);
-            key.add(KeyKeys.Octet_K, CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray(
-                            "6162630405060708090A0B0C0D0E0F10")));
-
-            cnf = CBORObject.NewMap();
-            cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-            params.put(Constants.CNF, cnf);
-            token = new CWT(params);
-            payload = CBORObject.FromObject(
-                    token.encode(ctx).EncodeToBytes());
-            ai.processMessage(new LocalMessage(0, null, null, payload));            
-            break;
-        case 25 : //4.4
-            startRS2();
-            params = new HashMap<>();
-            params.put(Constants.SCOPE, CBORObject.FromObject("rw_Lock"));
-            params.put(Constants.AUD, CBORObject.FromObject("RS2"));
-            params.put(Constants.ISS, CBORObject.FromObject("AS"));
-
-            key = new OneKey();
-            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-            kid = CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray("91ECB5CB5DBE"));
-            key.add(KeyKeys.KeyId, kid);
-            key.add(KeyKeys.Octet_K, CBORObject.FromObject(
-                    PlugtestAS.hexString2byteArray(
-                            "6162630405060708090A0B0C0D0E0F10")));
-
-            cnf = CBORObject.NewMap();
-            cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-            params.put(Constants.CNF, cnf);
-            token = new CWT(params);
-            payload = CBORObject.FromObject(
-                    token.encode(ctx).EncodeToBytes());
-            ai.processMessage(new LocalMessage(0, null, null, payload));        
-            break;     
-        case 26 : //4.5
-            startRS1();
-            break;          
-        case 27 : //4.6
-            startRS2();
-            params = new HashMap<>();
-            params.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
-            params.put(Constants.AUD, CBORObject.FromObject("RS2"));
-            params.put(Constants.ISS, CBORObject.FromObject("AS"));
-
-            cnf = CBORObject.NewMap();
-            cnf.Add(Constants.COSE_KEY_CBOR, rpk.PublicKey());
-            params.put(Constants.CNF, cnf);
-            token = new CWT(params);
-            payload = CBORObject.FromObject(
-                    token.encode(ctx).EncodeToBytes());
-            ai.processMessage(new LocalMessage(0, null, null, payload));      
-            break;
-
-        //Introspection, not currently implemented
-        case 28 : //5.1
-        case 29 : //5.2
-        case 30 : //5.3
-        case 31 : //5.4
-        case 32 : //5.5
-            return;
         default :
-            throw new RuntimeException("Unknown test case: " + testcase);
+            stop();
+            throw new RuntimeException("Unknown RS number: " + testcase);
         }
+        
     }
     
     private static void startRS2() 
@@ -355,7 +233,8 @@ public class PlugtestRS {
         rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
         rpk = new OneKey(rpkData); 
 
-
+        
+        
         //Set up DTLSProfileTokenRepository
         Set<Short> r = new HashSet<>();
         r.add(Constants.GET);
@@ -385,7 +264,7 @@ public class PlugtestRS {
         AsInfo asi = new AsInfo("coaps://testAS/token");
         Resource hello = new HelloWorldResource();
         Resource lock = new LockResource();
-        KissValidator valid = new KissValidator(Collections.singleton("rs2"),
+        KissValidator valid = new KissValidator(Collections.singleton("RS2"),
                 myScopes);
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -460,7 +339,7 @@ public class PlugtestRS {
      AsInfo asi = new AsInfo("coaps://testAS/token");
      Resource hello = new HelloWorldResource();
      Resource lock = new LockResource();
-     KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+     KissValidator valid = new KissValidator(Collections.singleton("RS1"),
              myScopes);
      createTR(valid);
      tr = TokenRepository.getInstance();

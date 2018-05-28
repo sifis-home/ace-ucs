@@ -221,7 +221,7 @@ public class PlugtestAS {
         //Setup C2
         keyTypes.clear();
         keyTypes.add("PSK");
-        db.addClient("client1", profiles, null, null, 
+        db.addClient("client2", profiles, null, null, 
                 keyTypes, client2PSK, null);
         
         //Setup C3
