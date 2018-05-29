@@ -122,6 +122,8 @@ public class PlugtestClient {
     private static byte[] kid = 
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBC};
     
+    private static byte[] kid4 =
+        {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBF};
     
     /**
      * The logger
@@ -469,7 +471,7 @@ public class PlugtestClient {
             client = new CoapClient(uri);
             client.setEndpoint(e);   
             try {
-                c.start();
+                e.start();
             } catch (IOException ex) {
                 LOGGER.severe("Failed to start Connector: " 
                         + ex.getMessage());
@@ -477,11 +479,8 @@ public class PlugtestClient {
             }
             LOGGER.finest("Sending request");
             res = client.get();
-            System.out.print(res.getCode().codeClass + "." 
-                    + "0" + res.getCode().codeDetail);
-            System.out.println(" " + res.getCode().name());
-            System.out.println(CBORObject.DecodeFromBytes(res.getPayload()));
-            c.stop();
+            printResults(res);
+            e.stop();
             System.out.println("=====End Test 2.1======");
             
             System.out.println("=====Starting Test 2.2======");
@@ -540,7 +539,9 @@ public class PlugtestClient {
             claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
             claims.put(Constants.AUD, CBORObject.FromObject("RS1"));
             claims.put(Constants.ISS, CBORObject.FromObject("AS"));
-            claims.put(Constants.CNF, cbor);           
+            claims.put(Constants.CNF, cbor);    
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x01, 0x05}));
             token = new CWT(claims);
             tokenCB = token.encode(ctx1);
             payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
@@ -556,16 +557,45 @@ public class PlugtestClient {
             uri = "coaps://" + uri + "/ace/helloWorld";
             client.setURI(uri);
             res = client.get();
-            printResults(res);
-            e.stop();            
+            printResults(res);          
             System.out.println("=====End Test 2.7======");
-            
+
             System.out.println("=====Starting Test 2.8======");
-            
+            uri = uri.replace("helloWorld", "lock");
+            client.setURI(uri);
+            res = client.put(CBORObject.False.EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+            printResults(res);
             System.out.println("=====End Test 2.8======");
             
             System.out.println("=====Starting Test 2.9======");
+            uri = uri.replace("/ace/lock", "");
+            uri = uri.replace("coaps://", "");
+            //Make the token
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS1"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x01, 0x02}));
+            key = new OneKey();
+            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+            kidCB = CBORObject.FromObject(kid4);
+            key.add(KeyKeys.KeyId, kidCB);
+            //Using client4 here just for testing, could be random
+            key.add(KeyKeys.Octet_K, CBORObject.FromObject(client4));
+            cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+            claims.put(Constants.CNF, cbor);
+            token = new CWT(claims);
+            tokenCB = CBORObject.FromObject(token.encode(ctx1).EncodeToBytes());
             
+            client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), tokenCB, key);
+            uri = "coaps://" + uri + "/ace/helloWorld";
+            client.setURI(uri);
+            res = client.get();
+            printResults(res);
             System.out.println("=====End Test 2.9======");
             break;
             
@@ -613,6 +643,10 @@ public class PlugtestClient {
                             CBORObject.DecodeFromBytes(res.getPayload()));
                 } catch (CBORException e) {
                     System.out.println(res.getResponseText());
+                    return;
+                } catch (AceException e) {
+                    System.out.println(CBORObject.DecodeFromBytes(
+                            res.getPayload()).toString());
                     return;
                 }
                 System.out.println(params);
