@@ -33,14 +33,16 @@ package se.sics.ace.interop;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.bouncycastle.util.encoders.Base64;
+import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
@@ -52,6 +54,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
+import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -186,8 +189,8 @@ public class PlugtestClient {
         pskData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client1));
         String kidStr = "key128";
-        byte[] kid = Base64.decode(kidStr);
-        pskData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+        byte[] kid1 = kidStr.getBytes(Constants.charset);
+        pskData.Add(KeyKeys.KeyId.AsCBOR(), kid1);
         OneKey client1PSK = new OneKey(pskData);
         
         CBORObject pskData2 = CBORObject.NewMap();
@@ -196,7 +199,7 @@ public class PlugtestClient {
         pskData2.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client2));
         String kidStr2 = "key128";
-        byte[] kid2 = Base64.decode(kidStr2);
+        byte[] kid2 = kidStr2.getBytes(Constants.charset);
         pskData2.Add(KeyKeys.KeyId.AsCBOR(), kid2);
         OneKey client2PSK = new OneKey(pskData2);
        
@@ -206,7 +209,7 @@ public class PlugtestClient {
         pskData4.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client4));
         String kidStr4 = "key128";
-        byte[] kid4 = Base64.decode(kidStr4);
+        byte[] kid4 = kidStr4.getBytes(Constants.charset);
         pskData4.Add(KeyKeys.KeyId.AsCBOR(), kid4);
         OneKey client4PSK = new OneKey(pskData4);
                
@@ -533,11 +536,28 @@ public class PlugtestClient {
             System.out.println("=====End Test 2.5======");
             
             System.out.println("=====Starting Test 2.6======");
-            
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS1"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            claims.put(Constants.CNF, cbor);           
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx1);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.6======");
             
             System.out.println("=====Starting Test 2.7======");
-            
+            uri = uri.replace("/authz-info", "");
+            uri = uri.replace("coap://", "");
+            client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid, client1PSK);    
+            uri = "coaps://" + uri + "/ace/helloWorld";
+            client.setURI(uri);
+            res = client.get();
+            printResults(res);
+            e.stop();            
             System.out.println("=====End Test 2.7======");
             
             System.out.println("=====Starting Test 2.8======");
@@ -587,8 +607,14 @@ public class PlugtestClient {
             System.out.println(" " + res.getCode().name());
 
             if (res.getPayload() != null) {
-                Map<String, CBORObject> params = Constants.unabbreviate(
-                        CBORObject.DecodeFromBytes(res.getPayload()));
+                Map<String, CBORObject> params;
+                try {
+                    params = Constants.unabbreviate(
+                            CBORObject.DecodeFromBytes(res.getPayload()));
+                } catch (CBORException e) {
+                    System.out.println(res.getResponseText());
+                    return;
+                }
                 System.out.println(params);
                 //Print token is there is one
                 if (params.containsKey("access_token")) {

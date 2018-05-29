@@ -189,6 +189,9 @@ public class PlugtestRS {
     public static void main(String[] args) throws Exception {
         BasicConfigurator.configure();
         
+        //Try to delete the previous tokens config
+        new File("tokens.json").delete();
+        
         if (args.length != 1) { 
             System.out.println("Need 1 argument: 1 for RS1 and 2 for RS2");
             return;
@@ -240,16 +243,16 @@ public class PlugtestRS {
         rw.add(Constants.PUT);
         
         Map<String, Set<Short>> helloWorldResource = new HashMap<>();
-        helloWorldResource.put("helloWorld", r);
+        helloWorldResource.put("ace/helloWorld", r);
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
-        myScopes.put("helloWorld", helloWorldResource);
+        myScopes.put("HelloWorld", helloWorldResource);
         
         Map<String, Set<Short>> rLockResource = new HashMap<>();
-        rLockResource.put("lock", r);
+        rLockResource.put("ace/lock", r);
         myScopes.put("r_Lock", rLockResource);
  
         Map<String, Set<Short>> rwLockResource = new HashMap<>();
-        rwLockResource.put("lock", rw);
+        rwLockResource.put("ace/lock", rw);
         myScopes.put("rw_Lock", rwLockResource);
         
         //Set up COSE parameters
@@ -314,16 +317,16 @@ public class PlugtestRS {
      rw.add(Constants.PUT);
      
      Map<String, Set<Short>> helloWorldResource = new HashMap<>();
-     helloWorldResource.put("helloWorld", r);
+     helloWorldResource.put("ace/helloWorld", r);
      Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
-     myScopes.put("helloWorld", helloWorldResource);
+     myScopes.put("HelloWorld", helloWorldResource);
      
      Map<String, Set<Short>> rLockResource = new HashMap<>();
-     rLockResource.put("lock", r);
+     rLockResource.put("ace/lock", r);
      myScopes.put("r_Lock", rLockResource);
 
      Map<String, Set<Short>> rwLockResource = new HashMap<>();
-     rwLockResource.put("lock", rw);
+     rwLockResource.put("ace/lock", rw);
      myScopes.put("rw_Lock", rwLockResource);
      
      //Set up COSE parameters
