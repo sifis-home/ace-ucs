@@ -676,7 +676,7 @@ public class PlugtestClient {
             //Client3 HelloWorld asymmetric authz-info
             uri = uri.replace("coap:", "coaps:");
             claims = new HashMap<>();
-            claims.put(Constants.SCOPE, CBORObject.FromObject("rw_Lock"));
+            claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
             claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
             claims.put(Constants.ISS, CBORObject.FromObject("AS"));
             cbor = CBORObject.NewMap();
