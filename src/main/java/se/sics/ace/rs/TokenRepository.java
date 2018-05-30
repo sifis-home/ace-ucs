@@ -388,6 +388,7 @@ public class TokenRepository implements AutoCloseable {
 	    String kid = null;
         CBORObject kidC = key.get(KeyKeys.KeyId);
         
+        //XXX: Check if we can remove the requirement for kid
         if (kidC == null) {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
