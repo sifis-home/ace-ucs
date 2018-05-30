@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -51,24 +54,29 @@ import se.sics.ace.examples.Aif;
  */
 public class TestAif {
    
-    private static byte[] scope;
-    private static Aif s = new Aif();
+    private static CBORObject scope;
+    private static Aif s;
     
     /**
      * Set up tests.
      */
     @BeforeClass
     public static void setUp()  {
-        CBORObject scopeCB = CBORObject.NewArray();
+        Set<String> resources = new HashSet<>();
+        resources.add("sensors/temp");
+        resources.add("config/security");
+        resources.add("sensors/co2");
+        resources.add("");
+        s = new Aif(resources);
         CBORObject authz1 = CBORObject.NewArray();
         CBORObject authz2 = CBORObject.NewArray();
         authz1.Add("sensors/temp");
         authz1.Add(1);  // == 2^GET(0) ==  2^0
         authz2.Add("config/security");
         authz2.Add(1|4); // == GET and PUT
-        scopeCB.Add(authz1);
-        scopeCB.Add(authz2);
-        scope = scopeCB.EncodeToBytes();
+        scope = CBORObject.NewArray();
+        scope.Add(authz1);
+        scope.Add(authz2);
     }
     
     

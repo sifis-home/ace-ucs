@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -156,16 +156,16 @@ public class TestDtlspRS {
      */
     public static void main(String[] args) throws Exception {
       //Set up DTLSProfileTokenRepository
-        Set<String> actions = new HashSet<>();
-        actions.add("GET");
-        Map<String, Set<String>> myResource = new HashMap<>();
+        Set<Short> actions = new HashSet<>();
+        actions.add(Constants.GET);
+        Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("helloWorld", actions);
-        Map<String, Map<String, Set<String>>> myScopes = new HashMap<>();
+        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
         
-        Set<String> actions2 = new HashSet<>();
-        actions2.add("GET");
-        Map<String, Set<String>> myResource2 = new HashMap<>();
+        Set<Short> actions2 = new HashSet<>();
+        actions2.add(Constants.GET);
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         

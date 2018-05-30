@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -193,6 +194,10 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
        addEndpoint(new CoapEndpoint.CoapEndpointBuilder()
                .setConnector(connector).setNetworkConfig(
                        NetworkConfig.getStandard()).build());
+       //Add a CoAP (no 's') endpoint for error messages
+       CoapEndpoint coap = new CoapEndpointBuilder().setInetSocketAddress(
+               new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
+       addEndpoint(coap);
         
     }
 

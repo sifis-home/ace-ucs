@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -268,16 +268,15 @@ public interface DBConnector {
     public boolean hasDefaultProfile(String clientId) throws AceException;
 	
 	/**
-     * Returns a common key type for the proof-of-possession
-     * algorithm, or null if there isn't any.
+     * Returns the common key types for the proof-of-possession
+     * algorithm, or null if there aren't any.
      * 
-     * @param clientId  the id of the client
-     * @param aud  the audiences that this client is addressing 
+     * @param aud  the audiences for which to get the key types
      * 
-     * @return  a key type both support or null
+     * @return  a key type all support or null
 	 * @throws AceException 
      */
-    public String getSupportedPopKeyType(String clientId, Set<String> aud)
+    public Set<String> getSupportedPopKeyTypes(Set<String> aud)
         throws AceException;
     
     /**

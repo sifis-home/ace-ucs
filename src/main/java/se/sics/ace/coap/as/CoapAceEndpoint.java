@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -107,9 +107,9 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
         CoapReq req = null;
         try {
             req = CoapReq.getInstance(exchange.advanced().getRequest());
-        } catch (AceException e) {
-            LOGGER.severe(e.getMessage());
-            exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);
+        } catch (AceException e) {//Message didn't have CBOR payload
+            LOGGER.info(e.getMessage());
+            exchange.respond(ResponseCode.BAD_REQUEST);
         }
         LOGGER.log(Level.FINEST, "Received request: " 
                 + ((req==null)?"null" : req.toString()));

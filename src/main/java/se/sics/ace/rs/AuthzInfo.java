@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -128,8 +128,25 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
-        CBORObject tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
-        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
+	    CBORObject tokenAsByteString = null;
+	    try {
+	        tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    } catch (Exception e) {
+	        LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
+	    
+	    CBORObject tokenAsCbor = null;
+	    try {
+	        tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
+	    } catch (Exception e) {
+	           LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+	           CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	    }
 	    Map<Short, CBORObject> claims = null;
 	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
 	        try {
@@ -275,7 +292,28 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //7. Store the claims of this token
+	    //7. Check if any part of the scope is meaningful to us
+	    boolean meaningful = false;
+	    try {
+	        meaningful = this.tr.checkScope(scope);
+	    } catch (AceException e) {
+	        LOGGER.info("Invalid scope, "
+                    + "message processing aborted: " + e.getMessage());
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+            map.Add(Constants.ERROR_DESCRIPTION, "Scope has invalid format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	    }
+	    if (!meaningful) {
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+            map.Add(Constants.ERROR_DESCRIPTION, "Scope does not apply");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Token's scope does not apply");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    
+	    //8. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
@@ -286,7 +324,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    //8. Create success message
+	    //9. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
