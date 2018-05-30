@@ -33,7 +33,6 @@ package se.sics.ace.interop;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -50,6 +49,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -63,6 +63,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -82,6 +83,9 @@ public class PlugtestClient {
     
     private static byte[] client2 =
         {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+    private static byte[] client3 =
+        {0x41, 0x42, 0x43, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
     private static byte[] client4 =
         {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
@@ -119,8 +123,14 @@ public class PlugtestClient {
     private static String rsY 
         = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
     
-    private static byte[] kid = 
+    private static byte[] kid1 = 
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBC};
+    
+    private static byte[] kid2 = 
+        {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBD};
+    
+    private static byte[] kid3 = 
+        {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBE};
     
     private static byte[] kid4 =
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBF};
@@ -159,7 +169,12 @@ public class PlugtestClient {
         rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
         rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
         rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
-        OneKey rpk = new OneKey(rpkData);  
+        OneKey rpk = new OneKey(rpkData);
+        
+        String keyId = new RawPublicKeyIdentity(
+                rpk.AsPublicKey()).getName();
+        rpk.add(KeyKeys.KeyId, CBORObject.FromObject(
+                keyId.getBytes(Constants.charset)));
         
         CBORObject asRpkData = CBORObject.NewMap();
         asRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -190,8 +205,6 @@ public class PlugtestClient {
                 KeyKeys.KeyType_Octet);
         pskData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client1));
-        String kidStr = "key128";
-        byte[] kid1 = kidStr.getBytes(Constants.charset);
         pskData.Add(KeyKeys.KeyId.AsCBOR(), kid1);
         OneKey client1PSK = new OneKey(pskData);
         
@@ -200,18 +213,28 @@ public class PlugtestClient {
                 KeyKeys.KeyType_Octet);
         pskData2.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client2));
-        String kidStr2 = "key128";
-        byte[] kid2 = kidStr2.getBytes(Constants.charset);
+        String kidStr2 = "key2";
+        byte[] kidPSK2 = kidStr2.getBytes(Constants.charset);
         pskData2.Add(KeyKeys.KeyId.AsCBOR(), kid2);
         OneKey client2PSK = new OneKey(pskData2);
        
+        CBORObject pskData3 = CBORObject.NewMap();
+        pskData3.Add(KeyKeys.KeyType.AsCBOR(), 
+                KeyKeys.KeyType_Octet);
+        pskData3.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(client3));
+        String kidStr3 = "key3";
+        byte[] kidPSK3 = kidStr3.getBytes(Constants.charset);
+        pskData3.Add(KeyKeys.KeyId.AsCBOR(), kid3);
+        OneKey client3PSK = new OneKey(pskData3);
+        
         CBORObject pskData4 = CBORObject.NewMap();
         pskData4.Add(KeyKeys.KeyType.AsCBOR(), 
                 KeyKeys.KeyType_Octet);
         pskData4.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client4));
-        String kidStr4 = "key128";
-        byte[] kid4 = kidStr4.getBytes(Constants.charset);
+        String kidStr4 = "key4";
+        byte[] kidPSK4 = kidStr4.getBytes(Constants.charset);
         pskData4.Add(KeyKeys.KeyId.AsCBOR(), kid4);
         OneKey client4PSK = new OneKey(pskData4);
                
@@ -498,7 +521,7 @@ public class PlugtestClient {
             claims.put(Constants.ISS, CBORObject.FromObject("AS"));
             OneKey key = new OneKey();
             key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-            CBORObject kidCB = CBORObject.FromObject(kid);
+            CBORObject kidCB = CBORObject.FromObject(kid1);
             key.add(KeyKeys.KeyId, kidCB);
             //Using client1 here just for testing, could be random
             key.add(KeyKeys.Octet_K, CBORObject.FromObject(client1));
@@ -553,7 +576,7 @@ public class PlugtestClient {
             uri = uri.replace("/authz-info", "");
             uri = uri.replace("coap://", "");
             client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
-                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid, client1PSK);    
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid1, client1PSK);    
             uri = "coaps://" + uri + "/ace/helloWorld";
             client.setURI(uri);
             res = client.get();
@@ -601,27 +624,108 @@ public class PlugtestClient {
             
         case 3: //Tests against RS2
             System.out.println("=====Starting Test 2.10======");
-            
+            // Client2 r_Lock symmetric authz-info h'91ECB5CB5DBD'
+            uri = "coap://" + args[1] + "/authz-info";
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("r_Lock"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            key = new OneKey();
+            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+            kidCB = CBORObject.FromObject(kid2);
+            key.add(KeyKeys.KeyId, kidCB);
+            //Using client2 here just for testing, could be random
+            key.add(KeyKeys.Octet_K, CBORObject.FromObject(client2));
+            cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+            claims.put(Constants.CNF, cbor);    
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x02, 0x05}));
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx2);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.10======");
-            
+           
             System.out.println("=====Starting Test 2.11======");
-            
+            // Client3 rw_Lock symmetric authz-info
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("rw_Lock"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            key = new OneKey();
+            key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+            kidCB = CBORObject.FromObject(kid3);
+            key.add(KeyKeys.KeyId, kidCB);
+            //Using client2 here just for testing, could be random
+            key.add(KeyKeys.Octet_K, CBORObject.FromObject(client3));
+            cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+            claims.put(Constants.CNF, cbor);    
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x02, 0x06}));
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx2);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
             System.out.println("=====End Test 2.11======");
             
             System.out.println("=====Starting Test 2.12======");
-            
+            //Client3 HelloWorld asymmetric authz-info
+            uri = uri.replace("coap:", "coaps:");
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("rw_Lock"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+            cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KEY_CBOR, rpk.AsCBOR());
+            claims.put(Constants.CNF, cbor);    
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x02, 0x07}));
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx2);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, rpk);
+            printResults(res);
             System.out.println("=====End Test 2.12======");
             
             System.out.println("=====Starting Test 2.13======");
-            
+            //Client2 DTLS-PSK   h'91ECB5CB5DBD' PUT to lock
+            uri = uri.replace("/authz-info", "");
+            uri = uri.replace("coaps://", "");
+            client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid2, client2PSK);    
+            uri = "coaps://" + uri + "/ace/lock";
+            client.setURI(uri);
+            res = client.put(CBORObject.False.EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+            printResults(res);          
             System.out.println("=====End Test 2.13======");
             
             System.out.println("=====Starting Test 2.14======");
-            
+            //Client3 DTLS-PSK  h'91ECB5CB5DBE' PUT to lock
+            uri = uri.replace("/ace/lock", "");
+            uri = uri.replace("coaps://", "");
+            client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid3, client3PSK);    
+            uri = "coaps://" + uri + "/ace/lock";
+            client.setURI(uri);
+            res = client.put(CBORObject.False.EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+            printResults(res);          
             System.out.println("=====End Test 2.14======");
             
             System.out.println("=====Starting Test 2.15======");
-            
+            //Client3 DTLS-RPK GET HelloWorld
+            uri = uri.replace("/ace/lock", "");
+            uri = uri.replace("coaps://", "");
+            client = DTLSProfileRequests.getRpkClient(rpk, rsRPK); 
+            uri = "coaps://" + uri + "/ace/helloWorld";
+            client.setURI(uri);
+            res = client.get();
+            printResults(res);          
             System.out.println("=====End Test 2.15======");
             break;
         default : //Error

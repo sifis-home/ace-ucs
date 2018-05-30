@@ -39,6 +39,10 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
 import org.apache.log4j.BasicConfigurator;
 import org.eclipse.californium.core.CoapResource;
@@ -157,7 +161,7 @@ public class PlugtestRS {
         @Override
         public void handlePUT(CoapExchange exchange) {
             if (exchange.getRequestPayload() != null) {
-                CBORObject newState = CBORObject.FromObject(
+                CBORObject newState = CBORObject.DecodeFromBytes(
                         exchange.getRequestPayload());
                 if (newState.getType().equals(CBORType.Boolean)) {
                     this.locked = newState.AsBoolean();
@@ -187,7 +191,15 @@ public class PlugtestRS {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+        //Set logging for slf4/blah
         BasicConfigurator.configure();
+
+        //Set java.util.logging
+        Logger rootLogger = LogManager.getLogManager().getLogger("");
+        rootLogger.setLevel(Level.FINEST);
+        for (Handler h : rootLogger.getHandlers()) {
+            h.setLevel(Level.FINEST);
+        }
         
         //Try to delete the previous tokens config
         new File("tokens.json").delete();
