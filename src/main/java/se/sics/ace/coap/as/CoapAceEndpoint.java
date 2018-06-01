@@ -123,6 +123,9 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
                     MediaTypeRegistry.APPLICATION_CBOR);
             return;
         }
+        if (m == null) {//Wasn't a CoAP message
+            return;
+        }
         LOGGER.severe(this.e.getClass().getName() 
                 + " library produced wrong response type");
         exchange.respond(ResponseCode.INTERNAL_SERVER_ERROR);

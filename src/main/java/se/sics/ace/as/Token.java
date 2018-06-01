@@ -238,6 +238,10 @@ public class Token implements Endpoint, AutoCloseable {
 
 	@Override
 	public Message processMessage(Message msg) {
+	    if (msg == null) {//This should not happen
+	        LOGGER.severe("Token.processMessage() received null message");
+	        return null;
+	    }
 	    LOGGER.log(Level.INFO, "Token received message: " 
 	            + msg.getParameters());
 	    

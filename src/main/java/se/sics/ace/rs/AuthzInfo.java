@@ -145,7 +145,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	           LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
 	           CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    Map<Short, CBORObject> claims = null;
 	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
@@ -193,7 +193,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
-	        LOGGER.info("Message processing aborted: invalid reuqest");
+	        LOGGER.info("Message processing aborted: invalid request");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
