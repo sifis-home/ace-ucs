@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -531,10 +531,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " WHERE " + DBConnector.idColumn + " IN (SELECT " 
 		                + DBConnector.rsIdColumn + " FROM " 
 		                + DBConnector.audiencesTable
-		                + " WHERE " + DBConnector.audColumn + "=?)"
-		                + " UNION SELECT * FROM "
-		                + DBConnector.keyTypesTable + " WHERE " 
-		                + DBConnector.idColumn + "=? ORDER BY "
+		                + " WHERE " + DBConnector.audColumn + "=?) ORDER BY "
 		                + DBConnector.idColumn + ";"));
 
 		this.insertScope = this.conn.prepareStatement(
@@ -932,27 +929,24 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     }
     
     @Override
-    public synchronized String getSupportedPopKeyType(
-            String clientId, Set<String> aud) throws AceException {
-        if (clientId == null || aud == null) {
+    public synchronized Set<String> getSupportedPopKeyTypes(Set<String> aud) 
+            throws AceException {
+        if (aud == null) {
             throw new AceException(
-                    "getSupportedPopKeyType() requires non-null parameters");
+                    "getSupportedPopKeyType() requires non-null parameter");
         }
         Map<String, Set<String>> rsKeyTypes = new HashMap<>();
-        Set<String> clientKeyTypes = new HashSet<>();
+    
         for (String audE : aud) {
             try {
                 this.selectKeyTypes.setString(1, audE);
-                this.selectKeyTypes.setString(2, clientId);
                 ResultSet result = this.selectKeyTypes.executeQuery();
                 this.selectKeyTypes.clearParameters();
                 while(result.next()) {
                     String id = result.getString(DBConnector.idColumn);
                     String keyType = result.getString(
                             DBConnector.keyTypeColumn);
-                    if (id.equals(clientId)) {
-                        clientKeyTypes.add(keyType);
-                    } else if (rsKeyTypes.containsKey(id)) {
+                    if (rsKeyTypes.containsKey(id)) {
                         Set<String> foo = rsKeyTypes.get(id);
                         foo.add(keyType);
                         rsKeyTypes.put(id, foo);
@@ -967,8 +961,24 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                 throw new AceException(e.getMessage());
             }
         }
-        return getCommonValue(clientKeyTypes, rsKeyTypes);
-        
+        Set<String> typeSet = null;
+        for (Map.Entry<String, Set<String>> rs : rsKeyTypes.entrySet()) {
+            if (typeSet == null) {
+                typeSet = new HashSet<>();
+                typeSet.addAll(rs.getValue());
+            } else {
+                Set<String> iterSet = new HashSet<>(typeSet);
+                for (String keyType : iterSet) {
+                    if (!rs.getValue().contains(keyType)) {
+                        typeSet.remove(keyType);
+                    }
+                }
+                if (typeSet.isEmpty()) {
+                    return null;
+                }
+            }
+        }
+        return typeSet;
     }
     
     @Override

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -182,7 +182,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         }
                
         String resource = request.getOptions().getUriPathString();
-        String action = request.getCode().toString();  
+        short action = (short) request.getCode().value;  
       
         try {
             int res = this.tr.canAccess(kid, subject, resource, action, 

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -31,10 +31,14 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.rs.AudienceValidator;
@@ -44,18 +48,24 @@ import se.sics.ace.rs.ScopeValidator;
  * Simple audience and scope validator for testing purposes.
  * This validator expects the scopes to be Strings as in OAuth 2.0.
  * 
+ * The actions are expected to be integers corresponding to the 
+ * values for RESTful actions in <code>Constants</code>.
+ * 
  * @author Ludwig Seitz
  *
  */
 public class KissValidator implements AudienceValidator, ScopeValidator {
 
+    /**
+     * The audiences we recognize
+     */
 	private Set<String> myAudiences;
 	
 	/**
 	 * Maps the scopes to a map that maps the scope's resources to the actions 
 	 * allowed on that resource
 	 */
-	private Map<String, Map<String, Set<String>>> myScopes;  
+	private Map<String, Map<String, Set<Short>>> myScopes;  
 	
 	/**
 	 * Constructor.
@@ -64,11 +74,19 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	 * @param myScopes  the scopes that this validator should accept
 	 */
 	public KissValidator(Set<String> myAudiences, 
-	        Map<String, Map<String, Set<String>>> myScopes) {
+	        Map<String, Map<String, Set<Short>>> myScopes) {
 		this.myAudiences = new HashSet<>();
 		this.myScopes = new HashMap<>();
-		this.myAudiences.addAll(myAudiences);
-		this.myScopes.putAll(myScopes);
+		if (myAudiences != null) {
+		    this.myAudiences.addAll(myAudiences);
+		} else {
+		    this.myAudiences = Collections.emptySet();
+		}
+		if (myScopes != null) {
+		    this.myScopes.putAll(myScopes);
+		} else {
+		    this.myScopes = Collections.emptyMap();
+		}
 	}
 	
 	@Override
@@ -77,31 +95,47 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
 	}
 
     @Override
-    public boolean scopeMatch(Object scope, String resourceId, Object actionId)
+    public boolean scopeMatch(CBORObject scope, String resourceId, Object actionId)
             throws AceException {
-        if (!(scope instanceof String)) {
+        if (!scope.getType().equals(CBORType.TextString)) {
             throw new AceException("Scope must be a String in KissValidator");
         }
-        Map<String, Set<String>> resources = this.myScopes.get(scope);
-        if (resources == null) {
-            return false;
-        }
-        if (resources.containsKey(resourceId)) {
-            return resources.get(resourceId).contains(actionId);
+        String[] scopes = scope.AsString().split(" ");
+        for (String subscope : scopes) {
+            Map<String, Set<Short>> resources = this.myScopes.get(subscope);
+            if (resources == null) {
+                continue;
+            }
+            if (resources.containsKey(resourceId)) {
+                if (resources.get(resourceId).contains(actionId)) {
+                    return true;
+                }
+            }
         }
         return false;
     }
 
     @Override
-    public boolean scopeMatchResource(Object scope, String resourceId)
+    public boolean scopeMatchResource(CBORObject scope, String resourceId)
             throws AceException {
-        if (!(scope instanceof String)) {
+        if (!scope.getType().equals(CBORType.TextString)) {
             throw new AceException("Scope must be a String in KissValidator");
         }
-        Map<String, Set<String>> resources = this.myScopes.get(scope);
-        if (resources == null) {
-            return false;
+        String[] scopes = scope.AsString().split(" ");
+        for (String subscope : scopes) {           
+            Map<String, Set<Short>> resources = this.myScopes.get(subscope);
+            if (resources.containsKey(resourceId)) {
+                return true;
+            }
         }
-        return resources.containsKey(resourceId);
+        return false;
+    }
+
+    @Override
+    public boolean isScopeMeaningful(CBORObject scope) throws AceException {
+        if (!scope.getType().equals(CBORType.TextString)) {
+            throw new AceException("Scope must be a String in KissValidator");
+        }
+        return this.myScopes.containsKey(scope.AsString());
     }
 }

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -498,5 +498,42 @@ public class Constants {
         }
        return ret;
     }
+    
+    /**
+     * Representation of GET
+     */
+    public static short GET = 1;
+    
+    /**
+     *  Representation of POST
+     */
+    public static short POST = 2;
+    
+    /**
+     *  Representation of PUT
+     */
+    public static short PUT = 3;
+    
+    /**
+     *  Representation of DELETE
+     */
+    public static short DELETE = 4;
+    
+    /**
+     * Representation of FETCH
+     */
+    public static short FETCH = 5;
+    
+    /**
+     * Representation of PATCH
+     */
+    public static short PATCH = 6;
+    
+    /**
+     * Representation of iPATCH
+     */
+    public static short iPATCH = 7;
+    
+    
     
 }

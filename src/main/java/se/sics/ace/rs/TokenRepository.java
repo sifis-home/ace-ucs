@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2017, RISE SICS AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -388,6 +388,7 @@ public class TokenRepository implements AutoCloseable {
 	    String kid = null;
         CBORObject kidC = key.get(KeyKeys.KeyId);
         
+        //XXX: Check if we can remove the requirement for kid
         if (kidC == null) {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
@@ -478,7 +479,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @param kid  the key identifier used for proof-of-possession.
 	 * @param subject  the authenticated subject if there is any, can be null
 	 * @param resource  the resource that is accessed
-	 * @param action  the RESTful action on that resource
+	 * @param action  the RESTful action code.
 	 * @param time  the time provider
 	 * @param intro  the introspection handler, can be null
 	 * @return  1 if there is a token giving access, 0 if there is no token 
@@ -488,7 +489,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws IntrospectionException 
 	 */
 	public int canAccess(String kid, String subject, String resource, 
-	        String action, TimeProvider time, IntrospectionHandler intro) 
+	        short action, TimeProvider time, IntrospectionHandler intro) 
 			        throws AceException, IntrospectionException {
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
@@ -503,7 +504,6 @@ public class TokenRepository implements AutoCloseable {
 	        }
 	    }
 	 
-	    
 	    boolean methodNA = false;   
 	    for (String cti : ctis) { //All tokens linked to that pop key
 	        //Check if we have the claims for that cti
@@ -555,32 +555,30 @@ public class TokenRepository implements AutoCloseable {
                  
              }
              
-             String[] scopes = scope.AsString().split(" ");
-             for (String subscope : scopes) {
-                 if (this.scopeValidator.scopeMatchResource(subscope, resource)) {
-                     if (this.scopeValidator.scopeMatch(subscope, resource, action)) {
-                       //Check if we should introspect this token
-                         if (intro != null) {
-                             byte[] ctiB = Base64.getDecoder().decode(cti);
-                             Map<Short,CBORObject> introspect = intro.getParams(ctiB);
-                             if (introspect != null 
-                                     && introspect.get(Constants.ACTIVE) == null) {
-                                 throw new AceException("Token introspection didn't "
-                                         + "return an 'active' parameter");
-                             }
-                             if (introspect != null && introspect.get(
-                                     Constants.ACTIVE).isTrue()) {
-                                 return OK; // Token is active and passed all other tests
-                             }
+             if (this.scopeValidator.scopeMatchResource(scope, resource)) {
+                 if (this.scopeValidator.scopeMatch(scope, resource, action)) {
+                     //Check if we should introspect this token
+                     if (intro != null) {
+                         byte[] ctiB = Base64.getDecoder().decode(cti);
+                         Map<Short,CBORObject> introspect = intro.getParams(ctiB);
+                         if (introspect != null 
+                                 && introspect.get(Constants.ACTIVE) == null) {
+                             throw new AceException("Token introspection didn't "
+                                     + "return an 'active' parameter");
                          }
-                        return OK; //We didn't introspect, but the token is ok otherwise
+                         if (introspect != null && introspect.get(
+                                 Constants.ACTIVE).isTrue()) {
+                             return OK; // Token is active and passed all other tests
+                         }
+                     } else {
+                       //We didn't introspect, but the token is ok otherwise
+                         return OK;
                      }
-                    methodNA = true; //scope did match resource but not action
                  }
+                 methodNA = true; //scope did match resource but not action
              }
 	    }
-	    return ((methodNA) ? METHODNA : FORBID);
-	   
+	    return ((methodNA) ? METHODNA : FORBID); 
 	}
 
 	/**
@@ -686,6 +684,15 @@ public class TokenRepository implements AutoCloseable {
         return new HashSet<>(this.cti2claims.keySet());
     }
 
-    
+    /**
+     * Checks if a given scope is meaningful for this repository.
+     * 
+     * @param scope  the Scope can be CBOR String or CBOR array
+     * @return true if the scope is meaningful, false otherwise 
+     * @throws AceException 
+     */
+    public boolean checkScope(CBORObject scope) throws AceException {
+        return this.scopeValidator.isScopeMeaningful(scope);
+    }
 }
 
