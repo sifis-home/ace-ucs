@@ -48,6 +48,7 @@ import org.apache.log4j.BasicConfigurator;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
@@ -128,7 +129,8 @@ public class PlugtestRS {
         public void handleGET(CoapExchange exchange) {
             
             // respond to the request
-            exchange.respond("Hello World!");
+            exchange.respond(ResponseCode.CONTENT,"Hello World!", 
+                    MediaTypeRegistry.TEXT_PLAIN);
         }
     }
     
@@ -155,7 +157,8 @@ public class PlugtestRS {
         public void handleGET(CoapExchange exchange) {
             exchange.respond(ResponseCode.CONTENT, this.locked 
                     ? CBORObject.True.EncodeToBytes() :
-                            CBORObject.False.EncodeToBytes());
+                            CBORObject.False.EncodeToBytes(),
+                            MediaTypeRegistry.APPLICATION_CBOR);
         }
         
         @Override
