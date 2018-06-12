@@ -409,6 +409,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
     private PreparedStatement insertGrant2Cti;
     
+    /**
+     * A prepared DELETE statement to remove the mapping of a grant
+     * to an access token cti.
+     */
+    private PreparedStatement deleteGrant2Cti;
     
     /**
      * A prepared UPDATE statement to mark an authorization grant
@@ -421,6 +426,12 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      * for an authorization grant
      */
     private PreparedStatement selectRsInfoByGrant;
+    
+    /**
+     * A prepared INSERT statement to add the RS Information
+     * for a given grant.
+     */
+    private PreparedStatement insertGrant2RsInfo;
     
     /**
      * The singleton instance of this connector
@@ -748,6 +759,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                         + DBConnector.grant2ctiTable
                         + " VALUES (?,?);"));
 		
+		this.deleteGrant2Cti = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("DELETE FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
+		
 		this.updateGrant = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("UPDATE "
                         + DBConnector.grant2ctiTable
@@ -759,6 +775,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                         + DBConnector.claimValueColumn + " FROM " 
                         + DBConnector.grant2RSInfoTable
                         + " WHERE " + DBConnector.grantColumn + "=?;"));
+		
+		this.insertGrant2RsInfo = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+		                + DBConnector.grant2RSInfoTable
+		                + " VALUES (?,?,?);"));
 	}
 	
 	/**
@@ -1822,28 +1843,121 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
     @Override
     public String getCti4Grant(String code) throws AceException {
-        // TODO Auto-generated method stub
-        return null;
+        if (code == null) {
+            throw new AceException(
+                    "getCti4Grant() requires non-null code");
+        }
+        String cti = null;
+        try {
+            this.selectCtisByGrant.setString(1, code);
+            ResultSet result = this.selectCtisByGrant.executeQuery();
+            this.selectCtisByGrant.clearParameters();
+            while (result.next()) {
+                cti = (result.getString(DBConnector.ctiColumn));      
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return cti;
     }
 
     @Override
     public void addGrant(String code, String cti, Map<Short, CBORObject> claims,
             Map<Short, CBORObject> rsInfo) throws AceException {
-        // TODO Auto-generated method stub
+        if (code == null) {
+            throw new AceException(
+                    "getaddGrant() requires non-null code");
+        }
+        if (cti == null) {
+            throw new AceException(
+                    "getaddGrant() requires non-null cti");
+        }
+        if (claims == null || claims.isEmpty()) {
+            throw new AceException(
+                    "getaddGrant() requires non-null and non-empty"
+                    + " claims");
+        }
+        if (rsInfo == null || rsInfo.isEmpty()) {
+            throw new AceException(
+                    "getaddGrant() requires non-null and non-empty"
+                    + " rsInfo");
+        }
         
+        addToken(cti, claims);
+        
+        try {
+            this.insertGrant2Cti.setString(1, code);
+            this.insertGrant2Cti.setString(2, cti);
+            this.insertGrant2Cti.execute();
+            this.insertGrant2Cti.clearParameters();
+        } catch (SQLException e) {
+            deleteToken(cti);
+            throw new AceException(e.getMessage());
+        }   
+
+        try {
+            this.insertGrant2RsInfo.setString(1, code);  
+            for (Map.Entry<Short, CBORObject> rsEntry : rsInfo.entrySet()) {  
+                this.insertGrant2RsInfo.setShort(2, rsEntry.getKey());
+                this.insertGrant2RsInfo.setBytes(3, rsEntry.getValue().EncodeToBytes());
+                this.insertGrant2RsInfo.execute();
+            }
+            this.insertGrant2RsInfo.clearParameters();        
+        } catch (SQLException e) {
+            deleteToken(cti);
+            try {
+                this.deleteGrant2Cti.setString(1, code);
+                this.deleteGrant2Cti.execute();
+                this.deleteGrant2Cti.clearParameters();
+            } catch (SQLException e2) {
+                throw new AceException("Error while tyring to roll-back an "
+                        + "addGrant(): " + e2.getMessage());
+            }
+            throw new AceException(e.getMessage());
+        }     
     }
 
     @Override
     public void useGrant(String code) throws AceException {
-        // TODO Auto-generated method stub
-        
+        if (code == null) {
+            throw new AceException(
+                    "useGrant() requires non-null code");
+        }
+        try {
+            this.updateGrant.setString(1, code);
+            this.updateGrant.execute();
+            this.updateGrant.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
     }
 
     @Override
     public Map<Short, CBORObject> getRsInfo(String code) throws AceException {
-        // TODO Auto-generated method stub
-        return null;
+        if (code == null) {
+            throw new AceException(
+                    "getRsInfo() requires non-null code");
+        }
+        Map<Short, CBORObject> rsInfo = new HashMap<>();
+        try {
+            this.selectRsInfoByGrant.setString(1, code);
+            ResultSet result = this.selectRsInfoByGrant.executeQuery();
+            this.selectRsInfoByGrant.clearParameters();
+            while (result.next()) {
+                    Short claimName 
+                        = result.getShort(DBConnector.claimNameColumn);
+                    CBORObject cbor = CBORObject.DecodeFromBytes(
+                            result.getBytes(DBConnector.claimValueColumn));
+                    rsInfo.put(claimName, cbor);
+            }
+            result.close(); 
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return rsInfo;
     }
+
     
     /**
      * Extensibility method to allow other modules to prepare statements.

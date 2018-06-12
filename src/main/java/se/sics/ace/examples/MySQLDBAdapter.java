@@ -220,6 +220,14 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.grantValidColumn + " BOOLEAN DEFAULT TRUE, "
                 + " PRIMARY KEY (" + DBConnector.grantColumn + ","
                 + DBConnector.ctiColumn + "));";
+        
+        String createGrant2RSInfo = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.grant2RSInfoTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " varbinary(255));";
+
 
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement()) {
@@ -238,6 +246,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
             stmt.execute(createGrant2Cti);
+            stmt.execute(createGrant2RSInfo);
             rootConn.close();
             stmt.close();
         } catch (SQLException e) {
