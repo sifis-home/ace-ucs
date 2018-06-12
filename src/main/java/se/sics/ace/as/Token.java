@@ -784,12 +784,49 @@ public class Token implements Endpoint, AutoCloseable {
                     + "No code found for message");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        if (!cbor.getType().equals(CBORType.TextString)) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Invalid grant format");
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "Invalid grant format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+        String code = cbor.AsString();
         
 	    //4. Check if grant valid and unused
 	    //5. Look up the corresponding token in the DB
 	    //6. Mark grant invalid
+        try {
+            this.db.useGrant(code);
+        } catch (AceException e) {
+            LOGGER.log(Level.SEVERE, "Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
 	    //7. Return token
-	    return null;
+        AccessToken token = null;
+        
+        //FIXME
+        //Set token
+        
+        CBORObject rsInfo = CBORObject.NewMap();
+       
+        try {
+            Map<Short, CBORObject> rsInfoDB = this.db.getRsInfo(code);
+            for (Map.Entry<Short, CBORObject> e : rsInfoDB.entrySet()) {
+                rsInfo.Add(e.getKey(), e.getValue());
+            }
+        } catch (AceException e) {
+            LOGGER.log(Level.SEVERE, "Message processing aborted: "
+                    + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+        
+        rsInfo.Add(Constants.ACCESS_TOKEN, token.encode().EncodeToBytes());
+        
+        //FIXME
+        return msg.successReply(Message.CREATED, rsInfo);
 	}
 
 	private boolean isSupported(String keyType, Set<String> aud) 
