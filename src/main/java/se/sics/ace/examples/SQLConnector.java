@@ -378,60 +378,65 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     /**
      * A prepared INSERT statement to insert a new token to client mapping.
      */
-    private PreparedStatement insertCti2Client;
+    protected PreparedStatement insertCti2Client;
     
     /**
      * A prepared SELECT statement to select the client identifier holding a
      * token identified by its cti.
      */
-    private PreparedStatement selectClientByCti;
+    protected PreparedStatement selectClientByCti;
 
 	/**
 	 * A prepared SELECT statement to select all registered clients.
 	 */
-	private PreparedStatement selectAllClients;
+	protected PreparedStatement selectAllClients;
 
     /**
      * A prepared SELECT statement to select the token identifiers (cti) 
      * held by a client
      */
-    private PreparedStatement selectCtisByClient;
+    protected PreparedStatement selectCtisByClient;
     
     /**
      * A prepared SELECT statement to select the token identifier (cti) 
      * for an authorization grant
      */
-    private PreparedStatement selectCtisByGrant;
+    protected PreparedStatement selectCtisByGrant;
     
     /**
      * A prepared INSERT statement to add a new authorization grant to
      * access token cti mapping.
      */
-    private PreparedStatement insertGrant2Cti;
+    protected PreparedStatement insertGrant2Cti;
     
     /**
      * A prepared DELETE statement to remove the mapping of a grant
      * to an access token cti.
      */
-    private PreparedStatement deleteGrant2Cti;
+    protected PreparedStatement deleteGrant2Cti;
     
     /**
      * A prepared UPDATE statement to mark an authorization grant
      * as used.
      */
-    private PreparedStatement updateGrant;
+    protected PreparedStatement updateGrant;
 
     /**
      * A prepared SELECT statement to select the RS information
      * for an authorization grant
      */
-    private PreparedStatement selectRsInfoByGrant;
+    protected PreparedStatement selectRsInfoByGrant;
     
     /**
      * A prepared INSERT statement to add the RS Information
      * for a given grant.
      */
-    private PreparedStatement insertGrant2RsInfo;
+    protected PreparedStatement insertGrant2RsInfo;
+    
+    /**
+     * A prepared SELECT statement to check if a grant is marked invalid
+     */
+    protected PreparedStatement selectGrantValid;
     
     /**
      * The singleton instance of this connector
@@ -757,7 +762,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		this.insertGrant2Cti = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("INSERT INTO "
                         + DBConnector.grant2ctiTable
-                        + " VALUES (?,?);"));
+                        + " VALUES (?,?,?);"));
 		
 		this.deleteGrant2Cti = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("DELETE FROM "
@@ -767,7 +772,9 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		this.updateGrant = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("UPDATE "
                         + DBConnector.grant2ctiTable
-                        + " SET " + DBConnector.grantValidColumn + "=?;"));
+                        + " SET " + DBConnector.grantValidColumn + "=FALSE"
+                                + " WHERE " + DBConnector.grantColumn 
+                                + "=?;"));
 		
 		this.selectRsInfoByGrant = this.conn.prepareStatement(
                 dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -780,6 +787,13 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.grant2RSInfoTable
 		                + " VALUES (?,?,?);"));
+		
+		this.selectGrantValid = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.grantValidColumn + " FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
+                        
 	}
 	
 	/**
@@ -1889,6 +1903,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         try {
             this.insertGrant2Cti.setString(1, code);
             this.insertGrant2Cti.setString(2, cti);
+            this.insertGrant2Cti.setBoolean(3, true);
             this.insertGrant2Cti.execute();
             this.insertGrant2Cti.clearParameters();
         } catch (SQLException e) {
@@ -1958,6 +1973,29 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         return rsInfo;
     }
 
+
+    @Override
+    public boolean isGrantValid(String code) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "getRsInfo() requires non-null code");
+        }
+        boolean valid = false;
+        try {
+            this.selectGrantValid.setString(1, code);
+            ResultSet result = this.selectGrantValid.executeQuery();
+            this.selectGrantValid.clearParameters();
+            if (result.next()) {
+                valid = result.getBoolean(DBConnector.grantValidColumn);
+            } else {
+                valid = false;
+            }                  
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return valid;
+    }
     
     /**
      * Extensibility method to allow other modules to prepare statements.

@@ -645,6 +645,7 @@ public interface DBConnector {
      * @param cti the token's cti, Base64 encoded
      * @param claims  the claims associated to that token
      * @param rsInfo  the RS information associated to that token
+     *  NOTE: this is expected to contain the access token as well!
      * 
      * @throws AceException 
      */
@@ -671,6 +672,17 @@ public interface DBConnector {
      * @throws AceException
      */
     public Map<Short, CBORObject> getRsInfo(String code) throws AceException;
+    
+    /**
+     * Checks if a grant is still valid
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * 
+     * @return  true if the grant is valid, false otherwise
+     * 
+     * @throws AceException
+     */
+    public boolean isGrantValid(String code) throws AceException;
     
 	/**
 	 * Close the connections. After this any other method calls to this

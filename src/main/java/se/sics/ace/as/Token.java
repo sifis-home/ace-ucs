@@ -286,7 +286,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    if (msg.getParameter(Constants.GRANT_TYPE).equals(clientCredentials)) {
 	        return processCC(msg, id);
 	    } else if (msg.getParameter(Constants.GRANT_TYPE).equals(authzCode)) {
-	        return processAC(msg, id);
+	        return processAC(msg);
 	    }
 	    CBORObject map = CBORObject.NewMap();
 	    map.Add(Constants.ERROR, Constants.UNSUPPORTED_GRANT_TYPE);
@@ -303,7 +303,7 @@ public class Token implements Endpoint, AutoCloseable {
 			try {
                 scope = this.db.getDefaultScope(id);
             } catch (AceException e) {
-                LOGGER.severe("Message processing aborted: "
+                LOGGER.severe("Message processing aborted (checking scope): "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
@@ -341,7 +341,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            aud.add(dAud);
 		        }
             } catch (AceException e) {
-                LOGGER.severe("Message processing aborted: "
+                LOGGER.severe("Message processing aborted (checking aud): "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
@@ -381,7 +381,7 @@ public class Token implements Endpoint, AutoCloseable {
         try {
             allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
         } catch (AceException e) {
-            LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted (checking permissions): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
@@ -399,7 +399,7 @@ public class Token implements Endpoint, AutoCloseable {
         try {
             tokenType = this.db.getSupportedTokenType(aud);
         } catch (AceException e) {
-            LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted (creating token): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
@@ -425,7 +425,7 @@ public class Token implements Endpoint, AutoCloseable {
             profileStr = this.db.getSupportedProfile(id, aud);
         } catch (AceException e) {
             this.cti--; //roll-back
-            LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted (finding profile): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
@@ -475,7 +475,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        try {
 		            exp = this.db.getExpTime(aud);
 		        } catch (AceException e) {
-		            LOGGER.severe("Message processing aborted: "
+		            LOGGER.severe("Message processing aborted (setting exp): "
 		                    + e.getMessage());
 		            return msg.failReply(
 		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -525,9 +525,11 @@ public class Token implements Endpoint, AutoCloseable {
 		                }
 		            } catch (AceException e) {
                         this.cti--; //roll-back
-                        LOGGER.severe("Message processing aborted: "
+                        LOGGER.severe("Message processing aborted "
+                                + "(finding key type): "
                                 + e.getMessage());
-                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                        return msg.failReply(
+                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
                     }   
  
 		            //Audience supports PSK, make a new PSK
@@ -549,8 +551,8 @@ public class Token implements Endpoint, AutoCloseable {
                         claims.put(Constants.CNF, coseKey);
                     } catch (NoSuchAlgorithmException | CoseException e) {
                         this.cti--; //roll-back
-                        LOGGER.severe("Message processing aborted: "
-                                + e.getMessage());
+                        LOGGER.severe("Message processing aborted "
+                                + "(making PSK): " + e.getMessage());
                         return msg.failReply(
                                 Message.FAIL_INTERNAL_SERVER_ERROR, null);
                     }
@@ -771,9 +773,7 @@ public class Token implements Endpoint, AutoCloseable {
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
-	private Message processAC(Message msg, String id) {
-	    //FIXME
-	    
+	private Message processAC(Message msg) {
 	       //3. Check if the request has a grant
         CBORObject cbor = msg.getParameter(Constants.CODE);
         if (cbor == null ) {
@@ -795,21 +795,30 @@ public class Token implements Endpoint, AutoCloseable {
         String code = cbor.AsString();
         
 	    //4. Check if grant valid and unused
-	    //5. Look up the corresponding token in the DB
-	    //6. Mark grant invalid
+        try {
+            if (!this.db.isGrantValid(code)) {
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_GRANT);
+                LOGGER.log(Level.INFO, "Message processing aborted: "
+                        + "Invalid grant");
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+            }
+        } catch (AceException e) {
+            LOGGER.log(Level.SEVERE, "Message processing aborted "
+                    + "(checking grant): " + e.getMessage());
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+        }
+        
+	    //5. Mark grant invalid
         try {
             this.db.useGrant(code);
         } catch (AceException e) {
-            LOGGER.log(Level.SEVERE, "Message processing aborted: "
-                    + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Message processing aborted "
+                    + "(marking grant invalid): " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-	    //7. Return token
-        AccessToken token = null;
         
-        //FIXME
-        //Set token
-        
+	    //6. Return the RS Information
         CBORObject rsInfo = CBORObject.NewMap();
        
         try {
@@ -818,14 +827,20 @@ public class Token implements Endpoint, AutoCloseable {
                 rsInfo.Add(e.getKey(), e.getValue());
             }
         } catch (AceException e) {
-            LOGGER.log(Level.SEVERE, "Message processing aborted: "
-                    + e.getMessage());
+            LOGGER.log(Level.SEVERE, "Message processing aborted "
+                    + "(collecting RS Info" + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-        
-        rsInfo.Add(Constants.ACCESS_TOKEN, token.encode().EncodeToBytes());
-        
-        //FIXME
+       
+        if (rsInfo == null || !rsInfo.getType().equals(CBORType.Map)) {
+            LOGGER.log(Level.SEVERE, "Message processing aborted: "
+                    + "no RS information found for grant: " + code);
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_GRANT);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "No token found for grant");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);  
+        }
         return msg.successReply(Message.CREATED, rsInfo);
 	}
 
