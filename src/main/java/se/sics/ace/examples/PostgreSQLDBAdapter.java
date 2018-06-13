@@ -255,8 +255,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.grantValidColumn + " BOOLEAN DEFAULT TRUE, "
                 + " PRIMARY KEY (" + DBConnector.grantColumn + ","
                 + DBConnector.ctiColumn + "));";
-        
-        
+            
         String createGrant2RSInfo = "CREATE TABLE "
                 + this.dbName + "."
                 + DBConnector.grant2RSInfoTable + "("
