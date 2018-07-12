@@ -132,7 +132,7 @@ public class TestKissPDP {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, publicKey);
+                expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
@@ -142,7 +142,7 @@ public class TestKissPDP {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, null);
+                expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -160,15 +160,15 @@ public class TestKissPDP {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         
         db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         //Setup client entries
         profiles.clear();

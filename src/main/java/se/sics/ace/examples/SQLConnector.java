@@ -297,12 +297,21 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	protected PreparedStatement selectExpiration;
 	
     /**
-     * A prepared SELECT statement to get a the pre-shared keys for
-     *     an audience
+     * A prepared SELECT statement to get a pre-shared token-protection 
+     * key for an audience
      *     
      * Parameter: audience name
      */
-	protected PreparedStatement selectRsPSK;
+	protected PreparedStatement selectRsTokenPSK;
+	
+	/**
+	 * A prepared SELECT statement to get the pre-shared authentication
+	 * key for an RS
+	 * 
+	 * Parameter: RS name
+	 * 
+	 */
+	protected PreparedStatement selectRsAuthPSK;
     
     /**
      * A prepared SELECT statement to get the public keys of an audience.
@@ -481,7 +490,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	        
 		this.insertRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.rsTable + " VALUES (?,?,?,?);"));
+		                + DBConnector.rsTable + " VALUES (?,?,?,?,?);"));
 		
 		this.deleteRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
@@ -659,14 +668,20 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " FROM "  + DBConnector.rsTable
 		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 
-		this.selectRsPSK = this.conn.prepareStatement(
+		this.selectRsTokenPSK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.pskColumn
+		                + DBConnector.tokenPskColumn
 		                + " FROM "  + DBConnector.rsTable
 		                + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT "
 		                + DBConnector.rsIdColumn + " FROM " 
 		                + DBConnector.audiencesTable
 		                + " WHERE " + DBConnector.audColumn + "=?);"));
+		
+		this.selectRsAuthPSK = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.authPskColumn
+                        + " FROM "  + DBConnector.rsTable
+                        + " WHERE " + DBConnector.rsIdColumn + "=?);"));
 
 		this.selectRsRPK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -679,7 +694,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 		this.selectCPSK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.pskColumn
+		                + DBConnector.authPskColumn
 		                + " FROM "  + DBConnector.cTable
 		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 
@@ -1328,18 +1343,44 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	}
 
     @Override
-    public synchronized OneKey getRsPSK(String rsId) throws AceException {
+    public synchronized OneKey getRsTokenPSK(String rsId) throws AceException {
         if (rsId == null) {
             throw new AceException(
                     "getRsPSK() requires non-null rsId");
         }
         try {
-            this.selectRsPSK.setString(1, rsId);
-            ResultSet result = this.selectRsPSK.executeQuery();
-            this.selectRsPSK.clearParameters();
+            this.selectRsTokenPSK.setString(1, rsId);
+            ResultSet result = this.selectRsTokenPSK.executeQuery();
+            this.selectRsTokenPSK.clearParameters();
             byte[] key = null;
             if (result.next()) {
-                key = result.getBytes(DBConnector.pskColumn);
+                key = result.getBytes(DBConnector.tokenPskColumn);
+            }
+            result.close();
+            if (key != null) {
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
+            }
+            return null;
+        } catch (SQLException | CoseException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+
+    @Override
+    public OneKey getRsAuthPSK(String rsId) throws AceException {
+        if (rsId == null) {
+            throw new AceException(
+                    "getRsPSK() requires non-null rsId");
+        }
+        try {
+            this.selectRsAuthPSK.setString(1, rsId);
+            ResultSet result = this.selectRsAuthPSK.executeQuery();
+            this.selectRsAuthPSK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.authPskColumn);
             }
             result.close();
             if (key != null) {
@@ -1389,7 +1430,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             this.selectCPSK.clearParameters();
             byte[] key = null;
             if (result.next()) {
-                key = result.getBytes(DBConnector.pskColumn);
+                key = result.getBytes(DBConnector.authPskColumn);
             }
             result.close();
             if (key != null) {
@@ -1431,14 +1472,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     public synchronized void addRS(String rsId, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Short> tokenTypes, Set<COSEparams> cose, long expiration, 
-            OneKey sharedKey, OneKey publicKey) throws AceException {
+            OneKey authPsk, OneKey tokenPsk, OneKey publicKey)
+                    throws AceException {
        
         if (rsId == null || rsId.isEmpty()) {
             throw new AceException("RS must have non-null, non-empty identifier");
         }
         
-        if (sharedKey == null && publicKey == null) {
-            throw new AceException("Cannot register a RS without a key");
+        if (tokenPsk == null && publicKey == null) {
+            throw new AceException("Cannot register a RS without a key for"
+                    +" protecting tokens");
         }
         
         if (profiles.isEmpty()) {
@@ -1469,18 +1512,25 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                         "RsId equal to existing audience id: " + rsId);
             }
             result.close();
-
+           
             this.insertRS.setString(1, rsId);
             this.insertRS.setLong(2, expiration);
-            if (sharedKey != null) {
-                this.insertRS.setBytes(3, sharedKey.EncodeToBytes());
+            if (tokenPsk != null) {
+                this.insertRS.setBytes(3, tokenPsk.EncodeToBytes());
             } else {
                 this.insertRS.setBytes(3, null);
             }
-            if (publicKey != null) {
-                this.insertRS.setBytes(4, publicKey.EncodeToBytes());
+            
+            if (authPsk != null) {
+                this.insertRS.setBytes(4, authPsk.EncodeToBytes());
             } else {
                 this.insertRS.setBytes(4, null);
+            }
+
+            if (publicKey != null) {
+                this.insertRS.setBytes(5, publicKey.EncodeToBytes());
+            } else {
+                this.insertRS.setBytes(5, null);
             }
             this.insertRS.execute();
             this.insertRS.clearParameters();

@@ -132,7 +132,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + "." + DBConnector.rsTable + "("
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.expColumn + " bigint NOT NULL, "
-                + DBConnector.pskColumn + " varbinary(64), "
+                + DBConnector.tokenPskColumn + " varbinary(64), "
+                + DBConnector.authPskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
                 + " PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
@@ -141,7 +142,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.defaultAud + " varchar(255), "
                 + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " varbinary(64), "
+                + DBConnector.authPskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
                 + " PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 

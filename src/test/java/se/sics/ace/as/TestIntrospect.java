@@ -137,7 +137,7 @@ public class TestIntrospect {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key, publicKey);
+                expiration, key, key, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");

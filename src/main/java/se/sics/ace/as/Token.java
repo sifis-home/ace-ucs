@@ -295,6 +295,14 @@ public class Token implements Endpoint, AutoCloseable {
 	    return msg.failReply(Message.FAIL_BAD_REQUEST, map); 	    
 	}
 	
+	/**
+	 * Process a Client Credentials grant.
+	 * 
+	 * @param msg  the message
+	 * @param id  the identifier of the requester
+	 * 
+	 * @return  the reply
+	 */
 	private Message processCC(Message msg, String id) {
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
@@ -773,6 +781,13 @@ public class Token implements Endpoint, AutoCloseable {
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
 	
+	/**
+	 * Process an authorization grant message
+	 * 
+	 * @param msg  the message
+	 * 
+	 * @return the reply
+	 */
 	private Message processAC(Message msg) {
 	       //3. Check if the request has a grant
         CBORObject cbor = msg.getParameter(Constants.CODE);

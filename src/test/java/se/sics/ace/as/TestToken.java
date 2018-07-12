@@ -138,7 +138,7 @@ public class TestToken {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, publicKey);
+                expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
@@ -149,7 +149,7 @@ public class TestToken {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, null);
+                expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -169,7 +169,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -185,7 +185,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -202,7 +202,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs5", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -218,7 +218,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         
         profiles.clear();
@@ -236,7 +236,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs7", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         //Setup client entries
         profiles.clear();

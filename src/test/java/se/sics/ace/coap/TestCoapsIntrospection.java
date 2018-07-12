@@ -31,9 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.coap;
 
+import java.net.InetSocketAddress;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.Map;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -43,6 +46,7 @@ import com.upokecenter.cbor.CBORObject;
 import COSE.OneKey;
 
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
 
 /**
@@ -54,80 +58,112 @@ import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
  *
  */
 public class TestCoapsIntrospection {
-   
-   static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-   static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
-   
-   static RunTestServer srv = null;
-   
-   private static class RunTestServer implements Runnable {
-       
-       public RunTestServer() {
-          //Do nothing
-       }
 
-       /**
-        * Stop the server
-     * @throws Exception 
-        */
-       public void stop() throws Exception {
-           CoapASTestServer.stop();
-       }
-       
-       @Override
-       public void run() {
-           try {
-               CoapASTestServer.main(null);
-           } catch (final Throwable t) {
-               System.err.println(t.getMessage());
-               try {
-                CoapASTestServer.stop();
-            } catch (Exception e) {
-                e.printStackTrace();
+    static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+
+    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+
+    static RunTestServer srv = null;
+
+    private static class RunTestServer implements Runnable {
+
+        public RunTestServer() {
+            //Do nothing
+        }
+
+        /**
+         * Stop the server
+         * @throws Exception 
+         */
+        public void stop() throws Exception {
+            CoapASTestServer.stop();
+        }
+
+        @Override
+        public void run() {
+            try {
+                CoapASTestServer.main(null);
+            } catch (final Throwable t) {
+                System.err.println(t.getMessage());
+                try {
+                    CoapASTestServer.stop();
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
             }
-           }
-       }
-       
-   }
-   
-   
-   /**
-    * This sets up everything for the tests including the server
-    */
-   @BeforeClass
-   public static void setUp() {
-       srv = new RunTestServer();
-       srv.run();
-   }
-   
-   /**
-    * Deletes the test DB after the tests
- * @throws Exception 
-    */
-   @AfterClass
-   public static void tearDown() throws Exception {
-       srv.stop();
-   }
-   
-   /**
-    * Test CoapIntrospect using RPK
-    * 
-    * @throws Exception
-    */
-   @Test
-   public void testCoapIntrospect() throws Exception {
-       OneKey key = new OneKey(
-               CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-       CoapsIntrospection i = new CoapsIntrospection(key, "coaps://localhost/introspect");
-       Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
-       assert(map.containsKey(Constants.AUD));
-       assert(map.get(Constants.AUD).AsString().equals("actuators"));
-       assert(map.containsKey(Constants.SCOPE));
-       assert(map.get(Constants.SCOPE).AsString().equals("co2"));
-       assert(map.containsKey(Constants.ACTIVE));
-       assert(map.get(Constants.ACTIVE).isTrue());
-       assert(map.containsKey(Constants.CTI));
-       assert(map.containsKey(Constants.EXP));
-       
-   }
+        }
+
+    }
+
+
+    /**
+     * This sets up everything for the tests including the server
+     */
+    @BeforeClass
+    public static void setUp() {
+        srv = new RunTestServer();
+        srv.run();
+    }
+
+    /**
+     * Deletes the test DB after the tests
+     * @throws Exception 
+     */
+    @AfterClass
+    public static void tearDown() throws Exception {
+        srv.stop();
+    }
+
+    /**
+     * Test CoapIntrospect using RPK
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCoapIntrospect() throws Exception {
+        OneKey key = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        CoapsIntrospection i = new CoapsIntrospection(key, "coaps://localhost/introspect");
+        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
+        assert(map.containsKey(Constants.AUD));
+        assert(map.get(Constants.AUD).AsString().equals("actuators"));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+        assert(map.containsKey(Constants.ACTIVE));
+        assert(map.get(Constants.ACTIVE).isTrue());
+        assert(map.containsKey(Constants.CTI));
+        assert(map.containsKey(Constants.EXP));
+
+    }
+
+    /**
+     * Test CoapIntrospect using PSK
+     * 
+     * FIXME: Doesn't work yet.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testCoapIntrospectPSK() throws Exception {
+        Map<InetSocketAddress, String> addr2id = new HashMap<>();
+        addr2id.put(new InetSocketAddress("localhost", 
+                CoAP.DEFAULT_COAP_SECURE_PORT), "keyId");
+        CoapsIntrospection i = new CoapsIntrospection(
+                key128, "rs1", 
+                TestConfig.testFilePath + "testKeyStore.bks", "password",
+                TestConfig.testFilePath + "add2id.cfg", addr2id, 
+                "coaps://localhost/introspect");
+        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
+        assert(map.containsKey(Constants.AUD));
+        assert(map.get(Constants.AUD).AsString().equals("actuators"));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+        assert(map.containsKey(Constants.ACTIVE));
+        assert(map.get(Constants.ACTIVE).isTrue());
+        assert(map.containsKey(Constants.CTI));
+        assert(map.containsKey(Constants.EXP));
+
+    }
+
 }

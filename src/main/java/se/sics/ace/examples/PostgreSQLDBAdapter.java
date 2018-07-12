@@ -175,7 +175,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         String createRs = "CREATE TABLE " +  DBConnector.rsTable + "("
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.expColumn + " bigint NOT NULL, "
-                + DBConnector.pskColumn + " bytea, "
+                + DBConnector.tokenPskColumn + " bytea, "
+                + DBConnector.authPskColumn + " bytea, "        
                 + DBConnector.rpkColumn + " bytea,"
                 + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
@@ -183,7 +184,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.defaultAud + " varchar(255), "
                 + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " bytea, "
+                + DBConnector.authPskColumn + " bytea, "
                 + DBConnector.rpkColumn + " bytea,"
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 

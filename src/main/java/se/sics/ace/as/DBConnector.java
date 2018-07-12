@@ -111,9 +111,14 @@ public interface DBConnector {
     public String rsIdColumn = "RsId";
     
     /**
-     * The column name for pre-shared keys
+     * The column name for pre-shared keys for protecting tokens
      */
-    public String pskColumn = "PSK";
+    public String tokenPskColumn = "TokenPSK";
+    
+    /**
+     * The column name for pre-shared keys for authentication
+     */   
+    public String authPskColumn = "AuthPSK";
     
     /**
      * The column name for raw public keys
@@ -422,7 +427,7 @@ public interface DBConnector {
     Set<String> getScopes(String rsId) throws AceException;
 
     /**
-     * Get the shared symmetric key (PSK) with this RS
+     * Get the shared symmetric key (PSK) with this RS for token protection
      *  
      * @param rsId  the rs identifier
      * 
@@ -430,8 +435,22 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public OneKey getRsPSK(String rsId)
+    public OneKey getRsTokenPSK(String rsId)
         throws AceException;
+    
+
+    /**
+     * Get the shared symmetric key (PSK) with this RS for authentication
+     *  
+     * @param rsId  the rs identifier
+     * 
+     * @return  the shared symmetric key if there is any
+     * 
+     * @throws AceException 
+     */
+    public OneKey getRsAuthPSK(String rsId)
+        throws AceException;
+    
     
     /**
      * Get the public key (RPK) of this RS
@@ -470,7 +489,9 @@ public interface DBConnector {
         throws AceException;
     
 	/**
-	 * Creates a new RS. Must provide either a sharedKey or a publicKey.
+	 * Creates a new RS. Must provide either a tokenKey or a publicKey.
+	 * If neither publicKey nor authPsk is provided this RS cannot use
+	 * introspection.
 	 * 
      * @param rsId  the identifier for the RS
      * @param profiles  the profiles this RS supports
@@ -483,8 +504,10 @@ public interface DBConnector {
      *   access tokens, empty if this RS does not process CWTs
      * @param expiration  the expiration time for access tokens for this RS 
      *     or 0 if the default value is used
-     * @param sharedKey  the secret key shared with this RS or null if there
-     *     is none
+     * @param tokenPsk  the secret key shared with this RS for protecting tokens
+     * or null if there is none.
+     * @param authPsk  the secret key for authenticating the RS at the AS or
+     * null if there is none.
      * @param publicKey  the COSE-encoded public key of this RS or null if
      *     there is none
      *
@@ -492,8 +515,8 @@ public interface DBConnector {
 	 */
 	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
-            Set<COSEparams> cose, long expiration, OneKey sharedKey, 
-            OneKey publicKey) throws AceException;
+            Set<COSEparams> cose, long expiration, OneKey tokenPsk, 
+            OneKey authPsk, OneKey publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 

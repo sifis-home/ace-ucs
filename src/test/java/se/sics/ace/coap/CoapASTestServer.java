@@ -64,6 +64,7 @@ import se.sics.ace.examples.KissTime;
  */
 public class CoapASTestServer
 {
+    static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
     
@@ -88,7 +89,13 @@ public class CoapASTestServer
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(key256));
-        OneKey skey = new OneKey(keyData);
+        OneKey tokenPsk = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey authPsk = new OneKey(keyData);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
@@ -109,14 +116,14 @@ public class CoapASTestServer
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, akey);
+                expiration, authPsk, tokenPsk, akey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
-                keyTypes, skey, null);        
+                keyTypes, authPsk, null);        
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});

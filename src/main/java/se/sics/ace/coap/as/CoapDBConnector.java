@@ -89,7 +89,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
         }
         if (key == null) {
             try {
-                key = super.getRsPSK(identity);
+                key = super.getRsAuthPSK(identity);
             } catch (AceException e) {
                 LOGGER.severe(e.getMessage());
                 return null;
