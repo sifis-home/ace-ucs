@@ -500,6 +500,36 @@ public class Constants {
     }
     
     /**
+     * Maps a parameter map to the unabbreviated version.
+     * 
+     * @param map
+      * @return  the unabbreviated version of the map
+      * @throws AceException  if map is not a CBOR map
+     */
+    public static Map<String, CBORObject> unabbreviate(Map<Short, CBORObject> map) 
+            throws AceException {
+        Map<String, CBORObject> ret = new HashMap<>();
+        for (Map.Entry<Short, CBORObject> e : map.entrySet()) {
+            String keyStr = null;
+            CBORObject obj = e.getValue();
+            if (e.getKey() > 0 && e.getKey() < Constants.ABBREV.length) {
+                   keyStr = Constants.ABBREV[e.getKey()];
+                    if (e.getKey() == GRANT_TYPE
+                            && e.getValue().getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
+                    } else if (e.getKey() == ERROR
+                            && e.getValue().getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
+                    }                   
+                } else {
+                    throw new AceException("Malformed parameter map");
+                }
+            ret.put(keyStr, obj);
+        }
+       return ret;
+    }
+    
+    /**
      * Representation of GET
      */
     public static short GET = 1;
