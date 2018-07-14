@@ -111,9 +111,14 @@ public interface DBConnector {
     public String rsIdColumn = "RsId";
     
     /**
-     * The column name for pre-shared keys
+     * The column name for pre-shared keys for protecting tokens
      */
-    public String pskColumn = "PSK";
+    public String tokenPskColumn = "TokenPSK";
+    
+    /**
+     * The column name for pre-shared keys for authentication
+     */   
+    public String authPskColumn = "AuthPSK";
     
     /**
      * The column name for raw public keys
@@ -209,7 +214,7 @@ public interface DBConnector {
      */
     public String audColumn = "Aud";
     
-  //******************New table********************************   
+    //******************New table********************************   
     /**
      * The table listing the COSE configurations an RS supports
      * for protecting access tokens
@@ -221,17 +226,17 @@ public interface DBConnector {
      */
     public String coseColumn = "Cose";
 
-  //******************New table********************************   
+    //******************New table********************************   
     /**
      * The table saving the counter for generating cti's
      */
-    public String ctiCounterTable = "ctiCounterTable";
+    public String ctiCounterTable = "CtiCounterTable";
     
     /**
      * The column name for cti counter
      */
-    public String ctiCounterColumn = "ctiCounter";
-    
+    public String ctiCounterColumn = "CtiCounter";
+
     //******************New table********************************   
     /**
      * The table saving the association between cti and client identifier
@@ -239,6 +244,30 @@ public interface DBConnector {
      */
     public String cti2clientTable = "TokenLog";
     
+    //******************New table********************************      
+    /**
+     * The table for saving the association between an authorization grant and
+     * a the granted tokens cti
+     */
+    public String grant2ctiTable = "AuthzGrants";
+    
+    /**
+     * The column name for the grant
+     */
+    public String grantColumn = "AuthzGrant";
+    
+    /**
+     * The column name for marking a grant as used
+     */
+    public String grantValidColumn = "Valid";
+    
+    //******************New table********************************   
+    /**
+     * Table for storing the RS Info parameters for a token related
+     * to an authorization grant. This table uses the claimNameColumn
+     * and the claimValueColum
+     */
+    public String grant2RSInfoTable = "RsInfoForGrant";    
 
 	/**
 	 * Gets a common profile supported by a specific audience and client.
@@ -398,7 +427,7 @@ public interface DBConnector {
     Set<String> getScopes(String rsId) throws AceException;
 
     /**
-     * Get the shared symmetric key (PSK) with this RS
+     * Get the shared symmetric key (PSK) with this RS for token protection
      *  
      * @param rsId  the rs identifier
      * 
@@ -406,8 +435,22 @@ public interface DBConnector {
      * 
      * @throws AceException 
      */
-    public OneKey getRsPSK(String rsId)
+    public OneKey getRsTokenPSK(String rsId)
         throws AceException;
+    
+
+    /**
+     * Get the shared symmetric key (PSK) with this RS for authentication
+     *  
+     * @param rsId  the rs identifier
+     * 
+     * @return  the shared symmetric key if there is any
+     * 
+     * @throws AceException 
+     */
+    public OneKey getRsAuthPSK(String rsId)
+        throws AceException;
+    
     
     /**
      * Get the public key (RPK) of this RS
@@ -446,7 +489,9 @@ public interface DBConnector {
         throws AceException;
     
 	/**
-	 * Creates a new RS. Must provide either a sharedKey or a publicKey.
+	 * Creates a new RS. Must provide either a tokenKey or a publicKey.
+	 * If neither publicKey nor authPsk is provided this RS cannot use
+	 * introspection.
 	 * 
      * @param rsId  the identifier for the RS
      * @param profiles  the profiles this RS supports
@@ -459,8 +504,10 @@ public interface DBConnector {
      *   access tokens, empty if this RS does not process CWTs
      * @param expiration  the expiration time for access tokens for this RS 
      *     or 0 if the default value is used
-     * @param sharedKey  the secret key shared with this RS or null if there
-     *     is none
+     * @param tokenPsk  the secret key shared with this RS for protecting tokens
+     * or null if there is none.
+     * @param authPsk  the secret key for authenticating the RS at the AS or
+     * null if there is none.
      * @param publicKey  the COSE-encoded public key of this RS or null if
      *     there is none
      *
@@ -468,8 +515,8 @@ public interface DBConnector {
 	 */
 	public void addRS(String rsId, Set<String> profiles, Set<String> scopes, 
             Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
-            Set<COSEparams> cose, long expiration, OneKey sharedKey, 
-            OneKey publicKey) throws AceException;
+            Set<COSEparams> cose, long expiration, OneKey tokenPsk, 
+            OneKey authPsk, OneKey publicKey) throws AceException;
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 
@@ -602,6 +649,63 @@ public interface DBConnector {
      * @throws AceException
      */
     public Set<String> getCtis4Client(String clientId) throws AceException;
+    
+    /**
+     * Get the cti of a token for an authorization grant code.
+     * Note that the code is a byte-string Base64 encoded.
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * 
+     * @return  the cti of the granted token, Base64 encoded
+     * @throws AceException 
+     */
+    public String getCti4Grant(String code) throws AceException;
+    
+    /**
+     * Enter a grant code with related granted token in the database.
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * @param cti the token's cti, Base64 encoded
+     * @param claims  the claims associated to that token
+     * @param rsInfo  the RS information associated to that token
+     *  NOTE: this is expected to contain the access token as well!
+     * 
+     * @throws AceException 
+     */
+    public void addGrant(String code, String cti, 
+            Map<Short, CBORObject> claims,  Map<Short, CBORObject> rsInfo)
+                throws AceException;
+    
+    /**
+     * Mark a grant as used.
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * 
+     * @throws AceException 
+     */
+    public void useGrant(String code) throws AceException;
+    
+    /**
+     * Returns the RS info parameters associated with a grant code.
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * 
+     * @return  the set of parameters
+     *  
+     * @throws AceException
+     */
+    public Map<Short, CBORObject> getRsInfo(String code) throws AceException;
+    
+    /**
+     * Checks if a grant is still valid
+     * 
+     * @param code  the authorization grant code, Base64 encoded
+     * 
+     * @return  true if the grant is valid, false otherwise
+     * 
+     * @throws AceException
+     */
+    public boolean isGrantValid(String code) throws AceException;
     
 	/**
 	 * Close the connections. After this any other method calls to this

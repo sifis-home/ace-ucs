@@ -138,7 +138,7 @@ public class TestToken {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, publicKey);
+                expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
@@ -149,7 +149,7 @@ public class TestToken {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, null);
+                expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -169,7 +169,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -185,7 +185,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -202,7 +202,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs5", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -218,7 +218,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         
         profiles.clear();
@@ -236,7 +236,7 @@ public class TestToken {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs7", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         //Setup client entries
         profiles.clear();
@@ -819,4 +819,52 @@ public class TestToken {
         db.deleteToken(ctiStr);
         t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
+    
+    /**
+     * Test the grant flow.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testGrant() throws Exception {
+        //Create the grant
+        byte[] ctiB = new byte[] {0x00, 0x01};
+        String cti = Base64.getEncoder().encodeToString(ctiB);
+        Map<Short, CBORObject> claims = new HashMap<>();
+        claims.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        claims.put(Constants.CTI, CBORObject.FromObject(ctiB));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
+        claims.put(Constants.CNF, cnf);
+        CWT cwt = new CWT(claims);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                AlgorithmID.AES_CCM_16_64_128.AsCBOR());
+        CBORObject cwtCB = cwt.encode(ctx);
+        Map<Short, CBORObject> rsInfo = new HashMap<>(); 
+        rsInfo.put(Constants.ACCESS_TOKEN, 
+                CBORObject.FromObject(cwtCB.EncodeToBytes()));
+        rsInfo.put(Constants.CNF, cnf);
+        db.addGrant("testGrant", cti, claims, rsInfo);
+        
+        //Prepare the request
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.authzCode);
+        params.put(Constants.CODE,  
+                CBORObject.FromObject("testGrant"));
+        Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get(Constants.ACCESS_TOKEN);
+        CWT cwt2 = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                ctx);
+        claims = cwt2.getClaims();
+        assert(claims.get(Constants.SCOPE).AsString().contains("r_temp"));
+        assert(claims.get(Constants.AUD).AsString().contains("rs1"));     
+    }
+    
 }

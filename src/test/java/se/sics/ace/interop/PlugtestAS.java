@@ -205,12 +205,12 @@ public class PlugtestAS {
         //Setup RS1
         keyTypes.add("PSK");       
         db.addRS("RS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, rs1PSK, null);
+                expiration, null, rs1PSK, null);
       
         //Setup RS2
         keyTypes.add("RPK");
         db.addRS("RS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-        expiration, rs2PSK, rsRPK);
+        expiration, null, rs2PSK, rsRPK);
          
         //Setup C1 
         keyTypes.clear();
@@ -264,6 +264,8 @@ public class PlugtestAS {
         pdp.addAccess(clientId, "RS2", "rw_Lock");
         
         pdp.addAccess("client4", "RS1", "r_Lock");
+        
+        pdp.addIntrospectAccess("RS2");
         
         as = new CoapsAS("AS", db, pdp, time, asRPK);
         as.start();

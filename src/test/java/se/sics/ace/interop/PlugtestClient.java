@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.bouncycastle.util.encoders.Hex;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -100,11 +99,16 @@ public class PlugtestClient {
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
     
+    private static byte[] jim = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+            0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11};
+    
     //Needed to show token content
     private static CwtCryptoCtx ctx1 = null;
     
     //Needed to show token content
     private static CwtCryptoCtx ctx2 = null;
+    
+    private static CwtCryptoCtx ctxJim = null;
     
     private static String cX 
         = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
@@ -255,6 +259,7 @@ public class PlugtestClient {
         
         ctx2 = CwtCryptoCtx.encrypt0(rs2, coseP.getAlg().AsCBOR());
         
+        ctxJim = CwtCryptoCtx.encrypt0(jim, coseP.getAlg().AsCBOR());
         
         switch (testcase) {
 
@@ -278,8 +283,8 @@ public class PlugtestClient {
             CBORObject payload = CBORObject.FromObject("blah");
             LOGGER.finest("Sending request");
             try {
-                client.post(payload.EncodeToBytes(), 
-                        MediaTypeRegistry.APPLICATION_CBOR);
+    //            client.post(payload.EncodeToBytes(), 
+    //                    MediaTypeRegistry.APPLICATION_CBOR);
             } catch (RuntimeException r) {
                 System.out.println(r.getMessage());
                 e.stop();
@@ -765,8 +770,13 @@ public class PlugtestClient {
                     try {
                         cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
                     } catch (InvalidCipherTextException e) {
-                        cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
+                        try {
+                            cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
+                        } catch (InvalidCipherTextException e2) {
+                            cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);
+                        }
                     }
+                    System.out.println(cwt.encode().toString());
                     //Check if we can introspect this token
                     Map<Short, CBORObject> claims = cwt.getClaims();
                     CBORObject map = Constants.getCBOR(claims);

@@ -91,7 +91,11 @@ public class CWT implements AccessToken {
 	 */
 	public static CWT processCOSE(byte[] COSE_CWT, CwtCryptoCtx ctx) 
 			throws CoseException, AceException, Exception {
-		Message coseRaw = Message.DecodeFromBytes(COSE_CWT);
+	    CBORObject cbor = CBORObject.DecodeFromBytes(COSE_CWT);
+	    if (cbor.HasTag(61)) {
+	        cbor = cbor.UntagOne();
+	    }
+		Message coseRaw = Message.DecodeFromBytes(cbor.EncodeToBytes());
 		
 		if (coseRaw instanceof SignMessage) {
 			SignMessage signed = (SignMessage)coseRaw;

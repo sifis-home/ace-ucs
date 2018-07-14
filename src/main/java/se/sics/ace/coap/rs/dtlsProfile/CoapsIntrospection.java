@@ -119,7 +119,6 @@ public class CoapsIntrospection implements IntrospectionHandler {
      * @param keystoreLocation 
      * @param keystorePwd 
      * @param addr2idFile 
-     * @param addr2id 
      * @param introspectAddress  the IP address of the introspect endpoint
      * 
      * 
@@ -133,18 +132,16 @@ public class CoapsIntrospection implements IntrospectionHandler {
      */
     public CoapsIntrospection(byte[] psk, String pskIdentity,
             String keystoreLocation, String keystorePwd, String addr2idFile,
-            Map<InetSocketAddress, String> addr2id,
             String introspectAddress) throws CoseException, IOException,
             NoSuchAlgorithmException, CertificateException, KeyStoreException,
             NoSuchProviderException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
                 .setAddress(new InetSocketAddress(0));
-        BksStore.init(keystoreLocation, keystorePwd, addr2idFile);
         BksStore keystore = new BksStore(
                 keystoreLocation, keystorePwd, addr2idFile);
         builder.setPskStore(keystore);
         builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
                 .setConnector(dtlsConnector)

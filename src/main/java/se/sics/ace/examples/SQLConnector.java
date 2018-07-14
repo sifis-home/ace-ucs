@@ -297,12 +297,21 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	protected PreparedStatement selectExpiration;
 	
     /**
-     * A prepared SELECT statement to get a the pre-shared keys for
-     *     an audience
+     * A prepared SELECT statement to get a pre-shared token-protection 
+     * key for an audience
      *     
      * Parameter: audience name
      */
-	protected PreparedStatement selectRsPSK;
+	protected PreparedStatement selectRsTokenPSK;
+	
+	/**
+	 * A prepared SELECT statement to get the pre-shared authentication
+	 * key for an RS
+	 * 
+	 * Parameter: RS name
+	 * 
+	 */
+	protected PreparedStatement selectRsAuthPSK;
     
     /**
      * A prepared SELECT statement to get the public keys of an audience.
@@ -378,24 +387,65 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     /**
      * A prepared INSERT statement to insert a new token to client mapping.
      */
-    private PreparedStatement insertCti2Client;
+    protected PreparedStatement insertCti2Client;
     
     /**
      * A prepared SELECT statement to select the client identifier holding a
      * token identified by its cti.
      */
-    private PreparedStatement selectClientByCti;
+    protected PreparedStatement selectClientByCti;
 
 	/**
 	 * A prepared SELECT statement to select all registered clients.
 	 */
-	private PreparedStatement selectAllClients;
+	protected PreparedStatement selectAllClients;
 
     /**
      * A prepared SELECT statement to select the token identifiers (cti) 
      * held by a client
      */
-    private PreparedStatement selectCtisByClient;
+    protected PreparedStatement selectCtisByClient;
+    
+    /**
+     * A prepared SELECT statement to select the token identifier (cti) 
+     * for an authorization grant
+     */
+    protected PreparedStatement selectCtisByGrant;
+    
+    /**
+     * A prepared INSERT statement to add a new authorization grant to
+     * access token cti mapping.
+     */
+    protected PreparedStatement insertGrant2Cti;
+    
+    /**
+     * A prepared DELETE statement to remove the mapping of a grant
+     * to an access token cti.
+     */
+    protected PreparedStatement deleteGrant2Cti;
+    
+    /**
+     * A prepared UPDATE statement to mark an authorization grant
+     * as used.
+     */
+    protected PreparedStatement updateGrant;
+
+    /**
+     * A prepared SELECT statement to select the RS information
+     * for an authorization grant
+     */
+    protected PreparedStatement selectRsInfoByGrant;
+    
+    /**
+     * A prepared INSERT statement to add the RS Information
+     * for a given grant.
+     */
+    protected PreparedStatement insertGrant2RsInfo;
+    
+    /**
+     * A prepared SELECT statement to check if a grant is marked invalid
+     */
+    protected PreparedStatement selectGrantValid;
     
     /**
      * The singleton instance of this connector
@@ -440,7 +490,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	        
 		this.insertRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.rsTable + " VALUES (?,?,?,?);"));
+		                + DBConnector.rsTable + " VALUES (?,?,?,?,?);"));
 		
 		this.deleteRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
@@ -618,14 +668,20 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " FROM "  + DBConnector.rsTable
 		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 
-		this.selectRsPSK = this.conn.prepareStatement(
+		this.selectRsTokenPSK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.pskColumn
+		                + DBConnector.tokenPskColumn
 		                + " FROM "  + DBConnector.rsTable
 		                + " WHERE " + DBConnector.rsIdColumn + " IN (SELECT "
 		                + DBConnector.rsIdColumn + " FROM " 
 		                + DBConnector.audiencesTable
 		                + " WHERE " + DBConnector.audColumn + "=?);"));
+		
+		this.selectRsAuthPSK = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.authPskColumn
+                        + " FROM "  + DBConnector.rsTable
+                        + " WHERE " + DBConnector.rsIdColumn + "=?);"));
 
 		this.selectRsRPK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
@@ -638,7 +694,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 
 		this.selectCPSK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.pskColumn
+		                + DBConnector.authPskColumn
 		                + " FROM "  + DBConnector.cTable
 		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));
 
@@ -710,8 +766,49 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.ctiColumn + " FROM "
 		                + DBConnector.cti2clientTable
-		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));   
+		                + " WHERE " + DBConnector.clientIdColumn + "=?;"));  
+		
+		this.selectCtisByGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.ctiColumn + " FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;")); 
 
+		this.insertGrant2Cti = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+                        + DBConnector.grant2ctiTable
+                        + " VALUES (?,?,?);"));
+		
+		this.deleteGrant2Cti = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("DELETE FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
+		
+		this.updateGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("UPDATE "
+                        + DBConnector.grant2ctiTable
+                        + " SET " + DBConnector.grantValidColumn + "=FALSE"
+                                + " WHERE " + DBConnector.grantColumn 
+                                + "=?;"));
+		
+		this.selectRsInfoByGrant = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.claimNameColumn + ","
+                        + DBConnector.claimValueColumn + " FROM " 
+                        + DBConnector.grant2RSInfoTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
+		
+		this.insertGrant2RsInfo = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
+		                + DBConnector.grant2RSInfoTable
+		                + " VALUES (?,?,?);"));
+		
+		this.selectGrantValid = this.conn.prepareStatement(
+                dbAdapter.updateEngineSpecificSQL("SELECT "
+                        + DBConnector.grantValidColumn + " FROM "
+                        + DBConnector.grant2ctiTable
+                        + " WHERE " + DBConnector.grantColumn + "=?;"));
+                        
 	}
 	
 	/**
@@ -1246,18 +1343,44 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	}
 
     @Override
-    public synchronized OneKey getRsPSK(String rsId) throws AceException {
+    public synchronized OneKey getRsTokenPSK(String rsId) throws AceException {
         if (rsId == null) {
             throw new AceException(
                     "getRsPSK() requires non-null rsId");
         }
         try {
-            this.selectRsPSK.setString(1, rsId);
-            ResultSet result = this.selectRsPSK.executeQuery();
-            this.selectRsPSK.clearParameters();
+            this.selectRsTokenPSK.setString(1, rsId);
+            ResultSet result = this.selectRsTokenPSK.executeQuery();
+            this.selectRsTokenPSK.clearParameters();
             byte[] key = null;
             if (result.next()) {
-                key = result.getBytes(DBConnector.pskColumn);
+                key = result.getBytes(DBConnector.tokenPskColumn);
+            }
+            result.close();
+            if (key != null) {
+                CBORObject cKey = CBORObject.DecodeFromBytes(key);
+                return new OneKey(cKey);
+            }
+            return null;
+        } catch (SQLException | CoseException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+
+    @Override
+    public OneKey getRsAuthPSK(String rsId) throws AceException {
+        if (rsId == null) {
+            throw new AceException(
+                    "getRsPSK() requires non-null rsId");
+        }
+        try {
+            this.selectRsAuthPSK.setString(1, rsId);
+            ResultSet result = this.selectRsAuthPSK.executeQuery();
+            this.selectRsAuthPSK.clearParameters();
+            byte[] key = null;
+            if (result.next()) {
+                key = result.getBytes(DBConnector.authPskColumn);
             }
             result.close();
             if (key != null) {
@@ -1307,7 +1430,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             this.selectCPSK.clearParameters();
             byte[] key = null;
             if (result.next()) {
-                key = result.getBytes(DBConnector.pskColumn);
+                key = result.getBytes(DBConnector.authPskColumn);
             }
             result.close();
             if (key != null) {
@@ -1349,14 +1472,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     public synchronized void addRS(String rsId, Set<String> profiles, 
             Set<String> scopes, Set<String> auds, Set<String> keyTypes, 
             Set<Short> tokenTypes, Set<COSEparams> cose, long expiration, 
-            OneKey sharedKey, OneKey publicKey) throws AceException {
+            OneKey authPsk, OneKey tokenPsk, OneKey publicKey)
+                    throws AceException {
        
         if (rsId == null || rsId.isEmpty()) {
             throw new AceException("RS must have non-null, non-empty identifier");
         }
         
-        if (sharedKey == null && publicKey == null) {
-            throw new AceException("Cannot register a RS without a key");
+        if (tokenPsk == null && publicKey == null) {
+            throw new AceException("Cannot register a RS without a key for"
+                    +" protecting tokens");
         }
         
         if (profiles.isEmpty()) {
@@ -1387,18 +1512,25 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                         "RsId equal to existing audience id: " + rsId);
             }
             result.close();
-
+           
             this.insertRS.setString(1, rsId);
             this.insertRS.setLong(2, expiration);
-            if (sharedKey != null) {
-                this.insertRS.setBytes(3, sharedKey.EncodeToBytes());
+            if (tokenPsk != null) {
+                this.insertRS.setBytes(3, tokenPsk.EncodeToBytes());
             } else {
                 this.insertRS.setBytes(3, null);
             }
-            if (publicKey != null) {
-                this.insertRS.setBytes(4, publicKey.EncodeToBytes());
+            
+            if (authPsk != null) {
+                this.insertRS.setBytes(4, authPsk.EncodeToBytes());
             } else {
                 this.insertRS.setBytes(4, null);
+            }
+
+            if (publicKey != null) {
+                this.insertRS.setBytes(5, publicKey.EncodeToBytes());
+            } else {
+                this.insertRS.setBytes(5, null);
             }
             this.insertRS.execute();
             this.insertRS.clearParameters();
@@ -1771,6 +1903,148 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }
         return ctis;
+    }
+
+    @Override
+    public String getCti4Grant(String code) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "getCti4Grant() requires non-null code");
+        }
+        String cti = null;
+        try {
+            this.selectCtisByGrant.setString(1, code);
+            ResultSet result = this.selectCtisByGrant.executeQuery();
+            this.selectCtisByGrant.clearParameters();
+            while (result.next()) {
+                cti = (result.getString(DBConnector.ctiColumn));      
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return cti;
+    }
+
+    @Override
+    public void addGrant(String code, String cti, Map<Short, CBORObject> claims,
+            Map<Short, CBORObject> rsInfo) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "getaddGrant() requires non-null code");
+        }
+        if (cti == null) {
+            throw new AceException(
+                    "getaddGrant() requires non-null cti");
+        }
+        if (claims == null || claims.isEmpty()) {
+            throw new AceException(
+                    "getaddGrant() requires non-null and non-empty"
+                    + " claims");
+        }
+        if (rsInfo == null || rsInfo.isEmpty()) {
+            throw new AceException(
+                    "getaddGrant() requires non-null and non-empty"
+                    + " rsInfo");
+        }
+        
+        addToken(cti, claims);
+        
+        try {
+            this.insertGrant2Cti.setString(1, code);
+            this.insertGrant2Cti.setString(2, cti);
+            this.insertGrant2Cti.setBoolean(3, true);
+            this.insertGrant2Cti.execute();
+            this.insertGrant2Cti.clearParameters();
+        } catch (SQLException e) {
+            deleteToken(cti);
+            throw new AceException(e.getMessage());
+        }   
+
+        try {
+            this.insertGrant2RsInfo.setString(1, code);  
+            for (Map.Entry<Short, CBORObject> rsEntry : rsInfo.entrySet()) {  
+                this.insertGrant2RsInfo.setShort(2, rsEntry.getKey());
+                this.insertGrant2RsInfo.setBytes(3, rsEntry.getValue().EncodeToBytes());
+                this.insertGrant2RsInfo.execute();
+            }
+            this.insertGrant2RsInfo.clearParameters();        
+        } catch (SQLException e) {
+            deleteToken(cti);
+            try {
+                this.deleteGrant2Cti.setString(1, code);
+                this.deleteGrant2Cti.execute();
+                this.deleteGrant2Cti.clearParameters();
+            } catch (SQLException e2) {
+                throw new AceException("Error while tyring to roll-back an "
+                        + "addGrant(): " + e2.getMessage());
+            }
+            throw new AceException(e.getMessage());
+        }     
+    }
+
+    @Override
+    public void useGrant(String code) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "useGrant() requires non-null code");
+        }
+        try {
+            this.updateGrant.setString(1, code);
+            this.updateGrant.execute();
+            this.updateGrant.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+
+    @Override
+    public Map<Short, CBORObject> getRsInfo(String code) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "getRsInfo() requires non-null code");
+        }
+        Map<Short, CBORObject> rsInfo = new HashMap<>();
+        try {
+            this.selectRsInfoByGrant.setString(1, code);
+            ResultSet result = this.selectRsInfoByGrant.executeQuery();
+            this.selectRsInfoByGrant.clearParameters();
+            while (result.next()) {
+                    Short claimName 
+                        = result.getShort(DBConnector.claimNameColumn);
+                    CBORObject cbor = CBORObject.DecodeFromBytes(
+                            result.getBytes(DBConnector.claimValueColumn));
+                    rsInfo.put(claimName, cbor);
+            }
+            result.close(); 
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return rsInfo;
+    }
+
+
+    @Override
+    public boolean isGrantValid(String code) throws AceException {
+        if (code == null) {
+            throw new AceException(
+                    "getRsInfo() requires non-null code");
+        }
+        boolean valid = false;
+        try {
+            this.selectGrantValid.setString(1, code);
+            ResultSet result = this.selectGrantValid.executeQuery();
+            this.selectGrantValid.clearParameters();
+            if (result.next()) {
+                valid = result.getBoolean(DBConnector.grantValidColumn);
+            } else {
+                valid = false;
+            }                  
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return valid;
     }
     
     /**

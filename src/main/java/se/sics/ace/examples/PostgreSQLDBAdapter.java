@@ -175,7 +175,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
         String createRs = "CREATE TABLE " +  DBConnector.rsTable + "("
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.expColumn + " bigint NOT NULL, "
-                + DBConnector.pskColumn + " bytea, "
+                + DBConnector.tokenPskColumn + " bytea, "
+                + DBConnector.authPskColumn + " bytea, "        
                 + DBConnector.rpkColumn + " bytea,"
                 + "PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
@@ -183,7 +184,7 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.defaultAud + " varchar(255), "
                 + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " bytea, "
+                + DBConnector.authPskColumn + " bytea, "
                 + DBConnector.rpkColumn + " bytea,"
                 + "PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
@@ -247,6 +248,21 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
+        
+        String createGrant2Cti = "CREATE TABLE "
+                + DBConnector.grant2ctiTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.grantValidColumn + " BOOLEAN DEFAULT TRUE, "
+                + " PRIMARY KEY (" + DBConnector.grantColumn + ","
+                + DBConnector.ctiColumn + "));";
+            
+        String createGrant2RSInfo = "CREATE TABLE "
+                + this.dbName + "."
+                + DBConnector.grant2RSInfoTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " varbinary(255));";  
 
         // Table creation in PostgreSQL needs to be done with a connection 
         //using the local user and not the root user, so that the local 
@@ -269,6 +285,8 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
+            stmt.execute(createGrant2Cti);
+            stmt.execute(createGrant2RSInfo);
         } catch (SQLException e) {
             e.printStackTrace();
             throw new AceException(e.getMessage());

@@ -127,7 +127,7 @@ public class TestDB {
         long expiration = 1000000L;
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, publicKey);
+                expiration, null, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
@@ -136,7 +136,7 @@ public class TestDB {
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, null);
+                expiration, null, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -153,7 +153,7 @@ public class TestDB {
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, publicKey);
+                expiration, null, null, publicKey);
         
         
         //Setup client entries
@@ -217,7 +217,7 @@ public class TestDB {
         Set<COSEparams> cose = new HashSet<>();        
         long expiration = 1000000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, null, null);  
+                expiration, null, null, null);  
         Assert.fail("Duplicate RS was added to DB");
     }
     
@@ -427,11 +427,11 @@ public class TestDB {
      */
     @Test
     public void testGetRsPSK() throws Exception {
-       OneKey key = db.getRsPSK("rs1");
+       OneKey key = db.getRsTokenPSK("rs1");
        Assert.assertArrayEquals(key128, 
                key.get(KeyKeys.Octet_K).GetByteString());
              
-       key = db.getRsPSK("rs3");
+       key = db.getRsTokenPSK("rs3");
        Assert.assertNull(key);
     }
     
@@ -497,7 +497,7 @@ public class TestDB {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         long expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, null, key);  
+                expiration, null, null, key);  
         
         
         Set<String> present = db.getAudiences("rs4");

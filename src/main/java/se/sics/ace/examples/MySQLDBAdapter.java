@@ -132,7 +132,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + "." + DBConnector.rsTable + "("
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.expColumn + " bigint NOT NULL, "
-                + DBConnector.pskColumn + " varbinary(64), "
+                + DBConnector.tokenPskColumn + " varbinary(64), "
+                + DBConnector.authPskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
                 + " PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
@@ -141,7 +142,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.defaultAud + " varchar(255), "
                 + DBConnector.defaultScope + " varchar(255), "
-                + DBConnector.pskColumn + " varbinary(64), "
+                + DBConnector.authPskColumn + " varbinary(64), "
                 + DBConnector.rpkColumn + " varbinary(255),"
                 + " PRIMARY KEY (" + DBConnector.clientIdColumn + "));";
 
@@ -211,6 +212,23 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
                 + DBConnector.clientIdColumn + " varchar(255) NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.ctiColumn + "));";
+        
+        String createGrant2Cti = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.grant2ctiTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.ctiColumn + " varchar(255) NOT NULL, "
+                + DBConnector.grantValidColumn + " BOOLEAN DEFAULT TRUE, "
+                + " PRIMARY KEY (" + DBConnector.grantColumn + ","
+                + DBConnector.ctiColumn + "));";
+        
+        String createGrant2RSInfo = "CREATE TABLE IF NOT EXISTS "
+                + this.dbName + "."
+                + DBConnector.grant2RSInfoTable + "("
+                + DBConnector.grantColumn + " varchar(255) NOT NULL, "
+                + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
+                + DBConnector.claimValueColumn + " varbinary(255));";
+
 
         try (Connection rootConn = getRootConnection(rootPwd);
              Statement stmt = rootConn.createStatement()) {
@@ -228,6 +246,10 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createCtiCtr);
             stmt.execute(initCtiCtr);
             stmt.execute(createTokenLog);
+            stmt.execute(createGrant2Cti);
+            stmt.execute(createGrant2RSInfo);
+            rootConn.close();
+            stmt.close();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }

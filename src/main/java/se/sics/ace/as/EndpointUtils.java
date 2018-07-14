@@ -135,7 +135,7 @@ public class EndpointUtils {
         }
         byte[] key = null;
         for (String rs : rss) {
-            OneKey cose = db.getRsPSK(rs);
+            OneKey cose = db.getRsTokenPSK(rs);
             if (cose == null) {
                 return null;
             }
@@ -174,7 +174,7 @@ public class EndpointUtils {
                 CBORObject key = CBORObject.NewMap();
                 key.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
                 key.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(
-                        db.getRsPSK(rs)));
+                        db.getRsTokenPSK(rs)));
                 OneKey coseKey = new OneKey(key);
                 r.SetKey(coseKey); 
                 rl.add(r);
