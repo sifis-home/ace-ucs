@@ -39,6 +39,7 @@ import java.util.Map;
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -112,7 +113,7 @@ public class TestCoapsIntrospection {
      */
     @AfterClass
     public static void tearDown() throws Exception {
-        //srv.stop();
+        srv.stop();
     }
 
     /**
@@ -145,6 +146,7 @@ public class TestCoapsIntrospection {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testCoapIntrospectPSK() throws Exception {
         Map<InetSocketAddress, String> addr2id = new HashMap<>();
         addr2id.put(new InetSocketAddress("localhost", 
