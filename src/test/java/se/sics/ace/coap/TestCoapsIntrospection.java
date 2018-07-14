@@ -112,7 +112,7 @@ public class TestCoapsIntrospection {
      */
     @AfterClass
     public static void tearDown() throws Exception {
-        srv.stop();
+        //srv.stop();
     }
 
     /**
@@ -148,11 +148,21 @@ public class TestCoapsIntrospection {
     public void testCoapIntrospectPSK() throws Exception {
         Map<InetSocketAddress, String> addr2id = new HashMap<>();
         addr2id.put(new InetSocketAddress("localhost", 
-                CoAP.DEFAULT_COAP_SECURE_PORT), "keyId");
+                CoAP.DEFAULT_COAP_SECURE_PORT), "rs1");
+        BksStore.init( TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
+                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg"); 
+          
+        BksStore keystore = new BksStore(TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
+                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg");
+        
+        keystore.addKey(key128, "rs1");
+        
+        
         CoapsIntrospection i = new CoapsIntrospection(
                 key128, "rs1", 
-                TestConfig.testFilePath + "testKeyStore.bks", "password",
-                TestConfig.testFilePath + "add2id.cfg", addr2id, 
+                TestConfig.testFilePath + "IntrospectTestKeyStore.bks",
+                "password",
+                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg",
                 "coaps://localhost/introspect");
         Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
         assert(map.containsKey(Constants.AUD));

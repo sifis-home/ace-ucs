@@ -62,6 +62,9 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * 
  * This will retrieve keys from a BKS keystore.
  * 
+ * In order too keep this manageable all keys will 
+ * have the same password as the keystore.
+ * 
  * @author Ludwig Seitz
  *
  */
@@ -79,16 +82,6 @@ public class BksStore implements PskStore {
     private KeyStore keystore = null;
     
     /**
-     * The temporary variable to store a key password
-     */
-    private String keyPwd = null;
-    
-    /**
-     * The temporary variable to store a key identity
-     */
-    private String keyId = null;
-    
-    /**
      * The in-memory map of addresses to identities
      */
     private Map<InetSocketAddress, String> addr2id = new HashMap<>();
@@ -102,6 +95,8 @@ public class BksStore implements PskStore {
      * The keystore password
      */
     private String keystorePwd;
+    
+    private String add2IdFile;
     
     static {
         Security.addProvider(
@@ -130,6 +125,7 @@ public class BksStore implements PskStore {
         this.keystore = KeyStore.getInstance("BKS", "BC");
         this.keystore.load(keystoreStream, keystorePwd.toCharArray());
         keystoreStream.close();   
+        this.add2IdFile  = addr2idFile;
         BufferedReader in = new BufferedReader(new FileReader(addr2idFile));
         String line = "";
         while ((line = in.readLine()) != null) {
@@ -166,26 +162,9 @@ public class BksStore implements PskStore {
         File file = new File(addr2idFile);
         file.createNewFile();        
     }
-    
-    
-    /**
-     * Set a key password for a certain key identity.
-     * This method needs to be called before any calls to getKey() and
-     * getIdentity().
-     * 
-     * @param identity  
-     * @param keyPwd
-     */
-    public void setKeyPass(String identity, String keyPwd) {
-        this.keyPwd = keyPwd;
-        this.keyId = identity;
-    }
-
+        
     @Override
     public byte[] getKey(String identity) {
-        if (this.keyPwd == null || this.keyId == null) {
-            return null;
-        }
         try {
             if (!this.keystore.containsAlias(identity)) {
                 return null;
@@ -197,7 +176,8 @@ public class BksStore implements PskStore {
 
         Key key;
         try {
-            key = this.keystore.getKey(identity, this.keyPwd.toCharArray());
+            //XXX: Note that we use the keystore password for all key passwords
+            key = this.keystore.getKey(identity, this.keystorePwd.toCharArray());
         } catch (UnrecoverableKeyException | KeyStoreException
                 | NoSuchAlgorithmException e) {
             LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
@@ -218,14 +198,14 @@ public class BksStore implements PskStore {
      * 
      * @param key  the bytes of java.security.Key.getEncoded()
      * @param identity  the key identity
-     * @param password  the password to protect this key entry
+     * @param address  the address to associate with this key (can be null)
      * @throws KeyStoreException 
      * @throws IOException 
      * @throws FileNotFoundException 
      * @throws CertificateException 
      * @throws NoSuchAlgorithmException 
      */
-    public void addKey(byte[] key, String identity, String password) 
+    public void addKey(byte[] key, String identity) 
             throws KeyStoreException, NoSuchAlgorithmException, 
             CertificateException, FileNotFoundException, IOException {
         if (identity == null || key == null) {
@@ -233,12 +213,32 @@ public class BksStore implements PskStore {
         }
         if (this.keystore != null) {
             Key k = new SecretKeySpec(key, "");
+            //XXX: Note that we use the keystore password for all key passwords
             this.keystore.setKeyEntry(identity, k, 
-                    password.toCharArray(), null);
+                    this.keystorePwd.toCharArray(), null);
             FileOutputStream fos = new FileOutputStream(this.keystoreFile);
             this.keystore.store(fos, this.keystorePwd.toCharArray());
             fos.close();
         }
+    }
+    
+    /**
+     * Add a new mapping of key identity to Internet address.
+     * 
+     * @param address the Internet address
+     * @param identity  the key identity
+     * @throws KeyStoreException 
+     * @throws IOException 
+     */
+    public void addAddress(InetSocketAddress address, String identity) 
+            throws KeyStoreException, IOException {
+        if (hasKey(identity)) {
+            this.addr2id.put(address, identity);
+        }
+        FileOutputStream fos = new FileOutputStream(this.add2IdFile);
+        //FIXME: Write to file
+        fos.close();
+        
     }
     
     /**

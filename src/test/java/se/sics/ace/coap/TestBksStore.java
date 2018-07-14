@@ -102,7 +102,7 @@ public class TestBksStore {
     public void testAddRemoveKeySuccess() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         assert(!keystore.hasKey("identity1"));
-        keystore.addKey(key, "identity1", "password");
+        keystore.addKey(key, "identity1");
         assert(keystore.hasKey("identity1"));
         keystore.removeKey("identity1");
         assert(!keystore.hasKey("identity1"));
@@ -126,7 +126,7 @@ public class TestBksStore {
      */
     @Test (expected=KeyStoreException.class)
     public void testAddKeyFail() throws Exception {
-        keystore.addKey(null, "identity1", "password");
+        keystore.addKey(null, "identity1");
         Assert.fail("No exception thrown");
     }
     
@@ -139,27 +139,12 @@ public class TestBksStore {
     @Test
     public void testGetKeySuccess() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        keystore.addKey(key, "identity1", "password");
-        keystore.setKeyPass("identity1", "password");
+        keystore.addKey(key, "identity1");
         byte[] key2 = keystore.getKey("identity1");
         Assert.assertArrayEquals(key, key2);
         keystore.removeKey("identity1");
     }
-    
-    /**
-     * Test unsuccessful call to getKey() wrong password
-     * 
-     * @throws Exception 
-     */
-    @Test
-    public void testGetKeyFailPwd() throws Exception {
-        byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        keystore.addKey(key, "identity1", "password");
-        keystore.setKeyPass("identity1", "wrongpassword");
-        byte[] key2 = keystore.getKey("identity1");
-        Assert.assertNull(key2);
-        keystore.removeKey("identity1");
-    }
+
     
     /**
      * Test unsuccessful call to getKey() wrong id
@@ -169,8 +154,7 @@ public class TestBksStore {
     @Test
     public void testGetKeyFailId() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        keystore.addKey(key, "identity1", "password");
-        keystore.setKeyPass("identity1", "password");
+        keystore.addKey(key, "identity1");
         byte[] key2 = keystore.getKey("wrongidentity");
         Assert.assertNull(key2);
         keystore.removeKey("identity1");
