@@ -148,6 +148,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    Map<Short, CBORObject> claims = null;
+
+		//1. Check whether it is a CWT or REF type
 	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
 	        try {
                 claims = processRefrenceToken(tokenAsCbor);
