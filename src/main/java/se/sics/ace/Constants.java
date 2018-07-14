@@ -217,7 +217,7 @@ public class Constants {
 	 * CWT claims
 	 */
 	public static final short[] CWT_CLAIMS 
-		= {ISS, SUB, AUD, EXP, NBF, IAT, CTI, SCOPE};
+		= {ISS, SUB, AUD, EXP, NBF, IAT, CTI, SCOPE, CNF, PROFILE, RS_CNF};
 	
 	/**
 	 * ACE-OAUTH-AUTHZ /token parameters
@@ -225,7 +225,7 @@ public class Constants {
 	public static final short[] TOKEN_PAR = {CLIENT_ID, CLIENT_SECRET, AUD, 
 		RESPONSE_TYPE, REDIRECT_URI, SCOPE, STATE, CODE, ERROR, 
 		ERROR_DESCRIPTION,ERROR_URI, GRANT_TYPE, ACCESS_TOKEN, TOKEN_TYPE, 
-		EXPIRES_IN, USERNAME, PASSWORD, REFRESH_TOKEN, CNF, PROFILE};
+		EXPIRES_IN, USERNAME, PASSWORD, REFRESH_TOKEN, CNF, PROFILE, RS_CNF};
 
    /**
     * ACE-OAUTH-AUTHZ /introspect parameters

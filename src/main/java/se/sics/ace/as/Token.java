@@ -655,7 +655,11 @@ public class Token implements Endpoint, AutoCloseable {
 		            claims.put(Constants.CNF, coseKey);
 		        }
 		        break;
-		            
+		    case Constants.PROFILE:
+		        claims.put(Constants.PROFILE, CBORObject.FromObject(profile));
+		        break;
+		    case Constants.RS_CNF:
+		        //TODO
 		    default :
 		       LOGGER.severe("Unknown claim type in /token "
 		               + "endpoint configuration: " + c);
