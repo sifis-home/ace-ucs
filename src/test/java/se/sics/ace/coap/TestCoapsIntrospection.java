@@ -146,11 +146,7 @@ public class TestCoapsIntrospection {
      * @throws Exception
      */
     @Test
-    @Ignore
     public void testCoapIntrospectPSK() throws Exception {
-        Map<InetSocketAddress, String> addr2id = new HashMap<>();
-        addr2id.put(new InetSocketAddress("localhost", 
-                CoAP.DEFAULT_COAP_SECURE_PORT), "rs1");
         BksStore.init( TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
                 TestConfig.testFilePath + "IntrospectTestAddr2id.cfg"); 
           
@@ -158,7 +154,8 @@ public class TestCoapsIntrospection {
                 TestConfig.testFilePath + "IntrospectTestAddr2id.cfg");
         
         keystore.addKey(key128, "rs1");
-        
+        keystore.addAddress(new InetSocketAddress("localhost", 
+                CoAP.DEFAULT_COAP_SECURE_PORT), "rs1");
         
         CoapsIntrospection i = new CoapsIntrospection(
                 key128, "rs1", 

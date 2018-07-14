@@ -39,6 +39,7 @@ import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.security.Key;
 import java.security.KeyStore;
@@ -84,7 +85,7 @@ public class BksStore implements PskStore {
     /**
      * The in-memory map of addresses to identities
      */
-    private Map<InetSocketAddress, String> addr2id = new HashMap<>();
+    private Map<String, String> addr2id = new HashMap<>();
     
     /**
      * The file storing the keystore
@@ -96,7 +97,7 @@ public class BksStore implements PskStore {
      */
     private String keystorePwd;
     
-    private String add2IdFile;
+    private String addr2IdFile;
     
     static {
         Security.addProvider(
@@ -125,13 +126,13 @@ public class BksStore implements PskStore {
         this.keystore = KeyStore.getInstance("BKS", "BC");
         this.keystore.load(keystoreStream, keystorePwd.toCharArray());
         keystoreStream.close();   
-        this.add2IdFile  = addr2idFile;
+        this.addr2IdFile  = addr2idFile;
         BufferedReader in = new BufferedReader(new FileReader(addr2idFile));
         String line = "";
         while ((line = in.readLine()) != null) {
             String parts[] = line.split(":");
-            this.addr2id.put(InetSocketAddress.createUnresolved(parts[0].trim(), 
-                    Integer.parseInt(parts[1])), parts[2].trim());
+            this.addr2id.put((parts[0].trim() + ":" + parts[1].trim()),
+                    parts[2].trim());
         }
         in.close();
     }
@@ -188,7 +189,8 @@ public class BksStore implements PskStore {
 
     @Override
     public String getIdentity(InetSocketAddress inetAddress) {
-        return this.addr2id.get(inetAddress);
+        String id = inetAddress.getHostString() + ":" + inetAddress.getPort();
+        return this.addr2id.get(id);
                 
     }
     
@@ -233,12 +235,16 @@ public class BksStore implements PskStore {
     public void addAddress(InetSocketAddress address, String identity) 
             throws KeyStoreException, IOException {
         if (hasKey(identity)) {
-            this.addr2id.put(address, identity);
+            this.addr2id.put(address.getHostString()+":"+address.getPort(),
+                    identity);
         }
-        FileOutputStream fos = new FileOutputStream(this.add2IdFile);
-        //FIXME: Write to file
-        fos.close();
-        
+        PrintWriter writer = new PrintWriter(this.addr2IdFile, "UTF-8");
+        for (Map.Entry<String, String> e 
+                : this.addr2id.entrySet()) {        
+            String line = e.getKey() + ":" + e.getValue();
+            writer.println(line);  
+        }
+        writer.close();      
     }
     
     /**
