@@ -268,6 +268,7 @@ public class PlugtestAS {
         pdp.addAccess("client4", "RS1", "r_Lock");
         
         pdp.addIntrospectAccess("RS2");
+        pdp.addIntrospectAccess("client2");
         
         //as = new CoapsAS("AS", db, pdp, time, asRPK);
         Set<Short> claims = new HashSet<>();
@@ -278,7 +279,7 @@ public class PlugtestAS {
         claims.add(Constants.PROFILE);
         
         as = new CoapsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
-                CoAP.DEFAULT_COAP_SECURE_PORT, claims, false);
+                CoAP.DEFAULT_COAP_SECURE_PORT, claims, true);
         as.start();
         System.out.println("Server starting");
     }
