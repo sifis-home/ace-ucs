@@ -258,11 +258,10 @@ public class PostgreSQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.ctiColumn + "));";
             
         String createGrant2RSInfo = "CREATE TABLE "
-                + this.dbName + "."
                 + DBConnector.grant2RSInfoTable + "("
                 + DBConnector.grantColumn + " varchar(255) NOT NULL, "
                 + DBConnector.claimNameColumn + " SMALLINT NOT NULL,"
-                + DBConnector.claimValueColumn + " varbinary(255));";  
+                + DBConnector.claimValueColumn + " bytea);";
 
         // Table creation in PostgreSQL needs to be done with a connection 
         //using the local user and not the root user, so that the local 
