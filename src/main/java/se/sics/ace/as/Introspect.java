@@ -127,6 +127,10 @@ public class Introspect implements Endpoint, AutoCloseable {
     
 	@Override
     public Message processMessage(Message msg) {
+	    if (msg == null) {//This should not happen
+            LOGGER.severe("Introspect.processMessage() received null message");
+            return null;
+        }
 	    LOGGER.log(Level.INFO, "Introspect received message: " 
 	            + msg.getParameters());
         	    
