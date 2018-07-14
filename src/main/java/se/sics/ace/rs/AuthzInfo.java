@@ -221,23 +221,17 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
       
 	    //4. Check if we accept the issuer (iss)
 	    CBORObject iss = claims.get(Constants.ISS);
-	    if (iss == null) {
-	        CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "Token has no issuer");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    if (iss != null) {
+	        if (!this.issuers.contains(iss.AsString())) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "Token issuer unknown");
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+	        }
 	    }
-	    if (!this.issuers.contains(iss.AsString())) {
-	        CBORObject map = CBORObject.NewMap();
-	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-	        map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
-	        LOGGER.log(Level.INFO, "Message processing aborted: "
-	                + "Token issuer unknown");
-	        return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
-	    }
-
+	    
 	    //5. Check if we are the audience (aud)
 	    CBORObject aud = claims.get(Constants.AUD);
 	    if (aud == null) {
