@@ -681,7 +681,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                 dbAdapter.updateEngineSpecificSQL("SELECT "
                         + DBConnector.authPskColumn
                         + " FROM "  + DBConnector.rsTable
-                        + " WHERE " + DBConnector.rsIdColumn + "=?);"));
+                        + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 
 		this.selectRsRPK = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
