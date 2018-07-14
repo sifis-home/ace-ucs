@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.log4j.BasicConfigurator;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
@@ -45,6 +46,7 @@ import COSE.MessageTag;
 import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
+import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
@@ -210,7 +212,7 @@ public class PlugtestAS {
         //Setup RS2
         keyTypes.add("RPK");
         db.addRS("RS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-        expiration, null, rs2PSK, rsRPK);
+        expiration, rs2PSK, rs2PSK, rsRPK);
          
         //Setup C1 
         keyTypes.clear();
@@ -267,7 +269,16 @@ public class PlugtestAS {
         
         pdp.addIntrospectAccess("RS2");
         
-        as = new CoapsAS("AS", db, pdp, time, asRPK);
+        //as = new CoapsAS("AS", db, pdp, time, asRPK);
+        Set<Short> claims = new HashSet<>();
+        claims.add(Constants.CTI);
+        claims.add(Constants.AUD);
+        claims.add(Constants.SCOPE);
+        claims.add(Constants.CNF);
+        claims.add(Constants.PROFILE);
+        
+        as = new CoapsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
+                CoAP.DEFAULT_COAP_SECURE_PORT, claims, false);
         as.start();
         System.out.println("Server starting");
     }

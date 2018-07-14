@@ -710,6 +710,35 @@ public class PlugtestClient {
             System.out.println("=====End Test 2.13======");
             
             System.out.println("=====Starting Test 2.14======");
+            // Client2 HelloWorld symmetric authz-info h'91ECB5CB5DBD'
+            uri = "coap://" + args[1] + "/authz-info";
+            claims = new HashMap<>();
+            claims.put(Constants.SCOPE, CBORObject.FromObject("HelloWorld"));
+            claims.put(Constants.AUD, CBORObject.FromObject("RS2"));
+            claims.put(Constants.ISS, CBORObject.FromObject("AS"));
+      
+            cbor = CBORObject.NewMap();
+            cbor.Add(Constants.COSE_KID_CBOR, kid2);
+            claims.put(Constants.CNF, cbor);    
+            claims.put(Constants.CTI, CBORObject.FromObject(
+                    new byte[] {0x02, 0x07}));
+            token = new CWT(claims);
+            tokenCB = token.encode(ctx2);
+            payload = CBORObject.FromObject(tokenCB.EncodeToBytes());
+            res = DTLSProfileRequests.postToken(uri, payload, null);
+            printResults(res);
+            uri = uri.replace("/authz-info", "");
+            uri = uri.replace("coaps://", "");
+            client = DTLSProfileRequests.getPskClient(new InetSocketAddress(
+                    uri, CoAP.DEFAULT_COAP_SECURE_PORT), kid2, client2PSK);    
+            uri = "coaps://" + uri + "/ace/helloWorld";
+            client.setURI(uri);
+            res = client.get();
+            printResults(res);          
+            System.out.println("=====End Test 2.14======");
+            
+            
+            System.out.println("=====Starting Test 2.15======");
             //Client3 DTLS-PSK  h'91ECB5CB5DBE' PUT to lock
             uri = uri.replace("/ace/lock", "");
             uri = uri.replace("coaps://", "");
@@ -720,9 +749,9 @@ public class PlugtestClient {
             res = client.put(CBORObject.False.EncodeToBytes(), 
                     MediaTypeRegistry.APPLICATION_CBOR);
             printResults(res);          
-            System.out.println("=====End Test 2.14======");
+            System.out.println("=====End Test 2.15======");
             
-            System.out.println("=====Starting Test 2.15======");
+            System.out.println("=====Starting Test 2.16======");
             //Client3 DTLS-RPK GET HelloWorld
             uri = uri.replace("/ace/lock", "");
             uri = uri.replace("coaps://", "");
@@ -731,7 +760,7 @@ public class PlugtestClient {
             client.setURI(uri);
             res = client.get();
             printResults(res);          
-            System.out.println("=====End Test 2.15======");
+            System.out.println("=====End Test 2.16======");
             break;
         default : //Error
             throw new RuntimeException("Unkown test series, use 1,2 or 3");
