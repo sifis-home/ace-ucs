@@ -361,7 +361,7 @@ public class TestDtlspClient {
     
     
     /** 
-     * Test post to authz-info with RPK then request
+     * Test post to authz-info with PSK then request
      * @throws CoseException 
      * @throws AceException 
      * @throws InvalidCipherTextException 
@@ -397,7 +397,7 @@ public class TestDtlspClient {
         CoapClient c = DTLSProfileRequests.getPskClient(
                 new InetSocketAddress("localhost", 
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
-                kid.GetByteString(),
+                kidStr.getBytes(Constants.charset),
                 key);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();

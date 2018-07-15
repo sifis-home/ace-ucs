@@ -58,6 +58,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -106,8 +107,9 @@ public class DTLSProfileRequests {
         builder.setClientOnly();
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
-            String keyId = Base64.getEncoder().encodeToString(
-                    key.get(KeyKeys.KeyId).GetByteString());
+            String keyId = new String(
+                    key.get(KeyKeys.KeyId).GetByteString(),
+                    Constants.charset);
             builder.setPskStore(new StaticPskStore(
                     keyId, key.get(KeyKeys.Octet_K).GetByteString()));
             builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -293,7 +295,7 @@ public class DTLSProfileRequests {
         
         InMemoryPskStore store = new InMemoryPskStore();
 
-        String identity = Base64.getEncoder().encodeToString(kid);
+        String identity = new String(kid, Constants.charset);
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());

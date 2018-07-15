@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.nio.charset.Charset;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -226,7 +227,7 @@ public class TestDtlspAuthzInfo {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = Base64.getEncoder().encodeToString(new byte[]{0x01, 0x02});
+        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
                 ai.getKey(kid).get(KeyKeys.Octet_K).GetByteString());

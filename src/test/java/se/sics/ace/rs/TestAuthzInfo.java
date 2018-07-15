@@ -260,8 +260,8 @@ public class TestAuthzInfo {
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
-        String kidStr = Base64.getEncoder().encodeToString(
-                new byte[]{0x31, 0x42});
+        String kidStr = new String(
+                new byte[]{0x31, 0x42}, Constants.charset);
         assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET,
                 new KissTime(), null));
 

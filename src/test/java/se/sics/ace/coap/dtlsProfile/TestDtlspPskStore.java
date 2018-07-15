@@ -278,8 +278,7 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         tr.addToken(claims, ctx, null);
-        String psk_identity = Base64.getEncoder().encodeToString(
-                "ourKey".getBytes(Constants.charset)); 
+        String psk_identity = "ourKey"; 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);

@@ -85,10 +85,8 @@ public class TestTokenRepository {
     private static TokenRepository tr; 
     private static CBORObject pskCnf;
     private static CBORObject rpkCnf;
-    private static String ourKey = Base64.getEncoder().encodeToString(
-            "ourKey".getBytes(Constants.charset));
-    private static String rpk = Base64.getEncoder().encodeToString(
-            "rpk".getBytes(Constants.charset));
+    private static String ourKey = "ourKey";
+    private static String rpk = "rpk";
     
     /**
      * Converter for generating byte arrays from int

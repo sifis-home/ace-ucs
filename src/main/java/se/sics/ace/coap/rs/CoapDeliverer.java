@@ -157,8 +157,8 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                    CBORObject ckid = cbor.get(KeyKeys.KeyId.AsCBOR());
                    if (ckid != null && ckid.getType().equals(
                            CBORType.ByteString)) {
-                      kid = Base64.getEncoder().encodeToString(
-                              ckid.GetByteString());
+                      kid = new String(ckid.GetByteString(), 
+                              Constants.charset);
                    } else { //No kid in that CBOR map or it isn't a bstr
                        failUnauthz(ex);
                        return;

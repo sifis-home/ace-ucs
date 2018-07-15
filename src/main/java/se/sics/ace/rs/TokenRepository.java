@@ -342,8 +342,8 @@ public class TokenRepository implements AutoCloseable {
             String kid = null;
             CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             if (kidC.getType().equals(CBORType.ByteString)) {
-                kid = Base64.getEncoder().encodeToString(
-                        kidC.GetByteString());
+                kid = new String(
+                        kidC.GetByteString(), Constants.charset);
             } else {
                 LOGGER.severe("kid is not a byte string");
                 throw new AceException("cnf contains invalid kid");
@@ -393,7 +393,7 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("kid not found in COSE_Key");
             throw new AceException("COSE_Key is missing kid");
         } else if (kidC.getType().equals(CBORType.ByteString)) {
-            kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
+            kid = new String(kidC.GetByteString(), Constants.charset);
         } else {
             LOGGER.severe("kid is not a byte string");
             throw new AceException("COSE_Key contains invalid kid");
