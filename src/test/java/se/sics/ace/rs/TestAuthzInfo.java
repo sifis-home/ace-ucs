@@ -370,44 +370,6 @@ public class TestAuthzInfo {
     }
     
     /**
-     * Test CWT without issuer submission to AuthzInfo
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException 
-     */
-    @Test
-    public void testNoIssuer() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x04}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x04});
-        
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x04}), params);
-        db.addCti2Client(ctiStr, "client1");        
-        
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
-                
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, "Token has no issuer");
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
-    }
-    
-    /**
      * Test CWT with unrecognized issuer submission to AuthzInfo
      * 
      * @throws IllegalStateException 

@@ -458,9 +458,12 @@ public class Token implements Endpoint, AutoCloseable {
         }
        
         String keyType = null; //Save the key type for later
+        Set<CBORObject> rscnfs = new HashSet<>(); //Prepare this in case needed
+        
 		Map<Short, CBORObject> claims = new HashMap<>();
-		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF
-		for (Short c : this.claims) {
+		
+		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE
+        for (Short c : this.claims) {
 		    switch (c) {
 		    case Constants.ISS:
 		        claims.put(Constants.ISS, CBORObject.FromObject(this.asId));        
@@ -659,7 +662,37 @@ public class Token implements Endpoint, AutoCloseable {
 		        claims.put(Constants.PROFILE, CBORObject.FromObject(profile));
 		        break;
 		    case Constants.RS_CNF:
-		        //TODO
+		        if (keyType != null && keyType.equals("RPK")) {
+		            Set<String> rss = new HashSet<>();
+		            for (String audE : aud) {
+		                try {
+		                    rss.addAll(this.db.getRSS(audE));
+		                } catch (AceException e) {
+		                    this.cti--; //roll-back
+		                    LOGGER.severe("Message processing aborted: "
+		                            + e.getMessage());
+		                    return msg.failReply(
+		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		                }
+		            }
+		            for (String rs : rss) {
+		                try {
+		                    OneKey rsKey = this.db.getRsRPK(rs);
+		                    CBORObject rscnf = CBORObject.NewMap();
+		                    rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
+		                    claims.put(Constants.RS_CNF, rscnf);
+		                    //Save those for the Access Information
+		                    rscnfs.add(rscnf);
+		                } catch (AceException e) {
+		                    this.cti--; //roll-back
+		                    LOGGER.severe("Message processing aborted: "
+		                            + e.getMessage());
+		                    return msg.failReply(
+		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		                }
+		            }
+		        }
+		        break;
 		    default :
 		       LOGGER.severe("Unknown claim type in /token "
 		               + "endpoint configuration: " + c);
@@ -676,9 +709,8 @@ public class Token implements Endpoint, AutoCloseable {
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
+		
 		CBORObject rsInfo = CBORObject.NewMap();
-
-
 		try {
 		    if (!this.db.hasDefaultProfile(id)) {
 		        rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
@@ -693,31 +725,8 @@ public class Token implements Endpoint, AutoCloseable {
 		if (keyType != null && keyType.equals("PSK")) {
 		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 		}  else if (keyType != null && keyType.equals("RPK")) {
-		    Set<String> rss = new HashSet<>();
-		    for (String audE : aud) {
-		        try {
-		            rss.addAll(this.db.getRSS(audE));
-		        } catch (AceException e) {
-		            this.cti--; //roll-back
-		            LOGGER.severe("Message processing aborted: "
-		                    + e.getMessage());
-		            return msg.failReply(
-		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		        }
-		    }
-		    for (String rs : rss) {
-		        try {
-		            OneKey rsKey = this.db.getRsRPK(rs);
-		            CBORObject rscnf = CBORObject.NewMap();
-		            rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
-		            rsInfo.Add(Constants.RS_CNF, rscnf);
-		        } catch (AceException e) {
-		            this.cti--; //roll-back
-		            LOGGER.severe("Message processing aborted: "
-		                    + e.getMessage());
-		            return msg.failReply(
-		                    Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		        }
+		    for (CBORObject rscnf : rscnfs) {
+		        rsInfo.Add(Constants.RS_CNF, rscnf);
 		    }
 		} //Skip cnf if client requested specific KID.
 
