@@ -254,7 +254,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "client1", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
@@ -293,7 +293,7 @@ public class TestAuthzInfo {
         CWT cwt = new CWT(claims);
 
         LocalMessage request = new LocalMessage(0, "client1", "rs1",
-                CBORObject.FromObject(cwt.encode(ctx).EncodeToBytes()));
+                cwt.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -316,7 +316,7 @@ public class TestAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         CBORObject token = CBORObject.False;
         LocalMessage request = new LocalMessage(0, "client1", "rs1",
-                CBORObject.FromObject(token.EncodeToBytes()));
+                token);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -358,7 +358,7 @@ public class TestAuthzInfo {
         CWT cwt = new CWT(claims);
         
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(cwt.encode(ctx).EncodeToBytes()));
+                cwt.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
@@ -401,7 +401,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "client1", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
@@ -439,7 +439,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
@@ -478,7 +478,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
         CBORObject map = CBORObject.NewMap();
@@ -516,7 +516,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_SCOPE);
@@ -565,7 +565,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
@@ -620,7 +620,7 @@ public class TestAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+                token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());

@@ -275,7 +275,7 @@ public class PlugtestRS {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(rs2, coseP.getAlg().AsCBOR());     
         
-        AsInfo asi = new AsInfo("coaps://testAS/token");
+        AsInfo asi = new AsInfo("coaps://31.133.145.200:5689/token");
         Resource hello = new HelloWorldResource();
         Resource lock = new LockResource();
         KissValidator valid = new KissValidator(Collections.singleton("RS2"),
@@ -350,7 +350,7 @@ public class PlugtestRS {
      CwtCryptoCtx ctx 
          = CwtCryptoCtx.encrypt0(rs1, coseP.getAlg().AsCBOR());     
      
-     AsInfo asi = new AsInfo("coaps://testAS/token");
+     AsInfo asi = new AsInfo("coaps://31.133.145.200:5689/token");
      Resource hello = new HelloWorldResource();
      Resource lock = new LockResource();
      KissValidator valid = new KissValidator(Collections.singleton("RS1"),

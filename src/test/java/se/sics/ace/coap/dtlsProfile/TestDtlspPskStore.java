@@ -242,12 +242,9 @@ public class TestDtlspPskStore {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
-        
-        CBORObject tokenAsBytes = CBORObject.FromObject(
-                tokenCB.EncodeToBytes());
-        
+           
         String psk_identity = Base64.getEncoder().encodeToString(
-                tokenAsBytes.EncodeToBytes()); 
+                tokenCB.EncodeToBytes()); 
 
         byte[] psk = store.getKey(psk_identity);
         Assert.assertArrayEquals(key128 ,psk);

@@ -215,7 +215,7 @@ public class TestAuthzInfoAif {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                CBORObject.FromObject(token.encode(ctx).EncodeToBytes()));
+               token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());

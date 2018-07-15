@@ -206,19 +206,17 @@ public class TestDtlspRS {
 
       OneKey key = new OneKey();
       key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      String kidStr = "someKey";
-      CBORObject kid = CBORObject.FromObject(
-              kidStr.getBytes(Constants.charset));
-      key.add(KeyKeys.KeyId, kid);
+      
+      byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+      CBORObject kidC = CBORObject.FromObject(kid);
+      key.add(KeyKeys.KeyId, kidC);
       key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
       CBORObject cnf = CBORObject.NewMap();
       cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
       params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
-      CBORObject tokenAsBytes = CBORObject.FromObject(
-              token.encode(ctx).EncodeToBytes());
-      ai.processMessage(new LocalMessage(0, null, null, tokenAsBytes));
+      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
       AsInfo asi 
       = new AsInfo("coaps://blah/authz-info/");

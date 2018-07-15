@@ -195,9 +195,9 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
                .setConnector(connector).setNetworkConfig(
                        NetworkConfig.getStandard()).build());
        //Add a CoAP (no 's') endpoint for error messages
-       CoapEndpoint coap = new CoapEndpointBuilder().setInetSocketAddress(
-               new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
-       addEndpoint(coap);
+       //CoapEndpoint coap = new CoapEndpointBuilder().setInetSocketAddress(
+       //       new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
+       //addEndpoint(coap);
         
     }
 

@@ -128,9 +128,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
-	    CBORObject tokenAsByteString = null;
+	    CBORObject token = null;
 	    try {
-	        tokenAsByteString = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	        token = CBORObject.DecodeFromBytes(msg.getRawPayload());
 	    } catch (Exception e) {
 	        LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
 	        CBORObject map = CBORObject.NewMap();
@@ -138,21 +138,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }
 	    
-	    CBORObject tokenAsCbor = null;
-	    try {
-	        tokenAsCbor = CBORObject.DecodeFromBytes(tokenAsByteString.GetByteString());
-	    } catch (Exception e) {
-	           LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
-	           CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-	    }
 	    Map<Short, CBORObject> claims = null;
 
 		//1. Check whether it is a CWT or REF type
-	    if (tokenAsCbor.getType().equals(CBORType.ByteString)) {
+	    if (token.getType().equals(CBORType.ByteString)) {
 	        try {
-                claims = processRefrenceToken(tokenAsCbor);
+                claims = processRefrenceToken(token);
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -167,9 +158,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
                 map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
                 return msg.failReply(e.getCode(), map);
             }
-	    } else if (tokenAsCbor.getType().equals(CBORType.Array)) {
+	    } else if (token.getType().equals(CBORType.Array)) {
 	        try {
-	            claims = processCWT(tokenAsCbor);
+	            claims = processCWT(token);
 	        } catch (IntrospectionException e) {
                 LOGGER.info("Introspection error, "
                         + "message processing aborted: " + e.getMessage());

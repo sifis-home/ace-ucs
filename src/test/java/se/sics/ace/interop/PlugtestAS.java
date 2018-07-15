@@ -279,7 +279,7 @@ public class PlugtestAS {
         claims.add(Constants.PROFILE);
         
         as = new CoapsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
-                CoAP.DEFAULT_COAP_SECURE_PORT, claims, true);
+                5689, claims, true);
         as.start();
         System.out.println("Server starting");
     }
