@@ -458,8 +458,6 @@ public class Token implements Endpoint, AutoCloseable {
         }
        
         String keyType = null; //Save the key type for later
-        Set<CBORObject> rscnfs = new HashSet<>(); //Prepare this in case needed
-        
 		Map<Short, CBORObject> claims = new HashMap<>();
 		
 		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE
@@ -663,34 +661,17 @@ public class Token implements Endpoint, AutoCloseable {
 		        break;
 		    case Constants.RS_CNF:
 		        if (keyType != null && keyType.equals("RPK")) {
-		            Set<String> rss = new HashSet<>();
-		            for (String audE : aud) {
-		                try {
-		                    rss.addAll(this.db.getRSS(audE));
-		                } catch (AceException e) {
-		                    this.cti--; //roll-back
-		                    LOGGER.severe("Message processing aborted: "
-		                            + e.getMessage());
-		                    return msg.failReply(
-		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		                }
-		            }
-		            for (String rs : rss) {
-		                try {
-		                    OneKey rsKey = this.db.getRsRPK(rs);
-		                    CBORObject rscnf = CBORObject.NewMap();
-		                    rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
-		                    claims.put(Constants.RS_CNF, rscnf);
-		                    //Save those for the Access Information
-		                    rscnfs.add(rscnf);
-		                } catch (AceException e) {
-		                    this.cti--; //roll-back
-		                    LOGGER.severe("Message processing aborted: "
-		                            + e.getMessage());
-		                    return msg.failReply(
-		                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
-		                }
-		            }
+		           try {
+		               Set<CBORObject> rscnfs = makeRsCnf(aud);
+		               for (CBORObject rscnf : rscnfs) {
+	                       claims.put(Constants.RS_CNF, rscnf);
+	                   }
+		           } catch (AceException e) {
+		               this.cti--; //roll-back
+                       LOGGER.severe("Message processing aborted: "
+                               + e.getMessage());
+                       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+		           }
 		        }
 		        break;
 		    default :
@@ -725,6 +706,15 @@ public class Token implements Endpoint, AutoCloseable {
 		if (keyType != null && keyType.equals("PSK")) {
 		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 		}  else if (keyType != null && keyType.equals("RPK")) {
+		    Set<CBORObject> rscnfs = new HashSet<>();
+            try {
+                rscnfs = makeRsCnf(aud);
+            } catch (AceException e) {
+                this.cti--; //roll-back
+                LOGGER.severe("Message processing aborted: "
+                        + e.getMessage());
+                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            }
 		    for (CBORObject rscnf : rscnfs) {
 		        rsInfo.Add(Constants.RS_CNF, rscnf);
 		    }
@@ -791,8 +781,30 @@ public class Token implements Endpoint, AutoCloseable {
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
+		LOGGER.log(Level.FINEST, "Claims: " + claims.toString());
 		return msg.successReply(Message.CREATED, rsInfo);
 	}
+	
+	/**
+	 * Populate RS_CNF
+	 * @throws AceException 
+	 */
+	private Set<CBORObject> makeRsCnf(Set<String> aud) throws AceException {
+	    Set<String> rss = new HashSet<>();
+	    Set<CBORObject> rscnfs = new HashSet<>();
+	    for (String audE : aud) {           
+	        rss.addAll(this.db.getRSS(audE));
+	    }
+	    for (String rs : rss) {
+	        OneKey rsKey = this.db.getRsRPK(rs);
+	        CBORObject rscnf = CBORObject.NewMap();
+	        rscnf.Add(Constants.COSE_KEY_CBOR, rsKey.AsCBOR());
+	        rscnfs.add(rscnf);
+
+	    }
+	    return rscnfs;
+	}
+	
 	
 	/**
 	 * Process an authorization grant message

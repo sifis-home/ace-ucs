@@ -385,19 +385,25 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private void processKey(OneKey key, String sid, String cti) 
 	        throws AceException, CoseException {
+	    
 	    String kid = null;
-        CBORObject kidC = key.get(KeyKeys.KeyId);
-        
-        //XXX: Check if we can remove the requirement for kid
-        if (kidC == null) {
-            LOGGER.severe("kid not found in COSE_Key");
-            throw new AceException("COSE_Key is missing kid");
-        } else if (kidC.getType().equals(CBORType.ByteString)) {
-            kid = new String(kidC.GetByteString(), Constants.charset);
-        } else {
-            LOGGER.severe("kid is not a byte string");
-            throw new AceException("COSE_Key contains invalid kid");
-        }
+	    if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
+	        CBORObject kidC = key.get(KeyKeys.KeyId);
+
+	        if (kidC == null) {
+	            LOGGER.severe("kid not found in COSE_Key");
+	            throw new AceException("COSE_Key is missing kid");
+	        } else if (kidC.getType().equals(CBORType.ByteString)) {
+	            kid = new String(kidC.GetByteString(), Constants.charset);
+	        } else {
+	            LOGGER.severe("kid is not a byte string");
+	            throw new AceException("COSE_Key contains invalid kid");
+	        }
+	    } else {//Key type is EC2
+	        RawPublicKeyIdentity rpk =
+	                new RawPublicKeyIdentity(key.AsPublicKey());
+	        kid = rpk.getName();
+	    }
         this.cti2kid.put(cti, kid);
         this.kid2key.put(kid, key);
         if (sid != null) {
@@ -601,9 +607,11 @@ public class TokenRepository implements AutoCloseable {
         try (FileOutputStream fos 
                 = new FileOutputStream(this.tokenFile, false)) {
             fos.write(config.toString(4).getBytes(Constants.charset));
+            fos.close();
         } catch (JSONException | IOException e) {
             throw new AceException(e.getMessage());
         }
+        
 	}
 	
 	/**
