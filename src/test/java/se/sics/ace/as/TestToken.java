@@ -40,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -278,6 +279,16 @@ public class TestToken {
         db.addClient("clientE", profiles, null, null, 
                 keyTypes, skey, publicKey);
         
+        RawPublicKeyIdentity rpkid 
+            = new RawPublicKeyIdentity(publicKey.AsPublicKey());
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("RPK");
+        db.addClient(rpkid.getName(), profiles, null, null, 
+                keyTypes, skey, publicKey);
+        
+        
         //Setup token entries
         byte[] cti = new byte[] {0x00};
         cti1 = Base64.getEncoder().encodeToString(cti);
@@ -300,12 +311,14 @@ public class TestToken {
         
         pdp = new KissPDP(db);
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        pdp.addTokenAccess(rpkid.getName());
         pdp.addTokenAccess("clientA");
         pdp.addTokenAccess("clientB");
         pdp.addTokenAccess("clientC");
         pdp.addTokenAccess("clientD");
         pdp.addTokenAccess("clientE");
-        
+
+        pdp.addAccess(rpkid.getName(), "rs3", "rw_valve");
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
         pdp.addAccess("clientA", "rs2", "r_light");
@@ -685,7 +698,9 @@ public class TestToken {
         enc.encrypt(key128);
         rpk.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, rpk);
-        Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
+        RawPublicKeyIdentity rpkid 
+            = new RawPublicKeyIdentity(publicKey.AsPublicKey());
+        Message msg = new LocalMessage(-1, rpkid.getName(), "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());

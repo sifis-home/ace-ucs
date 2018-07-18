@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -86,7 +87,7 @@ public class TestTokenRepository {
     private static CBORObject pskCnf;
     private static CBORObject rpkCnf;
     private static String ourKey = "ourKey";
-    private static String rpk = "rpk";
+    private static String rpk = "ni:///sha-256;-QCjSk6ojWX8-YaHwQMOkewLD7p89aFF2eh8shWDmKE";
     
     /**
      * Converter for generating byte arrays from int
@@ -111,8 +112,6 @@ public class TestTokenRepository {
             throws AceException, CoseException, IOException {
 
         asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        asymmetricKey.add(KeyKeys.KeyId, 
-                CBORObject.FromObject("rpk".getBytes(Constants.charset)));
         
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
                
@@ -426,10 +425,11 @@ public class TestTokenRepository {
      *
      * @throws AceException 
      * @throws IntrospectionException 
+     * @throws CoseException 
      */
     @Test
     public void testTokenCnfCoseKey() 
-            throws AceException, IntrospectionException {
+            throws AceException, IntrospectionException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
@@ -447,6 +447,7 @@ public class TestTokenRepository {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
         tr.addToken(params, ctx, null);
+        rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         Assert.assertEquals(TokenRepository.OK, 
                 tr.canAccess(rpk, null, "co2", Constants.GET, 
