@@ -45,6 +45,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -74,6 +75,11 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * Note: This endpoint assigns a cti to each issued token based on a counter. 
  * The same value is also used as kid for the proof-of-possession key
  * associated to the token by means of the 'cnf' claim.
+ * 
+ * Note: This endpoint assumes that the sender Id (the one you get from 
+ * Message.getSenderId()) for a secure session created with a raw public key
+ * is generated with 
+ * org.eclipse.californium.scandium.auth.RawPublicKeyIdentity.getName()
  * 
  * @author Ludwig Seitz
  *
@@ -284,7 +290,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    }
 	      
 	    if (msg.getParameter(Constants.GRANT_TYPE).equals(clientCredentials)) {
-	        return processCC(msg, id);
+	        return processCC(msg);
 	    } else if (msg.getParameter(Constants.GRANT_TYPE).equals(authzCode)) {
 	        return processAC(msg);
 	    }
@@ -303,7 +309,8 @@ public class Token implements Endpoint, AutoCloseable {
 	 * 
 	 * @return  the reply
 	 */
-	private Message processCC(Message msg, String id) {
+	private Message processCC(Message msg) {
+	    String id = msg.getSenderId();  
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
 		Object scope = null;
@@ -629,6 +636,34 @@ public class Token implements Endpoint, AutoCloseable {
                     
 		            //At this point we assume the client wants to use RPK
 		            keyType = "RPK";
+		            
+		            //Check that the client used this RPK to create this session
+		            try {
+                        RawPublicKeyIdentity rpkId = new RawPublicKeyIdentity(
+                                key.AsPublicKey());
+                        if (!rpkId.getName().equals(id)) {
+                            this.cti--; //roll-back
+                            CBORObject map = CBORObject.NewMap();
+                            map.Add(Constants.ERROR, 
+                                Constants.UNSUPPORTED_POP_KEY);
+                            LOGGER.log(Level.INFO, 
+                                    "Message processing aborted: "
+                                       + "Client used unauthenticated RPK");
+                            return msg.failReply(
+                                    Message.FAIL_BAD_REQUEST, map);
+                        }
+                        
+                    } catch (CoseException e) {
+                        this.cti--; //roll-back
+                        CBORObject map = CBORObject.NewMap();
+                        map.Add(Constants.ERROR, 
+                            Constants.UNSUPPORTED_POP_KEY);
+                        LOGGER.log(Level.INFO, 
+                                "Message processing aborted: "
+                                        + "Unsupported pop key type RPK");
+                        return msg.failReply(
+                                Message.FAIL_BAD_REQUEST, map);
+                    }
                        
 		            //Can the audience support this?
 		            try {
