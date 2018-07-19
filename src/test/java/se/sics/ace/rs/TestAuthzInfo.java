@@ -42,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -102,7 +103,7 @@ public class TestAuthzInfo {
 
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
-        publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(new byte[]{0x31, 0x42}));
+
         
         OneKey sharedKey = new OneKey();
         sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -260,8 +261,8 @@ public class TestAuthzInfo {
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
-        String kidStr = new String(
-                new byte[]{0x31, 0x42}, Constants.charset);
+        String kidStr = new RawPublicKeyIdentity(
+                publicKey.AsPublicKey()).getName();
         assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET,
                 new KissTime(), null));
 
