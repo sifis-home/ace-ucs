@@ -38,8 +38,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
-
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -171,7 +169,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
                return msg.failReply(e.getCode(), map);
-	        } catch (AceException | CoseException | InvalidCipherTextException e) {
+	        } catch (AceException | CoseException e) {
 	            LOGGER.info("Token invalid: " + e.getMessage());
 	            CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);

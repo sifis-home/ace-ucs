@@ -37,7 +37,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -796,15 +795,11 @@ public class PlugtestClient {
                         return;
                     }
                     CWT cwt = null;
-                    try {
-                        cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
-                    } catch (InvalidCipherTextException e) {
-                        try {
-                            cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
-                        } catch (InvalidCipherTextException e2) {
-                            cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);
-                        }
-                    }
+                    //FIXME:
+                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
+                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
+                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);
+                   
                     System.out.println(cwt.encode().toString());
                     //Check if we can introspect this token
                     Map<Short, CBORObject> claims = cwt.getClaims();
