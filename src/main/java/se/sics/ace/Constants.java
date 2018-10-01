@@ -284,12 +284,18 @@ public class Constants {
 	public static final short UNSUPPORTED_POP_KEY = 6;
 	
 	/**
+	 * The client and the RS do not share a common profile
+	 */
+	public static final short INCOMPATIBLE_PROFILES = 7;
+	
+	/**
      * The string values for these abbreviations
      */
     public static final String[] ERROR_CODES 
         = {"invalid_request", "invalid_client", "invalid_grant", 
                 "unauthorized_client", "unsupported_grant_type", 
-                "invalid_scope", "unsupported_pop_key"};
+                "invalid_scope", "unsupported_pop_key", 
+                "incompatible_profiles"};
     
 	/**
 	 * Abbreviations for OAuth grant types

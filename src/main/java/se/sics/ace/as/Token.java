@@ -423,7 +423,7 @@ public class Token implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, "Audience incompatible on token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "Audience incompatible on token type");
-		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, 
+		    return msg.failReply(Message.FAIL_BAD_REQUEST, 
 		           map);
 		}
 		
@@ -447,10 +447,10 @@ public class Token implements Endpoint, AutoCloseable {
         if (profileStr == null) {
             this.cti--; //roll-back
             CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, "No compatible profile found");
+            map.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
             LOGGER.log(Level.INFO, "Message processing aborted: "
                     + "No compatible profile found");
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         short profile = Constants.getProfileAbbrev(profileStr);
         
