@@ -55,7 +55,7 @@ import se.sics.ace.as.PDP;
  * 
  * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
  * 
- * @author Marco Tiloca
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {

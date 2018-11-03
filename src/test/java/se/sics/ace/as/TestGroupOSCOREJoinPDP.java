@@ -63,7 +63,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the KissPDP class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestGroupOSCOREJoinPDP {
