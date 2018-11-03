@@ -343,11 +343,11 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
         
         // Handling of a Byte String scope, formatted as per draft-tiloca-ace-oscoap-joining , Section 3.1
+        // Note: this assumes that a byte string scope has necessarily this structure
+        // How to be more general? Perhaps based on a set of audiences known as OSCORE Group Managers?
         else if (scope instanceof byte[]) {
                 
-        	// Convert back the scope into a CBOR array
-        	
-        	// The scope as CBOR Array
+        	// Retrieve the scope as CBOR Array
         	CBORObject scopeCBOR = CBORObject.DecodeFromBytes((byte[])scope);
         	
         	if (scopeCBOR.getType().equals(CBORType.Array)) {
@@ -356,7 +356,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  Set<String> roles = new HashSet<>();
         		
         	  if (scopeCBOR.size() != 2)
-        		  throw new AceException("Scope must have two elements, i.e. groupID and list of roles");
+        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
         	  
         	  // Retrieve the Group ID of the OSCORE group
         	  CBORObject scopeElement = scopeCBOR.get(0);
@@ -365,7 +365,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  }
         	  else {throw new AceException("The Group ID must be a CBOR Text String");}
         	  
-        	  // Retrieve the role of list of roles
+        	  // Retrieve the role or list of roles
         	  scopeElement = scopeCBOR.get(1);
         	  if (scopeElement.getType().equals(CBORType.TextString)) {
         		  // Only one role is specified
@@ -386,7 +386,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  }
         	  else {throw new AceException("Invalid format of roles");}
         	  
-        	  // Check if the client can access the specified Group ID on the RS
+        	  // Check if the client can access the specified Group ID on the RS with the specified roles
         	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
         	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
         	  boolean canJoin = false;
@@ -399,6 +399,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         				  if (roles.contains(scopeParts[i]))
         					  allowedRoles.add(scopeParts[i]);
         			  }
+        			  break;
         		  }
         	  }
         	  
