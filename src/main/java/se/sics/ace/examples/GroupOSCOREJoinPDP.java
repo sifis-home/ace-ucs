@@ -356,32 +356,39 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  Set<String> roles = new HashSet<>();
         		
         	  if (scopeCBOR.size() != 2)
-        		  throw new AceException("Scope must have to elements, i.e. groupID and list of roles");
-        		
+        		  throw new AceException("Scope must have two elements, i.e. groupID and list of roles");
+        	  
+        	  // Retrieve the Group ID of the OSCORE group
         	  CBORObject scopeElement = scopeCBOR.get(0);
         	  if (scopeElement.getType().equals(CBORType.TextString)) {
         		  groupID = scopeElement.AsString();
         	  }
-        	  else {throw new AceException("The group ID must be a CBOR Text String");}
+        	  else {throw new AceException("The Group ID must be a CBOR Text String");}
         	  
+        	  // Retrieve the role of list of roles
         	  scopeElement = scopeCBOR.get(1);
-        	  if (scopeElement.getType().equals(CBORType.Array) && scopeElement.size() > 0) {
+        	  if (scopeElement.getType().equals(CBORType.TextString)) {
+        		  // Only one role is specified
+        		  roles.add(scopeElement.AsString());
+        	  }
+        	  else if (scopeElement.getType().equals(CBORType.Array)) {
+        		  // Multiple roles are specified
+        		  if (scopeElement.size() < 2) {
+        			  throw new AceException("The CBOR Array of roles must include at least two roles");
+        		  }
         		  for (int i=0; i<scopeElement.size(); i++) {
-        			  if (scopeElement.get(i).equals(CBORType.TextString)) {
+        			  if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
             			  String role = scopeElement.get(i).AsString();
             			  roles.add(role);        				  
         			  }
         			  else {throw new AceException("The roles must be CBOR Text Strings");}
         		  }
         	  }
-        	  else {throw new AceException("The list of roles must be a non empty CBOR Array");}
+        	  else {throw new AceException("Invalid format of roles");}
         	  
-        	  grantedScopes = "w_" + groupID;
-        	  if (roles.contains("req")) {
-        		  grantedScopes += "_req";
-        		  roles.remove("req");
-        	  }
-        	  // At most one role has remained
+        	  grantedScopes += groupID;
+        	  
+        	  // There is at least one role
         	  for (String foo : roles) {
         		  grantedScopes += "_" + foo;
         	  }
