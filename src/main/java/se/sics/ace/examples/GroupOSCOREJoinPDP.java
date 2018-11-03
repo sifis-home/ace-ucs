@@ -58,7 +58,7 @@ import se.sics.ace.as.PDP;
  * @author Marco Tiloca
  *
  */
-public class GroupJoinPDP implements PDP, AutoCloseable {
+public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 
     private SQLConnector db = null;
     
@@ -106,7 +106,7 @@ public class GroupJoinPDP implements PDP, AutoCloseable {
 	 * @param connection  the database connector
 	 * @throws AceException 
 	 */
-	public GroupJoinPDP(SQLConnector connection) throws AceException {
+	public GroupOSCOREJoinPDP(SQLConnector connection) throws AceException {
         this.db = connection;
 	    
 	    String createToken = this.db.getAdapter().updateEngineSpecificSQL(
