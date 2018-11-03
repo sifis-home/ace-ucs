@@ -386,11 +386,27 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  }
         	  else {throw new AceException("Invalid format of roles");}
         	  
-        	  grantedScopes += groupID;
+        	  // Check if the client can access the specified Group ID on the RS
+        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
+        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
+        	  boolean canJoin = false;
+        	  Set<String> allowedRoles = new HashSet<>();
+        	  for (String foo : scopes) {
+        		  String[] scopeParts = foo.split("_");
+        		  if(groupID.equals(scopeParts[0])) {
+        			  canJoin = true;
+        			  for (int i=1; i<scopeParts.length; i++) {
+        				  if (roles.contains(scopeParts[i]))
+        					  allowedRoles.add(scopeParts[i]);
+        			  }
+        		  }
+        	  }
         	  
-        	  // There is at least one role
-        	  for (String foo : roles) {
-        		  grantedScopes += "_" + foo;
+        	  if (canJoin == true && !allowedRoles.isEmpty()) {
+        		  grantedScopes += groupID;
+        		  for (String foo : allowedRoles) {
+            		  grantedScopes += "_" + foo;
+            	  }
         	  }
   		      
   		    } else {
