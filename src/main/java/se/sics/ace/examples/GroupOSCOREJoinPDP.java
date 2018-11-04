@@ -253,6 +253,27 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
         return false;
 	}
+	
+	// M.T.
+	public boolean isOSCOREGroupManager(String id) throws AceException {
+	    if (id == null) {
+            throw new AceException(
+                    "isOSCOREGroupManager() requires non-null ids");
+        }
+        try {
+            this.checkIfOSCOREGroupManagerAudience.setString(1, id);
+            ResultSet result = this.checkIfOSCOREGroupManagerAudience.executeQuery();
+            this.checkIfOSCOREGroupManagerAudience.clearParameters();
+            if (result.next()) {
+                result.close();
+                return true;
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return false;
+	}
 
 	@Override
 	public IntrospectAccessLevel getIntrospectAccessLevel(String rsId) throws AceException {
