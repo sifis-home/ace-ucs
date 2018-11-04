@@ -76,7 +76,13 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
      * The name of the ACL table 
      */    
     public static String accessTable = "PdpAccess";
-
+ 
+    // M.T.
+    /**
+     * The name of the OSCORE Group Managers table
+     */    
+    public static String oscoreGroupManagersTable = "OSCOREGroupManagersTable";
+    
     /**
      * The name of the column that indicates if this device has access to all detailed claims when introspecting.
      */
@@ -97,6 +103,9 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     private PreparedStatement deleteAllRsAccess;
 
     private PreparedStatement getAllAccess;
+    
+    // M.T.
+    private PreparedStatement addOSCOREGroupManagerAudience;
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -127,11 +136,18 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
+        // M.T.
+        String createOSCOREGroupManagers = this.db.getAdapter().updateEngineSpecificSQL(
+        		"CREATE TABLE IF NOT EXISTS "
+        		+ oscoreGroupManagersTable + "("
+                + DBConnector.audColumn + " varchar(255) NOT NULL);");
+	    
 	    try (Connection conn = this.db.getAdapter().getDBConnection();
              Statement stmt = conn.createStatement()) {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
 	        stmt.execute(createAccess);
+	        stmt.execute(createOSCOREGroupManagers); // M.T.
 	    } catch (SQLException e) {
 	        e.printStackTrace();
 	        throw new AceException(e.getMessage());
@@ -689,6 +705,27 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             }
             result.close();
             return accessMap;
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+    }
+    
+    /**
+     * Add a pre-registered audience as an OSCORE Group Manager
+     * 
+     * @param id  the identifier of the audience registered as OSCORE Group Manager
+     * 
+     * @throws AceException
+     */
+    public void addOSCOREGroupManagerAudience(String id) throws AceException {
+        if (id == null) {
+            throw new AceException(
+                    "addOSCOREGroupManagerAudience() requires non-null id");
+        }
+        try {
+            this.addOSCOREGroupManagerAudience.setString(1, id);
+            this.addOSCOREGroupManagerAudience.execute();
+            this.addOSCOREGroupManagerAudience.clearParameters();
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }
