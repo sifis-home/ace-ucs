@@ -342,6 +342,8 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             }
         }
         
+        // M.T.
+        
         // Handling of a Byte String scope, formatted as per draft-tiloca-ace-oscoap-joining , Section 3.1
         // Note: this assumes that a byte string scope has necessarily this structure
         // How to be more general? Perhaps based on a set of audiences known as OSCORE Group Managers?
@@ -419,6 +421,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             throw new AceException(
                     "Scopes must be Text Strings or Byte Strings");
         }
+        // end M.T.
         
         //all scopes found
         if (grantedScopes.isEmpty()) {
