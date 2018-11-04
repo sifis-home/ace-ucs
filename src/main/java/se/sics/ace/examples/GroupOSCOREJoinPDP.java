@@ -106,6 +106,9 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     
     // M.T.
     private PreparedStatement addOSCOREGroupManagerAudience;
+    
+    // M.T.
+    private PreparedStatement checkIfOSCOREGroupManagerAudience;
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -185,6 +188,11 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + accessTable + " VALUES (?,?,?);"));
         
+        // M.T.
+        this.addOSCOREGroupManagerAudience = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
+                        + oscoreGroupManagersTable + " VALUES (?);"));
+        
         this.deleteTokenAccess = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
                         + tokenTable + " WHERE " 
@@ -217,6 +225,12 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable + " WHERE "
                         + DBConnector.idColumn + "=?;"));
+        
+        // M.T.
+        this.checkIfOSCOREGroupManagerAudience = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
+                        + oscoreGroupManagersTable + " WHERE "
+                        + DBConnector.audColumn + "=?;"));
 	}
 	
 	@Override
@@ -710,6 +724,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
     }
     
+    // M.T.
     /**
      * Add a pre-registered audience as an OSCORE Group Manager
      * 
