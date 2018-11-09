@@ -92,9 +92,9 @@ public class Constants {
 	public static final short CTI = 7; // Major type 2 (byte string)
 	
 	/**
-	 * The client identifier in a token request
+	 * The confirmation key for the proof-of-possession
 	 */
-	public static final short CLIENT_ID = 8; //3
+	public static final short CNF = 8; //3
 	
 	/**
 	 * The client password in a token request for certain grant types
@@ -182,9 +182,9 @@ public class Constants {
 	public static final short REFRESH_TOKEN = 24; //3
 	
 	/**
-	 * The confirmation key for the proof-of-possession
+	 * The client identifier in a token request
 	 */
-	public static final short CNF = 25; // Major type 5 (map)
+	public static final short CLIENT_ID = 25; // Major type 5 (map)
 	
 	/**
 	 * The profile to be used between client and RS
