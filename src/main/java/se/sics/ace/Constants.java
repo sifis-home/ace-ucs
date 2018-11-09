@@ -94,7 +94,7 @@ public class Constants {
 	/**
 	 * The confirmation key for the proof-of-possession
 	 */
-	public static final short CNF = 8; //3
+	public static final short CNF = 8; //Major type 5 (map)
 	
 	/**
 	 * The client password in a token request for certain grant types
@@ -132,7 +132,7 @@ public class Constants {
 	/**
 	 * The error code
 	 */
-	public static final short ERROR = 15; //
+	public static final short ERROR = 15; //0
 	
 	/**
 	 * Human-readable ASCII text providing
@@ -154,7 +154,7 @@ public class Constants {
 	/**
 	 * The access token
 	 */
-	public static final short ACCESS_TOKEN = 19; //
+	public static final short ACCESS_TOKEN = 19; // 3
 	
 	/**
 	 * The type of the access token, e.g. "pop" or "bearer"
@@ -184,7 +184,7 @@ public class Constants {
 	/**
 	 * The client identifier in a token request
 	 */
-	public static final short CLIENT_ID = 25; // Major type 5 (map)
+	public static final short CLIENT_ID = 25; //3
 	
 	/**
 	 * The profile to be used between client and RS
