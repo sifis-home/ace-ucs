@@ -64,13 +64,13 @@ import se.sics.ace.as.Token;
  * @author Ludwig Seitz
  *
  */
-public class CoapsAS extends CoapServer implements AutoCloseable {
+public class DtlsAS extends CoapServer implements AutoCloseable {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(CoapsAS.class.getName());
+        = Logger.getLogger(DtlsAS.class.getName());
 
     /**
      * The token endpoint
@@ -101,7 +101,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
+    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey, int port) 
                     throws AceException, CoseException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
@@ -122,7 +122,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public CoapsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
+    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException, CoseException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
                 CoAP.DEFAULT_COAP_SECURE_PORT, null, false);
@@ -151,7 +151,7 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
      * @throws CoseException 
      * 
      */
-    public CoapsAS(String asId, CoapDBConnector db, PDP pdp, 
+    public DtlsAS(String asId, CoapDBConnector db, PDP pdp, 
             TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
             boolean setAudHeader) 
@@ -198,7 +198,6 @@ public class CoapsAS extends CoapServer implements AutoCloseable {
        //CoapEndpoint coap = new CoapEndpointBuilder().setInetSocketAddress(
        //       new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
        //addEndpoint(coap);
-        
     }
 
     @Override

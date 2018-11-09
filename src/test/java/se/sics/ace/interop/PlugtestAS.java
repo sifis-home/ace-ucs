@@ -50,7 +50,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
-import se.sics.ace.coap.as.CoapsAS;
+import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 
@@ -102,7 +102,7 @@ public class PlugtestAS {
 
     
     private static CoapDBConnector db = null;
-    private static CoapsAS as = null; 
+    private static DtlsAS as = null; 
     private static KissPDP pdp = null;
   
     /**
@@ -278,7 +278,7 @@ public class PlugtestAS {
         claims.add(Constants.CNF);
         claims.add(Constants.PROFILE);
         
-        as = new CoapsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
+        as = new DtlsAS("AS", db, pdp, time, asRPK, "token", "introspect",                
                 5689, claims, true);
         as.start();
         System.out.println("Server starting");

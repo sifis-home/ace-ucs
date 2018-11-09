@@ -49,7 +49,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
-import se.sics.ace.coap.as.CoapsAS;
+import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 
@@ -69,7 +69,7 @@ public class CoapASTestServer
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
     
     private static CoapDBConnector db = null;
-    private static CoapsAS as = null;
+    private static DtlsAS as = null;
     private static KissPDP pdp = null;
   
     /**
@@ -188,7 +188,7 @@ public class CoapASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new CoapsAS("AS", db, pdp, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }
