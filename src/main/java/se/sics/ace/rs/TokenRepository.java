@@ -45,8 +45,7 @@ import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -333,7 +332,7 @@ public class TokenRepository implements AutoCloseable {
               CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
               OneKey key = new OneKey(keyData);
               processKey(key, sid, cti);
-          } catch (CoseException | InvalidCipherTextException e) {
+          } catch (CoseException e) {
               LOGGER.severe("Error while decrypting a cnf claim: "
                       + e.getMessage());
               throw new AceException("Error while decrypting a cnf claim");

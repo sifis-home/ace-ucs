@@ -197,9 +197,6 @@ public class CWT implements AccessToken {
 		} catch (CoseException e) {
 		    e.printStackTrace();
 			return null;
-		} catch (InvalidCipherTextException e) {
-		    e.printStackTrace();
-			return null;
 		}
 	}
 	

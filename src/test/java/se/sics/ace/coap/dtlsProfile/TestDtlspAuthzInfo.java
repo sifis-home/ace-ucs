@@ -35,13 +35,12 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.nio.charset.Charset;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -54,7 +53,7 @@ import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.AddressEndpointContext;
-import org.eclipse.californium.scandium.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -67,7 +66,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -219,10 +218,11 @@ public class TestDtlspAuthzInfo {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x01});
-        Exchange iex = new Exchange(req, Origin.REMOTE);
-        iex.setRequest(req);   
         CoapEndpoint cep = new CoapEndpointBuilder().build();
         cep.start();
+        Executor exec = new StripedExecutorService();
+        Exchange iex = new Exchange(req, Origin.REMOTE, exec);
+        iex.setRequest(req);   
         iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);

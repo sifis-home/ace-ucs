@@ -45,7 +45,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;

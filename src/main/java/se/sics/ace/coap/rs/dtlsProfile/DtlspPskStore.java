@@ -150,4 +150,12 @@ public class DtlspPskStore implements PskStore {
         return null;
     }
 
+
+    @Override
+    public String getIdentity(InetSocketAddress peerAddress,
+            ServerNames virtualHost) {
+        // TODO: No support for ServerNames extension yet
+        return null;
+    }
+
 }

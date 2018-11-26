@@ -40,7 +40,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -468,7 +468,7 @@ public class TestToken {
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode()
-                == Message.FAIL_INTERNAL_SERVER_ERROR);
+                == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, "Audience incompatible on token type");
         Assert.assertArrayEquals(response.getRawPayload(), 
@@ -492,9 +492,9 @@ public class TestToken {
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode()
-                == Message.FAIL_INTERNAL_SERVER_ERROR);
+                == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, "No compatible profile found");
+        cbor.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
         Assert.assertArrayEquals(response.getRawPayload(), 
         cbor.EncodeToBytes());
     }

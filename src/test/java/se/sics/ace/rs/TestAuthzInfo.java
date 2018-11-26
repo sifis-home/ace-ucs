@@ -42,7 +42,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;

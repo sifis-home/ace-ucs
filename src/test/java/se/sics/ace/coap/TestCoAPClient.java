@@ -176,7 +176,8 @@ public class TestCoAPClient {
     public void testCoapToken() throws Exception {
         OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setAddress(new InetSocketAddress(0));
+        builder.setClientOnly();
+        builder.setSniEnabled(false);
         builder.setPskStore(new StaticPskStore("clientA", key128));
         builder.setIdentity(asymmetricKey.AsPrivateKey(), 
                 asymmetricKey.AsPublicKey());
@@ -185,11 +186,9 @@ public class TestCoAPClient {
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpointBuilder ceb = new CoapEndpointBuilder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
-        CoapEndpoint e = ceb.build();
+        
         CoapClient client = new CoapClient("coaps://localhost/token");
-        client.setEndpoint(e);
-        dtlsConnector.start();
+        client.setEndpoint(ceb.build());
 
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -219,7 +218,8 @@ public class TestCoAPClient {
         OneKey key = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setAddress(new InetSocketAddress(0));
+        builder.setClientOnly();
+        builder.setSniEnabled(false);
         //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), 
                 key.AsPublicKey());
@@ -229,12 +229,10 @@ public class TestCoAPClient {
 
         CoapEndpointBuilder ceb = new CoapEndpointBuilder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
-        CoapEndpoint e = ceb.build();
-        CoapClient client = new CoapClient("coaps://localhost/introspect");
-        client.setEndpoint(e);
-        dtlsConnector.start();
        
+        CoapClient client = new CoapClient("coaps://localhost/introspect");
+        client.setEndpoint(ceb.build());
+               
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));

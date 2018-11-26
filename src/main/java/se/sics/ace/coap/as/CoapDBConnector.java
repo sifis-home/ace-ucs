@@ -151,4 +151,11 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
         return null;
     }
 
+    @Override
+    public String getIdentity(InetSocketAddress peerAddress,
+            ServerNames virtualHost) {
+        // TODO: We don't support the server names extension.
+        return null;
+    }
+
 }

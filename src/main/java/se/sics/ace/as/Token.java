@@ -45,7 +45,7 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.scandium.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -661,6 +661,7 @@ public class Token implements Endpoint, AutoCloseable {
                         LOGGER.log(Level.INFO, 
                                 "Message processing aborted: "
                                         + "Unsupported pop key type RPK");
+                        LOGGER.log(Level.FINEST, e.getMessage());
                         return msg.failReply(
                                 Message.FAIL_BAD_REQUEST, map);
                     }
@@ -963,7 +964,7 @@ public class Token implements Endpoint, AutoCloseable {
               msg.decrypt(key.GetByteString());
               CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
               return new OneKey(keyData);
-          } catch (CoseException | InvalidCipherTextException e) {
+          } catch (CoseException e) {
               LOGGER.severe("Error while decrypting a cnf claim: "
                       + e.getMessage());
               throw new AceException("Error while decrypting a cnf parameter");

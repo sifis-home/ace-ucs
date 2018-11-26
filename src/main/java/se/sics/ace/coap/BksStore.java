@@ -298,6 +298,13 @@ public class BksStore implements PskStore {
         //TODO: ServerNames extension not supported for this Store
         return null;
     }
+
+    @Override
+    public String getIdentity(InetSocketAddress peerAddress,
+            ServerNames virtualHost) {
+        // TODO: ServerNames extension not supported for this Store
+        return null;
+    }
     
     
 
