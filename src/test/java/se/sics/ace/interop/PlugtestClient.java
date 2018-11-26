@@ -774,39 +774,39 @@ public class PlugtestClient {
             System.out.println(" " + res.getCode().name());
 
             if (res.getPayload() != null) {
-                Map<String, CBORObject> params;
-                try {
-                    params = Constants.unabbreviate(
-                            CBORObject.DecodeFromBytes(res.getPayload()));
-                } catch (CBORException e) {
-                    System.out.println(res.getResponseText());
-                    return;
-                } catch (AceException e) {
-                    System.out.println(CBORObject.DecodeFromBytes(
-                            res.getPayload()).toString());
-                    return;
-                }
-                System.out.println(params);
-                //Print token is there is one
-                if (params.containsKey("access_token")) {
-                    CBORObject token = params.get("access_token");
-                    CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
-                    if (!tokenAsCbor.getType().equals(CBORType.Array)) {
-                        return;
-                    }
-                    CWT cwt = null;
-                    //FIXME:
-                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
-                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
-                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);
-                   
-                    System.out.println(cwt.encode().toString());
-                    //Check if we can introspect this token
-                    Map<Short, CBORObject> claims = cwt.getClaims();
-                    CBORObject map = Constants.getCBOR(claims);
-                    System.out.println("Token: ");
-                    System.out.println(Constants.unabbreviate(map));
-                }
+//                Map<String, CBORObject> params;
+//                try {
+//                    params = Constants.unabbreviate(
+//                            CBORObject.DecodeFromBytes(res.getPayload()));
+//                } catch (CBORException e) {
+//                    System.out.println(res.getResponseText());
+//                    return;
+//                } catch (AceException e) {
+//                    System.out.println(CBORObject.DecodeFromBytes(
+//                            res.getPayload()).toString());
+//                    return;
+//                }
+//                System.out.println(params);
+//                //Print token is there is one
+//                if (params.containsKey("access_token")) {
+//                    CBORObject token = params.get("access_token");
+//                    CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
+//                    if (!tokenAsCbor.getType().equals(CBORType.Array)) {
+//                        return;
+//                    }
+//                    CWT cwt = null;
+//                    //FIXME:
+//                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
+//                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
+//                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);
+//                   
+//                    System.out.println(cwt.encode().toString());
+//                    //Check if we can introspect this token
+//                    Map<Short, CBORObject> claims = cwt.getClaims();
+//                    CBORObject map = Constants.getCBOR(claims);
+//                    System.out.println("Token: ");
+//                    System.out.println(Constants.unabbreviate(map));
+//                }
             }
         } else {
             System.out.print("No response received");
