@@ -105,6 +105,7 @@ public class DTLSProfileRequests {
 
         builder.setClientAuthenticationRequired(true);
         builder.setClientOnly();
+        builder.setSniEnabled(false);
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
             String keyId = new String(
@@ -174,6 +175,7 @@ public class DTLSProfileRequests {
 
             builder.setClientAuthenticationRequired(true);
             builder.setClientOnly();
+            builder.setSniEnabled(false);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             try {
@@ -237,6 +239,7 @@ public class DTLSProfileRequests {
                     new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
         builder.setClientOnly();
+        builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
@@ -290,6 +293,7 @@ public class DTLSProfileRequests {
                 new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
         builder.setClientOnly();
+        builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
@@ -326,6 +330,7 @@ public class DTLSProfileRequests {
                     new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
         builder.setClientOnly();
+        builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());

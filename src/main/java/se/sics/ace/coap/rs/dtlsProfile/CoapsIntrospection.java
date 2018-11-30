@@ -141,8 +141,10 @@ public class CoapsIntrospection implements IntrospectionHandler {
                 keystoreLocation, keystorePwd, addr2idFile);
         builder.setPskStore(keystore);
         builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}); 
+        builder.setSniEnabled(false);
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        
         CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
                 .setConnector(dtlsConnector)
                 .setNetworkConfig(NetworkConfig.getStandard())

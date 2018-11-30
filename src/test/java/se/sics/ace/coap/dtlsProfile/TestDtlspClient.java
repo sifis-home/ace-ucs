@@ -423,15 +423,16 @@ public class TestDtlspClient {
         try {
             c.get();
         } catch (RuntimeException ex) {
-            Object cause = ex.getCause();
-            if (cause instanceof HandshakeException) {
-                HandshakeException he = (HandshakeException)cause;
-                System.out.println(he.getAlert().toString());
+            System.out.println(ex.getMessage());
+            if (ex.getMessage().equals(
+                    "java.lang.Exception: handshake flight 5 timeout!")) {
                 //Everything ok
                 return;
             }
+            Assert.fail("Hanshake should fail");
         }
-        //Server should terminate handshake
+        
+        //Server should silently drop the handshake
         Assert.fail("Hanshake should fail");
     }
     

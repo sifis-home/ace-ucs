@@ -296,7 +296,7 @@ public class BksStore implements PskStore {
     @Override
     public byte[] getKey(ServerNames arg0, String identity) {
         //TODO: ServerNames extension not supported for this Store
-        return null;
+        return getKey(identity);
     }
 
     @Override

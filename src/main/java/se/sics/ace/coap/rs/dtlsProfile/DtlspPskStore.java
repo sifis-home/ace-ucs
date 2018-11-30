@@ -147,7 +147,7 @@ public class DtlspPskStore implements PskStore {
     @Override
     public byte[] getKey(ServerNames serverNames, String identity) {
         //TODO: No support for ServerNames extension yet
-        return null;
+        return getKey(identity);
     }
 
 

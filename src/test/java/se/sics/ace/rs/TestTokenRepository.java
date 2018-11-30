@@ -609,8 +609,6 @@ public class TestTokenRepository {
     /**
      * Test loading an existing token file
      * 
-     * FIXME: File is broken
-     * 
      * @throws AceException
      * @throws IOException 
      * @throws IntrospectionException 

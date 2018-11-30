@@ -107,7 +107,12 @@ public class CoapReq implements Message {
         if (p==null) {
             return null;
         }
-        return p.getName();
+       //XXX: Kludge to temporarily fix bug #649 in Scandium
+        String name = p.getName();
+        if (name.startsWith(":")) {
+            name = name.substring(1);
+        }
+       return name;
     }
 
     @Override

@@ -141,8 +141,6 @@ public class TestCoapsIntrospection {
     /**
      * Test CoapIntrospect using PSK
      * 
-     * FIXME: Doesn't work yet.
-     * 
      * @throws Exception
      */
     @Test

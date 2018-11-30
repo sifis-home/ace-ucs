@@ -40,7 +40,6 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Executor;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -66,7 +65,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-import eu.javaspecialists.tjsn.concurrency.stripedexecutor.StripedExecutorService;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -220,8 +219,7 @@ public class TestDtlspAuthzInfo {
         req.setToken(new byte[]{0x01});
         CoapEndpoint cep = new CoapEndpointBuilder().build();
         cep.start();
-        Executor exec = new StripedExecutorService();
-        Exchange iex = new Exchange(req, Origin.REMOTE, exec);
+        Exchange iex = new Exchange(req, Origin.REMOTE, null);
         iex.setRequest(req);   
         iex.setEndpoint(cep);
         CoapExchange ex = new CoapExchange(iex, dai);      
