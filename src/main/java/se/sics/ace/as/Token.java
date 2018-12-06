@@ -160,7 +160,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 static {
 	     defaultClaims.add(Constants.CTI);
 	     defaultClaims.add(Constants.ISS);
-	     defaultClaims.add(Constants.EXP);
+	     defaultClaims.add(Constants.EXI);
 	     defaultClaims.add(Constants.AUD);
 	     defaultClaims.add(Constants.SCOPE);
 	     defaultClaims.add(Constants.CNF);
@@ -467,7 +467,7 @@ public class Token implements Endpoint, AutoCloseable {
         String keyType = null; //Save the key type for later
 		Map<Short, CBORObject> claims = new HashMap<>();
 		
-		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE
+		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE EXI
         for (Short c : this.claims) {
 		    switch (c) {
 		    case Constants.ISS:
@@ -503,6 +503,22 @@ public class Token implements Endpoint, AutoCloseable {
 		            exp = now + exp;
 		        }
 		        claims.put(Constants.EXP, CBORObject.FromObject(exp));
+		        break;
+		    case Constants.EXI:
+		        long exi = Long.MAX_VALUE;
+		        try {
+                    exi = this.db.getExpTime(aud);
+                } catch (AceException e) {
+                    LOGGER.severe("Message processing aborted (setting exp): "
+                            + e.getMessage());
+                    return msg.failReply(
+                            Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                }
+		        if (exi == Long.MAX_VALUE) { // == No expiration time found
+		            //using default
+		            exi = expiration;
+		        }
+		        claims.put(Constants.EXI, CBORObject.FromObject(exi)); 
 		        break;
 		    case Constants.NBF:
 		        //XXX: NBF is not configurable in this version

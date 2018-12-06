@@ -301,7 +301,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //8. Store the claims of this token
+	    //8. Handle EXI if present
+	    handleExi(claims);
+	    
+	    //9. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
@@ -312,7 +315,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    //9. Create success message
+	    //10. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
@@ -387,6 +390,22 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
        
         return params;
 	}
+    
+    /**
+     * Handle exi claim, if present.
+     * This is done by internally translating it to a exp claim in sync with the local time.
+     * 
+     * @param claims
+     */
+    private void handleExi(Map<Short, CBORObject> claims) {
+        CBORObject exi = claims.get(Constants.EXI);
+        if (exi != null) {
+            Long now = this.time.getCurrentTime();
+            Long exp = now + exi.AsInt64();
+            claims.remove(Constants.EXI);
+            claims.put(Constants.EXP, CBORObject.FromObject(exp));
+        }
+    }
     
     /**
      * Get the proof-of-possession key of a token identified by its 'cti'.
