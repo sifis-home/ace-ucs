@@ -511,7 +511,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     	// the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
         else if (scope instanceof byte[]) {
         	throw new AceException(
-  	                "Unknown processing for this scope format");
+  	                "Unknown processing for this byte string scope");
         }
         
         else {
