@@ -43,7 +43,7 @@ import se.sics.ace.as.DBConnector;
 /**
  * This class handles proper MySQL Db SQL.
  *
- * @author Sebastian Echeverria
+ * @author Sebastian Echeverria and Marco Tiloca
  *
  */
 public class MySQLDBAdapter implements SQLDBAdapter {
@@ -179,6 +179,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         // M.T.
         String createOSCOREGroupManagers = "CREATE TABLE IF NOT EXISTS "
         		+ this.dbName + "."
+        		+ DBConnector.oscoreGroupManagersTable + "("
         		+ DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.audColumn + " varchar(255) NOT NULL);";
         

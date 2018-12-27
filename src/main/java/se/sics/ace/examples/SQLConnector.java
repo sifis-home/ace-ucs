@@ -56,7 +56,7 @@ import se.sics.ace.as.DBConnector;
 /**
  * This class provides SQL database connectivity for the Attribute Authority.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class SQLConnector implements DBConnector, AutoCloseable {

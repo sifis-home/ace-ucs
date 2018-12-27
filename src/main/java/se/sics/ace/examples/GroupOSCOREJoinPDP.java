@@ -105,10 +105,10 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     private PreparedStatement getAllAccess;
     
     // M.T.
-    private PreparedStatement addOSCOREGroupManagerAudience;
+    private PreparedStatement addOSCOREGroupManager;
     
     // M.T.
-    private PreparedStatement checkIfOSCOREGroupManagerAudience;
+    private PreparedStatement selectOSCOREGroupManagers;
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -143,6 +143,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         String createOSCOREGroupManagers = this.db.getAdapter().updateEngineSpecificSQL(
         		"CREATE TABLE IF NOT EXISTS "
         		+ oscoreGroupManagersTable + "("
+        		+ DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.audColumn + " varchar(255) NOT NULL);");
 	    
 	    try (Connection conn = this.db.getAdapter().getDBConnection();
@@ -189,7 +190,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + accessTable + " VALUES (?,?,?);"));
         
         // M.T.
-        this.addOSCOREGroupManagerAudience = this.db.prepareStatement(
+        this.addOSCOREGroupManager = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + oscoreGroupManagersTable + " VALUES (?);"));
         
@@ -227,10 +228,12 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + DBConnector.idColumn + "=?;"));
         
         // M.T.
-        this.checkIfOSCOREGroupManagerAudience = this.db.prepareStatement(
-                this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
-                        + oscoreGroupManagersTable + " WHERE "
-                        + DBConnector.audColumn + "=?;"));
+        this.selectOSCOREGroupManagers = this.db.prepareStatement(
+                this.db.getAdapter().updateEngineSpecificSQL("SELECT "
+                		+ DBConnector.audColumn + " FROM "
+                		+ oscoreGroupManagersTable + " WHERE "
+                        + DBConnector.rsIdColumn + "=? ORDER BY " 
+		                + DBConnector.audColumn +";"));
 	}
 	
 	@Override
@@ -255,23 +258,30 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 	}
 	
 	// M.T.
-	public boolean isOSCOREGroupManager(String id) throws AceException {
-	    if (id == null) {
-            throw new AceException(
-                    "isOSCOREGroupManager() requires non-null ids");
+	public boolean isOSCOREGroupManager(String rsId, Set<String> aud) throws AceException {
+		if (rsId == null || rsId.isEmpty()) {
+            throw new AceException("RS must have non-null, non-empty identifier");
         }
-        try {
-            this.checkIfOSCOREGroupManagerAudience.setString(1, id);
-            ResultSet result = this.checkIfOSCOREGroupManagerAudience.executeQuery();
-            this.checkIfOSCOREGroupManagerAudience.clearParameters();
-            if (result.next()) {
-                result.close();
-                return true;
-            }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
+		
+		if (aud == null) {
+	        throw new AceException("Audience must be non-null");
+	    }
+		
+		for (String audE : aud) {
+		
+			try {
+            	this.selectOSCOREGroupManagers.setString(1, rsId);
+            	ResultSet result = this.selectOSCOREGroupManagers.executeQuery();
+            	this.selectOSCOREGroupManagers.clearParameters();
+            	if (result.next() && result.getString(DBConnector.audColumn).equals(audE)) {
+                	result.close();
+                	return true;
+            	}
+            	result.close();
+        	} catch (SQLException e) {
+        		throw new AceException(e.getMessage());
+        	}
+		}
         return false;
 	}
 
@@ -378,8 +388,20 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         String scopeStr;
         String grantedScopes = "";
         
+        // M.T.
+        // If the RS and the audience point at an OSCORE Group Manager,
+        // the scope must be encoded as a CBOR Byte String
+        boolean scopeMustBeBinary = false;
+        boolean rsOSCOREGroupManager = false;
+        for (String rs : rss) {
+        	rsOSCOREGroupManager = isOSCOREGroupManager(rs, aud);
+        	scopeMustBeBinary = rsOSCOREGroupManager;
+        	if (scopeMustBeBinary) break;
+        }
+        
+        // M.T.
         // Handling of a Text String scope, just as in KissPDP
-        if (scope instanceof String) {
+        if (scope instanceof String && !scopeMustBeBinary) {
             scopeStr = (String)scope;
             String[] requestedScopes = scopeStr.split(" ");
             
@@ -394,12 +416,12 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
         
         // M.T.
-        
-        // Handling of a Byte String scope, formatted as per draft-tiloca-ace-oscoap-joining , Section 3.1
-        // Note: this assumes that a byte string scope has necessarily this structure
-        // How to be more general? Perhaps based on a set of audiences known as OSCORE Group Managers?
+        // Handling of a Byte String scope, formatted as per draft-ietf-ace-key-groupcomm , Section 3.1
+        // This type of scope is expected to have this structure for each RS acting as OSCORE Group Manager
         else if (scope instanceof byte[]) {
-                
+            
+        	//if (rsOSCOREGroupManager) {
+        	
         	// Retrieve the scope as CBOR Array
         	CBORObject scopeCBOR = CBORObject.DecodeFromBytes((byte[])scope);
         	
@@ -468,9 +490,21 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
   	                    "Invalid scope format for joining OSCORE groups");
   	        }
         	
-        } else {
-            throw new AceException(
-                    "Scopes must be Text Strings or Byte Strings");
+        }
+        
+        // M.T.
+    	// This includes the case where the scope is encoded as a CBOR Byte String,
+    	// but the audience is not registered as related to an OSCORE Group Manager.
+    	// In fact, there is no processing for byte string scopes are defined, other
+    	// than the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
+        else if (scope instanceof byte[]) {
+        	throw new AceException(
+  	                "Unknown processing for this scope format");
+        }
+        
+        else {
+        	throw new AceException(
+                   "Scopes must be Text Strings or Byte Strings");
         }
         // end M.T.
         
@@ -753,15 +787,37 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
      * 
      * @throws AceException
      */
-    public void addOSCOREGroupManagerAudience(String id) throws AceException {
-        if (id == null) {
-            throw new AceException(
-                    "addOSCOREGroupManagerAudience() requires non-null id");
+    public void addOSCOREGroupManagers(String rsId, Set<String> auds) throws AceException {
+    	if (rsId == null || rsId.isEmpty()) {
+            throw new AceException("RS must have non-null, non-empty identifier");
         }
+        
+        // Prevent adding an rs that has an identifier that is equal to an 
+        // existing audience
         try {
-            this.addOSCOREGroupManagerAudience.setString(1, id);
-            this.addOSCOREGroupManagerAudience.execute();
-            this.addOSCOREGroupManagerAudience.clearParameters();
+        	this.selectOSCOREGroupManagers.setString(1, rsId);
+        	ResultSet result = this.selectOSCOREGroupManagers.executeQuery();
+        	this.selectOSCOREGroupManagers.clearParameters();
+        	if (result.next()) {
+        		result.close();
+        		throw new AceException(
+        				"RsId equal to existing audience id: " + rsId);
+        	}
+        	result.close();
+        	
+        	for (String aud : auds) {
+                this.addOSCOREGroupManager.setString(1, rsId);
+                this.addOSCOREGroupManager.setString(2, aud);
+                this.addOSCOREGroupManager.execute();
+            }
+            this.addOSCOREGroupManager.clearParameters();
+            
+            //The RS always recognizes itself as a singleton audience
+            this.addOSCOREGroupManager.setString(1, rsId);
+            this.addOSCOREGroupManager.setString(2, rsId);
+            this.addOSCOREGroupManager.execute();
+            this.addOSCOREGroupManager.clearParameters();
+            
         } catch (SQLException e) {
             throw new AceException(e.getMessage());
         }

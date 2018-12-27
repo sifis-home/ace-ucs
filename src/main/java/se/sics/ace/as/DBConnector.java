@@ -45,7 +45,7 @@ import se.sics.ace.AceException;
  * This interface provides database connectivity methods for the 
  * Attribute Authority.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public interface DBConnector {
