@@ -283,7 +283,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             	ResultSet result = this.selectOSCOREGroupManagers.executeQuery();
             	this.selectOSCOREGroupManagers.clearParameters();
             	while (result.next()) {
-            		if (result.getString(DBConnector.audColumn).equals(audE))) {
+            		if (result.getString(DBConnector.audColumn).equals(audE)) {
             			result.close();
                 		return true;
             		}
