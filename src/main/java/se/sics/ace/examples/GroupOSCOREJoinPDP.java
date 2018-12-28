@@ -486,14 +486,13 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         				  if (roles.contains(scopeParts[i]))
         					  allowedRoles.add(scopeParts[i]);
         			  }
-        			  break;
         		  }
         	  }
         	  
         	  if (canJoin == true && !allowedRoles.isEmpty()) {
         		  grantedScopes += groupID;
         		  for (String foo : allowedRoles) {
-            		  grantedScopes += "_" + foo;
+            		  grantedScopes = grantedScopes + "_" + foo;
             	  }
         	  }
   		      
