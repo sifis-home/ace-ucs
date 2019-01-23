@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -57,11 +57,11 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
-import se.sics.ace.examples.KissPDP;
+import se.sics.ace.examples.GroupOSCOREJoinPDP;
 import se.sics.ace.examples.SQLConnector;
 
 /**
- * Test the KissPDP class.
+ * Test the GroupOSCOREJoinPDP class.
  * 
  * @author Ludwig Seitz and Marco Tiloca
  *
@@ -71,7 +71,7 @@ public class TestGroupOSCOREJoinPDP {
     private static OneKey publicKey;
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
-    private static KissPDP pdp = null;
+    private static GroupOSCOREJoinPDP pdp = null;
 
     /**
      * Tests for CWT code.
@@ -208,7 +208,7 @@ public class TestGroupOSCOREJoinPDP {
         db.addToken(ctiStr, claims);
         
 
-       pdp =  new KissPDP(db);
+       pdp =  new GroupOSCOREJoinPDP(db);
        
        //Initialize data in PDP
        pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
