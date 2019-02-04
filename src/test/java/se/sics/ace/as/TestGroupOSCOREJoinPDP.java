@@ -170,6 +170,37 @@ public class TestGroupOSCOREJoinPDP {
         db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, null, null, publicKey);
         
+        // M.T.
+        // Add a further resource server "rs4" acting as OSCORE Group Manager
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("w_feedca570000_sender");
+        scopes.add("w_feedca570000_listener");
+        scopes.add("w_feedca570000_purelistener");
+        scopes.add("w_feedca570000_sender_listener");
+        scopes.add("w_feedca570000_sender_purelistener");
+        auds.clear();
+        auds.add("rs4");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, skey, skey, publicKey);
+        
+        // M.T.
+        // Add the resource server rs4 and its OSCORE Group Manager
+        // audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs4", auds);
+        
+        
         //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
@@ -184,6 +215,16 @@ public class TestGroupOSCOREJoinPDP {
         keyTypes.add("PSK");        
         db.addClient("clientB", profiles, "co2", "sensors", 
                 keyTypes, skey, null);
+        
+        // M.T.
+        // Add a further client "clientF" as a joining node of an OSCORE group
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("clientF", profiles, null, null, 
+                keyTypes, skey, null);
+        
         
         //Setup token entries
         byte[] cti = new byte[]{0x01};
@@ -207,7 +248,55 @@ public class TestGroupOSCOREJoinPDP {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(ctiStr, claims);
         
-
+        // M.T.
+        // Setup additional tokens to access a join resource at an OSCORE Group Manager.
+        // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
+        cti = new byte[]{0x03};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
+        
+        cti = new byte[]{0x04};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_listener"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
+        
+        cti = new byte[]{0x05};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_purelistener"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
+        
+        cti = new byte[]{0x06};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender_listener"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
+        
+        cti = new byte[]{0x07};
+        ctiStr = Base64.getEncoder().encodeToString(cti);
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender_purelistener"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(ctiStr, claims);
+        
+        
        pdp =  new GroupOSCOREJoinPDP(db);
        
        //Initialize data in PDP
@@ -225,6 +314,10 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addIntrospectAccess("rs6");
        pdp.addIntrospectAccess("rs7");
        pdp.addIntrospectAccess("rs8", PDP.IntrospectAccessLevel.ACTIVE_ONLY);
+       
+       // M.T.
+       // Add also client "clientF" as a joining node of an OSCORE group.
+       pdp.addTokenAccess("clientF");
 
        pdp.addAccess("clientA", "rs1", "r_temp");
        pdp.addAccess("clientA", "rs1", "rw_config");
@@ -259,6 +352,17 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addAccess("clientE", "rs3", "r_pressure");
        pdp.addAccess("clientE", "rs3", "failTokenType");
        pdp.addAccess("clientE", "rs3", "failProfile");
+       
+       // M.T.
+       // Specify access right also for client "clientF" as a joining node of an OSCORE group.
+       // This cliend is allowed to be sender and/or pure listener, but not listener.
+       pdp.addAccess("clientF", "rs4", "w_feedca570000_sender_purelistener");
+       
+       // M.T.
+       // Add the resource server rs4 and its OSCORE Group Manager
+       // audience to the table OSCOREGroupManagersTable in the PDP
+       Set<String> rs4 = Collections.singleton("rs4");
+       pdp.addOSCOREGroupManagers("rs4", rs4);
     }
     
     /**
