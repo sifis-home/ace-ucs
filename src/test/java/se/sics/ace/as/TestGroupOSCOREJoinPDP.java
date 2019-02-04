@@ -176,11 +176,11 @@ public class TestGroupOSCOREJoinPDP {
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add("w_feedca570000_sender");
-        scopes.add("w_feedca570000_listener");
-        scopes.add("w_feedca570000_purelistener");
-        scopes.add("w_feedca570000_sender_listener");
-        scopes.add("w_feedca570000_sender_purelistener");
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_listener");
+        scopes.add("feedca570000_purelistener");
+        scopes.add("feedca570000_requester_listener");
+        scopes.add("feedca570000_requester_purelistener");
         auds.clear();
         auds.add("rs4");
         keyTypes.clear();
@@ -255,7 +255,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x03};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -282,7 +282,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x06};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender_listener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_listener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -291,7 +291,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x07};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender_purelistener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_purelistener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -356,9 +356,9 @@ public class TestGroupOSCOREJoinPDP {
        
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // This client is allowed to be sender and/or pure listener, but not listener.
+       // This client is allowed to be requester and/or pure listener, but not listener.
        pdp.addAccess("clientG", "rs2", "r_light");
-       pdp.addAccess("clientG", "rs4", "feedca570000_sender_purelistener");
+       pdp.addAccess("clientG", "rs4", "feedca570000_requester_purelistener");
        
        // M.T.
        // Add the resource server rs4 and its OSCORE Group Manager
@@ -423,7 +423,7 @@ public class TestGroupOSCOREJoinPDP {
     	assert(pdp.canAccess("clientG", rs2, "r_light").equals("r_light"));
     	
     	String gid = new String("feedca570000");
-    	String role1 = new String("sender");
+    	String role1 = new String("requester");
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
@@ -434,7 +434,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender"));
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_requester"));
     	
     	
     	cborArrayScope = CBORObject.NewArray();
@@ -467,8 +467,8 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayRoles.Add(role2);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender_purelistener") ||
-    		   pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_purelistener_sender"));
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_requester_purelistener") ||
+    		   pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_purelistener_requester"));
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -477,7 +477,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender"));
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_requester"));
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
