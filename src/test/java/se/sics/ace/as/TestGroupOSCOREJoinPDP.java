@@ -192,7 +192,7 @@ public class TestGroupOSCOREJoinPDP {
         cose.add(coseP);
         cose.add(coseP);
         expiration = 1000000L;
-        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
         // M.T.
@@ -217,12 +217,12 @@ public class TestGroupOSCOREJoinPDP {
                 keyTypes, skey, null);
         
         // M.T.
-        // Add a further client "clientF" as a joining node of an OSCORE group
+        // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientF", profiles, null, null, 
+        db.addClient("clientG", profiles, null, null, 
                 keyTypes, skey, null);
         
         
@@ -316,8 +316,8 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addIntrospectAccess("rs8", PDP.IntrospectAccessLevel.ACTIVE_ONLY);
        
        // M.T.
-       // Add also client "clientF" as a joining node of an OSCORE group.
-       pdp.addTokenAccess("clientF");
+       // Add also client "clientG" as a joining node of an OSCORE group.
+       pdp.addTokenAccess("clientG");
 
        pdp.addAccess("clientA", "rs1", "r_temp");
        pdp.addAccess("clientA", "rs1", "rw_config");
@@ -354,9 +354,9 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addAccess("clientE", "rs3", "failProfile");
        
        // M.T.
-       // Specify access right also for client "clientF" as a joining node of an OSCORE group.
+       // Specify access right also for client "clientG" as a joining node of an OSCORE group.
        // This cliend is allowed to be sender and/or pure listener, but not listener.
-       pdp.addAccess("clientF", "rs4", "w_feedca570000_sender_purelistener");
+       pdp.addAccess("clientG", "rs4", "w_feedca570000_sender_purelistener");
        
        // M.T.
        // Add the resource server rs4 and its OSCORE Group Manager
