@@ -47,6 +47,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
@@ -432,30 +433,28 @@ public class TestGroupOSCOREJoinPDP {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
-    	CBORObject cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byte[] byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender"));
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender"));
+    	
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role2);
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener"));
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_purelistener"));
+
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role3);
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope)==null);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add("fakerole");
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope)==null);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
     	
     	// Test for joining with multiple roles
@@ -467,10 +466,9 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
     	cborArrayScope.Add(cborArrayRoles);
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender_purelistener") ||
-    		   pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener_sender"));
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender_purelistener") ||
+    		   pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_purelistener_sender"));
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -478,9 +476,8 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender"));
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_sender"));
     	
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -488,9 +485,8 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayRoles.Add(role2);
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
-    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
-    	byteArrayScope = cborByteStringScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener"));
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteStringScope).equals("feedca570000_purelistener"));
     	
     }
     
