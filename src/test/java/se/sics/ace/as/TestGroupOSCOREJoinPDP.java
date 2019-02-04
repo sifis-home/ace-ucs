@@ -254,7 +254,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x03};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -263,7 +263,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x04};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_listener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_listener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -272,7 +272,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x05};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_purelistener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_purelistener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -281,7 +281,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x06};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender_listener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender_listener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -290,7 +290,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x07};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("w_feedca570000_sender_purelistener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_sender_purelistener"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -355,8 +355,9 @@ public class TestGroupOSCOREJoinPDP {
        
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // This cliend is allowed to be sender and/or pure listener, but not listener.
-       pdp.addAccess("clientG", "rs4", "w_feedca570000_sender_purelistener");
+       // This client is allowed to be sender and/or pure listener, but not listener.
+       pdp.addAccess("clientG", "rs2", "r_light");
+       pdp.addAccess("clientG", "rs4", "feedca570000_sender_purelistener");
        
        // M.T.
        // Add the resource server rs4 and its OSCORE Group Manager
@@ -400,6 +401,97 @@ public class TestGroupOSCOREJoinPDP {
         assert(pdp.getIntrospectAccessLevel("rs8").equals(PDP.IntrospectAccessLevel.ACTIVE_ONLY));
     	assert(!pdp.canAccessToken("clientF"));
     	assert(pdp.getIntrospectAccessLevel("rs4").equals(PDP.IntrospectAccessLevel.NONE));
+    }
+    
+    // M.T.
+    /**
+     * Test the basic example configuration with different access queries
+     * 
+     * Focus on a client interested to join an OSCORE group through the Group Manager
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testBaseConfiGroupOSCORE() throws Exception {
+    	
+    	assert(pdp.canAccessToken("clientG"));
+    	Set<String> rs1 = Collections.singleton("rs1");
+    	Set<String> rs2 = Collections.singleton("rs2");
+    	Set<String> rs4 = Collections.singleton("rs4");
+    	assert(pdp.canAccess("clientG", rs1, "r_temp")==null);
+    	assert(pdp.canAccess("clientG", rs2, "r_light").equals("r_light"));
+    	
+    	String gid = new String("feedca570000");
+    	String role1 = new String("sender");
+    	String role2 = new String("purelistener");
+    	String role3 = new String("listener");
+    	
+    	// Test for joining with a single role
+    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	CBORObject cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byte[] byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender"));
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role2);
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener"));
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role3);
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope)==null);
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add("fakerole");
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope)==null);
+    	
+    	
+    	// Test for joining with multiple roles
+    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender_purelistener") ||
+    		   pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener_sender"));
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role3);
+    	cborArrayScope.Add(cborArrayRoles);
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_sender"));
+    	
+    	cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
+    	cborArrayScope.Add(cborArrayRoles);
+    	cborByteStringScope = CBORObject.FromObject(cborArrayScope);
+    	byteArrayScope = cborByteStringScope.EncodeToBytes();
+    	assert(pdp.canAccess("clientG", rs4, byteArrayScope).equals("feedca570000_purelistener"));
+    	
     }
     
     /**
