@@ -323,7 +323,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 	}
 
 	@Override
-	public String canAccess(String clientId, Set<String> aud, Object scope) 
+	public Object canAccess(String clientId, Set<String> aud, Object scope) 
 				throws AceException {
 	    if (clientId == null) {
             throw new AceException(
@@ -397,7 +397,8 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             return null;
         }
         String scopeStr;
-        String grantedScopes = "";
+        String grantedScopesString = "";
+        Object grantedScopes = null;
         
         // M.T.
         // If the RS and the audience point at an OSCORE Group Manager,
@@ -421,12 +422,15 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             
             for (int i=0; i<requestedScopes.length; i++) {
                 if (scopes.contains(requestedScopes[i])) {
-                    if (!grantedScopes.isEmpty()) {
-                        grantedScopes += " ";
+                    if (!(grantedScopesString).isEmpty()) {
+                    	grantedScopesString += " ";
                     }
-                    grantedScopes += requestedScopes[i];
+                    grantedScopesString += requestedScopes[i];
                 }
             }
+            
+            if (!grantedScopesString.isEmpty())
+            	grantedScopes = grantedScopesString;
         }
         
         // M.T.
@@ -490,10 +494,29 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	  }
         	  
         	  if (canJoin == true && !allowedRoles.isEmpty()) {
-        		  grantedScopes += groupID;
-        		  for (String foo : allowedRoles) {
-            		  grantedScopes = grantedScopes + "_" + foo;
-            	  }
+        		  
+        		  CBORObject cborArrayScope = CBORObject.NewArray();
+        	      
+        		  cborArrayScope.Add(groupID);
+        	      
+        	      if (allowedRoles.size() == 1) {
+        	    	  for (String foo : allowedRoles) {
+        	    		  cborArrayScope.Add(foo);
+                	  }
+        	      }
+        	      
+        	      if (allowedRoles.size() == 2) {
+        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
+        	    	  
+        	    	  for (String foo : allowedRoles) {
+        	    		  cborArrayRoles.Add(foo);
+                	  }
+        	    	  
+        	    	  cborArrayScope.Add(cborArrayRoles);
+        	      }
+        	      
+        	      grantedScopes = cborArrayScope.EncodeToBytes();
+        	     
         	  }
   		      
   		    } else {
@@ -519,10 +542,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
         // end M.T.
         
-        //all scopes found
-        if (grantedScopes.isEmpty()) {
-            return null;
-        }
         return grantedScopes;
 	}
 
