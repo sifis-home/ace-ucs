@@ -248,6 +248,7 @@ public class TestTokenGroupOSCORE {
         
         // M.T.
         // Add a further resource server "rs8" acting as OSCORE Group Manager
+        // This resource server uses only REF Tokens
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
@@ -271,9 +272,35 @@ public class TestTokenGroupOSCORE {
                 expiration, skey, skey, publicKey);
         
         // M.T.
-        // Add the resource server rs4 and its OSCORE Group Manager
-        // audience to the table OSCOREGroupManagers in the Database
-        db.addOSCOREGroupManagers("rs8", auds);        
+        // Add a further resource server "rs9" acting as OSCORE Group Manager
+        // This resource server uses only CBOR Web Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_listener");
+        scopes.add("feedca570000_purelistener");
+        scopes.add("feedca570000_requester_listener");
+        scopes.add("feedca570000_requester_purelistener");
+        auds.clear();
+        auds.add("rs9");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs9", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, skey, skey, publicKey);
+        
+        // M.T.
+        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs8", auds);
+        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs9", auds);
         
         //Setup client entries
         profiles.clear();
@@ -522,17 +549,21 @@ public class TestTokenGroupOSCORE {
         // This client is allowed to be requester and/or pure listener, but not listener.
         pdp.addAccess("clientF", "rs2", "r_light");
         pdp.addAccess("clientF", "rs8", "feedca570000_requester_purelistener");
+        pdp.addAccess("clientF", "rs9", "feedca570000_requester_purelistener");
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
         // This client is allowed to be requester and/or pure listener, but not listener.
         pdp.addAccess("clientG", "rs8", "feedca570000_requester");
+        pdp.addAccess("clientG", "rs9", "feedca570000_requester");
         
         // M.T.
-        // Add the resource server rs4 and its OSCORE Group Manager
-        // audience to the table OSCOREGroupManagersTable in the PDP
+        // Add the resource server rs8 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs8 = Collections.singleton("rs8");
         pdp.addOSCOREGroupManagers("rs8", rs8);
+        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        Set<String> rs9 = Collections.singleton("rs9");
+        pdp.addOSCOREGroupManagers("rs9", rs9);
         
         t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
@@ -927,7 +958,7 @@ public class TestTokenGroupOSCORE {
         assert(cnf.equals(cnf2));
     }
     
- // M.T.
+    // M.T.
     /**
      * Test the token endpoint for asking access to an OSCORE group with a
      * single role, using a REF token with a scope including that single role.
@@ -1131,6 +1162,219 @@ public class TestTokenGroupOSCORE {
                 CBORObject.FromObject(byteStringScope));
         
         params.put(Constants.AUD, CBORObject.FromObject("rs8"));
+        msg = new LocalMessage(-1, "clientG", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+    }
+    
+    // M.T.
+    /**
+     * Test the token endpoint for asking access to an OSCORE group with a
+     * single role, using a CWT with a scope including that single role.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testGroupOSCORESingleRoleCWT() throws Exception { 
+        String gid = new String("feedca570000");
+        String gid2 = new String("feedca570001");
+    	String role1 = new String("requester");
+    	String role2 = new String("purelistener");
+    	String role3 = new String("listener");
+    	
+    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	
+    	// The requested role is allowed in the specified group
+    	Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get(Constants.ACCESS_TOKEN);     
+                
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // The requested role is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role2);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        token = params.get(Constants.ACCESS_TOKEN);     
+        
+        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // The requested role is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientG", "TestAS", params);
+        response = t.processMessage(msg);
+        rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        token = params.get(Constants.ACCESS_TOKEN);     
+        
+        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // Access to the specified group is not allowed
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid2);
+    	cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+        
+        // The requested role is not allowed in the specified group
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role3);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+        
+        // The requested role is not allowed in the specified group
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add("fakerole");
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+        
+        // The requested role is not allowed in the specified group
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role2);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1358,6 +1602,233 @@ public class TestTokenGroupOSCORE {
                 CBORObject.FromObject(byteStringScope));
         
         params.put(Constants.AUD, CBORObject.FromObject("rs8"));
+        msg = new LocalMessage(-1, "clientG", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+    }
+    
+    // M.T.
+    /**
+     * Test the token endpoint for asking access to an OSCORE group with
+     * multiple roles, using a CWT with a scope including multiple roles.
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testGroupOSCOREMultipleRolesCWT() throws Exception { 
+        String gid = new String("feedca570000");
+        String gid2 = new String("feedca570001");
+    	String role1 = new String("requester");
+    	String role2 = new String("purelistener");
+    	String role3 = new String("listener");
+    	
+    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	
+    	// Both requested roles are allowed in the specified group
+    	Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get(Constants.ACCESS_TOKEN);     
+        
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
+        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("purelistener")) ||
+        	   (cborArrayScope.get(1).get(0).AsString().equals("purelistener") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // Access to the specified group is not allowed
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid2);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        
+        
+        // Only one role out of the two requested ones is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role3);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        token = params.get(Constants.ACCESS_TOKEN);     
+        
+        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // Only one role out of the two requested ones is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientF", "TestAS", params);
+        response = t.processMessage(msg);
+        rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        token = params.get(Constants.ACCESS_TOKEN);     
+        
+        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // Only one role out of the two requested ones is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
+        msg = new LocalMessage(-1, "clientG", "TestAS", params);
+        response = t.processMessage(msg);
+        rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        token = params.get(Constants.ACCESS_TOKEN);     
+        
+        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
+                token.GetByteString()).EncodeToBytes(), 
+                CwtCryptoCtx.sign1Verify(
+                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        
+        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
+        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
+        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(!params.containsKey(Constants.PROFILE));
+        
+        
+        // None of the requested ones is allowed in the specified group
+        params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUD, CBORObject.FromObject("rs9"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
