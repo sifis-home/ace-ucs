@@ -272,6 +272,10 @@ public class TestTokenGroupOSCORE {
                 expiration, skey, skey, publicKey);
         
         // M.T.
+        // Add the resource server rs8 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs8", auds);
+        
+        // M.T.
         // Add a further resource server "rs9" acting as OSCORE Group Manager
         // This resource server uses only CBOR Web Tokens
         profiles.clear();
@@ -296,10 +300,7 @@ public class TestTokenGroupOSCORE {
         db.addRS("rs9", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
-        // M.T.
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
-        db.addOSCOREGroupManagers("rs8", auds);
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs9", auds);
         
         //Setup client entries
@@ -552,8 +553,8 @@ public class TestTokenGroupOSCORE {
         pdp.addAccess("clientF", "rs9", "feedca570000_requester_purelistener");
         
         // M.T.
-        // Specify access right also for client "clientF" as a joining node of an OSCORE group.
-        // This client is allowed to be requester and/or pure listener, but not listener.
+        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
+        // This client is allowed to be only listener.
         pdp.addAccess("clientG", "rs8", "feedca570000_requester");
         pdp.addAccess("clientG", "rs9", "feedca570000_requester");
         

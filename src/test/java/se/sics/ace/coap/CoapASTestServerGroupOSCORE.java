@@ -32,6 +32,7 @@
 package se.sics.ace.coap;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -118,12 +119,89 @@ public class CoapASTestServerGroupOSCORE
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, akey);
         
+        // M.T.
+        // Add a further resource server "rs2" acting as OSCORE Group Manager
+        // This resource server uses only REF Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_listener");
+        scopes.add("feedca570000_purelistener");
+        scopes.add("feedca570000_requester_listener");
+        scopes.add("feedca570000_requester_purelistener");
+        auds.clear();
+        auds.add("rs2");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, authPsk, tokenPsk, akey);
+        
+        // M.T.
+        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs2", auds);
+        
+        // M.T.
+        // Add a further resource server "rs3" acting as OSCORE Group Manager
+        // This resource server uses only CWT Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_listener");
+        scopes.add("feedca570000_purelistener");
+        scopes.add("feedca570000_requester_listener");
+        scopes.add("feedca570000_requester_purelistener");
+        auds.clear();
+        auds.add("rs3");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, authPsk, tokenPsk, akey);
+        
+        // M.T.
+        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs3", auds);
+        
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
                 keyTypes, authPsk, null);        
+        
+        // M.T.
+        // Add a further client "clientF" as a joining node of an OSCORE group
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("clientF", profiles, null, null, 
+                keyTypes, authPsk, null);
+        
+        // M.T.
+        // Add a further client "clientG" as a joining node of an OSCORE group
+        profiles.clear();
+        profiles.add("coap_dtls");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("clientG", profiles, null, null, 
+                keyTypes, authPsk, null);
+        
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
@@ -135,6 +213,112 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
+        
+        // M.T.
+        // Setup additional tokens to access a join resource at an OSCORE Group Manager.
+        // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x01});
+        claims = new HashMap<>();
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        CBORObject cborArrayScope = CBORObject.NewArray();
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(cti, claims);
+        db.addCti2Client(cti, "clientF");
+        
+        
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x02});
+        claims = new HashMap<>();
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        cborArrayScope = CBORObject.NewArray();
+        gid = new String("feedca570000");
+    	role1 = new String("listener");
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(cti, claims);
+        db.addCti2Client(cti, "clientF");
+        
+        
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x03});
+        claims = new HashMap<>();
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        cborArrayScope = CBORObject.NewArray();
+        gid = new String("feedca570000");
+    	role1 = new String("purelistener");
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(cti, claims);
+        db.addCti2Client(cti, "clientF");
+        
+        
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x04});
+        claims = new HashMap<>();
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        cborArrayScope = CBORObject.NewArray();
+        gid = new String("feedca570000");
+    	role1 = new String("requester");
+    	String role2 = new String("listener");
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
+        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(cti, claims);
+        db.addCti2Client(cti, "clientF");
+        
+        
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x05});
+        claims = new HashMap<>();
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        cborArrayScope = CBORObject.NewArray();
+        gid = new String("feedca570000");
+    	role1 = new String("requester");
+    	role2 = new String("purelistener");
+    	cborArrayScope.Add(gid);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        db.addToken(cti, claims);
+        db.addCti2Client(cti, "clientF");
+        
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new GroupOSCOREJoinPDP(db);
@@ -153,6 +337,12 @@ public class CoapASTestServerGroupOSCORE
         pdp.addIntrospectAccess("rs5");
         pdp.addIntrospectAccess("rs6");
         pdp.addIntrospectAccess("rs7");
+        
+        // M.T.
+        // Add also client "clientF" as a joining node of an OSCORE group.
+        pdp.addTokenAccess("clientF");
+        // Add also client "clientG" as a joining node of an OSCORE group.
+        pdp.addTokenAccess("clientG");
 
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
@@ -187,6 +377,26 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
+        
+        // M.T.
+        // Specify access right also for client "clientF" as a joining node of an OSCORE group.
+        // This client is allowed to be requester and/or pure listener, but not listener.
+        pdp.addAccess("clientF", "rs2", "feedca570000_requester_purelistener");
+        pdp.addAccess("clientF", "rs3", "feedca570000_requester_purelistener");
+        
+        // M.T.
+        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
+        // This client is allowed to be only listener.
+        pdp.addAccess("clientG", "rs2", "feedca570000_requester");
+        pdp.addAccess("clientG", "rs3", "feedca570000_requester");
+        
+        // M.T.
+        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        Set<String> rs2 = Collections.singleton("rs2");
+        pdp.addOSCOREGroupManagers("rs2", rs2);
+        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        Set<String> rs3 = Collections.singleton("rs3");
+        pdp.addOSCOREGroupManagers("rs3", rs3);
         
         as = new CoapsAS("AS", db, pdp, time, asymmKey);
         as.start();
