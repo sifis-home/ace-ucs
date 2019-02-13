@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -62,6 +63,12 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	private Set<String> myAudiences;
 	
 	/**
+     * The audiences acting as OSCORE Group Managers
+     * Each of these audiences is also included in the main set "myAudiences"
+     */
+	private Set<String> myGMAudiences;
+	
+	/**
 	 * Maps the scopes to a map that maps the scope's resources to the actions 
 	 * allowed on that resource
 	 */
@@ -76,6 +83,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	public GroupOSCOREJoinValidator(Set<String> myAudiences, 
 	        Map<String, Map<String, Set<Short>>> myScopes) {
 		this.myAudiences = new HashSet<>();
+		this.myGMAudiences = new HashSet<>();
 		this.myScopes = new HashMap<>();
 		if (myAudiences != null) {
 		    this.myAudiences.addAll(myAudiences);
@@ -86,6 +94,25 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		    this.myScopes.putAll(myScopes);
 		} else {
 		    this.myScopes = Collections.emptyMap();
+		}
+	}
+	
+	// M.T.
+	/**
+	 * Set the list of audiences acting as OSCORE Group Managers.
+	 * Check that each of those audiences are in the main set "myAudiences"
+	 * 
+	 * @param myGMAudiences  the audiences that this validator considers as OSCORE Group Managers
+	 */
+	public void setGMAudiences(Set<String> myGMAudiences) throws AceException {
+		if (myGMAudiences != null) {
+			for (String foo : myGMAudiences) {
+				if (!myAudiences.contains(foo))
+					throw new AceException("This OSCORE Group Manager is not an accepted audience");
+				else this.myGMAudiences.add(foo);
+			}
+		} else {
+		    this.myGMAudiences = Collections.emptySet();
 		}
 	}
 	
@@ -134,8 +161,86 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     @Override
     public boolean isScopeMeaningful(CBORObject scope) throws AceException {
         if (!scope.getType().equals(CBORType.TextString)) {
-            throw new AceException("Scope must be a String in KissValidator");
+            throw new AceException("Scope must be a String if no audience is specified");
         }
         return this.myScopes.containsKey(scope.AsString());
+    }
+    
+    @Override
+    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
+        if (!scope.getType().equals(CBORType.TextString) && !scope.getType().equals(CBORType.ByteString)) {
+            throw new AceException("Scope must be a Text String or a Byte String");
+        }
+        
+        String scopeStr;
+    	boolean scopeMustBeBinary = false;
+    	boolean rsOSCOREGroupManager = false;
+    	for (String foo : aud) {
+    		if (myGMAudiences.contains(foo)) {
+    			rsOSCOREGroupManager = true;
+    			break;
+    		}
+    	}
+    	scopeMustBeBinary = rsOSCOREGroupManager;
+        
+        if (scope.getType().equals(CBORType.TextString)) {
+        	if (scopeMustBeBinary)
+        		throw new AceException("Scope for this audience must be a byte string");
+        	
+        	return this.myScopes.containsKey(scope.AsString());
+        	// The audiences are silently ignored
+        }
+        	
+        else if (scope.getType().equals(CBORType.ByteString) && rsOSCOREGroupManager) {
+        	
+        	byte[] rawScope = scope.GetByteString();
+        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	
+        	if (!cborScope.getType().equals(CBORType.Array)) {
+                throw new AceException("Invalid scope format for joining OSCORE groups");
+            }
+        	
+        	if (cborScope.size() != 2)
+        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+        	
+        	// Retrieve the Group ID of the OSCORE group
+      	  	CBORObject scopeElement = cborScope.get(0);
+      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+      	  		scopeStr = scopeElement.AsString();
+      	  	}
+      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
+        	
+      	  	// Retrieve the role or list of roles
+      	  	scopeElement = cborScope.get(1);
+      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+      	  		// Only one role is specified
+      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
+      	  	}
+      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
+      	  		// Multiple roles are specified
+      	  		if (scopeElement.size() < 2) {
+      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
+      	  		}
+      	  		for (int i=0; i<scopeElement.size(); i++) {
+      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
+      	  			scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
+      	  			}
+      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
+      	  		}
+      	  	}
+      	  	else {throw new AceException("Invalid format of roles");}
+      	  	
+        	return this.myScopes.containsKey(scopeStr);
+        }
+        
+    	// This includes the case where the scope is encoded as a CBOR Byte String,
+    	// but the audience is not related to an OSCORE Group Manager.
+    	// In fact, no processing for byte string scopes are defined, other than
+    	// the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
+        else if (scope.getType().equals(CBORType.ByteString))
+        	throw new AceException("Unknown processing for this byte string scope");
+        
+        return false;
+        
     }
 }
