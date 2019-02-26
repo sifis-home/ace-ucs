@@ -82,7 +82,14 @@ public class TestAuthzInfoGroupOSCORE {
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static SQLConnector db = null;
 
-    private static AuthzInfo ai = null;
+    private static AuthzInfoGroupOSCORE ai = null; // M.T.
+    
+    private static AuthzInfoGroupOSCORE ai2 = null; // M.T.
+    // Created a separate authz-info endpoint using a dedicated introspection handler
+    // for the audience "rs2" (OSCORE Group Manager). An actual fix would be defining
+    // a new introspection handler, whose constructor takes as input a list of audience
+    // identifiers, rather than a single RS identifier.
+    
     private static Introspect i; 
     private static TokenRepository tr = null;
     private static GroupOSCOREJoinPDP pdp = null; // M.T.
@@ -131,10 +138,42 @@ public class TestAuthzInfoGroupOSCORE {
         myScopes.put("r_co2", myResource2);
         
         // M.T.
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
-                myScopes);
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions2 = new HashSet<>();
+        actions2.add(Constants.PUT);
+        Map<String, Set<Short>> myResource3 = new HashMap<>();
+        myResource3.put("feedca570000", actions2);
+        myScopes.put("feedca570000_sender", myResource3);
+        myScopes.put("feedca570000_listener", myResource3);
+        myScopes.put("feedca570000_purelistener", myResource3);
+        myScopes.put("feedca570000_sender_listener", myResource3);
+        myScopes.put("feedca570000_sender_purelistener", myResource3);
+        
+        
+        // M.T.
+        // REMOVE
+        //GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
+        //        myScopes);
+        // END REMOVE
+        
+        Set<String> auds = new HashSet<>();
+        auds.add("rs1"); // Simple test audience
+        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        
+        // M.T.
+        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+        valid.setGMAudiences(Collections.singleton("rs2"));
+        
+        // M.T.
+        // Include this resource as a join resource for Group OSCORE.
+        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+        valid.setJoinResources(Collections.singleton("feedca570000"));
+        
         createTR(valid);
         tr = TokenRepository.getInstance();
+        
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -143,11 +182,23 @@ public class TestAuthzInfoGroupOSCORE {
         pdp = new GroupOSCOREJoinPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
+        pdp.addIntrospectAccess("rs2"); // M.T. Enabling introspection for the OSCORE Group Manager
         i = new Introspect(pdp, db, new KissTime(), key);
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
+        
+        // M.T.
+        ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 valid, ctx);
+        
+        // M.T.
+        // A separate authz-info endpoint is required for each audience, here "rs2",
+        // due to the interface of the IntrospectionHandler4Tests
+        ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+                new KissTime(), 
+                new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
+                valid, ctx);
+        
     }
 
     // M.T.
