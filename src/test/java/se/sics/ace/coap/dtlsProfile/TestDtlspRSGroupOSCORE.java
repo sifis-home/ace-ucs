@@ -141,8 +141,6 @@ public class TestDtlspRSGroupOSCORE {
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
     
-    private static AuthzInfoGroupOSCORE ai2 = null; // M.T.
-    
     private static CoapServer rs = null;
     
     private static CoapDeliverer dpd = null;
@@ -185,6 +183,20 @@ public class TestDtlspRSGroupOSCORE {
         myScopes.put("feedca570000_requester_purelistener", myResource3);
         
         // M.T.
+        // Adding another join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
+        // There will NOT be a token enabling the access to this resource.
+        Set<Short> actions4 = new HashSet<>();
+        actions4.add(Constants.POST);
+        Map<String, Set<Short>> myResource4 = new HashMap<>();
+        myResource4.put("fBBBca570000", actions4);
+        myScopes.put("fBBBca570000_requester", myResource4);
+        myScopes.put("fBBBca570000_listener", myResource4);
+        myScopes.put("fBBBca570000_purelistener", myResource4);
+        myScopes.put("fBBBca570000_requester_listener", myResource4);
+        myScopes.put("fBBBca570000_requester_purelistener", myResource4);
+        
+        // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
@@ -222,12 +234,12 @@ public class TestDtlspRSGroupOSCORE {
                 valid, ctx);
       
       // M.T.
-      // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
-      // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
-      ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
-              new KissTime(), 
-              null,
-              valid, ctx);
+      // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
+      // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
+      // 
+      // If provided, a proper Introspection Handler would require to take care of multiple audiences,
+      // rather than of a single RS as IntrospectionHandler4Tests does. This is already admitted in the
+      // Java interface IntrospectionHandler.
       
       //Add a test token to authz-info
       byte[] key128
@@ -253,19 +265,84 @@ public class TestDtlspRSGroupOSCORE {
       CWT token = new CWT(params);
       ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
+      
+      // M.T.
+      // Add a token to enable access to a join resource,
+      // for joining an OSCORE group with a single role
+      Map<Short, CBORObject> params2 = new HashMap<>();
+      String gid = new String("feedca570000");
+  	  String role1 = new String("requester");
+      
+      CBORObject cborArrayScope = CBORObject.NewArray();
+  	  cborArrayScope.Add(gid);
+  	  cborArrayScope.Add(role1);
+  	  byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+      params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+      params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
+      params2.put(Constants.CTI, CBORObject.FromObject(
+              "token2".getBytes(Constants.charset)));
+      params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+      OneKey key2 = new OneKey();
+      key2.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      
+      byte[] kid2 = new byte[] {0x04, 0x05, 0x06};
+      CBORObject kidC2 = CBORObject.FromObject(kid2);
+      key2.add(KeyKeys.KeyId, kidC2);
+      key2.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+      CBORObject cnf2 = CBORObject.NewMap();
+      cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
+      params2.put(Constants.CNF, cnf2);
+      CWT token2 = new CWT(params2);
+      ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
+      
+      
+      // M.T.
+      // Add a token to enable access to a join resource,
+      // for joining an OSCORE group with multiple roles
+      Map<Short, CBORObject> params3 = new HashMap<>();
+  	  String role2 = new String("listener");
+      
+  	  cborArrayScope = CBORObject.NewArray();
+	  cborArrayScope.Add(gid);
+	  CBORObject cborArrayRoles = CBORObject.NewArray();
+	  cborArrayRoles.Add(role1);
+	  cborArrayRoles.Add(role2);
+	  cborArrayScope.Add(cborArrayRoles);
+	  byteStringScope = cborArrayScope.EncodeToBytes();
+      params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+      params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
+      params3.put(Constants.CTI, CBORObject.FromObject(
+              "token3".getBytes(Constants.charset)));
+      params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+      OneKey key3 = new OneKey();
+      key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      
+      byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
+      CBORObject kidC3 = CBORObject.FromObject(kid3);
+      key3.add(KeyKeys.KeyId, kidC3);
+      key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+      CBORObject cnf3 = CBORObject.NewMap();
+      cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
+      params3.put(Constants.CNF, cnf3);
+      CWT token3 = new CWT(params3);
+      ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
+      
+      
       AsInfo asi 
       = new AsInfo("coaps://blah/authz-info/");
       Resource hello = new HelloWorldResource();
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
-      Resource authzInfo2 = new CoapAuthzInfoGroupOSCORE(ai2); // M.T.
-
+      
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
       rs.add(authzInfo);
-      rs.add(authzInfo2); // M.T.
-
+      
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
       

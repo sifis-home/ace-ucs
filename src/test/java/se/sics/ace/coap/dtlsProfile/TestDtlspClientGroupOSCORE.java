@@ -197,6 +197,98 @@ public class TestDtlspClientGroupOSCORE {
                 cti.GetByteString());
     }
     
+    
+    // M.T.
+    /**
+     * Tests POSTing a token to authz-info for
+     * accessing an OSCORE group with a single role
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testPostAuthzInfoGroupOSCORESingleRole() throws AceException, IllegalStateException,
+            InvalidCipherTextException, CoseException {  
+        Map<Short, CBORObject> params = new HashMap<>();
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+        
+        CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenPAIGOSR".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx); 
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
+        Assert.assertNotNull(cbor);
+        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals("tokenPAIGOSR".getBytes(Constants.charset), 
+                cti.GetByteString());
+    }
+    
+    
+    // M.T.
+    /**
+     * Tests POSTing a token to authz-info for
+     * accessing an OSCORE group with multiple roles
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testPostAuthzInfoGroupOSCOREMultipleRoles() throws AceException, IllegalStateException,
+            InvalidCipherTextException, CoseException {  
+        Map<Short, CBORObject> params = new HashMap<>();
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("listener");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenPAIGOMR".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx); 
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
+        Assert.assertNotNull(cbor);
+        CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals("tokenPAIGOMR".getBytes(Constants.charset), 
+                cti.GetByteString());
+    }
+    
     /**
      * Tests connecting to the server, passing the token through 
      * psk-identity
@@ -233,7 +325,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CONTENT", r.getCode().name());
         Assert.assertEquals("Hello World!", r.getResponseText());    
     }
-        
+    
+    
     /**
      *  Test passing a kid through psk-identity
      * @throws AceException 
@@ -329,6 +422,136 @@ public class TestDtlspClientGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPK".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+             
+        OneKey bogusRPK = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        CoapClient c = DTLSProfileRequests.getRpkClient(key, bogusRPK);
+        c.setURI("coaps://localhost/helloWorld");       
+        try {
+            c.get();
+        } catch (RuntimeException ex) {
+            Object cause = ex.getCause();
+            if (cause instanceof HandshakeException) {
+                HandshakeException he = (HandshakeException)cause;
+                System.out.println(he.getAlert().toString());
+                //Everything ok
+                return;
+            }
+        }
+        
+        Assert.fail("Client should not accept DTLS connection");    
+    }
+    
+    
+    // M.T.
+    /** 
+     * Test post to authz-info with RPK then request 
+     * where RS rpk is not trusted, when attempting
+     * to access an OSCORE group with single role
+     * 
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testUntrustedRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException {
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourRPK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+        CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenRPKGOSR".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = CBORObject.FromObject(
+                token.encode(ctx).EncodeToBytes());    
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+             
+        OneKey bogusRPK = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        CoapClient c = DTLSProfileRequests.getRpkClient(key, bogusRPK);
+        c.setURI("coaps://localhost/helloWorld");       
+        try {
+            c.get();
+        } catch (RuntimeException ex) {
+            Object cause = ex.getCause();
+            if (cause instanceof HandshakeException) {
+                HandshakeException he = (HandshakeException)cause;
+                System.out.println(he.getAlert().toString());
+                //Everything ok
+                return;
+            }
+        }
+        
+        Assert.fail("Client should not accept DTLS connection");    
+    }
+    
+    
+    // M.T.
+    /** 
+     * Test post to authz-info with RPK then request 
+     * where RS rpk is not trusted, when attempting
+     * to access an OSCORE group with multiple roles
+     * 
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     */
+    @Test
+    public void testUntrustedRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException {
+        OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        String kidStr = "ourRPK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("listener");
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenRPKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -474,6 +697,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals("{0: \"coaps://blah/authz-info/\"}", rPayload.toString());    
     }
+    
     
     /**
      * Test  passing a valid token through psk-identity
