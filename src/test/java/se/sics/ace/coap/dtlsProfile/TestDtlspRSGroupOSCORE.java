@@ -69,7 +69,7 @@ import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStoreGroupOSCORE; // M.T.
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.KissValidator;
+import se.sics.ace.examples.GroupOSCOREJoinValidator; // M.T.
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsInfo;
 import se.sics.ace.rs.AuthzInfoGroupOSCORE; // M.T.
@@ -141,6 +141,8 @@ public class TestDtlspRSGroupOSCORE {
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
     
+    private static AuthzInfoGroupOSCORE ai2 = null; // M.T.
+    
     private static CoapServer rs = null;
     
     private static CoapDeliverer dpd = null;
@@ -169,8 +171,33 @@ public class TestDtlspRSGroupOSCORE {
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        // M.T.
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions3 = new HashSet<>();
+        actions3.add(Constants.POST);
+        Map<String, Set<Short>> myResource3 = new HashMap<>();
+        myResource3.put("feedca570000", actions3);
+        myScopes.put("feedca570000_requester", myResource3);
+        myScopes.put("feedca570000_listener", myResource3);
+        myScopes.put("feedca570000_purelistener", myResource3);
+        myScopes.put("feedca570000_requester_listener", myResource3);
+        myScopes.put("feedca570000_requester_purelistener", myResource3);
+        
+        // M.T.
+        Set<String> auds = new HashSet<>();
+        auds.add("rs1"); // Simple test audience
+        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        
+        // M.T.
+        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+        valid.setGMAudiences(Collections.singleton("rs2"));
+        
+        // M.T.
+        // Include this resource as a join resource for Group OSCORE.
+        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+        valid.setJoinResources(Collections.singleton("feedca570000"));
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -193,6 +220,14 @@ public class TestDtlspRSGroupOSCORE {
                 new KissTime(), 
                 null,
                 valid, ctx);
+      
+      // M.T.
+      // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
+      // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
+      ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+              new KissTime(), 
+              null,
+              valid, ctx);
       
       //Add a test token to authz-info
       byte[] key128
@@ -223,11 +258,13 @@ public class TestDtlspRSGroupOSCORE {
       Resource hello = new HelloWorldResource();
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
+      Resource authzInfo2 = new CoapAuthzInfoGroupOSCORE(ai2); // M.T.
 
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
       rs.add(authzInfo);
+      rs.add(authzInfo2); // M.T.
 
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
@@ -260,7 +297,7 @@ public class TestDtlspRSGroupOSCORE {
      * @throws IOException 
      * 
      */
-    private static void createTR(KissValidator valid) throws IOException {
+    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
                     + "tokens.json", null);
