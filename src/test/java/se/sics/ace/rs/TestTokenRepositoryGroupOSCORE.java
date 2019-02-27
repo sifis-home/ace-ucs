@@ -67,8 +67,8 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.GroupOSCOREJoinValidator;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.KissValidator;
 
 /**
  * Tests for the TokenRepository class.
@@ -140,8 +140,32 @@ public class TestTokenRepositoryGroupOSCORE {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        // M.T.
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions2 = new HashSet<>();
+        actions2.add(Constants.PUT);
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
+        myResource2.put("feedca570000", actions2);
+        myScopes.put("feedca570000_requester", myResource2);
+        myScopes.put("feedca570000_listener", myResource2);
+        myScopes.put("feedca570000_purelistener", myResource2);
+        myScopes.put("feedca570000_requester_listener", myResource2);
+        myScopes.put("feedca570000_requester_purelistener", myResource2);
+        
+        Set<String> auds = new HashSet<>();
+        auds.add("rs1"); // Simple test audience
+        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        
+        // M.T.
+        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+        valid.setGMAudiences(Collections.singleton("rs2"));
+        
+        // M.T.
+        // Include this resource as a join resource for Group OSCORE.
+        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+        valid.setJoinResources(Collections.singleton("feedca570000"));
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -158,6 +182,7 @@ public class TestTokenRepositoryGroupOSCORE {
        
     }
     
+    // M.T.
     /**
      * Create the Token repository if not already created,
      * if already create ignore.
@@ -166,7 +191,7 @@ public class TestTokenRepositoryGroupOSCORE {
      * @throws IOException 
      * 
      */
-    private static void createTR(KissValidator valid) throws IOException {
+    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
                     + "tokens.json", null);
@@ -633,7 +658,7 @@ public class TestTokenRepositoryGroupOSCORE {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
