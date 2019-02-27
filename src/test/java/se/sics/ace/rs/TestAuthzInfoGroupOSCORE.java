@@ -141,7 +141,7 @@ public class TestAuthzInfoGroupOSCORE {
         // Adding the join resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
         Set<Short> actions2 = new HashSet<>();
-        actions2.add(Constants.PUT);
+        actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("feedca570000", actions2);
         myScopes.put("feedca570000_requester", myResource3);
