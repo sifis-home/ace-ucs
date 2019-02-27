@@ -99,8 +99,9 @@ public class CoapsIntrospection implements IntrospectionHandler {
                 rpk.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
+        CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
                 .setNetworkConfig(NetworkConfig.getStandard())
                 .build();
@@ -145,7 +146,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
         builder.setSniEnabled(false);
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
+        CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
                 .setNetworkConfig(NetworkConfig.getStandard())
                 .build();

@@ -425,7 +425,7 @@ public class TestDtlspClient {
         } catch (RuntimeException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "java.lang.Exception: handshake flight 5 timeout!")) {
+                    "java.lang.Exception: handshake flight 5 failed!")) {
                 //Everything ok
                 return;
             }

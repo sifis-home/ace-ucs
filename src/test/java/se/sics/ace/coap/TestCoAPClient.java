@@ -40,7 +40,6 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -137,8 +136,9 @@ public class TestCoAPClient {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setClientOnly();
+        builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
         ceb.setNetworkConfig(NetworkConfig.getStandard());
         CoapEndpoint e = ceb.build();
@@ -179,12 +179,12 @@ public class TestCoAPClient {
         builder.setClientOnly();
         builder.setSniEnabled(false);
         builder.setPskStore(new StaticPskStore("clientA", key128));
-        builder.setIdentity(asymmetricKey.AsPrivateKey(), 
-                asymmetricKey.AsPublicKey());
+        //builder.setIdentity(asymmetricKey.AsPrivateKey(), 
+        //       asymmetricKey.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
         
         CoapClient client = new CoapClient("coaps://localhost/token");
@@ -225,9 +225,10 @@ public class TestCoAPClient {
                 key.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
-        CoapEndpointBuilder ceb = new CoapEndpointBuilder();
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
        
         CoapClient client = new CoapClient("coaps://localhost/introspect");

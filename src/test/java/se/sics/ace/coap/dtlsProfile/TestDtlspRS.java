@@ -45,7 +45,6 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -242,12 +241,13 @@ public class TestDtlspRS {
         config.setPskStore(psk);
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
+        config.setRpkTrustAll();
         DTLSConnector connector = new DTLSConnector(config.build());
-        CoapEndpoint cep = new CoapEndpointBuilder().setConnector(connector)
+        CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
         rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
-        CoapEndpoint aiep = new CoapEndpointBuilder().setInetSocketAddress(
+        CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
         rs.addEndpoint(aiep);
         rs.setMessageDeliverer(dpd);

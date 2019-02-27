@@ -48,7 +48,6 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.AddressEndpointContext;
@@ -217,7 +216,7 @@ public class TestDtlspAuthzInfo {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x01});
-        CoapEndpoint cep = new CoapEndpointBuilder().build();
+        CoapEndpoint cep = new CoapEndpoint.Builder().build();
         cep.start();
         Exchange iex = new Exchange(req, Origin.REMOTE, null);
         iex.setRequest(req);   

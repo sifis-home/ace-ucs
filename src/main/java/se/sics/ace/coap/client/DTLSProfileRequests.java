@@ -104,7 +104,6 @@ public class DTLSProfileRequests {
                     new InetSocketAddress(0));
 
         builder.setClientAuthenticationRequired(true);
-        builder.setClientOnly();
         builder.setSniEnabled(false);
         CBORObject type = key.get(KeyKeys.KeyType);
         if (type.equals(KeyKeys.KeyType_Octet)) {
@@ -130,7 +129,7 @@ public class DTLSProfileRequests {
         }
 
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());      
-        CoapEndpoint ep = new CoapEndpoint.CoapEndpointBuilder()
+        CoapEndpoint ep = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
                 .setNetworkConfig(NetworkConfig.getStandard())
                 .build();
@@ -174,10 +173,10 @@ public class DTLSProfileRequests {
                         new InetSocketAddress(0));
 
             builder.setClientAuthenticationRequired(true);
-            builder.setClientOnly();
             builder.setSniEnabled(false);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+            builder.setRpkTrustAll();
             try {
                 builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
             } catch (CoseException e) {
@@ -189,7 +188,7 @@ public class DTLSProfileRequests {
         } else {
             c = new UDPConnector();
         }
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
+        CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
         CoapClient client = new CoapClient(rsAddr);
         client.setEndpoint(e);   
@@ -238,7 +237,6 @@ public class DTLSProfileRequests {
             = new DtlsConnectorConfig.Builder().setAddress(
                     new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
-        builder.setClientOnly();
         builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -252,7 +250,7 @@ public class DTLSProfileRequests {
                 key.get(KeyKeys.Octet_K).GetByteString());
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
+        CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
         CoapClient client = new CoapClient(serverAddress.getHostName());
         client.setEndpoint(e);   
@@ -292,7 +290,6 @@ public class DTLSProfileRequests {
             = new DtlsConnectorConfig.Builder().setAddress(
                 new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
-        builder.setClientOnly();
         builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -305,7 +302,7 @@ public class DTLSProfileRequests {
                 key.get(KeyKeys.Octet_K).GetByteString());
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder()
+        CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(c).setNetworkConfig(
                         NetworkConfig.getStandard()).build();
         CoapClient client = new CoapClient(serverAddress.getHostName());
@@ -329,7 +326,6 @@ public class DTLSProfileRequests {
             = new DtlsConnectorConfig.Builder().setAddress(
                     new InetSocketAddress(0));
         builder.setClientAuthenticationRequired(true);
-        builder.setClientOnly();
         builder.setSniEnabled(false);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
@@ -342,7 +338,7 @@ public class DTLSProfileRequests {
         }
         
         Connector c = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.CoapEndpointBuilder().setConnector(c)
+        CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
         CoapClient client = new CoapClient();
         client.setEndpoint(e);   

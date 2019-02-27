@@ -183,6 +183,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
        }
        config.setPskStore(db);
+       config.setRpkTrustAll();
        if (asymmetricKey != null) {
            config.setIdentity(asymmetricKey.AsPrivateKey(), 
                    asymmetricKey.AsPublicKey());
@@ -191,7 +192,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
        config.setSniEnabled(false);
        DTLSConnector connector = new DTLSConnector(config.build());
        
-       addEndpoint(new CoapEndpoint.CoapEndpointBuilder()
+       addEndpoint(new CoapEndpoint.Builder()
                .setConnector(connector).setNetworkConfig(
                        NetworkConfig.getStandard()).build());
        //Add a CoAP (no 's') endpoint for error messages
