@@ -150,13 +150,6 @@ public class TestAuthzInfoGroupOSCORE {
         myScopes.put("feedca570000_requester_listener", myResource3);
         myScopes.put("feedca570000_requester_purelistener", myResource3);
         
-        
-        // M.T.
-        // REMOVE
-        //GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
-        //        myScopes);
-        // END REMOVE
-        
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
@@ -186,6 +179,8 @@ public class TestAuthzInfoGroupOSCORE {
         i = new Introspect(pdp, db, new KissTime(), key);
         
         // M.T.
+        // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
+        // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
@@ -193,7 +188,8 @@ public class TestAuthzInfoGroupOSCORE {
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
-        // due to the interface of the IntrospectionHandler4Tests
+        // due to the interface of the IntrospectionHandler4Tests taking exactly
+        // one RS as second argument.
         ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
@@ -753,5 +749,77 @@ public class TestAuthzInfoGroupOSCORE {
                 new byte[]{0x12});
     }
 
+    // M.T.
+    /**
+     * Test successful submission to AuthzInfo, for
+     * accessing an OSCORE group with multiple roles.
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException  
+     */
+    @Test
+    public void testSuccessGroupOSCOREMultipleRoles() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+    	
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("purelistener");
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+    	
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x13}));
+        
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        
+        // Note the usage of this particular audience "rs2" acting as OSCORE Group Manager
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x13});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x13}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+        
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, "clientA", "rs2",
+                token.encode(ctx));
+              
+        // Note the usage of the dedicated authz-info endpoint for this audience "rs2"
+        LocalMessage response = (LocalMessage)ai2.processMessage(request);
+        System.out.println(response.toString());
+        assert(response.getMessageCode() == Message.CREATED);        
+        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
+        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
+        Assert.assertArrayEquals(cti.GetByteString(), 
+                new byte[]{0x13});
+    }
+    
 }   
 
