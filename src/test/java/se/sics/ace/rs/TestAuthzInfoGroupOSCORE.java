@@ -729,7 +729,6 @@ public class TestAuthzInfoGroupOSCORE {
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x12}), params);
         db.addCti2Client(ctiStr, "client1");  
-
         
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -801,7 +800,6 @@ public class TestAuthzInfoGroupOSCORE {
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x13}), params);
         db.addCti2Client(ctiStr, "client1");  
-
         
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -820,6 +818,6 @@ public class TestAuthzInfoGroupOSCORE {
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x13});
     }
-    
+
 }   
 
