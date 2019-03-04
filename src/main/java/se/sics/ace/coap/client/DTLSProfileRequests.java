@@ -220,7 +220,7 @@ public class DTLSProfileRequests {
      */
     public static CoapClient getPskClient(InetSocketAddress serverAddress,
             CBORObject token, OneKey key) {
-        if (serverAddress == null || serverAddress.getHostName() == null) {
+        if (serverAddress == null || serverAddress.getHostString() == null) {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
         }
@@ -252,7 +252,7 @@ public class DTLSProfileRequests {
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
-        CoapClient client = new CoapClient(serverAddress.getHostName());
+        CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(e);   
 
         return client;    
@@ -273,7 +273,7 @@ public class DTLSProfileRequests {
      */
     public static CoapClient getPskClient(InetSocketAddress serverAddress,
             byte[] kid, OneKey key) {
-        if (serverAddress == null || serverAddress.getHostName() == null) {
+        if (serverAddress == null || serverAddress.getHostString() == null) {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
         }
@@ -305,7 +305,7 @@ public class DTLSProfileRequests {
         CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(c).setNetworkConfig(
                         NetworkConfig.getStandard()).build();
-        CoapClient client = new CoapClient(serverAddress.getHostName());
+        CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(e);   
 
         return client;    
