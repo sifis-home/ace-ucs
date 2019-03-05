@@ -183,8 +183,8 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
        }
        config.setPskStore(db);
-       config.setRpkTrustAll();
        if (asymmetricKey != null) {
+           config.setRpkTrustAll();
            config.setIdentity(asymmetricKey.AsPrivateKey(), 
                    asymmetricKey.AsPublicKey());
        }
