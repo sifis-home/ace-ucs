@@ -54,6 +54,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.KeyKeys;
@@ -134,6 +135,141 @@ public class TestDtlspRSGroupOSCORE {
             
             // respond to the request
             exchange.respond("19.0 C");
+        }
+    }
+    
+    // M.T.
+    /**
+     * Definition of the Group OSCORE Join Resource
+     */
+    public static class GroupOSCOREJoinResource extends CoapResource {
+        
+        /**
+         * Constructor
+         */
+        public GroupOSCOREJoinResource(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Join Resource " + resId);
+        }
+
+        @Override
+        public void handlePOST(CoapExchange exchange) {
+            
+        	Set<String> roles = new HashSet<>();
+        	boolean providePublicKeys = false;
+        	
+        	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
+        	
+        	if (!joinRequest.getType().equals(CBORType.Map))
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        		
+        	// More steps follow:
+        	//
+        	// Retrieve 'scope' from the map; check the GroupID against the name of the resource, just for consistency.
+        	//
+        	// Retrieve the role(s) to possibly reduce the set of material to provide to the joining node.
+        	//
+        	// Any other check is performed through the method canAccess() of the TokenRepository, which is
+        	// in turn invoked by the deliverRequest() method of CoapDeliverer, upon getting the join request.
+        	// The actual checks of legitimate access are performed by scopeMatchResource() and scopeMatch()
+        	// of the GroupOSCOREJoinValidator used as Scope/Audience Validator.
+        	
+        	// Retrieve scope
+        	CBORObject scope = joinRequest.get("scope");
+        	
+        	if (scope == null)
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
+        	
+        	if (!scope.getType().equals(CBORType.ByteString)) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
+            }
+        	
+        	byte[] rawScope = scope.GetByteString();
+        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	
+        	if (!cborScope.getType().equals(CBORType.Array)) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+            }
+        	
+        	if (cborScope.size() != 2) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+            }
+        	
+        	// Retrieve the Group ID of the OSCORE group
+      	  	CBORObject scopeElement = cborScope.get(0);
+      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+      	  		String scopeStr = scopeElement.AsString();
+      	  		
+      	  		// TODO: perform a consistency check between 'scopeStr' and this accessed join resource 
+      	  	}
+      	  	else {
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+      	  	}
+      	  	
+      	  	// Retrieve the role or list of roles
+      	  	scopeElement = cborScope.get(1);
+      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+      	  		// Only one role is specified
+      	  		roles.add(scopeElement.AsString());
+      	  	}
+      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
+      	  		// Multiple roles are specified
+      	  		if (scopeElement.size() < 2) {
+      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+      	  		}
+      	  		for (int i=0; i<scopeElement.size(); i++) {
+      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
+      	  				roles.add(scopeElement.get(i).AsString());
+      	  			else {
+      	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+      	  			}
+      	  		}
+      	  	}
+      	  	else {
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+      	  	}
+        	
+        	// Retrieve 'get_pub_keys'
+        	// If present, this parameter must be an empty CBOR array
+        	CBORObject getPubKeys = joinRequest.get("get_pub_keys");
+        	if (getPubKeys != null) {
+        		
+        		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0)
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
+        		
+        		providePublicKeys = true;
+        		
+        		// TODO: Prepare the actual set of members' public key to be provided to the joining node
+        		// Note: this considers the value of 'providePublicKeys' and the content of 
+        		
+        	}
+        	
+        	// Retrieve 'client_cred'
+        	CBORObject clientCred = joinRequest.get("client_cred");
+        	
+        	if (clientCred == null) {
+        	
+        		// TODO: check if the Group Manager already owns this client's public key, otherwise reply with 4.00
+        		
+        	}
+        	else {
+        		
+        		// TODO: store this client's public key 
+        		// Note: this requires to understand if it's a COSE_Key, based on the signature algorithm used in the group
+        		
+        	}
+        	
+            // respond to the request
+            exchange.respond("Hello World!");
+            
+            // TODO: prepare the actual response as a CBOR map
+            
         }
     }
     
@@ -336,11 +472,13 @@ public class TestDtlspRSGroupOSCORE {
       = new AsInfo("coaps://blah/authz-info/");
       Resource hello = new HelloWorldResource();
       Resource temp = new TempResource();
+      Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
       Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
       
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
+      rs.add(join); // M.T.
       rs.add(authzInfo);
       
       dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
