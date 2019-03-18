@@ -44,6 +44,8 @@ import java.util.Set;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.CoapEndpointBuilder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -265,11 +267,34 @@ public class TestDtlspRSGroupOSCORE {
         		
         	}
         	
-            // respond to the request
-            exchange.respond("Hello World!");
+            // Respond to the request
+
+            // TODO: complete the actual response content to include in the CBOR map
             
-            // TODO: prepare the actual response as a CBOR map
-            
+        	CBORObject joinResponse = CBORObject.NewMap();
+        	
+        	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
+        	// NOTE: '0' is a temporary value.
+        	joinResponse.Add("kty", CBORObject.FromObject((int) 0));
+        	
+        	// This is the Group_OSCORE_Security_Context object.
+        	// TODO: add inner parameters, by extending the OSCORE_Security_Context object.
+        	joinResponse.Add("k", CBORObject.NewMap());
+        	
+        	// CBOR Value assigned to the coap_group_oscore profile.
+        	// NOTE: '0' is a temporary value.
+        	joinResponse.Add("profile", CBORObject.FromObject((int) 0));
+        	
+        	// Expiration time in seconds, after which the OSCORE Security Context
+        	// derived from the 'k' parameter is not valid anymore.
+        	joinResponse.Add("exp", CBORObject.FromObject((int) 1000000));
+        	
+        	// NOTE: this is currently skipping the inclusion of the optional
+        	// parameters 'pub_keys', 'group_policies' and 'group_policies'.
+        	
+        	byte[] responsePayload = joinResponse.EncodeToBytes();
+        	exchange.respond(ResponseCode.CREATED, responsePayload, MediaTypeRegistry.APPLICATION_CBOR);
+        	
         }
     }
     
@@ -363,148 +388,147 @@ public class TestDtlspRSGroupOSCORE {
             = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
         
-      //Set up the inner Authz-Info library
-      ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, ctx);
+        //Set up the inner Authz-Info library
+        ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        	 new KissTime(), 
+             null,
+             valid, ctx);
       
-      // M.T.
-      // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
-      // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
-      // 
-      // If provided, a proper Introspection Handler would require to take care of multiple audiences,
-      // rather than of a single RS as IntrospectionHandler4Tests does. This is already admitted in the
-      // Java interface IntrospectionHandler.
+        // M.T.
+        // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
+        // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
+        // 
+        // If provided, a proper Introspection Handler would require to take care of multiple audiences,
+        // rather than of a single RS as IntrospectionHandler4Tests does. This is already admitted in the
+        // Java interface IntrospectionHandler.
       
-      //Add a test token to authz-info
-      byte[] key128
-          = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      Map<Short, CBORObject> params = new HashMap<>(); 
-      params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-      params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-      params.put(Constants.CTI, CBORObject.FromObject(
-              "token1".getBytes(Constants.charset)));
-      params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        //Add a test token to authz-info
+        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                   "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
-      OneKey key = new OneKey();
-      key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
       
-      byte[] kid  = new byte[] {0x01, 0x02, 0x03};
-      CBORObject kidC = CBORObject.FromObject(kid);
-      key.add(KeyKeys.KeyId, kidC);
-      key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+        CBORObject kidC = CBORObject.FromObject(kid);
+        key.add(KeyKeys.KeyId, kidC);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
-      CBORObject cnf = CBORObject.NewMap();
-      cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-      params.put(Constants.CNF, cnf);
-      CWT token = new CWT(params);
-      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
-
-      
-      // M.T.
-      // Add a token to enable access to a join resource,
-      // for joining an OSCORE group with a single role
-      Map<Short, CBORObject> params2 = new HashMap<>();
-      String gid = new String("feedca570000");
-  	  String role1 = new String("requester");
-      
-      CBORObject cborArrayScope = CBORObject.NewArray();
-  	  cborArrayScope.Add(gid);
-  	  cborArrayScope.Add(role1);
-  	  byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-      params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-      params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
-      params2.put(Constants.CTI, CBORObject.FromObject(
-              "token2".getBytes(Constants.charset)));
-      params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
-      OneKey key2 = new OneKey();
-      key2.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-      byte[] kid2 = new byte[] {0x04, 0x05, 0x06};
-      CBORObject kidC2 = CBORObject.FromObject(kid2);
-      key2.add(KeyKeys.KeyId, kidC2);
-      key2.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-      CBORObject cnf2 = CBORObject.NewMap();
-      cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
-      params2.put(Constants.CNF, cnf2);
-      CWT token2 = new CWT(params2);
-      ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
-      
-      
-      // M.T.
-      // Add a token to enable access to a join resource,
-      // for joining an OSCORE group with multiple roles
-      Map<Short, CBORObject> params3 = new HashMap<>();
-  	  String role2 = new String("listener");
-      
-  	  cborArrayScope = CBORObject.NewArray();
-	  cborArrayScope.Add(gid);
-	  CBORObject cborArrayRoles = CBORObject.NewArray();
-	  cborArrayRoles.Add(role1);
-	  cborArrayRoles.Add(role2);
-	  cborArrayScope.Add(cborArrayRoles);
-	  byteStringScope = cborArrayScope.EncodeToBytes();
-      params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-      params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
-      params3.put(Constants.CTI, CBORObject.FromObject(
-              "token3".getBytes(Constants.charset)));
-      params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
-      OneKey key3 = new OneKey();
-      key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-      byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
-      CBORObject kidC3 = CBORObject.FromObject(kid3);
-      key3.add(KeyKeys.KeyId, kidC3);
-      key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-      CBORObject cnf3 = CBORObject.NewMap();
-      cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
-      params3.put(Constants.CNF, cnf3);
-      CWT token3 = new CWT(params3);
-      ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
-      
-      
-      AsInfo asi 
-      = new AsInfo("coaps://blah/authz-info/");
-      Resource hello = new HelloWorldResource();
-      Resource temp = new TempResource();
-      Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
-      Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
-      
-      rs = new CoapServer();
-      rs.add(hello);
-      rs.add(temp);
-      rs.add(join); // M.T.
-      rs.add(authzInfo);
-      
-      dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
       
-      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+        // M.T.
+        // Add a token to enable access to a join resource,
+        // for joining an OSCORE group with a single role
+        Map<Short, CBORObject> params2 = new HashMap<>();
+        String gid = new String("feedca570000");
+  	  	String role1 = new String("requester");
+      
+  	  	CBORObject cborArrayScope = CBORObject.NewArray();
+  	  	cborArrayScope.Add(gid);
+  	  	cborArrayScope.Add(role1);
+  	  	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+  	  	params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+  	  	params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
+  	  	params2.put(Constants.CTI, CBORObject.FromObject(
+                    "token2".getBytes(Constants.charset)));
+  	  	params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+  	  	OneKey key2 = new OneKey();
+  	  	key2.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      
+  	  	byte[] kid2 = new byte[] {0x04, 0x05, 0x06};
+  	  	CBORObject kidC2 = CBORObject.FromObject(kid2);
+  	  	key2.add(KeyKeys.KeyId, kidC2);
+  	  	key2.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+  	  	CBORObject cnf2 = CBORObject.NewMap();
+  	   cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
+  	   params2.put(Constants.CNF, cnf2);
+  	   CWT token2 = new CWT(params2);
+  	   ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
+      
+      
+  	   // M.T.
+  	   // Add a token to enable access to a join resource,
+  	   // for joining an OSCORE group with multiple roles
+  	   Map<Short, CBORObject> params3 = new HashMap<>();
+  	   String role2 = new String("listener");
+      
+  	   cborArrayScope = CBORObject.NewArray();
+  	   cborArrayScope.Add(gid);
+  	   CBORObject cborArrayRoles = CBORObject.NewArray();
+  	   cborArrayRoles.Add(role1);
+  	   cborArrayRoles.Add(role2);
+  	   cborArrayScope.Add(cborArrayRoles);
+  	   byteStringScope = cborArrayScope.EncodeToBytes();
+  	   params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+  	   params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
+  	   params3.put(Constants.CTI, CBORObject.FromObject(
+                   "token3".getBytes(Constants.charset)));
+  	   params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+  	   OneKey key3 = new OneKey();
+  	   key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      
+  	   byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
+  	   CBORObject kidC3 = CBORObject.FromObject(kid3);
+  	   key3.add(KeyKeys.KeyId, kidC3);
+  	   key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+  	   CBORObject cnf3 = CBORObject.NewMap();
+  	   cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
+  	   params3.put(Constants.CNF, cnf3);
+  	   CWT token3 = new CWT(params3);
+  	   ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
+      
+      
+  	   AsInfo asi 
+  	   = new AsInfo("coaps://blah/authz-info/");
+  	   Resource hello = new HelloWorldResource();
+  	   Resource temp = new TempResource();
+  	   Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
+  	   Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
+      
+  	   rs = new CoapServer();
+  	   rs.add(hello);
+  	   rs.add(temp);
+  	   rs.add(join); // M.T.
+  	   rs.add(authzInfo);
+      
+  	   dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+
+      
+  	   DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-        config.setPskStore(psk);
-        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(true);
-        DTLSConnector connector = new DTLSConnector(config.build());
-        CoapEndpoint cep = new CoapEndpointBuilder().setConnector(connector)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
-        rs.addEndpoint(cep);
-        //Add a CoAP (no 's') endpoint for authz-info
-        CoapEndpoint aiep = new CoapEndpointBuilder().setInetSocketAddress(
-                new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
-        rs.addEndpoint(aiep);
-        rs.setMessageDeliverer(dpd);
-        rs.start();
-        System.out.println("Server starting");
+       config.setSupportedCipherSuites(new CipherSuite[]{
+               CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+               CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+       DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
+       config.setPskStore(psk);
+       config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
+       config.setClientAuthenticationRequired(true);
+       DTLSConnector connector = new DTLSConnector(config.build());
+       CoapEndpoint cep = new CoapEndpointBuilder().setConnector(connector)
+               .setNetworkConfig(NetworkConfig.getStandard()).build();
+       rs.addEndpoint(cep);
+       //Add a CoAP (no 's') endpoint for authz-info
+       CoapEndpoint aiep = new CoapEndpointBuilder().setInetSocketAddress(
+               new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
+       rs.addEndpoint(aiep);
+       rs.setMessageDeliverer(dpd);
+       rs.start();
+       System.out.println("Server starting");
     }
     
     /**

@@ -273,9 +273,17 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
+         
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
     }
     
     
@@ -358,8 +366,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
     }
     
@@ -479,8 +494,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
 
     }
     
@@ -566,8 +588,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
 
     }
     
@@ -717,8 +746,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
     }
     
@@ -801,8 +837,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
     }
     
@@ -1123,13 +1166,20 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
     }
     
     
- // M.T.
+    // M.T.
     /** 
      * Test post to authz-info with PSK then request
      * for joining an OSCORE Group with multiple roles
@@ -1220,8 +1270,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        // For the time being, the CBOR map in the response is empty
-        Assert.assertEquals(0, joinResponse.size());
+        Assert.assertEquals(4, joinResponse.size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(CBORType.Map, joinResponse.get("k").getType());
+        Assert.assertEquals(0, joinResponse.get("k").size());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals((int) 0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
+        Assert.assertEquals((int) 1000000, joinResponse.get("exp").AsInt32());
         
     }
     
