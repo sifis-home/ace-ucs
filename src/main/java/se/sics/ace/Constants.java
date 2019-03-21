@@ -66,11 +66,11 @@ public class Constants {
      */
     public static short KID = 2;
     
-    //AUDIENCE as defined for the token endpoint parameters
+    //AUDIENCE = 5 as defined for the token endpoint parameters
     
-    //SCOPE as defined for the token endpoint parameters
+    //SCOPE = 9 as defined for the token endpoint parameters
     
-    //CNONCE as defined for the token endpoint parameters
+    //CNONCE = 39 as defined for the token endpoint parameters
     
     /**
      * Abbreviations for OAuth error codes ====================================
@@ -279,16 +279,16 @@ public class Constants {
      * The profile to be used between client and RS
      */
     public static final short PROFILE = 38; //0
-        
-    /**
-     * The public key of the RS
-     */
-    public static final short RS_CNF = 39;
-    
+            
     /**
      * The client nonce obtained from the AS Request Creation Hints
      */
-    public static final short CNONCE = 41;
+    public static final short CNONCE = 39;
+    
+    /**
+     * The public key of the RS
+     */
+    public static final short RS_CNF = 40;
     
     
     /** 
@@ -357,15 +357,14 @@ public class Constants {
 	//token_type = 34
 	//username = 35
 		
-	//profile = 38   
-	//rs_cnf = 39
+	//profile = 38  
+	//cnonce = 39
+	//rs_cnf = 40
 
     /**
      * The expiration of the token in seconds from when it first was seen by the RS.
      */
-    public static final short EXI = 40; //0
-
-    //cnonce = 41
+    public static final short EXI = 41; //0
 	
 	/**
 	 * CWT claims abbreviations ===============================================
@@ -380,9 +379,9 @@ public class Constants {
 	//cnf = 8
 	//scope = 9
 	//profile = 38
-	//rs_cnf = 39
-    //exi = 40
-    //cnonce = 41
+    //cnonce = 39
+	//rs_cnf = 40
+    //exi = 41
 
    /**
     * Token type abbreviations ================================================
