@@ -288,7 +288,7 @@ public class Constants {
     /**
      * The public key of the RS
      */
-    public static final short RS_CNF = 40;
+    public static final short RS_CNF = 41;
     
     
     /** 
@@ -364,7 +364,7 @@ public class Constants {
     /**
      * The expiration of the token in seconds from when it first was seen by the RS.
      */
-    public static final short EXI = 41; //0
+    public static final short EXI = 40; //0
 	
 	/**
 	 * CWT claims abbreviations ===============================================
@@ -381,7 +381,7 @@ public class Constants {
 	//profile = 38
     //cnonce = 39
 	//rs_cnf = 40
-    //exi = 41
+    //exi = 40
 
    /**
     * Token type abbreviations ================================================
