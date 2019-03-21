@@ -70,7 +70,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
-import se.sics.ace.rs.AsInfo;
+import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.TokenRepository;
 
@@ -217,8 +217,8 @@ public class TestDtlspRS {
       CWT token = new CWT(params);
       ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
-      AsInfo asi 
-      = new AsInfo("coaps://blah/authz-info/");
+      AsRequestCreationHints archm 
+          = new AsRequestCreationHints(false, "coaps://blah/authz-info/", null);
       Resource hello = new HelloWorldResource();
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
@@ -228,7 +228,7 @@ public class TestDtlspRS {
       rs.add(temp);
       rs.add(authzInfo);
 
-      dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+      dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
 
       
       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()

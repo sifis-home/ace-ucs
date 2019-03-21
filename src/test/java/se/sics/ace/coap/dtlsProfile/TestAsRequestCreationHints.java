@@ -31,15 +31,18 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
-import org.junit.Assert;
+import java.util.Map;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
+import org.junit.Assert;
 import se.sics.ace.AceException;
-import se.sics.ace.rs.AsInfo;
+import se.sics.ace.Constants;
+import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
  * Tests the DTLSProfileAsInfo class.
@@ -47,7 +50,7 @@ import se.sics.ace.rs.AsInfo;
  * @author Ludwig Seitz
  *
  */
-public class TestAsInfo {
+public class TestAsRequestCreationHints {
     
     /**
      * Expected exception
@@ -61,10 +64,10 @@ public class TestAsInfo {
     @Test
     public void testNullUri() {
         this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
-                    + "with null or empty asUri field");
+        this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
+                + " object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsInfo ai = new AsInfo(null);
+        AsRequestCreationHints ai = new AsRequestCreationHints(false, null, null);
     }
     
     /**
@@ -73,31 +76,25 @@ public class TestAsInfo {
     @Test
     public void testEmptyUri() {
         this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an DTLSProfileAsInfo object "
-                    + "with null or empty asUri field");
+        this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
+                + " object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsInfo ai = new AsInfo("");
+        AsRequestCreationHints ai = new AsRequestCreationHints(false, "", null);
     }
     
     /**
-     * Test round trips with creating and parsing AS information
+     * Test creating a valid AS info
      * 
      * @throws AceException
      */
     @Test 
     public void testRoundTrip() throws AceException {
-        AsInfo ai = new AsInfo("coaps://blah/authz-info/");
-        CBORObject cbor = ai.getCBOR();
-        AsInfo ai2 = AsInfo.parse(cbor.EncodeToBytes());
-        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
-        Assert.assertNull(ai.getNonce());
-        
-        byte[] nonce = {0x00, 0x01, 0x02};
-        ai = new AsInfo("blah", nonce);
-        cbor = ai.getCBOR();
-        ai2 = AsInfo.parse(cbor.EncodeToBytes());
-        Assert.assertEquals(ai.getAsUri(), ai2.getAsUri());
-        Assert.assertArrayEquals(nonce, ai2.getNonce());
+        AsRequestCreationHints ai = new AsRequestCreationHints(false, "coaps://testAS/token", null);
+        CBORObject cbor = ai.getHints(null, null, null);
+        Map<Short, CBORObject> hints = AsRequestCreationHints.parseHints(cbor);
+        Assert.assertTrue(hints.containsKey(Constants.AS));
+        Assert.assertEquals(hints.get(Constants.AS).AsString(), "coaps://testAS/token");
+ 
     }
 
 }

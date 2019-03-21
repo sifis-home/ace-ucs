@@ -55,7 +55,7 @@ import COSE.KeyKeys;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.rs.AsInfo;
+import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.TokenRepository;
@@ -91,9 +91,9 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
     private IntrospectionHandler i;
     
     /**
-     * The AS information message sent back to unauthorized requesters
+     * The class managing the AS Request Creation Hints
      */
-    private AsInfo asInfo;
+    private AsRequestCreationHints asRCH;
   
     /**
      * XXX: Implement with solution proposed by Kai/Achim 
@@ -108,13 +108,13 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
      * @param root  the root of the resources that this deliverer controls
      * @param tr  the token repository.
      * @param i  the introspection handler or null if there isn't any.
-     * @param asInfo  the AS information to send for client authz errors.
+     * @param asRCHM  the AS Request Creation Hints Manager.
      */
     public CoapDeliverer(Resource root, TokenRepository tr, 
-            IntrospectionHandler i, AsInfo asInfo) {
+            IntrospectionHandler i, AsRequestCreationHints asRCHM) {
         this.d = new ServerMessageDeliverer(root);
         this.tr = tr;
-        this.asInfo = asInfo;
+        this.asRCH = asRCHM;
     }
     
     @Override
@@ -140,11 +140,10 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
             LOGGER.warning("Unauthenticated client tried to get access");
-            r = new Response(ResponseCode.UNAUTHORIZED);
-            r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
-            ex.sendResponse(r);
+            failUnauthz(null, ex);
             return;
         }
+        
         String subject = request.getSourceContext()
                 .getPeerIdentity().getName();
         //XXX: Kludge to fix bug #649 in Scandium
@@ -164,22 +163,22 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                       kid = new String(ckid.GetByteString(), 
                               Constants.charset);
                    } else { //No kid in that CBOR map or it isn't a bstr
-                       failUnauthz(ex);
+                       failUnauthz(kid, ex);
                        return;
                    }
                 } else {//Some weird CBOR that is not a map here
-                   failUnauthz(ex);
+                   failUnauthz(kid, ex);
                    return;
                 }                
             } catch (CBORException e) {//Really no kid found for that subject
                 LOGGER.finest("Error while trying to parse some "
                         + "subject identity to CBOR: " + e.getMessage());
-               failUnauthz(ex);
+               failUnauthz(kid, ex);
                return;
             } catch (IllegalArgumentException e) {//Text was not Base64 encoded
                 LOGGER.finest("Error: " + e.getMessage() 
                 + " while trying to Base64 decode this: " + subject);
-                failUnauthz(ex);
+                failUnauthz(kid, ex);
                 return;
             }
            
@@ -196,16 +195,18 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                 this.d.deliverRequest(ex);
                 return;
             case TokenRepository.UNAUTHZ :
-               failUnauthz(ex);
+               failUnauthz(kid,ex);
                return;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
-                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+                r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                        this.tr, kid).EncodeToBytes());
                 ex.sendResponse(r);
                 return;
             case TokenRepository.METHODNA :
                 r = new Response(ResponseCode.METHOD_NOT_ALLOWED);
-                r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+                r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                        this.tr, kid).EncodeToBytes());
                 ex.sendResponse(r);
                 return;
             default :
@@ -237,11 +238,13 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
     /**
      * Fail a request with 4.01 Unauthorized.
      * 
-     * @param ex  the exchange
+     * @param kid  the kid of the key for the security association 
+     *              or null if it was not established
      */
-    private void failUnauthz(final Exchange ex) {
+    private void failUnauthz(String kid, Exchange ex) {
         Response r = new Response(ResponseCode.UNAUTHORIZED);
-        r.setPayload(this.asInfo.getCBOR().EncodeToBytes());
+        r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                this.tr, kid).EncodeToBytes());
         ex.sendResponse(r);
     }
 

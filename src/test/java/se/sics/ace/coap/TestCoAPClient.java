@@ -194,7 +194,7 @@ public class TestCoAPClient {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_temp rw_config foobar"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);    

@@ -77,7 +77,7 @@ public class GetToken {
             payload.Add(Constants.CLIENT_ID, clientId);
         }
         if (aud != null) {
-            payload.Add(Constants.AUD, aud);
+            payload.Add(Constants.AUDIENCE, aud);
         }
         if (scope != null) {
             payload.Add(Constants.SCOPE, scope);
@@ -117,7 +117,7 @@ public class GetToken {
             payload.Add(Constants.REDIRECT_URI, redirectURI);
         }
         if (aud != null) {
-            payload.Add(Constants.AUD, aud);
+            payload.Add(Constants.AUDIENCE, aud);
         }
         if (scope != null) {
             payload.Add(Constants.SCOPE, scope);
@@ -160,7 +160,7 @@ public class GetToken {
         payload.Add(Constants.PASSWORD, password);
         
         if (aud != null) {
-            payload.Add(Constants.AUD, aud);
+            payload.Add(Constants.AUDIENCE, aud);
         }
         if (scope != null) {
             payload.Add(Constants.SCOPE, scope);
@@ -186,7 +186,7 @@ public class GetToken {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.GRANT_TYPE, Constants.GT_CLI_CRED);
         if (aud != null) {
-            payload.Add(Constants.AUD, aud);
+            payload.Add(Constants.AUDIENCE, aud);
         }
         if (scope != null) {
             payload.Add(Constants.SCOPE, scope);

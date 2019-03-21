@@ -184,9 +184,9 @@ public class TokenRepository implements AutoCloseable {
      *     does not exist it is created
      * @param ctx  the crypto context for reading encrypted tokens
 	 * 
-	 * @param scopeValidator
-	 * @param tokenFile
-	 * @param ctx
+	 * @param scopeValidator  the validator for scopes
+	 * @param tokenFile  the file where to save tokens
+	 * @param ctx  the crypto context
 	 * @throws AceException
 	 * @throws IOException
 	 */
@@ -700,6 +700,18 @@ public class TokenRepository implements AutoCloseable {
      */
     public boolean checkScope(CBORObject scope) throws AceException {
         return this.scopeValidator.isScopeMeaningful(scope);
+    }
+    
+    /**
+     * Returns the necessary scope to perform the given action on the given
+     * resource.
+     * 
+     * @param resource  the resource
+     * @param action  the action
+     * @return  the scope necessary to perform the action on the resource
+     */
+    public CBORObject getScope(String resource, short action) {
+        return this.scopeValidator.getScope(resource, action);
     }
 }
 

@@ -346,8 +346,8 @@ public class Token implements Endpoint, AutoCloseable {
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
 		
-		//4. Check if the request has an audience or if there is a default aud
-		cbor = msg.getParameter(Constants.AUD);
+		//4. Check if the request has an audience or if there is a default audience
+		cbor = msg.getParameter(Constants.AUDIENCE);
 		Set<String> aud = new HashSet<>();
 		if (cbor == null) {
 		    try {
@@ -477,7 +477,7 @@ public class Token implements Endpoint, AutoCloseable {
                 claims.put(Constants.SUB, CBORObject.FromObject(id));
                 break;
 		    case Constants.AUD:
-		        //Check if AUD is a singleton
+		        //Check if AUDIENCE is a singleton
 		        if (aud.size() == 1) {
 		            claims.put(Constants.AUD, CBORObject.FromObject(
 		                    aud.iterator().next()));

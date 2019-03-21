@@ -76,4 +76,13 @@ public interface ScopeValidator {
      * @throws AceException 
      */
     boolean isScopeMeaningful(CBORObject scope) throws AceException;
+
+    /**
+     * Return the minimal scope for the given action on the given resource.
+     * 
+     * @param resource  the resource
+     * @param action  the action
+     * @return  the scope
+     */
+    CBORObject getScope(String resource, short action);
 }

@@ -34,7 +34,9 @@ package se.sics.ace.examples;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
@@ -137,5 +139,24 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
             throw new AceException("Scope must be a String in KissValidator");
         }
         return this.myScopes.containsKey(scope.AsString());
+    }
+
+    @Override
+    public CBORObject getScope(String resource, short action) {
+        Iterator<Entry<String, Map<String, Set<Short>>>> it = this.myScopes.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Map<String, Set<Short>>> e = it.next();
+            Iterator<Entry<String, Set<Short>>> it2 = e.getValue().entrySet().iterator();
+            while (it2.hasNext()) {
+                Map.Entry<String, Set<Short>> e2 = it2.next();
+                if (e2.getKey().equals(resource)) {//Found resource
+                //Check if action matches
+                    if (e2.getValue().contains(action)) {
+                        return CBORObject.FromObject(e.getKey());
+                    }
+                }   
+            }
+        }
+        return null; //No scope found
     }
 }

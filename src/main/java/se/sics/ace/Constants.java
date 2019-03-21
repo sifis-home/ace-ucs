@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2018, RlISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -53,19 +53,24 @@ public class Constants {
     
     
     /**
-     * AS Information  ========================================================
+     * AS Request Creation Hints  ========================================================
      */
     
     /**
      * The authorization server address
      */
-    public static final short AS = 0; // Major type 3 (text string)
-    
+    public static final short AS = 1; // Major type 3 (text string)
+   
     /**
-     * A nonce
+     * The key identifier
      */
-    public static final short nonce = 5; // Major type 2 (byte string)
+    public static short KID = 2;
     
+    //AUDIENCE as defined for the token endpoint parameters
+    
+    //SCOPE as defined for the token endpoint parameters
+    
+    //CNONCE as defined for the token endpoint parameters
     
     /**
      * Abbreviations for OAuth error codes ====================================
@@ -170,10 +175,20 @@ public class Constants {
     public static final short ACCESS_TOKEN = 1; // 3
     
     /**
-     * The requested audience for a token
+     * The time when this token expires (in Epoch time)
      */
-    public static final short REQ_AUD = 3; //2
+    public static final short EXPIRES_IN = 2; // 0
     
+    /**
+     * The requested public key for proof-of-possession
+     */
+    public static final short REQ_CNF = 4;
+        
+    /**
+     * The requested audience of an access token
+     */
+    public static final short AUDIENCE = 5;
+        
     /**
      * The proof-of-possession key selected by the AS
      */
@@ -184,16 +199,7 @@ public class Constants {
      */
     public static final short SCOPE = 9; //3
     
-    /**
-     * The public key of the RS
-     */
-    public static final short RS_CNF = 11;
-    
-    /**
-     * The requested public key for proof-of-possession
-     */
-    public static final short REQ_CNF = 12;
-    
+ 
     /**
      * The client identifier in a token request
      */
@@ -255,29 +261,35 @@ public class Constants {
     public static final short TOKEN_TYPE = 34; // 0
     
     /**
-     * The time when this token expires (in Epoch time)
-     */
-    public static final short EXPIRES_IN = 35; // 0
-    
-    /**
      * The username, for a username/password grant
      */
-    public static final short USERNAME = 36; //3
+    public static final short USERNAME = 35; //3
     
     /**
      * The password, for a username/password grant
      */
-    public static final short PASSWORD = 37; //3
+    public static final short PASSWORD = 36; //3
     
     /**
      * The refresh token
      */
-    public static final short REFRESH_TOKEN = 38; //3
+    public static final short REFRESH_TOKEN = 37; //3
         
     /**
      * The profile to be used between client and RS
      */
-    public static final short PROFILE = 39; //0
+    public static final short PROFILE = 38; //0
+        
+    /**
+     * The public key of the RS
+     */
+    public static final short RS_CNF = 39;
+    
+    /**
+     * The client nonce obtained from the AS Request Creation Hints
+     */
+    public static final short CNONCE = 41;
+    
     
     /** 
      * OAuth introspection endpoint abbreviations =============================
@@ -319,35 +331,41 @@ public class Constants {
 	 */
 	public static final short CTI = 7; // Major type 2 (byte string)
 	
-	// CNF = 8; 	
-    //scope=9
+	//cnf = 8  	
+    //scope = 9
 	
     /**
      * A boolean indicating if a token is active in an introspection response
      */
     public static final short ACTIVE = 10; // boolean
-	
-    //RS_CNF = 11
     
-	/**
-	 * The token in an introspection request
-	 */
-	public static final short TOKEN = 12; // 3
-	
-	
+    /**
+     * The token in an introspection request
+     */
+    public static final short TOKEN = 11; // 3
+  	
     //client_id = 24
 	//error = 30
 	//error_description = 31
 	//error_uri = 32
-	
+
 	/**
 	 * A hint for the AS about the type of token in an introspection request
 	 */
 	public static final short TOKEN_TYPE_HINT = 33; //3
 	
 	//token_type = 34
-	//username = 36
-	//profile = 39
+	//username = 35
+		
+	//profile = 38   
+	//rs_cnf = 39
+
+    /**
+     * The expiration of the token in seconds from when it first was seen by the RS.
+     */
+    public static final short EXI = 40; //0
+
+    //cnonce = 41
 	
 	/**
 	 * CWT claims abbreviations ===============================================
@@ -361,20 +379,10 @@ public class Constants {
 	//cti = 7
 	//cnf = 8
 	//scope = 9
-	//profile = 39
-	//rs_cnf = 40 
-	
-	/**
-	 * The public key the RS should use to authenticate
-	 * Note that this value is not the same as for the parameter abbreviations
-	 */
-	public static final short RS_CNF_CLAIM = 40;
-	
-	/**
-     * The expiration of the token in seconds from when it first was seen by the RS.
-     */
-    public static final short EXI = 41; //0
-	
+	//profile = 38
+	//rs_cnf = 39
+    //exi = 40
+    //cnonce = 41
 
    /**
     * Token type abbreviations ================================================

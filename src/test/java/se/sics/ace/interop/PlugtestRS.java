@@ -77,7 +77,7 @@ import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
-import se.sics.ace.rs.AsInfo;
+import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.TokenRepository;
 
@@ -274,7 +274,7 @@ public class PlugtestRS {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(rs2, coseP.getAlg().AsCBOR());     
         
-        AsInfo asi = new AsInfo("coaps://31.133.132.127:5689/token");
+        AsRequestCreationHints archm = new AsRequestCreationHints(false, "coaps://31.133.132.127:5689/token", null);
         Resource hello = new HelloWorldResource();
         Resource lock = new LockResource();
         KissValidator valid = new KissValidator(Collections.singleton("RS2"),
@@ -295,7 +295,7 @@ public class PlugtestRS {
         rs.add(ace);
         rs.add(authzInfo);
 
-        dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+        dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
 
         DtlsConnectorConfig.Builder config 
         = new DtlsConnectorConfig.Builder().setAddress(
@@ -350,7 +350,7 @@ public class PlugtestRS {
      CwtCryptoCtx ctx 
          = CwtCryptoCtx.encrypt0(rs1, coseP.getAlg().AsCBOR());     
      
-     AsInfo asi = new AsInfo("coaps://31.133.145.200:5689/token");
+     AsRequestCreationHints archm = new AsRequestCreationHints(false, "coaps://31.133.145.200:5689/token", null);
      Resource hello = new HelloWorldResource();
      Resource lock = new LockResource();
      KissValidator valid = new KissValidator(Collections.singleton("RS1"),
@@ -371,7 +371,7 @@ public class PlugtestRS {
      rs.add(ace);
      rs.add(authzInfo);
 
-     dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+     dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
 
      DtlsConnectorConfig.Builder config 
      = new DtlsConnectorConfig.Builder().setAddress(

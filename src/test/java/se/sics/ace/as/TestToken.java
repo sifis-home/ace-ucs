@@ -441,7 +441,7 @@ public class TestToken {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("blah"));
-        params.put(Constants.AUD, CBORObject.FromObject("blubb"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("blubb"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -463,7 +463,7 @@ public class TestToken {
     public void testFailIncompatibleTokenType() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("failTokenType"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("failTokenType"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenType"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -487,7 +487,7 @@ public class TestToken {
     public void testFailIncompatibleProfile() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("failProfile"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("failProfile"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failProfile"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -510,7 +510,7 @@ public class TestToken {
     public void testFailUnsupportedTokenType() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("rs5"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs5"));
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);      
@@ -532,7 +532,7 @@ public class TestToken {
     public void testFailPskNotSupported() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_light"));
         Message msg = new LocalMessage(-1, "clientD", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -554,7 +554,7 @@ public class TestToken {
     public void testFailUnknownKeyType() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("rs6"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs6"));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_valve"));
         Message msg = new LocalMessage(-1, "clientC", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -576,7 +576,7 @@ public class TestToken {
     public void testFailIncompatibleCwt() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("failCWTpar"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("failCWTpar"));
         params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -598,7 +598,7 @@ public class TestToken {
     public void testSucceedDefaultScope() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -654,7 +654,7 @@ public class TestToken {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("rw_valve r_pressure foobar"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -688,7 +688,7 @@ public class TestToken {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("rw_valve"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject rpk = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
         enc.addAttribute(HeaderKeys.Algorithm, 
@@ -725,7 +725,7 @@ public class TestToken {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_pressure"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);
@@ -814,7 +814,7 @@ public class TestToken {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_pressure"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);

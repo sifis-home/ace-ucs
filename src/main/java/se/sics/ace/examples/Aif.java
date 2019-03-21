@@ -171,5 +171,15 @@ public class Aif implements ScopeValidator {
         }
         return false; //No resource found
     }
+
+    @Override
+    public CBORObject getScope(String resource, short action) {
+        CBORObject scope = CBORObject.NewArray();
+        CBORObject scopeElement = CBORObject.NewArray();
+        scopeElement.Add(resource);
+        scopeElement.Add(powers[action]);
+        scope.Add(scopeElement);
+        return scope;
+    }
     
 }

@@ -796,7 +796,7 @@ public class PlugtestClient {
 //                        return;
 //                    }
 //                    CWT cwt = null;
-//                    //FIXME:
+//
 //                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx1);
 //                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctx2);
 //                    cwt = CWT.processCOSE(tokenAsCbor.EncodeToBytes(), ctxJim);

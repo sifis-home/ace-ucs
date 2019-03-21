@@ -72,6 +72,7 @@ public class Authorize implements Endpoint, AutoCloseable {
 
     @Override
     public Message processMessage(Message msg) {
+        //TODO
         
         
 //        response_type = "code".
