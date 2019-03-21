@@ -51,9 +51,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 
-import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;

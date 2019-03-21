@@ -67,7 +67,8 @@ public class TestAsRequestCreationHints {
         this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
                 + " object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsRequestCreationHints ai = new AsRequestCreationHints(false, null, null);
+        AsRequestCreationHints ai = new AsRequestCreationHints(
+                null, null, false, false);
     }
     
     /**
@@ -79,7 +80,8 @@ public class TestAsRequestCreationHints {
         this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
                 + " object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsRequestCreationHints ai = new AsRequestCreationHints(false, "", null);
+        AsRequestCreationHints ai = new AsRequestCreationHints(
+                "", null, false, false);
     }
     
     /**
@@ -89,7 +91,8 @@ public class TestAsRequestCreationHints {
      */
     @Test 
     public void testRoundTrip() throws AceException {
-        AsRequestCreationHints ai = new AsRequestCreationHints(false, "coaps://testAS/token", null);
+        AsRequestCreationHints ai = new AsRequestCreationHints(
+                "coaps://testAS/token", null, false, false);
         CBORObject cbor = ai.getHints(null, null, null);
         Map<Short, CBORObject> hints = AsRequestCreationHints.parseHints(cbor);
         Assert.assertTrue(hints.containsKey(Constants.AS));

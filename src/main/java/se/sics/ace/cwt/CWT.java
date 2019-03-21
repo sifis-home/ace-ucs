@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.cwt;
 
+import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -66,6 +67,11 @@ import com.upokecenter.cbor.CBORObject;
  *
  */
 public class CWT implements AccessToken {
+    
+    static {
+        Security.addProvider(
+                new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    }
 
 	private Map<Short, CBORObject> claims;	
 	
