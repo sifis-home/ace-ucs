@@ -160,7 +160,7 @@ public class TestAuthzInfo {
     private static void createTR(KissValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null);
+                    + "tokens.json", null, new KissTime(), false, null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -168,7 +168,7 @@ public class TestAuthzInfo {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null);
+                        + "tokens.json", null, new KissTime(), false, null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -263,8 +263,7 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
         String kidStr = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
-        assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET,
-                new KissTime(), null));
+        assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET, null));
 
     }
     
@@ -684,7 +683,7 @@ public class TestAuthzInfo {
                 new byte[]{0x12});
         
         Assert.assertEquals(1, tr.canAccess(kidStr, "client1", "temp", 
-                Constants.GET, new KissTime(), null));
+                Constants.GET, null));
         
     }
 }

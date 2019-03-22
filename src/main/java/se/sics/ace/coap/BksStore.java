@@ -295,14 +295,14 @@ public class BksStore implements PskStore {
 
     @Override
     public byte[] getKey(ServerNames arg0, String identity) {
-        //TODO: ServerNames extension not supported for this Store
+        //XXX: ServerNames extension not supported for this Store
         return getKey(identity);
     }
 
     @Override
     public String getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
-        // TODO: ServerNames extension not supported for this Store
+        //XXX: ServerNames extension not supported for this Store
         return null;
     }
     

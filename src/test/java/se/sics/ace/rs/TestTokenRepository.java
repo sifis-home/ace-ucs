@@ -169,7 +169,7 @@ public class TestTokenRepository {
     private static void createTR(KissValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null);
+                    + "tokens.json", null, new KissTime(), false, null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -177,7 +177,7 @@ public class TestTokenRepository {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null);
+                        + "tokens.json", null, new KissTime(), false, null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -450,20 +450,15 @@ public class TestTokenRepository {
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(rpk, null, "co2", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.METHODNA, 
-                tr.canAccess(rpk, null, "co2", Constants.POST, 
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.POST, 
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     
@@ -498,20 +493,15 @@ public class TestTokenRepository {
         
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "co2", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, 
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, 
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET,  
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     /**
@@ -544,20 +534,15 @@ public class TestTokenRepository {
         tr.addToken(params, ctx, null);
 
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, 
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST,
-                        new KissTime(), null));
+                tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     
@@ -597,7 +582,7 @@ public class TestTokenRepository {
         Assert.assertNotNull(key1);
         Assert.assertNotNull(key2);
         
-        tr.purgeTokens(time);
+        tr.purgeTokens();
 
         key1 = tr.getPoP("dG9rZW4x");
         key2 = tr.getPoP("dG9rZW4y");
@@ -635,23 +620,20 @@ public class TestTokenRepository {
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
-                TestConfig.testFilePath + "testTokens.json" , ctx);
+                TestConfig.testFilePath + "testTokens.json" , ctx, new KissTime(),
+                false, null);
         
         //Assert.assertEquals(TokenRepository.OK,
         //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
         //                new KissTime(), null));
         Assert.assertEquals(TokenRepository.OK,
-                tr2.canAccess(ourKey, null, "temp", Constants.GET,
-                        new KissTime(), null));  
+                tr2.canAccess(ourKey, null, "temp", Constants.GET, null));  
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr2.canAccess("otherKey", null, "co2", Constants.GET, 
-                        new KissTime(), null));
+                tr2.canAccess("otherKey", null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.METHODNA,
-                tr2.canAccess(ourKey, null, "temp", Constants.POST, 
-                        new KissTime(), null)); 
+                tr2.canAccess(ourKey, null, "temp", Constants.POST, null)); 
         Assert.assertEquals(TokenRepository.FORBID,
-                tr2.canAccess(ourKey, null, "co2", Constants.GET, 
-                        new KissTime(), null)); 
+                tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
         tr2.close();
     }
     

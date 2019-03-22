@@ -54,7 +54,6 @@ import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.examples.KissTime;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -188,8 +187,8 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         short action = (short) request.getCode().value;  
       
         try {
-            int res = this.tr.canAccess(kid, subject, resource, action, 
-                    new KissTime(), this.i);
+            int res = this.tr.canAccess(
+                    kid, subject, resource, action, this.i);
             switch (res) {
             case TokenRepository.OK :
                 this.d.deliverRequest(ex);

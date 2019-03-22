@@ -125,7 +125,7 @@ public class AsRequestCreationHints {
         }        
        
         if (this.createNonce) {
-            //TODO: Handle nonces     
+            byte[] cnonce = tr.createNonce();    
         }
         
         return cbor;

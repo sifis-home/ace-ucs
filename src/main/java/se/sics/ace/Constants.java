@@ -49,7 +49,7 @@ public class Constants {
     /**
      * Charset for this library
      */
-    public static Charset charset = Charset.forName("UTF-8");
+    public static final Charset charset = Charset.forName("UTF-8");
     
     
     /**
@@ -64,7 +64,7 @@ public class Constants {
     /**
      * The key identifier
      */
-    public static short KID = 2;
+    public static final short KID = 2;
     
     //AUDIENCE = 5 as defined for the token endpoint parameters
     
@@ -528,12 +528,12 @@ public class Constants {
     /**
      * The abbreviation code for the DTLS profile
      */
-    public static short COAP_DTLS = 1;
+    public static final short COAP_DTLS = 1;
     
     /**
      * The abbreviation code for the OSCORE profile
      */
-    public static short COAP_OSCORE = 2;
+    public static final short COAP_OSCORE = 2;
     
     /**
      * Return the abbreviated profile id for the full profile name.
@@ -551,80 +551,212 @@ public class Constants {
         }
     }
     
-//    /**
-//     * Maps a parameter map to the unabbreviated version. FIXME: very broken now
-//     * 
-//     * @param map
-//      * @return  the unabbreviated version of the map
-//      * @throws AceException  if map is not a CBOR map
-//     */
-//    public static Map<String, CBORObject> unabbreviate(CBORObject map) 
-//            throws AceException {
-//        if (!map.getType().equals(CBORType.Map)) {
-//            throw new AceException("Parameter is not a CBOR map");
-//        }
-//        Map<String, CBORObject> ret = new HashMap<>();
-//        for (CBORObject key : map.getKeys()) {
-//            String keyStr = null;
-//            CBORObject obj = map.get(key);
-//            if (key.isIntegral()) {
-//                short keyInt = key.AsInt16();
-//                if (keyInt > 0 && keyInt < Constants.ABBREV.length) {
-//                   keyStr = Constants.ABBREV[keyInt];
-//                    if (keyInt == GRANT_TYPE
-//                            && map.get(key).getType().equals(CBORType.Number)) {
-//                        obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
-//                    } else if (keyInt == ERROR
-//                            && map.get(key).getType().equals(CBORType.Number)) {
-//                        obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
-//                    }                   
-//                } else {
-//                    throw new AceException("Malformed parameter map");
-//                }
-//            } else if (key.getType().equals(CBORType.TextString)) {
-//                keyStr = key.AsString();
-//            } else {
-//                throw new AceException("Malformed parameter map");
-//            }
-//            ret.put(keyStr, obj);
-//        }
-//       return ret;
-//    }
+    /**
+     * Array of the human readable names for AS Request Creation Hints 
+     * parameters.
+     */
+    public static String[] ABBREV_HINTS = new String[42];
+    static {
+        ABBREV_HINTS[1] = "AS";
+        ABBREV_HINTS[2] = "kid";
+        ABBREV_HINTS[5] = "audience";
+        ABBREV_HINTS[9] = "scope";
+        ABBREV_HINTS[39] = "cnonce";
+    }
+    
+    /**
+     * Array of the human readable names for the token parameters.
+     */
+    public static String[] ABBREV_TOKEN = new String[42];
+    static {
+        ABBREV_TOKEN[1] = "access_token"; 
+        ABBREV_TOKEN[2] = "expires_in"; 
+        ABBREV_TOKEN[4] = "req_cnf"; 
+        ABBREV_TOKEN[5] = "audience"; 
+        ABBREV_TOKEN[8] = "cnf"; 
+        ABBREV_TOKEN[9] = "scope"; 
+        ABBREV_TOKEN[24] = "client_id"; 
+        ABBREV_TOKEN[25] = "client_secret"; 
+        ABBREV_TOKEN[26] = "response_type"; 
+        ABBREV_TOKEN[27] = "redirect_uri"; 
+        ABBREV_TOKEN[28] = "state"; 
+        ABBREV_TOKEN[29] = "code";
+        ABBREV_TOKEN[30] = "error"; 
+        ABBREV_TOKEN[31] = "error_description"; 
+        ABBREV_TOKEN[32] = "error_uri"; 
+        ABBREV_TOKEN[33] = "grant_type"; 
+        ABBREV_TOKEN[34] = "token_type"; 
+        ABBREV_TOKEN[35] = "username"; 
+        ABBREV_TOKEN[36] = "password"; 
+        ABBREV_TOKEN[37] = "refresh_token"; 
+        ABBREV_TOKEN[38] = "profile"; 
+        ABBREV_TOKEN[39] = "cnonce"; 
+        ABBREV_TOKEN[41] = "rs_cnf";
+    }
+    
+    /**
+     * Array of the human readable names for the introspect parameters.
+     */
+    public static String[] ABBREV_INTROSPECT = new String[42];
+    static {
+        ABBREV_INTROSPECT[1] = "iss"; 
+        ABBREV_INTROSPECT[2] = "sub"; 
+        ABBREV_INTROSPECT[3] = "aud";
+        ABBREV_INTROSPECT[4] = "exp"; 
+        ABBREV_INTROSPECT[5] = "nbf"; 
+        ABBREV_INTROSPECT[6] = "iat";
+        ABBREV_INTROSPECT[7] = "cti"; 
+        ABBREV_INTROSPECT[8] = "cnf"; 
+        ABBREV_INTROSPECT[9] = "scope";
+        ABBREV_INTROSPECT[10] = "active"; 
+        ABBREV_INTROSPECT[11] = "token"; 
+        ABBREV_INTROSPECT[24] = "client_id"; 
+        ABBREV_INTROSPECT[30] = "error"; 
+        ABBREV_INTROSPECT[31] = "error_description"; 
+        ABBREV_INTROSPECT[32] = "error_uri"; 
+        ABBREV_INTROSPECT[33] = "token_type_hint"; 
+        ABBREV_INTROSPECT[34] = "token_type"; 
+        ABBREV_INTROSPECT[35] = "username"; 
+        ABBREV_INTROSPECT[38] = "profile"; 
+        ABBREV_INTROSPECT[39] = "cnonce";
+        ABBREV_INTROSPECT[40] = "exi";
+        ABBREV_INTROSPECT[41] = "rs_cnf";
+    }
+    
+    /**
+     * Array of the human readable names for the CWT claims
+     */
+    public static String[] ABBREV_CWT = new String[42];
+    static {
+        ABBREV_CWT[1] = "iss"; 
+        ABBREV_CWT[2] = "sub"; 
+        ABBREV_CWT[3] = "aud";
+        ABBREV_CWT[4] = "exp"; 
+        ABBREV_CWT[5] = "nbf"; 
+        ABBREV_CWT[6] = "iat";
+        ABBREV_CWT[7] = "cti"; 
+        ABBREV_CWT[8] = "cnf"; 
+        ABBREV_CWT[9] = "scope";
+        ABBREV_CWT[38] = "profile"; 
+        ABBREV_CWT[39] = "cnonce";
+        ABBREV_CWT[40] = "exi";
+        ABBREV_CWT[41] = "rs_cnf";
+    }
+    
+    /**
+     * Type identifier for AS Request Creation Hints abbreviations
+     */
+    public static final short ABBREV_TYPE_HINTS = 0;
+    
+    /**
+     * Type identifier for Token endpoint parameter abbreviations
+     */
+    public static final short ABBREV_TYPE_TOKEN = 1;
+    
+    /**
+     * Type identifier for Introspection endpoint parameter abbreviations
+     */
+    public static final short ABBREV_TYPE_INTROSPECT = 2;
+    
+    /**
+     * Type identifier for CWT claims abbreviations
+     */
+    public static final short ABBREV_TYPE_CWT = 3;
+    
+    /**
+     * Maps a parameter/claims map to the unabbreviated version.
+     * 
+     * @param map  the parameter/claims map to decode
+     * @param type  the type of parameter/claim map to decode 
+     *   (see constants ABBREV_TYPE_*) 
+     * 
+      * @return  the unabbreviated version of the map
+      * @throws AceException  if map is not a CBOR map
+     */
+    public static Map<String, CBORObject> unabbreviate(
+            CBORObject map, short type) throws AceException {                
+        if (!map.getType().equals(CBORType.Map)) {
+            throw new AceException("Parameter is not a CBOR map");
+        }
+        Map<String, CBORObject> ret = new HashMap<>();
+
+        String[] abbrev;
+        switch (type) {
+        case ABBREV_TYPE_HINTS:
+            abbrev = ABBREV_HINTS;
+            break;
+        case ABBREV_TYPE_TOKEN:
+            abbrev = ABBREV_TOKEN;
+            break;
+        case ABBREV_TYPE_INTROSPECT:
+            abbrev = ABBREV_INTROSPECT;
+            break;
+        case ABBREV_TYPE_CWT:
+        default: 
+            abbrev = ABBREV_CWT;
+        }
+
+        for (CBORObject key : map.getKeys()) {
+            String keyStr = null;
+            CBORObject obj = map.get(key);
+            if (key.isIntegral()) {
+                short keyInt = key.AsInt16();
+                if (keyInt > 0 && keyInt < abbrev.length) {
+                   keyStr = abbrev[keyInt];
+                    if (keyInt == GRANT_TYPE
+                            && map.get(key).getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
+                    } else if (keyInt == ERROR
+                            && map.get(key).getType().equals(CBORType.Number)) {
+                        obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
+                    }                   
+                } else {
+                    throw new AceException("Malformed parameter map");
+                }
+            } else if (key.getType().equals(CBORType.TextString)) {
+                keyStr = key.AsString();
+            } else {
+                throw new AceException("Malformed parameter map");
+            }
+            ret.put(keyStr, obj);
+        }
+       return ret;
+    }
     
     /**
      * Representation of GET
      */
-    public static short GET = 1;
+    public static final short GET = 1;
     
     /**
      *  Representation of POST
      */
-    public static short POST = 2;
+    public static final short POST = 2;
     
     /**
      *  Representation of PUT
      */
-    public static short PUT = 3;
+    public static final short PUT = 3;
     
     /**
      *  Representation of DELETE
      */
-    public static short DELETE = 4;
+    public static final short DELETE = 4;
     
     /**
      * Representation of FETCH
      */
-    public static short FETCH = 5;
+    public static final short FETCH = 5;
     
     /**
      * Representation of PATCH
      */
-    public static short PATCH = 6;
+    public static final short PATCH = 6;
     
     /**
      * Representation of iPATCH
      */
-    public static short iPATCH = 7;
+    public static final short iPATCH = 7;
     
     
     

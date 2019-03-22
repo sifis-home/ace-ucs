@@ -148,7 +148,7 @@ public class TestAuthzInfoAif {
     private static void createTR(Aif valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null);
+                    + "tokens.json", null, new KissTime(), false, null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -156,7 +156,7 @@ public class TestAuthzInfoAif {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null);
+                        + "tokens.json", null, new KissTime(), false, null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }

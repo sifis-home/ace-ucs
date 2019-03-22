@@ -11,7 +11,7 @@ import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
 public class PlugtestIntrospect {
 
     public static void main(String[] args) {
-        //TODO:
+        //TODO: Implement this
         //CoapsIntrospection rs2 = new CoapsIntrospection(psk, pskIdentity, keystoreLocation, keystorePwd, addr2idFile, addr2id, introspectAddress);
         //CoapsIntrospection rs1 = new CoapsIntrospection(psk, pskIdentity, keystoreLocation, keystorePwd, addr2idFile, addr2id, introspectAddress);
 

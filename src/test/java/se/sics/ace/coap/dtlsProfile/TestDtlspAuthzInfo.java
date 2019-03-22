@@ -173,7 +173,7 @@ public class TestDtlspAuthzInfo {
     private static void createTR(KissValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null);
+                    + "tokens.json", null, new KissTime(), false, null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -181,7 +181,7 @@ public class TestDtlspAuthzInfo {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null);
+                        + "tokens.json", null, new KissTime(), false, null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -232,8 +232,7 @@ public class TestDtlspAuthzInfo {
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "temp", Constants.GET, 
-                        new KissTime(), null));
+                tr.canAccess(kid, kid, "temp", Constants.GET, null));
     }
          
     /**

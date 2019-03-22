@@ -669,7 +669,7 @@ public class TestToken {
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
         assert(!claims.get(Constants.SCOPE).AsString().contains("foobar"));
-        assert(!params.containsKey(Constants.PROFILE));
+        assert(!params.containsKey(Constants.PROFILE));    
     }
     
     

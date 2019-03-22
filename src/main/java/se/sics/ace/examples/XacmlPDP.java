@@ -172,7 +172,6 @@ public class XacmlPDP implements PDP {
 	}
 
 	@Override
-	// TODO: check if there is a case where this method would return ACTIVE_ONLY.
 	public IntrospectAccessLevel getIntrospectAccessLevel(String rsId) {
 		Set<Attributes> attributes = new HashSet<>();
 		attributes.add(introspectResource);

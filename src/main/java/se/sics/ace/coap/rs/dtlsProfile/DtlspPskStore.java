@@ -146,7 +146,7 @@ public class DtlspPskStore implements PskStore {
 
     @Override
     public byte[] getKey(ServerNames serverNames, String identity) {
-        //TODO: No support for ServerNames extension yet
+        //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }
 
@@ -154,7 +154,7 @@ public class DtlspPskStore implements PskStore {
     @Override
     public String getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
-        // TODO: No support for ServerNames extension yet
+        // XXX: No support for ServerNames extension yet
         return null;
     }
 

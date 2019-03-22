@@ -36,6 +36,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -151,7 +152,21 @@ public class TokenRepository implements AutoCloseable {
 	 * The filename + path for the JSON file in which the tokens are stored
 	 */
 	private String tokenFile;
+	
+	/**
+	 * The map of expiration times to client-nonces
+	 */
+	private Map<Long, byte[]> cnonces = null;
+	
+	/**
+	 * The expiration time for client nonces. Default is 1 minute
+	 */
+	private long cnonceExp = 60000L;
 
+	/**
+	 * The time provider providing local time for this RS
+	 */
+	private TimeProvider time;
 	
 	/**
 	 * The singleton instance
@@ -187,16 +202,23 @@ public class TokenRepository implements AutoCloseable {
 	 * @param scopeValidator  the validator for scopes
 	 * @param tokenFile  the file where to save tokens
 	 * @param ctx  the crypto context
+	 * @param time  the time provider for this RS
+	 * @param useCnonces  true if this RS is to use client-nonces for access 
+	 *     token freshness verification
+	 * @param cnonceExpiration  the expiration time for client-nonces, or null
+     *     if the default is to be used
 	 * @throws AceException
 	 * @throws IOException
 	 */
 	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx) 
+            String tokenFile, CwtCryptoCtx ctx, TimeProvider time, 
+            boolean useCnonces, Long cnonceExpiration) 
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
-	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx);
+	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, 
+	            time, useCnonces, cnonceExpiration);
 	}
 	
 	/**
@@ -211,11 +233,16 @@ public class TokenRepository implements AutoCloseable {
 	 * @param tokenFile  the file storing the existing tokens, if the file
 	 *     does not exist it is created
 	 * @param ctx  the crypto context for reading encrypted tokens
+	 * @param useCnonces  true if this RS is to use client-nonces for access 
+     *     token freshness verification
+	 * @param cnonceExpiration  the expiration time for client-nonces, or null
+	 *     if the default is to be used
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
 	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx) 
+	        String tokenFile, CwtCryptoCtx ctx, TimeProvider time,
+	        boolean useCnonces, Long cnonceExpiration) 
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -223,6 +250,13 @@ public class TokenRepository implements AutoCloseable {
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
+	    this.time = time;
+	    if (useCnonces) {
+	        this.cnonces = new HashMap<>();
+	        if (cnonceExpiration != null) {
+	            this.cnonceExp = cnonceExpiration;
+	        }
+	    }
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
 	    }
@@ -270,13 +304,24 @@ public class TokenRepository implements AutoCloseable {
 	 * @param ctx  the crypto context of this RS  
 	 * @param sid  the subject identity of the user of this token, or null
 	 *     if not needed
-	 * 
+	 *     
 	 * @return  the cti or the local id given to this token
 	 * 
 	 * @throws AceException 
 	 */
 	public synchronized CBORObject addToken(Map<Short, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {
+	    
+	    //Check for cnonce
+	    if (this.cnonces != null) {
+	        CBORObject cnonce = claims.get(Constants.CNONCE);
+	        if (cnonce == null) {
+	            LOGGER.info("Expected a cnonce but found none");
+	            throw new AceException("cnonce expected but not found");
+	        }
+	        purgeCnonces();
+	    }
+	    
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
 			throw new AceException("Token has no scope");
@@ -373,6 +418,24 @@ public class TokenRepository implements AutoCloseable {
 	}
 
 	/**
+	 * Remove expired cnonces from the repository
+	 */
+	private void purgeCnonces() {
+	    Long now = this.time.getCurrentTime();
+        Set<Long> expired = new HashSet<>();
+        //Find expired entries ...
+        for (Long exp : this.cnonces.keySet()) {
+            if (now > exp) {
+                expired.add(exp);
+            }
+        }
+        // ... and remove them
+        for (Long exp : expired) {
+            this.cnonces.remove(exp);
+        }
+    }
+
+    /**
 	 * Add the mappings for the cnf-key.
 	 * 
 	 * @param key  the key
@@ -450,11 +513,10 @@ public class TokenRepository implements AutoCloseable {
 	
 	/**
 	 * Poll the stored tokens and expunge those that have expired.
-	 * @param time  the time provider
      *
 	 * @throws AceException 
 	 */
-	public synchronized void purgeTokens(TimeProvider time) 
+	public synchronized void purgeTokens() 
 				throws AceException {
 	    HashSet<String> tokenToRemove = new HashSet<>();
 		for (Map.Entry<String, Map<Short, CBORObject>> foo 
@@ -468,7 +530,7 @@ public class TokenRepository implements AutoCloseable {
 		            throw new AceException(
 		                    "Expiration time is in wrong format");
 		        }
-		        if (time.getCurrentTime() > exp.AsInt64()) {
+		        if (this.time.getCurrentTime() > exp.AsInt64()) {
 		            tokenToRemove.add(foo.getKey());
 				}
 			}
@@ -485,7 +547,6 @@ public class TokenRepository implements AutoCloseable {
 	 * @param subject  the authenticated subject if there is any, can be null
 	 * @param resource  the resource that is accessed
 	 * @param action  the RESTful action code.
-	 * @param time  the time provider
 	 * @param intro  the introspection handler, can be null
 	 * @return  1 if there is a token giving access, 0 if there is no token 
 	 * for this resource and user,-1 if the existing token(s) do not authorize 
@@ -494,8 +555,11 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws IntrospectionException 
 	 */
 	public int canAccess(String kid, String subject, String resource, 
-	        short action, TimeProvider time, IntrospectionHandler intro) 
+	        short action, IntrospectionHandler intro) 
 			        throws AceException, IntrospectionException {
+	    //Expunge expired tokens
+	    purgeTokens();
+	    
 	    //Check if we have tokens for this pop-key
 	    if (!this.cti2kid.containsValue(kid)) {
 	        return UNAUTHZ; //No tokens for this pop-key
@@ -535,9 +599,10 @@ public class TokenRepository implements AutoCloseable {
             //Check if the token is expired
             CBORObject exp = claims.get(Constants.EXP); 
              if (exp != null && !exp.isIntegral()) {
-                    throw new AceException("Expiration time is in wrong format");
+                    throw new AceException(
+                            "Expiration time is in wrong format");
              }
-             if (exp != null && exp.AsInt64() < time.getCurrentTime()) {
+             if (exp != null && exp.AsInt64() < this.time.getCurrentTime()) {
                  //Token is expired
                  continue;
              }
@@ -547,7 +612,7 @@ public class TokenRepository implements AutoCloseable {
              if (nbf != null &&  !nbf.isIntegral()) {
                  throw new AceException("NotBefore time is in wrong format");
              }
-             if (nbf != null && nbf.AsInt64() > time.getCurrentTime()) {
+             if (nbf != null && nbf.AsInt64() > this.time.getCurrentTime()) {
                  //Token not valid yet
                  continue;
              }   
@@ -712,6 +777,24 @@ public class TokenRepository implements AutoCloseable {
      */
     public CBORObject getScope(String resource, short action) {
         return this.scopeValidator.getScope(resource, action);
+    }
+
+    /**
+     * Create a client-nonce to ensure freshness of access tokens, when the
+     * RS has no synchronzied clock with the AS. 
+     * 
+     * @return  a random none
+     */
+    public byte[] createNonce() {
+        if (this.cnonces == null) {
+            LOGGER.info("cnonce requested but not configured to handle them");
+            return null;
+        }
+        byte[] cnonce = new byte[8];
+        new SecureRandom().nextBytes(cnonce);
+        Long exp = this.time.getCurrentTime() + this.cnonceExp;
+        this.cnonces.put(exp, cnonce);
+        return cnonce;
     }
 }
 
