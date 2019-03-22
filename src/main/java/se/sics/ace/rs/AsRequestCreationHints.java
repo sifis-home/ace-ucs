@@ -125,7 +125,8 @@ public class AsRequestCreationHints {
         }        
        
         if (this.createNonce) {
-            byte[] cnonce = tr.createNonce();    
+            byte[] cnonce = tr.createNonce();
+            cbor.Add(Constants.CNONCE, cnonce);
         }
         
         return cbor;

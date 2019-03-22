@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.dtlsProfile;
+package se.sics.ace.rs;
 
 import java.util.Map;
 
@@ -45,7 +45,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
- * Tests the DTLSProfileAsInfo class.
+ * Tests the AsRequestCreationHints  class.
  * 
  * @author Ludwig Seitz
  *

@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -37,6 +37,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -313,13 +314,27 @@ public class TokenRepository implements AutoCloseable {
 	        CwtCryptoCtx ctx, String sid) throws AceException {
 	    
 	    //Check for cnonce
-	    if (this.cnonces != null) {
+	    if (this.cnonces != null) {//Means we are using the client nonces
 	        CBORObject cnonce = claims.get(Constants.CNONCE);
 	        if (cnonce == null) {
 	            LOGGER.info("Expected a cnonce but found none");
 	            throw new AceException("cnonce expected but not found");
 	        }
 	        purgeCnonces();
+	        if (!cnonce.getType().equals(CBORType.ByteString)) {
+	            throw new AceException("Invalid cnonce type");
+	        }
+	        byte[] cnonceB = cnonce.GetByteString();
+	        boolean valid = false;
+	        for (byte[] validN : this.cnonces.values()) {
+	            if (Arrays.equals(cnonceB, validN)) {
+	                valid = true;
+	                break;
+	            }
+	        }
+	        if (!valid) {
+	            throw new AceException("cnonce invalid");
+	        }
 	    }
 	    
 		CBORObject so = claims.get(Constants.SCOPE);
