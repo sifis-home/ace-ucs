@@ -35,6 +35,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.logging.Logger;
 
@@ -198,14 +200,24 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                return;
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
-                r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                        this.tr, kid).EncodeToBytes());
+                try {
+                    r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                            this.tr, kid).EncodeToBytes());
+                } catch (InvalidKeyException | NoSuchAlgorithmException e) {
+                    LOGGER.severe("cnonce creation failed: " + e.getMessage());
+                    ex.sendResponse(r); //Send response without payload
+                }
                 ex.sendResponse(r);
                 return;
             case TokenRepository.METHODNA :
                 r = new Response(ResponseCode.METHOD_NOT_ALLOWED);
-                r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                        this.tr, kid).EncodeToBytes());
+                try {
+                    r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                            this.tr, kid).EncodeToBytes());
+                } catch (InvalidKeyException | NoSuchAlgorithmException e) {
+                    LOGGER.severe("cnonce creation failed: " + e.getMessage());
+                    ex.sendResponse(r);
+                }
                 ex.sendResponse(r);
                 return;
             default :
@@ -242,9 +254,14 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
      */
     private void failUnauthz(String kid, Exchange ex) {
         Response r = new Response(ResponseCode.UNAUTHORIZED);
-        r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                this.tr, kid).EncodeToBytes());
-        ex.sendResponse(r);
+        try {
+            r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
+                    this.tr, kid).EncodeToBytes());
+        } catch (InvalidKeyException | NoSuchAlgorithmException e) {
+            LOGGER.severe("cnonce creation failed: " + e.getMessage());
+            ex.sendResponse(r); //Just send UNAUTHORIZED without a payload
+        }
+       
     }
 
     @Override

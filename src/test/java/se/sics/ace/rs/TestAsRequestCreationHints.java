@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
 import org.junit.Rule;
@@ -88,9 +90,12 @@ public class TestAsRequestCreationHints {
      * Test creating a valid AS info
      * 
      * @throws AceException
+     * @throws NoSuchAlgorithmException 
+     * @throws InvalidKeyException 
      */
     @Test 
-    public void testRoundTrip() throws AceException {
+    public void testRoundTrip() throws AceException, InvalidKeyException,
+            NoSuchAlgorithmException {
         AsRequestCreationHints ai = new AsRequestCreationHints(
                 "coaps://testAS/token", null, false, false);
         CBORObject cbor = ai.getHints(null, null, null);

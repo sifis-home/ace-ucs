@@ -33,12 +33,15 @@ package se.sics.ace.rs;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
@@ -138,7 +141,7 @@ public class TestCnonce {
     private static void createTR(KissValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), true, 500L);
+                    + "tokens.json", null, new KissTime(), true, null);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -146,7 +149,7 @@ public class TestCnonce {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), true, 500L);
+                        + "tokens.json", null, new KissTime(), true, null);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -160,9 +163,12 @@ public class TestCnonce {
      * Test a successful round-trip with cnonce
      * 
      * @throws AceException 
+     * @throws NoSuchAlgorithmException 
+     * @throws InvalidKeyException 
      */
     @Test
-    public void testSuccess() throws AceException {
+    public void testSuccess() throws AceException, InvalidKeyException,
+            NoSuchAlgorithmException {
        AsRequestCreationHints hints = new AsRequestCreationHints(
                "coaps://example.as.com/token", null, false, true);
 
@@ -204,13 +210,36 @@ public class TestCnonce {
     }
     
     /**
-     * Test adding a token with unknown cnonce claim
+     * Test adding a token with unknown cnonce claim with wrong length
+     * 
+     * @throws AceException 
+     */
+    @Test
+    public void testInvalidLengthCnonce() throws AceException {
+       byte[] otherNonce = {0x00, 0x01, 0x02};
+       
+       Map<Short, CBORObject> params = new HashMap<>(); 
+       params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+       params.put(Constants.CTI, CBORObject.FromObject(
+               "token2".getBytes(Constants.charset)));
+       params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+       params.put(Constants.CNF, pskCnf);
+       params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
+       this.thrown.expect(AceException.class);
+       this.thrown.expectMessage("Invalid cnonce length");
+       tr.addToken(params, ctx, null);      
+    }
+    
+    /**
+     * Test adding a token with unknown cnonce claim with right length
      * 
      * @throws AceException 
      */
     @Test
     public void testInvalidCnonce() throws AceException {
-       byte[] otherNonce = {0x00, 0x01, 0x02};
+       byte[] otherNonce = new byte[36];
+       new SecureRandom().nextBytes(otherNonce);
        
        Map<Short, CBORObject> params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
@@ -224,7 +253,6 @@ public class TestCnonce {
        this.thrown.expectMessage("cnonce invalid");
        tr.addToken(params, ctx, null);      
     }
-    
     /**
      * Test adding a token with invalid cnonce type
      * 
@@ -251,19 +279,23 @@ public class TestCnonce {
      * 
      * @throws AceException 
      * @throws InterruptedException 
+     * @throws NoSuchAlgorithmException 
+     * @throws InvalidKeyException 
      */
     @Test
-    public void testExpiredCnonce() throws AceException, InterruptedException {
+    public void testExpiredCnonce() throws AceException, InterruptedException,
+            InvalidKeyException, NoSuchAlgorithmException {
         AsRequestCreationHints hints = new AsRequestCreationHints(
                 "coaps://example.as.com/token", null, false, true);
 
         Request req = new Request(Code.GET);
         req.setURI("coap://localhost/temp");       
         CBORObject hintsCBOR = hints.getHints(req, tr, null);
-        CBORObject cnonce = hintsCBOR.get(CBORObject.FromObject(Constants.CNONCE));
+        CBORObject cnonce = hintsCBOR.get(
+                CBORObject.FromObject(Constants.CNONCE));
         System.out.println("client nonce: " + cnonce);
         Assert.assertNotNull(cnonce);
-        
+
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
@@ -271,12 +303,61 @@ public class TestCnonce {
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
+        
+        
+        for (int i=0; i<36; i++) {//"expire" cnonce
+            CBORObject dummyH = hints.getHints(req, tr, null);
+            CBORObject dummyC = dummyH.get(
+                    CBORObject.FromObject(Constants.CNONCE));
+            params.put(Constants.CTI, CBORObject.FromObject(
+                new String("" + i).getBytes(Constants.charset)));
+            params.put(Constants.CNONCE, CBORObject.FromObject(dummyC));
+            tr.addToken(params, ctx, null);   
+        }
         params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
-        TimeUnit.SECONDS.sleep(1);
+        
+        
         this.thrown.expect(AceException.class);
-        this.thrown.expectMessage("cnonce invalid");
+        this.thrown.expectMessage("cnonce expired");
         tr.addToken(params, ctx, null);       
     }
+    
+    /**
+     * Test replaying a nonce
+     * 
+     * @throws AceException 
+     * @throws NoSuchAlgorithmException 
+     * @throws InvalidKeyException 
+     */
+    @Test
+    public void testReplay() throws AceException, InvalidKeyException,
+            NoSuchAlgorithmException {
+       AsRequestCreationHints hints = new AsRequestCreationHints(
+               "coaps://example.as.com/token", null, false, true);
+
+       Request req = new Request(Code.GET);
+       req.setURI("coap://localhost/temp");       
+       CBORObject hintsCBOR = hints.getHints(req, tr, null);
+       CBORObject cnonce = hintsCBOR.get(CBORObject.FromObject(Constants.CNONCE));
+       System.out.println("client nonce: " + cnonce);
+       Assert.assertNotNull(cnonce);
+       
+       Map<Short, CBORObject> params = new HashMap<>(); 
+       params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+       params.put(Constants.CTI, CBORObject.FromObject(
+               "token1".getBytes(Constants.charset)));
+       params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+       params.put(Constants.CNF, pskCnf);
+       params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
+       tr.addToken(params, ctx, null);      
+       this.thrown.expect(AceException.class);
+       this.thrown.expectMessage("cnonce replayed");
+       params.put(Constants.CTI, CBORObject.FromObject(
+               "token2".getBytes(Constants.charset)));
+       tr.addToken(params, ctx, null);
+    }
+    
     
     
     /**
@@ -287,5 +368,12 @@ public class TestCnonce {
     public void cleanup() throws AceException {
         tr.removeToken("dG9rZW4x");
         tr.removeToken("dG9rZW4y");
+        for (int i=0; i<36; i++) {//remove dummy tokens
+            CBORObject cti = CBORObject.FromObject(
+                    new String("" + i).getBytes(Constants.charset));
+            String ctiStr = Base64.getEncoder().encodeToString(
+                    cti.GetByteString());       
+            tr.removeToken(ctiStr);
+        }
     }
 }

@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,6 +41,7 @@ import org.eclipse.californium.core.coap.Request;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
 /**
@@ -101,9 +104,12 @@ public class AsRequestCreationHints {
      *  with the client, null if we don't have a secure connection
      *  
      * @return  the AS Request Creation Hints
+     * @throws AceException 
+     * @throws InvalidKeyException  if the nonce creation fails
      * @throws NoSuchAlgorithmException  if the nonce creation fails
      */
-    public CBORObject getHints(Request req, TokenRepository tr, String kid) {
+    public CBORObject getHints(Request req, TokenRepository tr, String kid) 
+            throws InvalidKeyException, NoSuchAlgorithmException {
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.AS, this.asUri);          
         if (kid != null) {
@@ -127,8 +133,7 @@ public class AsRequestCreationHints {
         if (this.createNonce) {
             byte[] cnonce = tr.createNonce();
             cbor.Add(Constants.CNONCE, cnonce);
-        }
-        
+        }        
         return cbor;
     }
 
