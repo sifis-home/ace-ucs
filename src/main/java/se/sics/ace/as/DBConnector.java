@@ -45,7 +45,7 @@ import se.sics.ace.AceException;
  * This interface provides database connectivity methods for the 
  * Attribute Authority.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public interface DBConnector {
@@ -213,6 +213,15 @@ public interface DBConnector {
      * The column name for Audiences
      */
     public String audColumn = "Aud";
+    
+    
+    // M.T.
+	//******************New table********************************
+    /**
+     * The table of audiences an RS acting as OSCORE Group Manager identifies with
+     */    
+    public String oscoreGroupManagersTable = "OSCOREGroupManagers";
+     
     
     //******************New table********************************   
     /**
@@ -415,6 +424,20 @@ public interface DBConnector {
     public Set<String> getAudiences(String rsId) 
                 throws AceException;
 
+    // M.T.
+    /**
+     * Gets the audiences that this RS acting as OSCORE Group Manager is part of.
+     * Note that the rs identifier is always a singleton audience itself.
+     * 
+     * @param rsId  the rs identifier
+     *
+     * @return  the audience identifiers that this RS is part of
+     * 
+     * @throws AceException 
+     */
+    public Set<String> getOSCOREGroupManagers(String rsId) 
+                throws AceException;
+    
 	/**
 	 * Gets the scopes associated to this RS.
 	 *
@@ -517,6 +540,18 @@ public interface DBConnector {
             Set<String> auds, Set<String> keyTypes, Set<Short> tokenTypes, 
             Set<COSEparams> cose, long expiration, OneKey tokenPsk, 
             OneKey authPsk, OneKey publicKey) throws AceException;
+	
+	// M.T.
+	/**
+	 * Adds the audiences a previously added RS acting as OSCORE Group Manager identifies with.
+	 * 
+     * @param rsId  the identifier for the RS
+     * @param auds  the audiences this RS identifies with
+     *
+	 * @throws AceException 
+	 */
+	public void addOSCOREGroupManagers(String rsId, Set<String> auds) throws AceException;
+	
 	/**
 	 * Deletes an RS and all related registration data.
 	 * 

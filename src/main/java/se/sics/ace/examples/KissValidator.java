@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -53,7 +54,7 @@ import se.sics.ace.rs.ScopeValidator;
  * The actions are expected to be integers corresponding to the 
  * values for RESTful actions in <code>Constants</code>.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class KissValidator implements AudienceValidator, ScopeValidator {
@@ -158,5 +159,15 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
             }
         }
         return null; //No scope found
+    }
+    
+    // M.T.
+    // This method performs as isScopeMeaningful(CBORObject scope) for this Validator
+    @Override
+    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
+        if (!scope.getType().equals(CBORType.TextString)) {
+            throw new AceException("Scope must be a String in KissValidator");
+        }
+        return this.myScopes.containsKey(scope.AsString());
     }
 }

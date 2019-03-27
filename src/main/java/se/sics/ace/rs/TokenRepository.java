@@ -40,6 +40,7 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -777,6 +778,7 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	public OneKey getPoP(String cti) throws AceException {
 	    if (cti != null) {
+	        purgeTokens();
 	        String kid = this.cti2kid.get(cti);
 	        OneKey key = this.kid2key.get(kid);
 	        if (key == null) {
@@ -909,6 +911,18 @@ public class TokenRepository implements AutoCloseable {
         
         
         return nonce;
+    }
+
+    /**
+     * Checks if a given scope is meaningful for this repository.
+     * 
+     * @param scope  the Scope can be CBOR String or CBOR array
+     * @param aud  the Audiences as an Array of Strings
+     * @return true if the scope is meaningful, false otherwise 
+     * @throws AceException 
+     */
+    public boolean checkScope(CBORObject scope, ArrayList<String> aud) throws AceException {
+        return this.scopeValidator.isScopeMeaningful(scope, aud);
     }
 }
 

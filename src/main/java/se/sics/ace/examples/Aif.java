@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -43,7 +44,7 @@ import se.sics.ace.rs.ScopeValidator;
 /**
  * This implements the scope format proposed in draft-bormann-core-ace-aif
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class Aif implements ScopeValidator {
@@ -180,6 +181,28 @@ public class Aif implements ScopeValidator {
         scopeElement.Add(powers[action]);
         scope.Add(scopeElement);
         return scope;
+    }
+    
+    // M.T.
+    // This method performs as isScopeMeaningful(CBORObject scope) for this Validator
+    @Override
+    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
+        if (!scope.getType().equals(CBORType.Array)) {
+            throw new AceException("Scope must be a CBOR array in Aif");
+        }
+        
+        //Find the resource
+        for (int i=0; i<scope.size();i++) {
+            CBORObject scopeElement = scope.get(i);
+            if (!scopeElement.getType().equals(CBORType.Array)) {
+                throw new AceException("Invalid scope format");
+            }
+            String resource = scopeElement.get(0).AsString();
+            if (this.resources.contains(resource)) {
+                return true;
+            }
+        }
+        return false; //No resource found
     }
     
 }

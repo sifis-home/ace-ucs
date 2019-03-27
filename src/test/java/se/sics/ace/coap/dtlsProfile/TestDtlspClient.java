@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Base64;
@@ -59,6 +60,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -145,6 +147,7 @@ public class TestDtlspClient {
     @AfterClass
     public static void tearDown() throws IOException, AceException {
         srv.stop();
+        new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
     /**

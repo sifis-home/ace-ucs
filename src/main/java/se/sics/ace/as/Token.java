@@ -33,6 +33,7 @@ package se.sics.ace.as;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -772,7 +773,12 @@ public class Token implements Endpoint, AutoCloseable {
 		    }
 		} //Skip cnf if client requested specific KID.
 
-		if (!allowedScopes.equals(scope)) {
+		// M.T.
+		// Handle "scope" both as String and as Byte Array
+		if (scope instanceof String && !allowedScopes.equals(scope)) {
+		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
+		}
+		if (scope instanceof byte[] && !(Arrays.equals((byte[])allowedScopes, (byte[])scope))) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
 

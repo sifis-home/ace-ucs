@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2019, RISE AB
+ * Copyright (c) 2018, RISE SICS AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -67,16 +67,16 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.examples.GroupOSCOREJoinValidator;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.KissValidator;
 
 /**
  * Tests for the TokenRepository class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
-public class TestTokenRepository {
+public class TestTokenRepositoryGroupOSCORE {
     
     static OneKey asymmetricKey;
     static OneKey symmetricKey;
@@ -140,8 +140,33 @@ public class TestTokenRepository {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        // M.T.
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions2 = new HashSet<>();
+        actions2.add(Constants.POST);
+        Map<String, Set<Short>> myResource2 = new HashMap<>();
+        myResource2.put("feedca570000", actions2);
+        myScopes.put("feedca570000_requester", myResource2);
+        myScopes.put("feedca570000_listener", myResource2);
+        myScopes.put("feedca570000_purelistener", myResource2);
+        myScopes.put("feedca570000_requester_listener", myResource2);
+        myScopes.put("feedca570000_requester_purelistener", myResource2);
+        
+        // M.T.
+        Set<String> auds = new HashSet<>();
+        auds.add("rs1"); // Simple test audience
+        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        
+        // M.T.
+        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+        valid.setGMAudiences(Collections.singleton("rs2"));
+        
+        // M.T.
+        // Include this resource as a join resource for Group OSCORE.
+        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+        valid.setJoinResources(Collections.singleton("feedca570000"));
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -158,6 +183,7 @@ public class TestTokenRepository {
        
     }
     
+    // M.T.
     /**
      * Create the Token repository if not already created,
      * if already create ignore.
@@ -166,7 +192,7 @@ public class TestTokenRepository {
      * @throws IOException 
      * 
      */
-    private static void createTR(KissValidator valid) throws IOException {
+    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
                     + "tokens.json", null, new KissTime(), false, null);
@@ -461,6 +487,108 @@ public class TestTokenRepository {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
+    // M.T.
+    /**
+     * Test add token with cnf containing COSE_Key, to access a
+     * join resource for joining an OSCORE group with a single role
+     *
+     * @throws AceException 
+     * @throws IntrospectionException 
+     * @throws CoseException 
+     */
+    @Test
+    public void testTokenCnfCoseKeyGroupOSCORESingleRole() 
+            throws AceException, IntrospectionException, CoseException {
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, pskCnf);
+        tr.addToken(params, ctx, null);
+        
+        params.clear();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, rpkCnf);
+        tr.addToken(params, ctx, null);
+        rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
+    
+ // M.T.
+    /**
+     * Test add token with cnf containing COSE_Key, to access a
+     * join resource for joining an OSCORE group with multiple roles
+     *
+     * @throws AceException 
+     * @throws IntrospectionException 
+     * @throws CoseException 
+     */
+    @Test
+    public void testTokenCnfCoseKeyGroupOSCOREMultipleRoles() 
+            throws AceException, IntrospectionException, CoseException {
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("listener");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, pskCnf);
+        tr.addToken(params, ctx, null);
+        
+        params.clear();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, rpkCnf);
+        tr.addToken(params, ctx, null);
+        rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
     
     /**
      * Test add token with cnf containing known kid
@@ -504,6 +632,108 @@ public class TestTokenRepository {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
+    // M.T.
+    /**
+     * Test add token with cnf containing known kid, to access a
+     * join resource for joining an OSCORE group with a single role
+     *
+     * @throws AceException 
+     * @throws IntrospectionException 
+     */
+    @Test
+    public void testTokenCnfKidGroupOSCORESingleRole() throws AceException, IntrospectionException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, pskCnf);
+        tr.addToken(params, ctx, null);
+        
+        params.clear();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
+                "ourKey".getBytes(Constants.charset)));
+        params.put(Constants.CNF, cnf);
+        tr.addToken(params, ctx, null);
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
+    
+    // M.T.
+    /**
+     * Test add token with cnf containing known kid, to access a
+     * join resource for joining an OSCORE group with multiple roles
+     *
+     * @throws AceException 
+     * @throws IntrospectionException 
+     */
+    @Test
+    public void testTokenCnfKidGroupOSCOREMultipleRoles() throws AceException, IntrospectionException {
+    	Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("listener");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CNF, pskCnf);
+        tr.addToken(params, ctx, null);
+        
+        params.clear();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token2".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
+                "ourKey".getBytes(Constants.charset)));
+        params.put(Constants.CNF, cnf);
+        tr.addToken(params, ctx, null);
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
+    
     /**
      * Test add token with cnf containing valid Encrypt0
      *
@@ -545,6 +775,107 @@ public class TestTokenRepository {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
+    // M.T.
+    /**
+     * Test add token with cnf containing valid Encrypt0, to access a
+     * join resource for joining an OSCORE group with a single role
+     *
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     * @throws IntrospectionException 
+     */
+    @Test
+    public void testTokenCnfEncrypt0GroupOSCORESingleRole() throws AceException, CoseException,
+            IllegalStateException, InvalidCipherTextException, 
+            IntrospectionException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(role1);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        CBORObject cnf = CBORObject.NewMap();
+        Encrypt0Message enc = new Encrypt0Message();
+        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
+                Attribute.PROTECTED);
+        enc.SetContent(symmetricKey.EncodeToBytes());
+        enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
+        cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
+        params.put(Constants.CNF, cnf);
+        tr.addToken(params, ctx, null);
+
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
+    
+    // M.T.
+    /**
+     * Test add token with cnf containing valid Encrypt0, to access a
+     * join resource for joining an OSCORE group with multiple roles
+     *
+     * @throws AceException 
+     * @throws CoseException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     * @throws IntrospectionException 
+     */
+    @Test
+    public void testTokenCnfEncrypt0GroupOSCOREMultipleRoles() throws AceException, CoseException,
+            IllegalStateException, InvalidCipherTextException, 
+            IntrospectionException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        
+        String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("listener");
+    	
+    	CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        CBORObject cnf = CBORObject.NewMap();
+        Encrypt0Message enc = new Encrypt0Message();
+        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
+                Attribute.PROTECTED);
+        enc.SetContent(symmetricKey.EncodeToBytes());
+        enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
+        cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
+        params.put(Constants.CNF, cnf);
+        tr.addToken(params, ctx, null);
+
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+
+        Assert.assertEquals(TokenRepository.UNAUTHZ,
+                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+    }
     
     /**
      * Test pollTokens()
@@ -579,16 +910,16 @@ public class TestTokenRepository {
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");
-
-        key1 = tr.getPoP("dG9rZW4x");
-        key2 = tr.getPoP("dG9rZW4y");
         
         Assert.assertNull(key1);
         Assert.assertNotNull(key2);
     }
     
+    // M.T.
     /**
      * Test loading an existing token file
+     * 
+     * FIXME: File is broken
      * 
      * @throws AceException
      * @throws IOException 
@@ -612,12 +943,12 @@ public class TestTokenRepository {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+        // M.T.
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
-                TestConfig.testFilePath + "testTokens.json" , ctx, new KissTime(),
-                false, null);
+                TestConfig.testFilePath + "testTokens.json" , ctx, new KissTime(), false, null);
         
         //Assert.assertEquals(TokenRepository.OK,
         //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
@@ -630,6 +961,7 @@ public class TestTokenRepository {
                 tr2.canAccess(ourKey, null, "temp", Constants.POST, null)); 
         Assert.assertEquals(TokenRepository.FORBID,
                 tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
+        
         tr2.close();
     }
     
@@ -678,6 +1010,7 @@ public class TestTokenRepository {
     public void cleanup() throws AceException {
         tr.removeToken("dG9rZW4x");
         tr.removeToken("dG9rZW4y");
+        tr.removeToken("Ba87cQ==");
     }
     
 }

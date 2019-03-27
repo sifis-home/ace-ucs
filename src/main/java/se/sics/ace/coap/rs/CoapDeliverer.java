@@ -257,6 +257,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         try {
             r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
                     this.tr, kid).EncodeToBytes());
+            ex.sendResponse(r);
         } catch (InvalidKeyException | NoSuchAlgorithmException e) {
             LOGGER.severe("cnonce creation failed: " + e.getMessage());
             ex.sendResponse(r); //Just send UNAUTHORIZED without a payload
