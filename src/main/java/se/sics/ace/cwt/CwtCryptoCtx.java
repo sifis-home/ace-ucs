@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.cwt;
 
+import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -53,6 +54,11 @@ import COSE.Signer;
  */
 public class CwtCryptoCtx {
 
+	static {
+        Security.addProvider(
+                new org.bouncycastle.jce.provider.BouncyCastleProvider());
+    }
+	
     /**
      * What kind of COSE message does this context allow to create
      */
