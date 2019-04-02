@@ -29,27 +29,41 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace;
+package se.sics.ace.oscore;
+
+import java.util.Map;
+
+import com.upokecenter.cbor.CBORObject;
 
 /**
- * Constants for use in the OSCRE Security Context Object
+ * A class implementing the Group OSCORE Security Context Object, as defined in draft-ace-key-groupcomm-oscore
+ * This Object is encoded as a CBOR Map.
  *  
  * @author Marco Tiloca
  *
  */
- 
- public class GroupOSCORESecurityContextObjectParameters extends OSCORESecurityContextObjectParameters {
-
-		// 'cs_alg' - Group OSCORE Countersignature Algorithm value
-		public static final short cs_alg = 9; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
-		
-		// 'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
-		public static final short cs_params = 10; // Major type 2 (byte string)
-		
-		/**
-	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
-	     */
-	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf",
-	    		"alg", "salt", "contextOd", "rpl", "cs_alg", "cs_params"};
-	 
- }
+public class GroupOSCORESecurityContextObject extends OSCORESecurityContextObject {
+	    
+	/**
+	 * Creates a new Group OSCORE Security Context Object from one provided as argument.
+	 * 
+	 * @param myMap the map of parameters
+	 */
+    public GroupOSCORESecurityContextObject(Map<Short, CBORObject> myMap) {
+    	
+    	super(myMap);
+    	
+    }
+    
+    /**
+	 * Return the Group OSCORE Security Context Object as a CBOR Map.
+	 * 
+	 * @param the map representing the Group OSCORE Security Context Object.
+	 */
+    public CBORObject getAsCbor() {
+    	
+    	return GroupOSCORESecurityContextObjectParameters.getCBOR(myMap);
+    	
+    }
+	    
+}

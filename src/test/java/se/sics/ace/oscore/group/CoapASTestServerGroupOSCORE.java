@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.oscore.group;
 
 import java.util.Base64;
 import java.util.Collections;
@@ -51,8 +51,8 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
-import se.sics.ace.examples.GroupOSCOREJoinPDP;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 
 /**
  * The server to run the client tests against.

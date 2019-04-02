@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.dtlsProfile;
+package se.sics.ace.oscore.group;
 
 import java.io.File;
 import java.io.IOException;
@@ -55,12 +55,12 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
-import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStoreGroupOSCORE; // M.T.
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.GroupOSCOREJoinValidator; // M.T.
-import se.sics.ace.rs.AuthzInfoGroupOSCORE; // M.T.
+import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
+import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
+import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.TokenRepository;
 
 /**

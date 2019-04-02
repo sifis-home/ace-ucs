@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs.dtlsProfile;
+package se.sics.ace.oscore.rs;
 
 import java.net.InetSocketAddress;
 import java.util.Base64;
@@ -48,8 +48,8 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
+import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.examples.LocalMessage;
-import se.sics.ace.rs.AuthzInfoGroupOSCORE; // M.T.
 
 /**
  * A store for Pre-Shared-Keys (PSK) at the RS.

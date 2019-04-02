@@ -29,13 +29,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace;
+package se.sics.ace.oscore;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
+
+import se.sics.ace.AceException;
 
 /**
  * Constants for use in the OSCRE Security Context Object

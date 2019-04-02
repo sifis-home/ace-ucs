@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap.rs;
+package se.sics.ace.oscore.rs;
 
 import java.util.logging.Logger;
 
@@ -43,7 +43,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Message;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.CoapRes;
-import se.sics.ace.rs.AuthzInfoGroupOSCORE; // M.T.
+import se.sics.ace.coap.rs.CoapAuthzInfo;
 
 
 /**

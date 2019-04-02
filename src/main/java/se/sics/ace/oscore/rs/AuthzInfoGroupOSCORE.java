@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.oscore.rs;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -53,6 +53,11 @@ import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.rs.AudienceValidator;
+import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.IntrospectionException;
+import se.sics.ace.rs.IntrospectionHandler;
+import se.sics.ace.rs.TokenRepository;
 
 
 /**

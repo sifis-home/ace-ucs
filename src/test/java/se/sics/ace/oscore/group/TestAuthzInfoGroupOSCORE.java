@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.oscore.group;
 
 import java.io.File;
 import java.io.IOException;
@@ -65,11 +65,15 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.examples.GroupOSCOREJoinPDP; // M.T.
-import se.sics.ace.examples.GroupOSCOREJoinValidator; // M.T.
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
+import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
+import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.rs.IntrospectionException;
+import se.sics.ace.rs.IntrospectionHandler4Tests;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * 

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.examples;
+package se.sics.ace.oscore.as;
 
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -47,6 +47,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
+import se.sics.ace.examples.SQLConnector;
 
 /**
  * A PDP implementation supporting scopes as Text Strings or Byte Strings. A byte string scope is used to join OSCORE groups. 

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.oscore.group;
 
 import java.io.File;
 import java.io.IOException;
@@ -67,8 +67,10 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.examples.GroupOSCOREJoinValidator;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.rs.IntrospectionException;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * Tests for the TokenRepository class.
@@ -914,57 +916,6 @@ public class TestTokenRepositoryGroupOSCORE {
         Assert.assertNull(key1);
         Assert.assertNotNull(key2);
     }
-    
-    // M.T.
-    /**
-     * Test loading an existing token file
-     * 
-     * FIXME: File is broken
-     * 
-     * @throws AceException
-     * @throws IOException 
-     * @throws IntrospectionException 
-     */
-    @Test
-    public void testLoad() 
-            throws AceException, IOException, IntrospectionException {
-        Set<String> resources = new HashSet<>();
-        resources.add("temp");
-        resources.add("co2");
-        
-        Set<Short> actions = new HashSet<>();
-        actions.add(Constants.GET);
-        Map<String, Set<Short>> myResource = new HashMap<>();
-        myResource.put("temp", actions);
-        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
-        myScopes.put("r_temp", myResource);
-        
-        Map<String, Set<Short>> otherResource = new HashMap<>();
-        otherResource.put("co2", actions);
-        myScopes.put("r_co2", otherResource);
-        
-        // M.T.
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(Collections.singleton("rs1"),
-                myScopes);
-        
-        TokenRepository tr2 = new TokenRepository(valid,
-                TestConfig.testFilePath + "testTokens.json" , ctx, new KissTime(), false, null);
-        
-        //Assert.assertEquals(TokenRepository.OK,
-        //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
-        //                new KissTime(), null));
-        Assert.assertEquals(TokenRepository.OK,
-                tr2.canAccess(ourKey, null, "temp", Constants.GET, null));  
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr2.canAccess("otherKey", null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.METHODNA,
-                tr2.canAccess(ourKey, null, "temp", Constants.POST, null)); 
-        Assert.assertEquals(TokenRepository.FORBID,
-                tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
-        
-        tr2.close();
-    }
-    
     
     /**
      * Test getPoP()

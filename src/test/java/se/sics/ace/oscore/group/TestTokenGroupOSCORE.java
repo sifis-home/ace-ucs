@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.as;
+package se.sics.ace.oscore.group;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -63,12 +63,14 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
+import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.Token;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
-import se.sics.ace.examples.GroupOSCOREJoinPDP;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 
 /**
  * Test the token endpoint class.
