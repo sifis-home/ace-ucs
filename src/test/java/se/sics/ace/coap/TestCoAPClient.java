@@ -53,7 +53,6 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.AlgorithmID;
 import COSE.OneKey;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
@@ -174,7 +173,6 @@ public class TestCoAPClient {
      */
     @Test
     public void testCoapToken() throws Exception {
-        OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);

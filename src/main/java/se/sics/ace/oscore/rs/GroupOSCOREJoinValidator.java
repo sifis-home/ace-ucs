@@ -115,13 +115,16 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Check that each of those audiences are in the main set "myAudiences".
 	 * 
 	 * @param myGMAudiences  the audiences that this validator considers as OSCORE Group Managers
+	 * 
+	 * @throws AceException  if the group manager is not an accepted audience
 	 */
 	public void setGMAudiences(Set<String> myGMAudiences) throws AceException {
 		if (myGMAudiences != null) {
 			for (String foo : myGMAudiences) {
-				if (!myAudiences.contains(foo))
+				if (!this.myAudiences.contains(foo)) {
 					throw new AceException("This OSCORE Group Manager is not an accepted audience");
-				else this.myGMAudiences.add(foo);
+				}
+                this.myGMAudiences.add(foo);
 			}
 		} else {
 		    this.myGMAudiences = Collections.emptySet();
@@ -150,7 +153,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 */
 	public void removeAllGMAudiences(){
-		myGMAudiences.clear();
+		this.myGMAudiences.clear();
 	}
 	
 	// M.T.
@@ -158,7 +161,9 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Set the list of join resources to access an OSCORE group.
 	 * The name of the join resource is the zeroed-epoch Group ID of the OSCORE group.
 	 * 
-	 * @param myJoinResources  the resources that this validator considers as join resources to access an OSCORE group.
+	 * @param myJoinResources  the resources that this validator considers as join resources to access an OSCORE group
+	 * .
+	 * @throws AceException FIXME: when thrown?
 	 */
 	public void setJoinResources(Set<String> myJoinResources) throws AceException {
 		if (myJoinResources != null) {
@@ -189,7 +194,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 */
 	public void removeAllJoinResources(){
-		myJoinResources.clear();
+		this.myJoinResources.clear();
 	}
 	
 	@Override
@@ -208,7 +213,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
         boolean isJoinResource = false;
     	boolean scopeMustBeBinary = false;
-    	if (myJoinResources.contains(resourceId))
+    	if (this.myJoinResources.contains(resourceId))
     		isJoinResource = true;
     	
     	scopeMustBeBinary = isJoinResource;
@@ -238,7 +243,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     			throw new AceException("Invalid action on a join resource to access an OSCORE group");
     		
         	byte[] rawScope = scope.GetByteString();
-        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
         	
         	if (!cborScope.getType().equals(CBORType.Array)) {
                 throw new AceException("Invalid scope format for joining OSCORE groups");
@@ -313,7 +318,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
         boolean isJoinResource = false;
     	boolean scopeMustBeBinary = false;
-    	if (myJoinResources.contains(resourceId))
+    	if (this.myJoinResources.contains(resourceId))
     		isJoinResource = true;
     	
     	scopeMustBeBinary = isJoinResource;
@@ -339,7 +344,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	else if (scope.getType().equals(CBORType.ByteString) && isJoinResource) {
     		
         	byte[] rawScope = scope.GetByteString();
-        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
         	
         	if (!cborScope.getType().equals(CBORType.Array)) {
                 throw new AceException("Invalid scope format for joining OSCORE groups");
@@ -416,7 +421,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	boolean scopeMustBeBinary = false;
     	boolean rsOSCOREGroupManager = false;
     	for (String foo : aud) {
-    		if (myGMAudiences.contains(foo)) {
+    		if (this.myGMAudiences.contains(foo)) {
     			rsOSCOREGroupManager = true;
     			break;
     		}
@@ -434,7 +439,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         else if (scope.getType().equals(CBORType.ByteString) && rsOSCOREGroupManager) {
         	
         	byte[] rawScope = scope.GetByteString();
-        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
         	
         	if (!cborScope.getType().equals(CBORType.Array)) {
                 throw new AceException("Invalid scope format for joining OSCORE groups");

@@ -36,15 +36,15 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.*;
-import java.util.logging.Level;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
-import se.sics.ace.Message;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
 import se.sics.ace.examples.SQLConnector;
@@ -267,7 +267,14 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         return false;
 	}
 	
-	// M.T.
+	/**
+	 * FIXME: Add description of method, parameters and return value.
+	 * 
+	 * @param rsId
+	 * @param aud
+	 * @return  FIXME
+	 * @throws AceException
+	 */
 	public boolean isOSCOREGroupManager(String rsId, Set<String> aud) throws AceException {
 		if (rsId == null || rsId.isEmpty()) {
             throw new AceException("RS must have non-null, non-empty identifier");

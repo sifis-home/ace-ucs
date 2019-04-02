@@ -40,10 +40,14 @@ package se.sics.ace.oscore;
  
  public class GroupOSCORESecurityContextObjectParameters extends OSCORESecurityContextObjectParameters {
 
-		// 'cs_alg' - Group OSCORE Countersignature Algorithm value
+		/**
+		 * 'cs_alg' - Group OSCORE Countersignature Algorithm value
+		 */
 		public static final short cs_alg = 9; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
-		// 'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
+		/**
+		 *  'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
+		 */
 		public static final short cs_params = 10; // Major type 2 (byte string)
 		
 		/**

@@ -60,9 +60,10 @@ public class GroupOSCORESecurityContextObject extends OSCORESecurityContextObjec
 	 * 
 	 * @param the map representing the Group OSCORE Security Context Object.
 	 */
+    @Override
     public CBORObject getAsCbor() {
     	
-    	return GroupOSCORESecurityContextObjectParameters.getCBOR(myMap);
+    	return OSCORESecurityContextObjectParameters.getCBOR(this.myMap);
     	
     }
 	    

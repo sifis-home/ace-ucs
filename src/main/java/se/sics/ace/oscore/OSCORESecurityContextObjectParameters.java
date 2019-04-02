@@ -48,28 +48,44 @@ import se.sics.ace.AceException;
  
  public class OSCORESecurityContextObjectParameters {
 
-		// 'ms' - OSCORE Master Secret Value
+		/**
+		 *  'ms' - OSCORE Master Secret Value
+		 */
 		public static final short ms = 1;  // Major type 2 (byte string)
 		
-		// 'clientId' - OSCORE Sender ID value of the client, OSCORE Recipient ID value of the server
+		/**
+		 *  'clientId' - OSCORE Sender ID value of the client, OSCORE Recipient ID value of the server
+		 */
 		public static final short clientId = 2;  // Major type 2 (byte string)
 		
-		// 'serverId' - OSCORE Sender ID value of the server, OSCORE Recipient ID value of the client
+		/**
+		 *  'serverId' - OSCORE Sender ID value of the server, OSCORE Recipient ID value of the client
+		 */
 		public static final short serverId = 3; // Major type 2 (byte string)
 		
-		// 'hkdf' - OSCORE HKDF value
+		/**
+		 *  'hkdf' - OSCORE HKDF value
+		 */
 		public static final short hkdf = 4; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
-		// 'alg' - OSCORE AEAD Algorithm value
+		/**
+		 *  'alg' - OSCORE AEAD Algorithm value
+		 */
 		public static final short alg = 5; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
-		// 'salt' - OSCORE Master Salt Value
+		/**
+		 *  'salt' - OSCORE Master Salt Value
+		 */
 		public static final short salt = 6; // Major type 2 (byte string)
 		
-		// 'contextId' - OSCORE ID Context Value
+		/**
+		 *  'contextId' - OSCORE ID Context Value
+		 */
 		public static final short contextId = 7; // Major type 2 (byte string)
 		
-		// 'rpl' - OSCORE Replay Window Type and Size
+		/**
+		 *  'rpl' - OSCORE Replay Window Type and Size
+		 */
 		public static final short rpl = 8; // Major type 0 (unsigned integer) or 1 (negative integer) or 2 (byte string)
 		
 		

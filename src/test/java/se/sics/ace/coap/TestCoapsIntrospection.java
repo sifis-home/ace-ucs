@@ -33,13 +33,11 @@ package se.sics.ace.coap;
 
 import java.net.InetSocketAddress;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;

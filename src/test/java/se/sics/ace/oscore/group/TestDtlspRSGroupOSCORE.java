@@ -148,6 +148,7 @@ public class TestDtlspRSGroupOSCORE {
         
         /**
          * Constructor
+         * @param resId  the resource identifier
          */
         public GroupOSCOREJoinResource(String resId) {
             
@@ -185,15 +186,16 @@ public class TestDtlspRSGroupOSCORE {
         	// Retrieve scope
         	CBORObject scope = joinRequest.get("scope");
         	
-        	if (scope == null)
+        	if (scope == null) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
-        	
+        		return;
+        	}
         	if (!scope.getType().equals(CBORType.ByteString)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
             }
         	
         	byte[] rawScope = scope.GetByteString();
-        	CBORObject cborScope = CBORObject.DecodeFromBytes((byte[])rawScope);
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
         	
         	if (!cborScope.getType().equals(CBORType.Array)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
@@ -275,7 +277,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("kty", CBORObject.FromObject((int) 0));
+        	joinResponse.Add("kty", CBORObject.FromObject(0));
         	
         	// This is the Group_OSCORE_Security_Context object.
         	// TODO: add inner parameters, by extending the OSCORE_Security_Context object.
@@ -283,11 +285,11 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("profile", CBORObject.FromObject((int) 0));
+        	joinResponse.Add("profile", CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
-        	joinResponse.Add("exp", CBORObject.FromObject((int) 1000000));
+        	joinResponse.Add("exp", CBORObject.FromObject(1000000));
         	
         	// NOTE: this is currently skipping the inclusion of the optional
         	// parameters 'pub_keys', 'group_policies' and 'group_policies'.

@@ -63,24 +63,21 @@ public class OSCORESecurityContextObject {
     }
     
     /**
-	 * Return the OSCORE Security Context Object as a Java Map.
-	 * 
+	 * @return the OSCORE Security Context Object as a Java Map.
 	 */
     public Map<Short, CBORObject> getAsMap() {
     	
-    	Map<Short, CBORObject> ret = new HashMap<Short, CBORObject>(myMap);
+    	Map<Short, CBORObject> ret = new HashMap<>(this.myMap);
     	return ret;
     	
     }
     
     /**
-	 * Return the OSCORE Security Context Object as a CBOR Map.
-	 * 
-	 * @param claims  the map representing the OSCORE Security Context Object.
+     * @return  the OSCORE Security Context Object as a CBOR Map.
 	 */
     public CBORObject getAsCbor() {
     	
-    	return OSCORESecurityContextObjectParameters.getCBOR(myMap);
+    	return OSCORESecurityContextObjectParameters.getCBOR(this.myMap);
     	
     }
 	
@@ -92,7 +89,7 @@ public class OSCORESecurityContextObject {
 	 * @return  the value of the parameter or null.
 	 */
 	public CBORObject getParam(Short name) {
-		return myMap.get(name);
+		return this.myMap.get(name);
 	}
 	
 	/**
@@ -100,7 +97,7 @@ public class OSCORESecurityContextObject {
 	 * @return  list of all parameters in the OSCORE Security Context Object.
 	 */
 	public Set<Short> getParamKeys() {
-		return myMap.keySet();
+		return this.myMap.keySet();
 	}
     
 }

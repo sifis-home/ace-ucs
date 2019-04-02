@@ -48,7 +48,6 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
@@ -61,7 +60,6 @@ import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.PDP;
-import se.sics.ace.as.PDP.IntrospectAccessLevel;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 

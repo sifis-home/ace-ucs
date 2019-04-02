@@ -31,8 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.interop;
 
-import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
-
 /**
  * This class runs introspection requests to a given AS introspection endpoint.
  * 
@@ -41,6 +39,9 @@ import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
  */
 public class PlugtestIntrospect {
 
+    /**
+     * @param args
+     */
     public static void main(String[] args) {
         //TODO: Implement this
         //CoapsIntrospection rs2 = new CoapsIntrospection(psk, pskIdentity, keystoreLocation, keystorePwd, addr2idFile, addr2id, introspectAddress);

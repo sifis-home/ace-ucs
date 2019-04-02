@@ -55,10 +55,8 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.AlgorithmID;
 import COSE.OneKey;
 import se.sics.ace.Constants;
-import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.Token;
 
@@ -177,7 +175,6 @@ public class TestCoAPClientGroupOSCORE {
      */
     @Test
     public void testCoapToken() throws Exception {
-        OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientA", key128));
@@ -227,8 +224,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -395,8 +391,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -563,8 +558,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -745,8 +739,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -927,8 +920,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientG", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -1034,8 +1026,7 @@ public class TestCoAPClientGroupOSCORE {
     	String role2 = new String("purelistener");
     	String role3 = new String("listener");
     	
-    	OneKey asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientG", key128));
         builder.setSupportedCipherSuites(new CipherSuite[]{
