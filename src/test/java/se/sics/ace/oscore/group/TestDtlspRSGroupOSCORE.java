@@ -71,6 +71,8 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
+import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
+import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
@@ -89,7 +91,27 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspRSGroupOSCORE {
 
-
+	private final static byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+			                                     (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
+			                                     (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
+			                                     (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+	
+	private final static byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
+			                                     (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	
+	private final static byte[] senderId = new byte[] { (byte) 0x25 };
+	
+	// Prefix (1 byte) and Epoch (2 bytes)
+	// TODO: separate Prefix and Epoch
+	private final static byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+	
+	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+	
+	//Group OSCORE specific values for the countersignature
+	private final static AlgorithmID csAlg = AlgorithmID.EDDSA;
+	private final static CBORObject csParams = KeyKeys.OKP_Ed25519;
+	
     /**
      * Definition of the Hello-World Resource
      */
@@ -192,6 +214,7 @@ public class TestDtlspRSGroupOSCORE {
         	}
         	if (!scope.getType().equals(CBORType.ByteString)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
+        		return;
             }
         	
         	byte[] rawScope = scope.GetByteString();
@@ -199,21 +222,27 @@ public class TestDtlspRSGroupOSCORE {
         	
         	if (!cborScope.getType().equals(CBORType.Array)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		return;
             }
         	
         	if (cborScope.size() != 2) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		return;
             }
         	
         	// Retrieve the Group ID of the OSCORE group
       	  	CBORObject scopeElement = cborScope.get(0);
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
       	  		String scopeStr = scopeElement.AsString();
-      	  		
-      	  		// TODO: perform a consistency check between 'scopeStr' and this accessed join resource 
+
+      	  		if (!scopeStr.equals(exchange.getRequestOptions().getUriPathString())) {
+	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
+	  				return;
+	  			}      	  		
       	  	}
       	  	else {
       	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		return;
       	  	}
       	  	
       	  	// Retrieve the role or list of roles
@@ -226,17 +255,20 @@ public class TestDtlspRSGroupOSCORE {
       	  		// Multiple roles are specified
       	  		if (scopeElement.size() < 2) {
       	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+            		return;
       	  		}
       	  		for (int i=0; i<scopeElement.size(); i++) {
       	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
       	  				roles.add(scopeElement.get(i).AsString());
       	  			else {
       	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+      	        		return;
       	  			}
       	  		}
       	  	}
       	  	else {
       	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+        		return;
       	  	}
         	
         	// Retrieve 'get_pub_keys'
@@ -244,8 +276,10 @@ public class TestDtlspRSGroupOSCORE {
         	CBORObject getPubKeys = joinRequest.get("get_pub_keys");
         	if (getPubKeys != null) {
         		
-        		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0)
+        		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0) {
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
+            		return;
+        		}
         		
         		providePublicKeys = true;
         		
@@ -279,9 +313,17 @@ public class TestDtlspRSGroupOSCORE {
         	// NOTE: '0' is a temporary value.
         	joinResponse.Add("kty", CBORObject.FromObject(0));
         	
-        	// This is the Group_OSCORE_Security_Context object.
-        	// TODO: add inner parameters, by extending the OSCORE_Security_Context object.
-        	joinResponse.Add("k", CBORObject.NewMap());
+        	// This is the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
+        	CBORObject myMap = CBORObject.NewMap();
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, masterSecret);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, hkdf);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, alg);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, masterSalt);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, groupId);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, csAlg);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, csParams);
+        	joinResponse.Add("key", myMap);
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
@@ -291,8 +333,12 @@ public class TestDtlspRSGroupOSCORE {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add("exp", CBORObject.FromObject(1000000));
         	
-        	// NOTE: this is currently skipping the inclusion of the optional
-        	// parameters 'pub_keys', 'group_policies' and 'group_policies'.
+        	// NOTE: this is currently skipping the inclusion of the optional parameters 'pub_keys' and 'group_policies'.
+        	if (providePublicKeys) {
+        		
+        		// TODO: add 'pub_keys' including the group members' public keys
+        		
+        	}
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
         	exchange.respond(ResponseCode.CREATED, responsePayload, MediaTypeRegistry.APPLICATION_CBOR);

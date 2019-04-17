@@ -86,14 +86,14 @@ import se.sics.ace.AceException;
 		/**
 		 *  'rpl' - OSCORE Replay Window Type and Size
 		 */
-		public static final short rpl = 8; // Major type 0 (unsigned integer) or 1 (negative integer) or 2 (byte string)
+		public static final short rpl = 8; // Major type 0 (unsigned integer) or 2 (byte string)
 		
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
 	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf", 
-	            "alg", "salt", "contextOd", "rpl"};
+	            "alg", "salt", "contextId", "rpl"};
 	    
 	    /**
 	     * Takes a CBORObject that is a map and transforms it

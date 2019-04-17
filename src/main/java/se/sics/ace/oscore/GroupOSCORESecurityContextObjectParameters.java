@@ -43,17 +43,19 @@ package se.sics.ace.oscore;
 		/**
 		 * 'cs_alg' - Group OSCORE Countersignature Algorithm value
 		 */
+	    // Assume that "cs_alg" is registered with label 9 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
 		public static final short cs_alg = 9; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
 		/**
 		 *  'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
 		 */
+		// Assume that "cs_params" is registered with label 10 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
 		public static final short cs_params = 10; // Major type 2 (byte string)
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
 	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf",
-	    		"alg", "salt", "contextOd", "rpl", "cs_alg", "cs_params"};
+	    		"alg", "salt", "contextId", "rpl", "cs_alg", "cs_params"};
 	 
  }
