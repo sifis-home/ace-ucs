@@ -280,10 +280,38 @@ public class GroupInfo {
     	
     }
     
+    synchronized public boolean deallocateSenderId(final int id) {
+    	
+    	if (id < 0 || id > this.maxSenderIdValue)
+    		return false;
+    	
+    	if (this.usedSenderIds.contains(id)) {
+    		this.usedSenderIds.remove(id);
+			this.freeSenderIds.add(id);
+			return true;
+    	}
+    	
+    	return false;
+    	
+    }
+    
+    synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
+    	
+    	if (idByteArray.length != this.senderIdSize)
+    		return false;
+    	
+    	int id = bytesToInt(idByteArray);
+    	
+    	return deallocateSenderId(id);
+    	
+    }
+    
     private final byte[] intToBytes(final int i) {
-        ByteBuffer bb = ByteBuffer.allocate(4); 
-        bb.putInt(i); 
-        return bb.array();
+        return ByteBuffer.allocate(4).putInt(i).array();
+    }
+    
+    private final int bytesToInt(final byte[] bytes) {
+        return ByteBuffer.wrap(bytes).getInt();
     }
     
 }
