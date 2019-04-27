@@ -307,7 +307,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -466,7 +466,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -661,7 +661,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -822,7 +822,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -1047,7 +1047,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -1205,7 +1205,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -1601,7 +1601,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;
@@ -1772,7 +1772,7 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-    	final byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
+    	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	final AlgorithmID csAlg = AlgorithmID.EDDSA;

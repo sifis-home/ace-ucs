@@ -71,7 +71,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
+import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
@@ -91,26 +91,10 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspRSGroupOSCORE {
 
-	private final static byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
-			                                     (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
-			                                     (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
-			                                     (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
-	private final static byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
-			                                     (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-	
-	private final static byte[] senderId = new byte[] { (byte) 0x25 };
-	
-	// Prefix (1 byte) and Epoch (2 bytes)
-	// TODO: separate Prefix and Epoch
-	private final static byte[] groupId = new byte[] { (byte) 0xb1, (byte) 0xf0, (byte) 0x5c };
-	
-	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
-	private final static AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-	
-	//Group OSCORE specific values for the countersignature
-	private final static AlgorithmID csAlg = AlgorithmID.EDDSA;
-	private final static CBORObject csParams = KeyKeys.OKP_Ed25519;
+	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
+	private static Map<Integer, GroupInfo> activeGroups = new HashMap<Integer, GroupInfo>();
 	
     /**
      * Definition of the Hello-World Resource
@@ -230,10 +214,11 @@ public class TestDtlspRSGroupOSCORE {
         		return;
             }
         	
-        	// Retrieve the Group ID of the OSCORE group
+        	// Retrieve the zeroed-epoch Group ID of the OSCORE group
+        	String scopeStr;
       	  	CBORObject scopeElement = cborScope.get(0);
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		String scopeStr = scopeElement.AsString();
+      	  		scopeStr = scopeElement.AsString();
 
       	  		if (!scopeStr.equals(exchange.getRequestOptions().getUriPathString())) {
 	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
@@ -303,9 +288,7 @@ public class TestDtlspRSGroupOSCORE {
         		
         	}
         	
-            // Respond to the request
-
-            // TODO: complete the actual response content to include in the CBOR map
+            // Respond to the Join Request
             
         	CBORObject joinResponse = CBORObject.NewMap();
         	
@@ -313,17 +296,35 @@ public class TestDtlspRSGroupOSCORE {
         	// NOTE: '0' is a temporary value.
         	joinResponse.Add("kty", CBORObject.FromObject(0));
         	
-        	// This is the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, masterSecret);
+        	
+        	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
+        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
+        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+        	
+        	// Retrieve the entry for the target group, using the Group ID Prefix
+        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	
+        	// Assign a new Sender ID to the joining node
+            byte[] senderId = new byte[] { (byte) 0x25 };
+        	myGroup.allocateSenderId(senderId);
+        	
+        	// Fill the 'key' parameter
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, hkdf);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, alg);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, masterSalt);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, groupId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, csAlg);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, csParams);
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
         	joinResponse.Add("key", myMap);
+        	
+        	// The Epoch part of the Group ID should be incremented
+        	// TODO: uncomment
+        	// myGroup.incrementGroupIdEpoch();
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
@@ -420,6 +421,53 @@ public class TestDtlspRSGroupOSCORE {
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         valid.setJoinResources(Collections.singleton("feedca570000"));
         
+    	// Create the OSCORE group
+        final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
+                					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
+                					  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+
+        final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
+                					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
+
+        // Group OSCORE specific values for the AEAD algorithm and HKDF
+        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+
+        // Group OSCORE specific values for the countersignature
+        final AlgorithmID csAlg = AlgorithmID.EDDSA;
+        final CBORObject csParams = KeyKeys.OKP_Ed25519;
+        
+        final int senderIdSize = 1; // Up to 4 bytes
+
+        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+        // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
+    	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
+    	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
+    	
+    	//int x = GroupInfo.bytesToInt(groupIdEpoch);
+    	//System.out.println(groupIdEpoch[0] & 0xFF);
+    	//System.out.println(x);
+    	
+    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    			                          masterSalt,
+    			                          groupIdPrefixSize,
+    			                          groupIdPrefix,
+    			                          groupIdEpoch.length,
+    			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          senderIdSize,
+    			                          alg,
+    			                          hkdf,
+    			                          csAlg,
+    			                          csParams
+    			                          );
+        
+    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
+    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	
+    	//System.out.println(GroupInfo.bytesToInt(groupIdPrefix));
+    	//System.out.println(activeGroups.containsKey(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix))));
+    	
         createTR(valid);
         tr = TokenRepository.getInstance();
         
@@ -578,6 +626,35 @@ public class TestDtlspRSGroupOSCORE {
        rs.setMessageDeliverer(dpd);
        rs.start();
        System.out.println("Server starting");
+    }
+    
+    /**
+     * @str   the hexadecimal string to be converted into a byte array
+     * 
+     * Return the byte array representation of the original string
+     */
+    public static byte[] hexStringToByteArray(final String str) {
+        int len = str.length();
+        byte[] data = new byte[len / 2];
+        
+    	// Big-endian
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(str.charAt(i), 16) << 4) +
+                                   Character.digit(str.charAt(i+1), 16));
+            data[i / 2] = (byte) (data[i / 2] & 0xFF);
+        }
+        
+    	// Little-endian
+        /*
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(str.charAt(len - 2 - i), 16) << 4) +
+                                   Character.digit(str.charAt(len - 1 - i), 16));
+            data[i / 2] = (byte) (data[i / 2] & 0xFF);
+        }
+        */
+        
+        return data;
+        
     }
     
     /**
