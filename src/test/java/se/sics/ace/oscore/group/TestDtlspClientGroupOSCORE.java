@@ -228,7 +228,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
         CBORObject cborArrayScope = CBORObject.NewArray();
@@ -274,10 +274,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -311,7 +307,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -323,8 +324,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -334,7 +340,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -362,8 +370,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -388,7 +440,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("listener");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
@@ -437,10 +489,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -474,7 +522,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // ECSDA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -486,8 +539,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -497,7 +555,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -525,8 +585,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -587,7 +691,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
@@ -636,10 +740,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -673,7 +773,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -685,8 +790,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -696,7 +806,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -724,8 +836,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -749,7 +905,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("listener");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
@@ -801,10 +957,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -838,7 +990,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -850,8 +1007,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -861,7 +1023,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -889,8 +1053,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -991,7 +1199,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
@@ -1030,10 +1238,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -1067,7 +1271,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -1079,8 +1288,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -1090,7 +1304,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1118,8 +1334,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -1150,7 +1410,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("listener");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
@@ -1192,10 +1452,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -1229,7 +1485,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -1241,8 +1502,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -1252,7 +1518,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1280,8 +1548,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
@@ -1542,7 +1854,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
@@ -1592,10 +1904,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -1629,7 +1937,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -1641,8 +1954,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -1652,7 +1970,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1680,15 +2000,58 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
         }
         
     }
-    
     
     // M.T.
     /** 
@@ -1714,7 +2077,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("listener");
-    	boolean askForPubKeys = false;
+    	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
@@ -1767,10 +2130,6 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	/*
-        	OneKey pubKey = key.PublicKey();
-        	requestPayload.Add("client_cred", pubKey);
-        	*/
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
@@ -1804,7 +2163,12 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)));
         Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // ECDSA_256
+        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+        // EDDSA (Ed25519)
+        //Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -1816,8 +2180,13 @@ public class TestDtlspClientGroupOSCORE {
     	final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
     	final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
     	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	final AlgorithmID csAlg = AlgorithmID.EDDSA;
-    	final CBORObject csParams = KeyKeys.OKP_Ed25519;
+    	
+    	// ECDSA_256
+    	final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+    	
+    	// EDDSA (Ed25519)
+    	//final AlgorithmID csAlg = AlgorithmID.EDDSA;
+    	//final CBORObject csParams = KeyKeys.OKP_Ed25519;
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.clientId)).GetByteString());
@@ -1827,7 +2196,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.contextId)).GetByteString());
         Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-        Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+        
+    	// EDDSA (Ed25519)     
+        //Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1855,8 +2226,52 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
         	
-        	// TODO
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
+        	
+        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        	Assert.assertEquals(2, coseKeySetArray.size());
+        	
+        	byte[] peerSenderId;
+        	OneKey peerPublicKey;
+        	byte[] peerSenderIdFromResponse;
+        	
+        	peerSenderId = new byte[] { (byte) 0x52 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+        	
+        	
+        	peerSenderId = new byte[] { (byte) 0x77 };
+        	peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        	peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+        	
+        	// ECDSA_256
+        	Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+        	Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+        	
+        	// EDDSA (Ed25519)
+        	//Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+        	//Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+        	//Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+        	
         }
         else {
         	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));

@@ -337,11 +337,8 @@ public class GroupInfo {
     
     // Set the countersignature parameters used in the group
     synchronized public void setCsParams(final CBORObject csParams) {
-    	
-    	if (csParams == null)
-    		this.csParams = KeyKeys.OKP_Ed25519;
-    	else
-    		this.csParams = csParams;
+    
+    	this.csParams = csParams;
     	
     }   
 
@@ -400,6 +397,13 @@ public class GroupInfo {
     	
     	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
     	return allocateSenderId(bytesToInt(id));
+    	
+    }
+    
+    // Return the set of allocated Sender Ids in the OSCORE group
+    synchronized public final Set<Integer> getUsedSenderIds() {
+    	
+    	return new HashSet<Integer>(this.usedSenderIds);
     	
     }
     

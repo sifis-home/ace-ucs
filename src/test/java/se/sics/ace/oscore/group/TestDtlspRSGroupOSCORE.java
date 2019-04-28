@@ -34,6 +34,7 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.AlgorithmParameterGeneratorSpi;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,6 +62,7 @@ import com.upokecenter.cbor.CBORType;
 import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.KeyKeys;
+import COSE.KeySet;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
@@ -269,9 +271,6 @@ public class TestDtlspRSGroupOSCORE {
         		
         		providePublicKeys = true;
         		
-        		// TODO: Prepare the actual set of members' public key to be provided to the joining node
-        		// Note: this considers the value of 'providePublicKeys' and the content of 
-        		
         	}
         	
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
@@ -298,34 +297,77 @@ public class TestDtlspRSGroupOSCORE {
         	else {
         		
         		if (!clientCred.getType().equals(CBORType.ByteString)) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "client_cred must be byte string");
             		myGroup.deallocateSenderId(senderId);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "client_cred must be byte string");
             		return;
         		}
 
-        		// This assumes that public keys are COSE Keys
+        		// This assumes that the public key is a COSE Key
         		CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
         		
         		if (!coseKey.getType().equals(CBORType.Map)) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "the public key must be a COSE key");
             		myGroup.deallocateSenderId(senderId);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "the public key must be a COSE key");
             		return;
         		}
         		
         		// Check that a OneKey object can be correctly built
+        		OneKey publicKey;
         		try {
-					OneKey publicKey = new OneKey(coseKey);
+        			publicKey = new OneKey(coseKey);
 				} catch (CoseException e) {
 					myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
             		return;
 				}
-        		
-        		// Store this client's public key 
-        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), coseKey)) {
+        		        		
+        		// Sanity check on the type of public key
+        		// TODO: The Group Manager should actually tell the joining node the exact algorithm and parameters
+        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_256)) {
         			
+        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P256)) {
+                		myGroup.deallocateSenderId(senderId);
+        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                		return;
+        			}
+        		}
+        		
+        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_384)) {
+        			
+        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P384)) {
+                		myGroup.deallocateSenderId(senderId);
+        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                		return;
+        			}
+        		}
+        			
+        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_512)) {
+        			
+        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P521)) {
+                		myGroup.deallocateSenderId(senderId);
+        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                		return;
+        			}
+        				
+        		}
+        		
+        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
+        			
+        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams())) {
+                		myGroup.deallocateSenderId(senderId);
+        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                		return;
+        			}
+        				
+        		}
+        				
+            	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
+        		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
+        		
+        		// Store this client's public key
+        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), publicKey.AsCBOR())) {
         			myGroup.deallocateSenderId(senderId);
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "error when storing the public key");
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
             		return;
         			
         		}
@@ -343,12 +385,6 @@ public class TestDtlspRSGroupOSCORE {
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
-        	
-        	
-
-        	
-        	
-        	
         	// Fill the 'key' parameter
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
@@ -357,12 +393,18 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
+        	if (myGroup.getCsParams() != null)
+        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
+        	
         	joinResponse.Add("key", myMap);
         	
-        	// The Epoch part of the Group ID should be incremented
-        	// TODO: uncomment
+        	// If backward security has to be preserved:
+        	//
+        	// 1) The Epoch part of the Group ID should be incremented
         	// myGroup.incrementGroupIdEpoch();
+        	//
+        	// 2) The OSCORE group should be rekeyed
+
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
@@ -375,7 +417,37 @@ public class TestDtlspRSGroupOSCORE {
         	// NOTE: this is currently skipping the inclusion of the optional parameters 'pub_keys' and 'group_policies'.
         	if (providePublicKeys) {
         		
-        		// TODO: add 'pub_keys' including the group members' public keys
+        		CBORObject coseKeySet = CBORObject.NewArray();
+        		
+        		for (Integer i : myGroup.getUsedSenderIds()) {
+        			
+        			// Skip the entry of the just-added joining node 
+        			if (i.equals(GroupInfo.bytesToInt(senderId)))
+        				continue;
+        			
+        			CBORObject coseKeyPeer = myGroup.getPublicKey(i);
+        			coseKeySet.Add(coseKeyPeer);
+        			
+        		}
+        		
+        		if (coseKeySet.size() > 0) {
+        			
+        			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+        			joinResponse.Add("pub_keys", CBORObject.FromObject(coseKeySetByte));
+        			
+        		}
+        		
+        		// Debug:
+        		// 1) Print 'kid' as equal to the Sender ID of the key owner
+        		// 2) Print 'kty' of each public key
+        		/*
+        		for (int i = 0; i < coseKeySet.size(); i++) {
+        			byte[] kid = coseKeySet.get(i).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        			for (int j = 0; j < kid.length; j++)
+        				System.out.printf("0x%02X", kid[j]);
+        			System.out.println("\n" + coseKeySet.get(i).get(KeyKeys.KeyType.AsCBOR()));
+        		}
+        		*/
         		
         	}
         	
@@ -403,7 +475,7 @@ public class TestDtlspRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-      //Set up DTLSProfileTokenRepository
+        //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
@@ -473,8 +545,14 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        final AlgorithmID csAlg = AlgorithmID.EDDSA;
-        final CBORObject csParams = KeyKeys.OKP_Ed25519;
+        
+        // ECDSA_256
+        final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+        final CBORObject csParams = null;
+        
+        // EDDSA (Ed25519)
+        //final AlgorithmID csAlg = AlgorithmID.EDDSA;
+        //final CBORObject csParams = KeyKeys.OKP_Ed25519;
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -499,11 +577,9 @@ public class TestDtlspRSGroupOSCORE {
     	byte[] mySid;
     	OneKey myKey;
     	
-    	// Add a group member with Sender ID 0x52
-    	mySid = new byte[] { (byte) 0x52 };
-    	myGroup.allocateSenderId(mySid);	
-    	
     	/*
+    	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)
+    	
     	OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
     	byte[] testKeyBytes = testKey.EncodeToBytes();
@@ -516,10 +592,18 @@ public class TestDtlspRSGroupOSCORE {
     	System.out.println(testPublicKeyBytesBase64);
     	*/
     	
+    	// Add a group member with Sender ID 0x52
+    	mySid = new byte[] { (byte) 0x52 };
+    	myGroup.allocateSenderId(mySid);	
+    	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
     	String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+    	
+    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
     	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+    	
     	
     	// Add a group member with Sender ID 0x77
     	mySid = new byte[] { (byte) 0x77 };
@@ -528,6 +612,9 @@ public class TestDtlspRSGroupOSCORE {
     	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
     	String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+    	
+    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
     	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
     	
     	
@@ -616,84 +703,84 @@ public class TestDtlspRSGroupOSCORE {
   	  	key2.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
   	  	CBORObject cnf2 = CBORObject.NewMap();
-  	   cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
-  	   params2.put(Constants.CNF, cnf2);
-  	   CWT token2 = new CWT(params2);
-  	   ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
+  	    cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
+  	    params2.put(Constants.CNF, cnf2);
+  	    CWT token2 = new CWT(params2);
+  	    ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
       
       
-  	   // M.T.
-  	   // Add a token to enable access to a join resource,
-  	   // for joining an OSCORE group with multiple roles
-  	   Map<Short, CBORObject> params3 = new HashMap<>();
-  	   String role2 = new String("listener");
+  	    // M.T.
+  	    // Add a token to enable access to a join resource,
+  	    // for joining an OSCORE group with multiple roles
+  	    Map<Short, CBORObject> params3 = new HashMap<>();
+  	    String role2 = new String("listener");
       
-  	   cborArrayScope = CBORObject.NewArray();
-  	   cborArrayScope.Add(gid);
-  	   CBORObject cborArrayRoles = CBORObject.NewArray();
-  	   cborArrayRoles.Add(role1);
-  	   cborArrayRoles.Add(role2);
-  	   cborArrayScope.Add(cborArrayRoles);
-  	   byteStringScope = cborArrayScope.EncodeToBytes();
-  	   params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-  	   params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
-  	   params3.put(Constants.CTI, CBORObject.FromObject(
-                   "token3".getBytes(Constants.charset)));
-  	   params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+  	    cborArrayScope = CBORObject.NewArray();
+  	    cborArrayScope.Add(gid);
+  	    CBORObject cborArrayRoles = CBORObject.NewArray();
+  	    cborArrayRoles.Add(role1);
+  	    cborArrayRoles.Add(role2);
+  	    cborArrayScope.Add(cborArrayRoles);
+  	    byteStringScope = cborArrayScope.EncodeToBytes();
+  	    params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+  	    params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
+  	    params3.put(Constants.CTI, CBORObject.FromObject(
+                    "token3".getBytes(Constants.charset)));
+  	    params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
-  	   OneKey key3 = new OneKey();
-  	   key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+  	    OneKey key3 = new OneKey();
+  	    key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
       
-  	   byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
-  	   CBORObject kidC3 = CBORObject.FromObject(kid3);
-  	   key3.add(KeyKeys.KeyId, kidC3);
-  	   key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+  	    byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
+  	    CBORObject kidC3 = CBORObject.FromObject(kid3);
+  	    key3.add(KeyKeys.KeyId, kidC3);
+  	    key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
-  	   CBORObject cnf3 = CBORObject.NewMap();
-  	   cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
-  	   params3.put(Constants.CNF, cnf3);
-  	   CWT token3 = new CWT(params3);
-  	   ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
+  	    CBORObject cnf3 = CBORObject.NewMap();
+  	    cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
+  	    params3.put(Constants.CNF, cnf3);
+  	    CWT token3 = new CWT(params3);
+  	    ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
       
       
-  	   AsRequestCreationHints asi 
-  	   = new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
-  	   Resource hello = new HelloWorldResource();
-  	   Resource temp = new TempResource();
-  	   Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
-  	   Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
+  	    AsRequestCreationHints asi 
+  	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
+  	    Resource hello = new HelloWorldResource();
+  	    Resource temp = new TempResource();
+  	    Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
+  	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
       
-  	   rs = new CoapServer();
-  	   rs.add(hello);
-  	   rs.add(temp);
-  	   rs.add(join); // M.T.
-  	   rs.add(authzInfo);
+  	    rs = new CoapServer();
+  	    rs.add(hello);
+  	    rs.add(temp);
+  	    rs.add(join); // M.T.
+  	    rs.add(authzInfo);
       
-  	   dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+  	    dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
 
       
-  	   DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-       config.setSupportedCipherSuites(new CipherSuite[]{
+  	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-       config.setRpkTrustAll();
-       DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-       config.setPskStore(psk);
-       config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-       config.setClientAuthenticationRequired(true);
-       DTLSConnector connector = new DTLSConnector(config.build());
-       CoapEndpoint cep = new Builder().setConnector(connector)
+  	    config.setRpkTrustAll();
+  	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
+  	    config.setPskStore(psk);
+  	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
+  	    config.setClientAuthenticationRequired(true);
+  	    DTLSConnector connector = new DTLSConnector(config.build());
+  	    CoapEndpoint cep = new Builder().setConnector(connector)
                .setNetworkConfig(NetworkConfig.getStandard()).build();
-       rs.addEndpoint(cep);
-       //Add a CoAP (no 's') endpoint for authz-info
-       CoapEndpoint aiep = new Builder().setInetSocketAddress(
+  	    rs.addEndpoint(cep);
+  	    //Add a CoAP (no 's') endpoint for authz-info
+  	    CoapEndpoint aiep = new Builder().setInetSocketAddress(
                new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
-       rs.addEndpoint(aiep);
-       rs.setMessageDeliverer(dpd);
-       rs.start();
-       System.out.println("Server starting");
+  	    rs.addEndpoint(aiep);
+  	    rs.setMessageDeliverer(dpd);
+  	    rs.start();
+  	    System.out.println("Server starting");
     }
     
     /**
