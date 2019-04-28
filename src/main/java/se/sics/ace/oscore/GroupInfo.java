@@ -31,10 +31,13 @@
  *******************************************************************************/
 package se.sics.ace.oscore;
 
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.KeyKeys;
@@ -56,6 +59,10 @@ public class GroupInfo {
 	private Set<Integer> usedSenderIds = new HashSet<Integer>();
 	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
 	private int maxSenderIdValue;
+	
+	// This map stores the public keys of the group members as COSE Keys (CBOR Maps).
+	// The map key (label) is the integer representation of the Sender ID of the group member. 
+	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<Integer, CBORObject>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -423,6 +430,43 @@ public class GroupInfo {
     	
     	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
     	return deallocateSenderId(id);
+    	
+    }
+    
+    // Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
+    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+    synchronized public boolean storePublicKey(final Integer sid, final CBORObject key) {
+    	
+    	if (!usedSenderIds.contains(sid))
+    		return false;
+    	
+    	if (key.getType() != CBORType.Map)
+    		return false;
+    	
+    	publicKeyRepo.put(sid, key);
+    	
+    	return true;
+    	
+    }
+    
+    // Retrieve the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+    synchronized public CBORObject getPublicKey(final Integer sid) {
+    	
+    	return publicKeyRepo.get(sid);
+    	
+    }
+
+    // Remove the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+    synchronized public boolean deletePublicKey(final Integer sid) {
+    	
+    	if (!publicKeyRepo.containsKey(sid))
+    		return false;
+    	
+    	publicKeyRepo.remove(sid);
+    	
+    	return true;
     	
     }
     

@@ -85,6 +85,15 @@ public class TestDtlspClientGroupOSCORE {
 
     private static OneKey rsRPK;
     
+    // Private and public key to be used in the OSCORE group (ECDSA_256)
+    private static String groupKeyPair = "piJYIBZKbV1Ll/VtH2ChKBHVXeegVeusYWTJ75MCy8v/Hwq+I1ggO+AEdZm0KqRLj4oPqI1NoRaXtY2fzE45RD6YQ78jBYYDJgECIVgg6Pmo1YUKUzzaJLn6ih7ik/ag4egeHlYKZP8TTWX37OwgAQ==";
+    
+    // Public key to be received for the group member with Sender ID 0x52 (ECDSA_256)
+    private static String strPublicKeyPeer1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    
+    // Public key to be received for the group member with Sender ID 0x77 (ECDSA_256)
+    private static String strPublicKeyPeer2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    
     private static String rsAddrC;
     private static String rsAddrCS;
     
@@ -220,7 +229,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
         
         CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -265,8 +274,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
+        	/*
         	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -376,7 +389,7 @@ public class TestDtlspClientGroupOSCORE {
     	String role1 = new String("requester");
     	String role2 = new String("listener");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -424,8 +437,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
+        	/*
         	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -571,7 +588,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
     	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -619,8 +636,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	OneKey pubKey = asymmetric.PublicKey();
+        	/*
+        	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -729,7 +750,7 @@ public class TestDtlspClientGroupOSCORE {
     	String role1 = new String("requester");
     	String role2 = new String("listener");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
     	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -780,8 +801,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	OneKey pubKey = asymmetric.PublicKey();
+        	/*
+        	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -967,7 +992,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -1005,8 +1030,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
+        	/*
         	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1122,7 +1151,7 @@ public class TestDtlspClientGroupOSCORE {
     	String role1 = new String("requester");
     	String role2 = new String("listener");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -1163,8 +1192,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
+        	/*
         	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1510,7 +1543,7 @@ public class TestDtlspClientGroupOSCORE {
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
     	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1559,8 +1592,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	OneKey pubKey = asymmetric.PublicKey();
+        	/*
+        	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1678,7 +1715,7 @@ public class TestDtlspClientGroupOSCORE {
     	String role1 = new String("requester");
     	String role2 = new String("listener");
     	boolean askForPubKeys = false;
-    	boolean providePublicKey = false;
+    	boolean providePublicKey = true;
         
     	// Client's asymmetric key pair
     	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1730,8 +1767,12 @@ public class TestDtlspClientGroupOSCORE {
         if (providePublicKey) {
         	
         	// For the time being, the client's public key can be only a COSE Key
-        	OneKey pubKey = asymmetric.PublicKey();
+        	/*
+        	OneKey pubKey = key.PublicKey();
         	requestPayload.Add("client_cred", pubKey);
+        	*/
+        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
         

@@ -59,6 +59,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
+import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -273,6 +274,19 @@ public class TestDtlspRSGroupOSCORE {
         		
         	}
         	
+        	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
+        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
+        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+        	
+        	// Retrieve the entry for the target group, using the Group ID Prefix
+        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	
+        	// Assign a new Sender ID to the joining node.
+        	// For the sake of testing, a particular Sender ID is used as known to be available.
+            byte[] senderId = new byte[] { (byte) 0x25 };
+        	myGroup.allocateSenderId(senderId);        	
+        	
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get("client_cred");
         	
@@ -283,8 +297,38 @@ public class TestDtlspRSGroupOSCORE {
         	}
         	else {
         		
-        		// TODO: store this client's public key 
-        		// Note: this requires to understand if it's a COSE_Key, based on the signature algorithm used in the group
+        		if (!clientCred.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "client_cred must be byte string");
+            		myGroup.deallocateSenderId(senderId);
+            		return;
+        		}
+
+        		// This assumes that public keys are COSE Keys
+        		CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
+        		
+        		if (!coseKey.getType().equals(CBORType.Map)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "the public key must be a COSE key");
+            		myGroup.deallocateSenderId(senderId);
+            		return;
+        		}
+        		
+        		// Check that a OneKey object can be correctly built
+        		try {
+					OneKey publicKey = new OneKey(coseKey);
+				} catch (CoseException e) {
+					myGroup.deallocateSenderId(senderId);
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+            		return;
+				}
+        		
+        		// Store this client's public key 
+        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), coseKey)) {
+        			
+        			myGroup.deallocateSenderId(senderId);
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "error when storing the public key");
+            		return;
+        			
+        		}
         		
         	}
         	
@@ -299,17 +343,11 @@ public class TestDtlspRSGroupOSCORE {
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
-        	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
-        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
         	
-        	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
         	
-        	// Assign a new Sender ID to the joining node
-            byte[] senderId = new byte[] { (byte) 0x25 };
-        	myGroup.allocateSenderId(senderId);
+
+        	
+        	
         	
         	// Fill the 'key' parameter
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
@@ -445,10 +483,6 @@ public class TestDtlspRSGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	//int x = GroupInfo.bytesToInt(groupIdEpoch);
-    	//System.out.println(groupIdEpoch[0] & 0xFF);
-    	//System.out.println(x);
-    	
     	GroupInfo myGroup = new GroupInfo(masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
@@ -462,11 +496,45 @@ public class TestDtlspRSGroupOSCORE {
     			                          csParams
     			                          );
         
+    	byte[] mySid;
+    	OneKey myKey;
+    	
+    	// Add a group member with Sender ID 0x52
+    	mySid = new byte[] { (byte) 0x52 };
+    	myGroup.allocateSenderId(mySid);	
+    	
+    	/*
+    	OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        
+    	byte[] testKeyBytes = testKey.EncodeToBytes();
+    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
+    	System.out.println(testKeyBytesBase64);
+    	
+    	OneKey testPublicKey = testKey.PublicKey();
+    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
+    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
+    	System.out.println(testPublicKeyBytesBase64);
+    	*/
+    	
+    	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
+    	String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+    	
+    	// Add a group member with Sender ID 0x77
+    	mySid = new byte[] { (byte) 0x77 };
+    	myGroup.allocateSenderId(mySid);
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
+    	String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
+    	
+    	
+    	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
     	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
     	
-    	//System.out.println(GroupInfo.bytesToInt(groupIdPrefix));
-    	//System.out.println(activeGroups.containsKey(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix))));
     	
         createTR(valid);
         tr = TokenRepository.getInstance();
