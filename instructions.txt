@@ -2,7 +2,7 @@
 
 2. Start Eclipse, then import the following projects:
 californium-group-oscore
-ace-java
+ace
 joint-applications
 
 3. To "ace" add the following folders to the build path*:
