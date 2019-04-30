@@ -1,0 +1,20 @@
+1. Run the config.sh script
+
+2. Start Eclipse, then import the following projects:
+californium-group-oscore
+ace-java
+joint-applications
+
+3. To "ace" add the following folders to the build path*:
+californium-core
+element-connector
+oscore-cf
+scandium
+
+4. To "test" add the following folders to the build path:
+ace
+oscore-cf
+
+
+*Right click project->Properties->Java Build Path->Add...
+
