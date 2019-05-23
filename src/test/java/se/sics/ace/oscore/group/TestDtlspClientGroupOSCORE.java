@@ -43,6 +43,7 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -221,10 +222,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostAuthzInfoGroupOSCORESingleRole() throws AceException, IllegalStateException,
-            InvalidCipherTextException, CoseException {  
+            InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
@@ -432,10 +435,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostAuthzInfoGroupOSCOREMultipleRoles() throws AceException, IllegalStateException,
-            InvalidCipherTextException, CoseException {  
+            InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
@@ -645,10 +650,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testTokenPskId() throws CoseException, IllegalStateException,
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
@@ -684,10 +691,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testTokenPskIdGroupOSCORESingleRole() throws CoseException, IllegalStateException,
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
@@ -897,10 +906,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testTokenPskIdGroupOSCOREMultipeRoles() throws CoseException, IllegalStateException,
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
@@ -1112,10 +1123,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testKidPskId() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
+            InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         byte[] kid = new byte[] {0x01, 0x02, 0x03};
@@ -1145,10 +1158,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostRPK() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1186,10 +1201,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1396,10 +1413,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1610,10 +1629,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testUntrustedRPK() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1642,7 +1663,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/helloWorld");       
         try {
             c.get();
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
                 HandshakeException he = (HandshakeException)cause;
@@ -1666,10 +1687,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testUntrustedRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1705,7 +1728,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/helloWorld");       
         try {
             c.get();
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
                 HandshakeException he = (HandshakeException)cause;
@@ -1729,10 +1752,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testUntrustedRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
         CBORObject kid = CBORObject.FromObject(
@@ -1772,7 +1797,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/helloWorld");       
         try {
             c.get();
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
                 HandshakeException he = (HandshakeException)cause;
@@ -1792,10 +1817,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostPSK() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourPSK";
@@ -1839,10 +1866,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostPSKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourPSK";
@@ -2061,10 +2090,12 @@ public class TestDtlspClientGroupOSCORE {
      * @throws AceException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
     public void testPostPSKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
-            InvalidCipherTextException, AceException {
+            InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourPSK";
@@ -2282,9 +2313,11 @@ public class TestDtlspClientGroupOSCORE {
     
     /**
      * Test with a erroneous psk-identity
+     * @throws IOException 
+     * @throws ConnectorException 
      */
     @Test
-    public void testFailPskId() {
+    public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "someKey";
@@ -2297,7 +2330,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/temp");
         try {
             c.get();
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
                     "java.lang.Exception: handshake flight 5 failed!")) {
@@ -2319,11 +2352,13 @@ public class TestDtlspClientGroupOSCORE {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      
      */
     @Test
     public void testFailTokenNoMatch() throws IllegalStateException,
-            InvalidCipherTextException, CoseException, AceException {
+            InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
@@ -2360,11 +2395,13 @@ public class TestDtlspClientGroupOSCORE {
      * @throws CoseException 
      * @throws InvalidCipherTextException 
      * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
      
      */
     @Test
     public void testFailActionNoMatch() throws IllegalStateException,
-            InvalidCipherTextException, CoseException, AceException {
+            InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));

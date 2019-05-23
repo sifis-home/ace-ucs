@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -84,9 +85,19 @@ public class DtlspPskStore implements PskStore {
         this.authzInfo = authzInfo;
     }
     
-    
     @Override
-    public byte[] getKey(String identity) {
+    public byte[] getKey(PskPublicInformation identity) {
+        return getKey(identity.getPublicInfoAsString());
+    }
+   
+    /**
+     * Avoid having to refactor all my code since the CF people decided 
+     * they needed to change public APIs
+     * 
+     * @param identity  the String identity of the key
+     * @return  the bytes of the key
+     */
+    private byte[] getKey(String identity) {
         //First try if we have that key
         OneKey key = null;
         try {
@@ -138,21 +149,21 @@ public class DtlspPskStore implements PskStore {
     }
 
     @Override
-    public String getIdentity(InetSocketAddress inetAddress) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
         // Not needed here, this PskStore is for servers only
         return null;
     }
 
 
     @Override
-    public byte[] getKey(ServerNames serverNames, String identity) {
+    public byte[] getKey(ServerNames serverNames, PskPublicInformation identity) {
         //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }
 
 
     @Override
-    public String getIdentity(InetSocketAddress peerAddress,
+    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
         // XXX: No support for ServerNames extension yet
         return null;

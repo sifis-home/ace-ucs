@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -192,7 +193,7 @@ public class TestDtlspPskStoreGroupOSCORE {
      */
     @Test
     public void testInvalidPskId() throws Exception {
-        byte[] key = store.getKey("blah");
+        byte[] key = store.getKey(new PskPublicInformation("blah"));
         Assert.assertNull(key);
     }
     
@@ -232,7 +233,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenAsBytes.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertNull(psk);
     }
 
@@ -271,7 +272,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
      
@@ -305,7 +306,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         tr.addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -354,7 +355,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -407,7 +408,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
 
@@ -451,7 +452,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         tr.addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -499,7 +500,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         tr.addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     

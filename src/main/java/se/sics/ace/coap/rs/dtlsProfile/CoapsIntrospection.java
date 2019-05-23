@@ -47,6 +47,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -164,9 +165,14 @@ public class CoapsIntrospection implements IntrospectionHandler {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
         params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop")); 
-        CoapResponse response =  this.client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        CoapResponse response;
+        try {
+            response = this.client.post(
+                    Constants.getCBOR(params).EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (ConnectorException | IOException e) {
+            throw new AceException("Connector/IO Error: " + e.getMessage());
+        }    
         if (response == null) {
             throw new AceException("AS didn't respond");
         }

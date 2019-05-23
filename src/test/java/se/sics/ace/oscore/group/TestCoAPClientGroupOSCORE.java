@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.oscore.group;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.HashMap;
@@ -154,7 +155,7 @@ public class TestCoAPClientGroupOSCORE {
             client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
                 HandshakeException he = (HandshakeException)cause;
