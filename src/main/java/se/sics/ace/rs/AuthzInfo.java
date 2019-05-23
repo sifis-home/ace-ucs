@@ -137,7 +137,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 	    }
-	    
+	    return processToken(token, msg);
+	}
+	
+	protected synchronized Message processToken(CBORObject token,  Message msg) {
 	    Map<Short, CBORObject> claims = null;
 
 		//1. Check whether it is a CWT or REF type
@@ -342,7 +345,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * 
 	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<Short,CBORObject> processCWT(CBORObject token)
+	protected synchronized Map<Short,CBORObject> processCWT(CBORObject token)
 	        throws IntrospectionException, AceException, 
 	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(token.EncodeToBytes(), this.ctx);
@@ -370,7 +373,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    private Map<Short, CBORObject> processRefrenceToken(CBORObject token)
+    protected synchronized Map<Short, CBORObject> processRefrenceToken(CBORObject token)
                 throws AceException, IntrospectionException {
 		// This should be a CBOR String
         if (token.getType() != CBORType.ByteString) {
@@ -397,7 +400,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
      * 
      * @param claims
      */
-    private void handleExi(Map<Short, CBORObject> claims) {
+    private synchronized void handleExi(Map<Short, CBORObject> claims) {
         CBORObject exi = claims.get(Constants.EXI);
         if (exi != null) {
             Long now = this.time.getCurrentTime();

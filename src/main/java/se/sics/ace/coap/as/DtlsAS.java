@@ -203,7 +203,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-       LOGGER.info("Closing down CoapsAS ...");
+       LOGGER.info("Closing down DtlsAS ...");
        this.token.close();
        this.introspect.close();
     }
