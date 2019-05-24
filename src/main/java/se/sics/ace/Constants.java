@@ -38,6 +38,8 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import COSE.AlgorithmID;
+
 /**
  * Constants for use with the ACE framework.
  * 
@@ -396,43 +398,112 @@ public class Constants {
 	 * Abbreviation identifying a proof-of-possession token
 	 */	
 	public static final short POP = 2;
-	
 
-	 /**
-	  * Authz-Info error abbreviations ========================================
-	  */
+
+	/**
+	 * Authz-Info error abbreviations ========================================
+	 */
 	//invalid request = 1
-	
+
 	/**
 	 * The access token provided is expired, revoked, malformed, or
-     *  invalid for other reasons. 
+	 *  invalid for other reasons. 
 	 */
-	    public static final short INVALID_TOKEN = 9; 
-	    
+	public static final short INVALID_TOKEN = 9; 
+
 	/**
 	 * The request requires higher privileges than provided by 
 	 * the access token.
 	 */
-	    public static final short INSUFFICIENT_SCOPE = 10;
-	    
-	    
-	
+	public static final short INSUFFICIENT_SCOPE = 10;
+
+
+	/**
+	 * OSCORE_Security_Context abbreviations ========================================
+	 */  
+
+	/**
+	 * The outer map key of a OSCORE_Security_Context object
+	 * XXX: not specified yet
+	 */
+	public static final short OSCORE_Security_Context = 4; 
+
+	/**
+	 * The master secret
+	 */
+	public static final short OS_MS = 1;
+
+	/**
+	 * The client Id
+	 */
+	public static final short OS_CLIENTID = 2;
+
+	/**
+	 * The server Id
+	 */
+	public static final short OS_SERVERID = 3;
+
+    /**
+     * The master secret
+     */
+    public static final short OS_HKDF = 4;
+
+    /**
+     * The client Id
+     */
+    public static final short OS_ALG = 5;
+
+    /**
+     * The server Id
+     */
+    public static final short OS_SALT = 6;
+    
+    /**
+     * The server Id
+     */
+    public static final short OS_CONTEXTID = 7;
+
+    /**
+     * The master secret
+     */
+    public static final short OS_RPL = 8;
+
+
+    /**
+     * Default value for alg
+     */
+    public static final short OS_DEFAULT_ALG 
+        = AlgorithmID.AES_CCM_16_64_128.AsCBOR().AsInt16();
+
+    
+    /**
+     * Default value for hkdf
+     */
+    public static final short OS_DEFAULT_HKDF 
+        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();
+    
+    /**
+     * Default value for rpl
+     */
+    public static final short OS_DEFAULT_RPL = 32;
+    
+    
 	/**
 	 * RESTful action names ===================================================
 	 */
 	public static final String[] RESTACTIONS 
-	    = {"GET", "POST", "PUT", "DELETE"};
+	= {"GET", "POST", "PUT", "DELETE"};
 
-	
+
 	/**
 	 * Abbreviations for the cnf parameter/claim ==============================
 	 */
-	
+
 	/**
 	 * A cnf containing a COSE_Key
 	 */
 	public static final short COSE_KEY = 1;
-	
+
     /**
      * ... same as above as CBORObject
      */

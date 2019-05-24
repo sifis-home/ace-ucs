@@ -47,6 +47,7 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.Attribute;
@@ -880,6 +881,41 @@ public class TestToken {
         claims = cwt2.getClaims();
         assert(claims.get(Constants.SCOPE).AsString().contains("r_temp"));
         assert(claims.get(Constants.AUD).AsString().contains("rs1"));     
+    }
+    
+    /**
+     * Test issuing an OSCORE cnf
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testOscoreCnf() throws Exception {
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
+        Message response = t.processMessage(msg);
+        CBORObject rparams = CBORObject.DecodeFromBytes(
+                response.getRawPayload());
+        params = Constants.getParams(rparams);
+        assert(response.getMessageCode() == Message.CREATED);
+        CBORObject token = params.get(Constants.ACCESS_TOKEN);
+        String ctiStr = Base64.getEncoder().encodeToString(
+                CBORObject.DecodeFromBytes(
+                        token.GetByteString()).GetByteString());
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr);
+        CBORObject cnf = claims.get(Constants.CNF);
+        assert(cnf.getType().equals(CBORType.Map));
+        assert(cnf.ContainsKey(CBORObject.FromObject(
+                Constants.OSCORE_Security_Context)));
+        CBORObject osctx = cnf.get(CBORObject.FromObject(
+                Constants.OSCORE_Security_Context));
+        assert(osctx.getType().equals(CBORType.Map));
+        assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_MS)));
+        assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_CLIENTID)));
+        assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_SERVERID)));
     }
     
 }

@@ -31,7 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs.oscoreProfile;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -67,6 +69,11 @@ public class OscoreAuthzInfo extends AuthzInfo {
     private static final Logger LOGGER 
         = Logger.getLogger(OscoreAuthzInfo.class.getName());
 
+    
+    /**
+     * Nonces for ACE-OSCORE handshakes in progress
+     */
+    private Map<byte[], byte[]> nonces;
 	
 	/**
 	 * Constructor.
@@ -82,6 +89,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 			TimeProvider time, IntrospectionHandler intro, 
 			AudienceValidator audience, CwtCryptoCtx ctx) {
 		super(tr, issuers, time, intro, audience, ctx);
+		this.nonces = new HashMap<>();
 	}
 
 	@Override
@@ -106,6 +114,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         CBORObject nonce = cbor.get(Constants.CNONCE);
         //FIXME: store nonce
         
+        //FIXME: need client id  fuck fuck fuck
         CBORObject token = cbor.get(Constants.ACCESS_TOKEN);
         return super.processToken(token, msg);
 	}
