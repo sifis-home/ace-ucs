@@ -419,54 +419,55 @@ public class Constants {
 
 
 	/**
-	 * OSCORE_Security_Context abbreviations ========================================
+	 * OSCORE_Security_Context abbreviations =================================
 	 */  
 
 	/**
 	 * The outer map key of a OSCORE_Security_Context object
 	 * XXX: not specified yet
 	 */
-	public static final short OSCORE_Security_Context = 4; 
+	public static final CBORObject OSCORE_Security_Context 
+	    = CBORObject.FromObject(4);
 
 	/**
 	 * The master secret
 	 */
-	public static final short OS_MS = 1;
+	public static final CBORObject OS_MS = CBORObject.FromObject(1);
 
 	/**
 	 * The client Id
 	 */
-	public static final short OS_CLIENTID = 2;
+	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(2);
 
 	/**
 	 * The server Id
 	 */
-	public static final short OS_SERVERID = 3;
+	public static final CBORObject OS_SERVERID = CBORObject.FromObject(3);
 
     /**
      * The master secret
      */
-    public static final short OS_HKDF = 4;
+    public static final CBORObject OS_HKDF = CBORObject.FromObject(4);
 
     /**
      * The client Id
      */
-    public static final short OS_ALG = 5;
+    public static final CBORObject OS_ALG = CBORObject.FromObject(5);
 
     /**
      * The server Id
      */
-    public static final short OS_SALT = 6;
+    public static final CBORObject OS_SALT = CBORObject.FromObject(6);
     
     /**
      * The server Id
      */
-    public static final short OS_CONTEXTID = 7;
+    public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(7);
 
     /**
      * The master secret
      */
-    public static final short OS_RPL = 8;
+    public static final CBORObject OS_RPL = CBORObject.FromObject(8);
 
 
     /**

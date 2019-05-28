@@ -307,7 +307,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //8. Handle EXI if present
 	    handleExi(claims);
 	    
-	    //9. Store the claims of this token
+	    //9. Extension point for handling other special claims in the future
+	    processOther(claims);
+	    
+	    //10. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
@@ -318,7 +321,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
 
-	    //10. Create success message
+	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
@@ -326,6 +329,15 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	}
 	
 	/**
+	 * Extension point for handling other special claims.
+	 * 
+	 * @param claims all claims
+	 */
+	protected synchronized void processOther(Map<Short, CBORObject> claims) {
+	    //No processing needed
+    }
+
+    /**
 	 * Process a message containing a CWT.
 	 * 
 	 * Note: The behavior implemented here is the following:

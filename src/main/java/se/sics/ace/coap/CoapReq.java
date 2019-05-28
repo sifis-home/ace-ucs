@@ -38,6 +38,7 @@ import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.EndpointContext;
 
 import com.upokecenter.cbor.CBORException;
@@ -107,12 +108,7 @@ public class CoapReq implements Message {
         if (p==null) {
             return null;
         }
-       //XXX: Kludge to temporarily fix bug #649 in Scandium
-        String name = p.getName();
-        if (name.startsWith(":")) {
-            name = name.substring(1);
-        }
-       return name;
+        return p.getName();
     }
 
     @Override
@@ -143,41 +139,14 @@ public class CoapReq implements Message {
 
     @Override
     public Message successReply(int code, CBORObject payload) {
-        ResponseCode coapCode = null;
-        switch (code) {
-        case Message.CREATED :
-            coapCode = ResponseCode.CREATED;
-            break;
-        default:
-            coapCode = ResponseCode._UNKNOWN_SUCCESS_CODE;
-            break;
-        }
-        CoapRes res = new CoapRes(coapCode, payload);
-        
+        ResponseCode coapCode = ResponseCode.valueOf(code);
+        CoapRes res = new CoapRes(coapCode, payload);       
         return res;
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        ResponseCode coapCode = null;
-        switch (failureReason) {
-        case Message.FAIL_UNAUTHORIZED :
-            coapCode = ResponseCode.UNAUTHORIZED;
-            break;
-        case Message.FAIL_BAD_REQUEST :
-            coapCode = ResponseCode.BAD_REQUEST;
-            break;
-        case Message.FAIL_FORBIDDEN :
-            coapCode = ResponseCode.FORBIDDEN;
-            break;
-        case Message.FAIL_INTERNAL_SERVER_ERROR :
-            coapCode = ResponseCode.INTERNAL_SERVER_ERROR;
-            break;
-        case Message.FAIL_NOT_IMPLEMENTED :
-            coapCode = ResponseCode.NOT_IMPLEMENTED;
-            break; 
-        default :
-        }
+        ResponseCode coapCode = ResponseCode.valueOf(failureReason);
         CoapRes res = new CoapRes(coapCode, payload);
         return res;
     }
@@ -196,5 +165,12 @@ public class CoapReq implements Message {
     @Override
     public int getMessageCode() {
         return this.request.getCode().value;
+    }
+    
+    /**
+     * @return  the CoAP token associated with this message
+     */
+    public Token getToken() {
+        return this.request.getToken();
     }
 }

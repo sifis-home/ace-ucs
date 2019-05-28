@@ -157,16 +157,20 @@ public class AsRequestCreationHints {
         }
         h.put(Constants.AS, hints.get(CBORObject.FromObject(Constants.AS)));
         if (hints.ContainsKey(CBORObject.FromObject(Constants.KID))) {
-            h.put(Constants.KID, hints.get(Constants.KID));
+            h.put(Constants.KID, hints.get(
+                    CBORObject.FromObject(Constants.KID)));
         }
         if (hints.ContainsKey(CBORObject.FromObject(Constants.SCOPE))) {
-            h.put(Constants.SCOPE, hints.get(Constants.SCOPE));
+            h.put(Constants.SCOPE, hints.get(
+                    CBORObject.FromObject(Constants.SCOPE)));
         }
         if (hints.ContainsKey(CBORObject.FromObject(Constants.AUDIENCE))) {
-            h.put(Constants.AUDIENCE, hints.get(Constants.AUDIENCE));
+            h.put(Constants.AUDIENCE, hints.get(
+                    CBORObject.FromObject(Constants.AUDIENCE)));
         }
         if (hints.ContainsKey(CBORObject.FromObject(Constants.CNONCE))) {
-            h.put(Constants.CNONCE, hints.get(Constants.CNONCE));
+            h.put(Constants.CNONCE, hints.get(
+                    CBORObject.FromObject(Constants.CNONCE)));
         }
         return h;
     }

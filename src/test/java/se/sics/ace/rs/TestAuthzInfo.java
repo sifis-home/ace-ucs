@@ -264,7 +264,7 @@ public class TestAuthzInfo {
         String kidStr = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
         assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET, null));
-
+        db.deleteToken(ctiStr);
     }
     
     /**
@@ -369,6 +369,50 @@ public class TestAuthzInfo {
         db.deleteToken(ctiStr);
     }
     
+    
+    /**
+     * Test submission of CWT without security wrapper
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException  
+     */
+    @Test
+    public void testInsecureCWT() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<Short, CBORObject> claims = new HashMap<>();
+        byte[] cti = {0x13};
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        String ctiStr = Base64.getEncoder().encodeToString(cti);
+        
+        //Make introspection succeed
+        db.addToken(ctiStr, claims);
+        db.addCti2Client(ctiStr, "client1");
+        
+        claims.put(Constants.CNF, publicKey.AsCBOR());
+        claims.put(Constants.SCOPE, CBORObject.FromObject(
+                "r+/s/light rwx+/a/led w+/dtls")); 
+        claims.put(Constants.ISS, CBORObject.FromObject("coap://as.example.com"));
+        claims.put(Constants.AUD, CBORObject.FromObject("coap://light.example.com"));
+        claims.put(Constants.NBF, CBORObject.FromObject(1443944944));
+        claims.put(Constants.IAT, CBORObject.FromObject(1443944944));        
+        claims.put(Constants.EXP, CBORObject.FromObject(10000));
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
+        CWT cwt = new CWT(claims);
+        
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                cwt.encode());
+                
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken(ctiStr);
+    }
+    
     /**
      * Test CWT with unrecognized issuer submission to AuthzInfo
      * 
@@ -409,6 +453,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token issuer unknown");
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken(ctiStr);
     }
     
     /**
@@ -447,6 +492,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken(ctiStr);
     }
     
     /**
@@ -486,6 +532,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Audience does not apply");
         assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());   
+        db.deleteToken(ctiStr);
     }  
     
     /**
@@ -523,6 +570,7 @@ public class TestAuthzInfo {
         map.Add(Constants.ERROR_DESCRIPTION, "Token has no scope");
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
+        db.deleteToken(ctiStr);
     }
     
     /**
@@ -574,6 +622,7 @@ public class TestAuthzInfo {
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x09});
+        db.deleteToken(ctiStr);
     }    
     
     /**
@@ -629,6 +678,7 @@ public class TestAuthzInfo {
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x11});
+        db.deleteToken(ctiStr);
     }    
     
     /**
@@ -684,6 +734,6 @@ public class TestAuthzInfo {
         
         Assert.assertEquals(1, tr.canAccess(kidStr, "client1", "temp", 
                 Constants.GET, null));
-        
+        db.deleteToken(ctiStr);
     }
 }

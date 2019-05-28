@@ -892,8 +892,7 @@ public class TokenRepository implements AutoCloseable {
             this.cnonceWindow = 0;
             //Generate a new key to invalidate the old cnonces
             this.cnonceKey = new byte[32];
-            SecureRandom sr = new SecureRandom();
-            sr.nextBytes(this.cnonceKey);  
+            new SecureRandom().nextBytes(this.cnonceKey);  
         } 
 
         byte[] mac = null;

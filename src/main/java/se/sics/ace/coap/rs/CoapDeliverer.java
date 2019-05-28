@@ -147,10 +147,6 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         
         String subject = request.getSourceContext()
                 .getPeerIdentity().getName();
-        //XXX: Kludge to fix bug #649 in Scandium
-        if (subject.startsWith(":")) {
-            subject = subject.substring(1);
-        }
 
         String kid = this.tr.getKid(subject);
         if (kid == null) {//Check if this was the Base64 encoded kid map

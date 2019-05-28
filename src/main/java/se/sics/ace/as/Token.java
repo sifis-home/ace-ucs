@@ -39,7 +39,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
-import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -926,7 +925,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    CBORObject osccnf = CBORObject.NewMap();
 	    osccnf.Add(Constants.OS_MS, key);
 	    byte[] serverId = new byte[this.OS_serverId_size];
-	    new Random().nextBytes(serverId);
+	    new SecureRandom().nextBytes(serverId);
 	 
 	    osccnf.Add(Constants.OS_SERVERID, serverId);
 	    osccnf.Add(Constants.OS_CLIENTID, clientId.getBytes(
