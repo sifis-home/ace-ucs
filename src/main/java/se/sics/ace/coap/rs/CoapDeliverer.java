@@ -31,8 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
@@ -73,18 +71,13 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz
  *
  */
-public class CoapDeliverer implements MessageDeliverer, Closeable {
+public class CoapDeliverer implements MessageDeliverer {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
         = Logger.getLogger(CoapDeliverer.class.getName());
-    
-    /**
-     * The token repository
-     */
-    private TokenRepository tr;
     
     /**
      * The introspection handler
@@ -106,16 +99,22 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
 
     /**
      * Constructor. 
+     * 
+     * Note: This expects that a TokenRepository has been created.
+     * 
      * @param root  the root of the resources that this deliverer controls
-     * @param tr  the token repository.
      * @param i  the introspection handler or null if there isn't any.
      * @param asRCHM  the AS Request Creation Hints Manager.
+     * @throws AceException   if the token repository is not initialized
      */
-    public CoapDeliverer(Resource root, TokenRepository tr, 
-            IntrospectionHandler i, AsRequestCreationHints asRCHM) {
+    public CoapDeliverer(Resource root,
+            IntrospectionHandler i, AsRequestCreationHints asRCHM) 
+                    throws AceException {
+        if (TokenRepository.getInstance() == null) {
+            throw new AceException("Must initialize TokenRepository");
+        }
         this.d = new ServerMessageDeliverer(root);
-        this.tr = tr;
-        this.asRCH = asRCHM;
+        this.asRCH = asRCHM; 
     }
     
     @Override
@@ -148,7 +147,14 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         String subject = request.getSourceContext()
                 .getPeerIdentity().getName();
 
-        String kid = this.tr.getKid(subject);
+        TokenRepository tr = TokenRepository.getInstance();
+        if (tr == null) {
+            LOGGER.finest("TokenRepository not initialized");
+            ex.sendResponse(new Response(
+                    ResponseCode.INTERNAL_SERVER_ERROR));
+        }
+        String kid = TokenRepository.getInstance().getKid(subject);
+       
         if (kid == null) {//Check if this was the Base64 encoded kid map
             try {
                 CBORObject cbor = CBORObject.DecodeFromBytes(
@@ -185,7 +191,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         short action = (short) request.getCode().value;  
       
         try {
-            int res = this.tr.canAccess(
+            int res = TokenRepository.getInstance().canAccess(
                     kid, subject, resource, action, this.i);
             switch (res) {
             case TokenRepository.OK :
@@ -197,8 +203,8 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
             case TokenRepository.FORBID :
                 r = new Response(ResponseCode.FORBIDDEN);
                 try {
-                    r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                            this.tr, kid).EncodeToBytes());
+                    r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(), 
+                            kid).EncodeToBytes());
                 } catch (InvalidKeyException | NoSuchAlgorithmException e) {
                     LOGGER.severe("cnonce creation failed: " + e.getMessage());
                     ex.sendResponse(r); //Send response without payload
@@ -209,7 +215,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                 r = new Response(ResponseCode.METHOD_NOT_ALLOWED);
                 try {
                     r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                            this.tr, kid).EncodeToBytes());
+                            kid).EncodeToBytes());
                 } catch (InvalidKeyException | NoSuchAlgorithmException e) {
                     LOGGER.severe("cnonce creation failed: " + e.getMessage());
                     ex.sendResponse(r);
@@ -224,7 +230,7 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
                return;
             }
         } catch (AceException e) {
-            LOGGER.severe("Error in DTLSProfileInterceptor.receiveRequest(): "
+            LOGGER.severe("Error in CoapDeliverer.deliverRequest(): "
                     + e.getMessage());    
         } catch (IntrospectionException e) {
             LOGGER.info("Introspection error, "
@@ -251,10 +257,11 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
     private void failUnauthz(String kid, Exchange ex) {
         Response r = new Response(ResponseCode.UNAUTHORIZED);
         try {
-            r.setPayload(this.asRCH.getHints(ex.getCurrentRequest(),
-                    this.tr, kid).EncodeToBytes());
+            r.setPayload(this.asRCH.getHints(
+                    ex.getCurrentRequest(), kid).EncodeToBytes());
             ex.sendResponse(r);
-        } catch (InvalidKeyException | NoSuchAlgorithmException e) {
+        } catch (InvalidKeyException | NoSuchAlgorithmException 
+                | AceException e) {
             LOGGER.severe("cnonce creation failed: " + e.getMessage());
             ex.sendResponse(r); //Just send UNAUTHORIZED without a payload
         }
@@ -266,13 +273,4 @@ public class CoapDeliverer implements MessageDeliverer, Closeable {
         this.d.deliverResponse(exchange, response);        
     }
 
-    @Override
-    public void close() throws IOException {
-        try {
-            this.tr.close();
-        } catch (AceException e) {
-            LOGGER.severe("Error while trying to close token repository: " 
-                    + e.getMessage());
-        }        
-    }
 }

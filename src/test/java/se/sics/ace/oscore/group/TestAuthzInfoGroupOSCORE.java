@@ -95,7 +95,6 @@ public class TestAuthzInfoGroupOSCORE {
     // identifiers, rather than a single RS identifier.
     
     private static Introspect i; 
-    private static TokenRepository tr = null;
     private static GroupOSCOREJoinPDP pdp = null; // M.T.
     
     /**
@@ -167,9 +166,10 @@ public class TestAuthzInfoGroupOSCORE {
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         valid.setJoinResources(Collections.singleton("feedca570000"));
-        
-        createTR(valid);
-        tr = TokenRepository.getInstance();
+       
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering old token files
+        new File(tokenFile).delete();
         
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -185,49 +185,20 @@ public class TestAuthzInfoGroupOSCORE {
         // M.T.
         // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
-        ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);
+                valid, tokenFile, valid, ctx);
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
-        ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
-                valid, ctx);
+                valid, tokenFile, valid, ctx);
         
-    }
-
-    // M.T.
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
     }
     
     /**
@@ -239,7 +210,7 @@ public class TestAuthzInfoGroupOSCORE {
         DBHelper.tearDownDB();
         pdp.close();
         i.close();
-        tr.close();
+        ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
@@ -316,7 +287,8 @@ public class TestAuthzInfoGroupOSCORE {
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
         String kidStr = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
-        assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET, null));
+        assert(1 == TokenRepository.getInstance().canAccess(
+                kidStr, null, "co2", Constants.GET, null));
 
     }
     

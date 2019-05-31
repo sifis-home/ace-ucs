@@ -135,42 +135,15 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-
-        createTR(valid);
-        tr = TokenRepository.getInstance();
         
-        ai = new AuthzInfoGroupOSCORE(tr, 
-                Collections.singletonList("TestAS"), new KissTime(), null, 
-                valid, ctx);
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering old token files
+        new File(tokenFile).delete();
+        
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+                new KissTime(), null, 
+                valid, tokenFile, valid, ctx);
         store = new DtlspPskStoreGroupOSCORE(ai);
-    }
-    
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
     }
     
     /**

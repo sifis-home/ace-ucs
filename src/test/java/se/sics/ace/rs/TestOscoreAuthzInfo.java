@@ -43,7 +43,6 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -61,7 +60,6 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
-import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.coap.CoapReq;
@@ -87,7 +85,6 @@ public class TestOscoreAuthzInfo {
 
     private static AuthzInfo ai = null;
     private static Introspect i; 
-    private static TokenRepository tr = null;
     private static KissPDP pdp = null;
     
     /**
@@ -135,49 +132,23 @@ public class TestOscoreAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        createTR(valid);
-        tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering token file from old test runs
+        new File(TestConfig.testFilePath + "tokens.json").delete();
+        
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         i = new Introspect(pdp, db, new KissTime(), key);
-        ai = new OscoreAuthzInfo(tr, Collections.singletonList("TestAS"), 
+        ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);
-    }
-
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
+                valid, ctx, tokenFile, valid, false);
     }
     
     /**
@@ -189,7 +160,7 @@ public class TestOscoreAuthzInfo {
         DBHelper.tearDownDB();
         pdp.close();
         i.close();
-        tr.close();
+        ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
@@ -207,7 +178,7 @@ public class TestOscoreAuthzInfo {
         Request r = Request.newPost();
         CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED); 
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
     }
     
     /**
@@ -226,7 +197,7 @@ public class TestOscoreAuthzInfo {
         r.setPayload(foo.EncodeToBytes());
         CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED); 
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
     }
     
     /**
@@ -251,21 +222,6 @@ public class TestOscoreAuthzInfo {
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
-        System.out.println(response);
-    }
-    
-    /**
-     * Test cnf == null
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailNullCnf() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        
     }
     
     /**
@@ -279,7 +235,47 @@ public class TestOscoreAuthzInfo {
     @Test
     public void testFailCnonceNotByteString() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x01}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
         
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        
+        
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.CNONCE, "blah");
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                payload);
+                
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -293,7 +289,47 @@ public class TestOscoreAuthzInfo {
     @Test
     public void testFailNullCnonce() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x02}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourKey";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x02});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x02}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
         
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+        
+        
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.CNONCE, null);
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                payload);
+                
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
   
     /**
@@ -307,7 +343,41 @@ public class TestOscoreAuthzInfo {
     @Test
     public void testFailNullOsc() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
-        
+
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x03}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.OSCORE_Security_Context, null);
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x03}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+
+
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.CNONCE, "blah");
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                payload);
+
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**

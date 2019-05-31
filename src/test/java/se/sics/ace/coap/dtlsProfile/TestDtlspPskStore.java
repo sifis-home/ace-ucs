@@ -78,9 +78,6 @@ public class TestDtlspPskStore {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     private static AuthzInfo ai;
-
-    private static TokenRepository tr;
-    
     
     /**
      * Set up tests.
@@ -111,41 +108,12 @@ public class TestDtlspPskStore {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        createTR(valid);
-        tr = TokenRepository.getInstance();
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        new File(tokenFile).delete(); 
         
-        ai = new AuthzInfo(tr, 
-                Collections.singletonList("TestAS"), new KissTime(), null, 
-                valid, ctx);
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
+                null, valid, ctx, tokenFile, valid, false);
         store = new DtlspPskStore(ai);
-    }
-    
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
     }
     
     /**
@@ -155,7 +123,6 @@ public class TestDtlspPskStore {
      */
     @AfterClass
     public static void tearDown() throws AceException  {
-        tr.close();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }  
@@ -278,7 +245,7 @@ public class TestDtlspPskStore {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
         byte[] psk = store.getKey(new PskPublicInformation(psk_identity));

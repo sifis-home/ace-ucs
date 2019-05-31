@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs.oscoreProfile;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.List;
 import java.util.Map;
@@ -55,7 +56,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
-import se.sics.ace.rs.TokenRepository;
+import se.sics.ace.rs.ScopeValidator;
 
 
 /**
@@ -90,11 +91,19 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
+	 * @param tokenFile  the file where to save tokens when persisting
+     * @param scopeValidator  the application specific scope validator 
+	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @throws IOException 
+	 * @throws AceException 
 	 */
-	public OscoreAuthzInfo(TokenRepository tr, List<String> issuers, 
+	public OscoreAuthzInfo(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx) {
-		super(tr, issuers, time, intro, audience, ctx);
+			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
+			ScopeValidator scopeValidator, boolean checkCnonce) 
+			        throws AceException, IOException {
+		super(issuers, time, intro, audience, ctx, tokenFile, 
+		        scopeValidator, checkCnonce);
 	}
 
 	@Override
@@ -107,13 +116,13 @@ public class OscoreAuthzInfo extends AuthzInfo {
             LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         if (!cbor.getType().equals(CBORType.Map)) {
             LOGGER.info("Invalid payload at authz-info: not a cbor map");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
         CBORObject token = cbor.get(
@@ -122,7 +131,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             LOGGER.info("Missing manadory paramter 'token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
         Message reply = super.processToken(token, msg);
@@ -130,11 +139,11 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return reply;
         }
         
-        if (this.cnf == null) {
+        if (this.cnf == null) {//Should never happen, caught in TokenRepository.
             LOGGER.info("Missing required parameter 'cnf'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map); 
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
 
         CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.CNONCE));
@@ -143,7 +152,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + "'nonce', must be present and byte-string");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map); 
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n1 = nonce.GetByteString();
         CBORObject osc = this.cnf.get(Constants.OSCORE_Security_Context);
@@ -152,7 +161,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + "'OSCORE_Security_Context', must be CBOR-map");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map); 
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n2 = new byte[8];
         new SecureRandom().nextBytes(n2);
@@ -169,7 +178,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                 LOGGER.info("Invalid algorithmId: " + e.getMessage());
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
         }
         
@@ -181,7 +190,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be byte-array");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             recipient_id = clientId.GetByteString(); 
 	    }
@@ -191,7 +200,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             LOGGER.info("Invalid parameter: contextID must be null");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
                 
         CBORObject kdfC = osc.get(Constants.OS_HKDF);
@@ -203,7 +212,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                 LOGGER.info("Invalid kdf: " + e.getMessage());
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
         }
         
@@ -213,7 +222,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + " must be byte-array");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         byte[] master_secret = ms.GetByteString();
         
@@ -225,7 +234,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be 32-bit integer");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             replay_size = rpl.AsInt32();
         }
@@ -238,7 +247,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be byte-array");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             master_salt = salt.GetByteString();
         }
@@ -250,7 +259,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + " must be byte-array");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         byte[] sender_id = serverId.GetByteString();
         
@@ -269,7 +278,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + e.getMessage());
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
         CBORObject payload = CBORObject.NewMap();

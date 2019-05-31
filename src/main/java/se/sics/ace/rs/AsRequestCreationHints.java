@@ -95,21 +95,23 @@ public class AsRequestCreationHints {
     }
     
     /**
-     * Create the AS Request Creation Hints based on the configuration 
-     * of this class
+     * Create the AS Request Creation Hints based on the configuration
+     * of this class. 
+     * 
+     * Note: The token repository must have been initialized 
+     * before calling this.
      * 
      * @param req  the client's request
-     * @param tr   the token repository
      * @param kid  the kid linked to a the key used in the secure connection
      *  with the client, null if we don't have a secure connection
      *  
      * @return  the AS Request Creation Hints
-     * @throws AceException 
+     * @throws AceException   if the TokenRepository is not initialized
      * @throws InvalidKeyException  if the nonce creation fails
      * @throws NoSuchAlgorithmException  if the nonce creation fails
      */
-    public CBORObject getHints(Request req, TokenRepository tr, String kid) 
-            throws InvalidKeyException, NoSuchAlgorithmException {
+    public CBORObject getHints(Request req, String kid) 
+            throws InvalidKeyException, NoSuchAlgorithmException, AceException {
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.AS, this.asUri);          
         if (kid != null) {
@@ -117,13 +119,20 @@ public class AsRequestCreationHints {
             cbor.Add(Constants.KID, kidB);
         }
         if (this.includeScope) {
-            if (req == null || tr == null) {
-                throw new IllegalArgumentException("Request and TokenRepository"
+            if (req == null) {
+                throw new IllegalArgumentException("Request"
                         + " must both be non-null for scope creation");
             }
+
+            
             String resource = req.getOptions().getUriPathString();
             short action = (short) req.getCode().value;  
-            CBORObject scope = tr.getScope(resource, action);
+            
+            if (TokenRepository.getInstance() == null) {
+                throw new AceException("TokenRepository not initialized");
+            }
+            CBORObject scope = TokenRepository.getInstance().getScope(resource, action);
+            
             cbor.Add(Constants.SCOPE, scope);   
         }  
         if (this.aud != null) {
@@ -131,7 +140,7 @@ public class AsRequestCreationHints {
         }        
        
         if (this.createNonce) {
-            byte[] cnonce = tr.createNonce();
+            byte[] cnonce = CnonceHandler.getInstance().createNonce();
             cbor.Add(Constants.CNONCE, cnonce);
         }        
         return cbor;

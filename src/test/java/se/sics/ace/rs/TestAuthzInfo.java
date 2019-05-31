@@ -84,7 +84,6 @@ public class TestAuthzInfo {
 
     private static AuthzInfo ai = null;
     private static Introspect i; 
-    private static TokenRepository tr = null;
     private static KissPDP pdp = null;
     
     /**
@@ -97,7 +96,9 @@ public class TestAuthzInfo {
     @BeforeClass
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
-
+        //Delete lingering old token file
+        new File(TestConfig.testFilePath + "tokens.json").delete();
+        
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
@@ -129,11 +130,9 @@ public class TestAuthzInfo {
         Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
-        
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        createTR(valid);
-        tr = TokenRepository.getInstance();
+        String tokenFile = TestConfig.testFilePath + "tokens.json";      
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -143,39 +142,13 @@ public class TestAuthzInfo {
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         i = new Introspect(pdp, db, new KissTime(), key);
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx);
+                valid, ctx, tokenFile, valid, false);
     }
 
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
-    }
+
     
     /**
      * Deletes the test DB after the tests
@@ -185,8 +158,8 @@ public class TestAuthzInfo {
     public static void tearDown() throws Exception {
         DBHelper.tearDownDB();
         pdp.close();
+        ai.close();
         i.close();
-        tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     
@@ -263,7 +236,8 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
         String kidStr = new RawPublicKeyIdentity(
                 publicKey.AsPublicKey()).getName();
-        assert(1 == tr.canAccess(kidStr, null, "co2", Constants.GET, null));
+        assert(1 == TokenRepository.getInstance().canAccess(
+                kidStr, null, "co2", Constants.GET, null));
         db.deleteToken(ctiStr);
     }
     
@@ -398,7 +372,6 @@ public class TestAuthzInfo {
         claims.put(Constants.NBF, CBORObject.FromObject(1443944944));
         claims.put(Constants.IAT, CBORObject.FromObject(1443944944));        
         claims.put(Constants.EXP, CBORObject.FromObject(10000));
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
         
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
@@ -732,8 +705,8 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x12});
         
-        Assert.assertEquals(1, tr.canAccess(kidStr, "client1", "temp", 
-                Constants.GET, null));
+        Assert.assertEquals(1, TokenRepository.getInstance().canAccess(
+                kidStr, "client1", "temp", Constants.GET, null));
         db.deleteToken(ctiStr);
     }
 }

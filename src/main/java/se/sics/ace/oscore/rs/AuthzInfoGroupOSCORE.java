@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.oscore.rs;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +45,6 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -57,6 +57,7 @@ import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
+import se.sics.ace.rs.ScopeValidator;
 import se.sics.ace.rs.TokenRepository;
 
 
@@ -77,12 +78,7 @@ public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
      */
     private static final Logger LOGGER 
         = Logger.getLogger(AuthzInfo.class.getName());
-    
-    /**
-     * The token storage
-     */
-	private TokenRepository tr;
-	
+
 	/**
 	 * The acceptable issuers
 	 */
@@ -111,17 +107,24 @@ public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
 	/**
 	 * Constructor.
 	 * 
-	 * @param tr  a token repository
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
+	 * @param tokenFile  the file where to save tokens when persisting
+     * @param scopeValidator  the application specific scope validator 
 	 * @param ctx  the crypto context to use with the As
+	 * @throws IOException  if TokenRepository creation fails
+	 * @throws AceException if TokenRepository creation fails 
 	 */
-	public AuthzInfoGroupOSCORE(TokenRepository tr, List<String> issuers, 
+	public AuthzInfoGroupOSCORE(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx) {
-		this.tr = tr;
+			AudienceValidator audience, String tokenFile, 
+			ScopeValidator scopeValidator, CwtCryptoCtx ctx) 
+			        throws AceException, IOException {
+	    if (TokenRepository.getInstance()==null) {	   
+	        TokenRepository.create(scopeValidator, tokenFile, ctx, time);
+	    }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
 		this.time = time;
@@ -289,7 +292,7 @@ public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
 	    boolean meaningful = false;
 	    try {
 	    	// M.T. The version of checkScope() with two arguments is invoked
-	        meaningful = this.tr.checkScope(scope, auds);
+	        meaningful = TokenRepository.getInstance().checkScope(scope, auds);
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "
                     + "message processing aborted: " + e.getMessage());
@@ -312,7 +315,8 @@ public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {
-            cti = this.tr.addToken(claims, this.ctx, sid);
+            cti = TokenRepository.getInstance().addToken(
+                    claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -393,36 +397,11 @@ public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
        
         return params;
 	}
-    
-    /**
-     * Get the proof-of-possession key of a token identified by its 'cti'.
-     * 
-     * @param cti  the Base64 encoded cti of the token
-     * 
-     * @return  the pop key or null if this cti is unknown
-     * 
-     * @throws AceException 
-     */
-    public OneKey getPoP(String cti) throws AceException {
-        return this.tr.getPoP(cti);
-    }
-    
-    /**
-     * Get a key identified by it's 'kid'.
-     * 
-     * @param kid  the kid of the key
-     * 
-     * @return  the key identified by this kid of null if we don't have it
-     * 
-     * @throws AceException 
-     */
-    public OneKey getKey(String kid) throws AceException {
-        return this.tr.getKey(kid);
-    }
 
     @Override
     public void close() throws AceException {
-        this.tr.close();
-        
+        if (TokenRepository.getInstance() !=null) {
+            TokenRepository.getInstance().close();  
+        }
     }	
 }

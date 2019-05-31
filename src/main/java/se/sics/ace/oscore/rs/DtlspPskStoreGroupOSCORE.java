@@ -51,6 +51,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.coap.rs.dtlsProfile.DtlspPskStore;
 import se.sics.ace.examples.LocalMessage;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * A store for Pre-Shared-Keys (PSK) at the RS.
@@ -98,10 +99,14 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
      * @return  the bytes of the key
      */
     private byte[] getKey(String identity) {
+        if (TokenRepository.getInstance() == null) {
+            LOGGER.severe("TokenRepository not initialized");
+            return null;
+        }
         //First try if we have that key
         OneKey key = null;
         try {
-            key = this.authzInfo.getKey(identity);
+            key = TokenRepository.getInstance().getKey(identity);
             if (key != null) {
                 return key.get(KeyKeys.Octet_K).GetByteString();
             }
@@ -137,7 +142,7 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
             String ctiStr = Base64.getEncoder().encodeToString(
                     cti.GetByteString());
             try {
-                 key = this.authzInfo.getPoP(ctiStr);
+                 key = TokenRepository.getInstance().getPoP(ctiStr);
                  return key.get(KeyKeys.Octet_K).GetByteString();
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());

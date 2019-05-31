@@ -72,7 +72,6 @@ import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.AuthzInfo;
-import se.sics.ace.rs.TokenRepository;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
@@ -136,8 +135,6 @@ public class TestDtlspRS {
         }
     }
     
-    private static TokenRepository tr = null;
-    
     private static AuthzInfo ai = null;
     
     private static CoapServer rs = null;
@@ -170,10 +167,7 @@ public class TestDtlspRS {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
-        
-        createTR(valid);
-        tr = TokenRepository.getInstance();
-        
+
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
@@ -186,12 +180,14 @@ public class TestDtlspRS {
         CwtCryptoCtx ctx 
             = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering old token files
+        new File(tokenFile).delete();
         
       //Set up the inner Authz-Info library
-      ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, ctx);
+      ai = new AuthzInfo(Collections.singletonList("TestAS"), 
+                new KissTime(), null, valid, ctx,
+                tokenFile, valid, false);
       
       //Add a test token to authz-info
       byte[] key128
@@ -229,7 +225,7 @@ public class TestDtlspRS {
       rs.add(temp);
       rs.add(authzInfo);
 
-      dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
+      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
       
       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
@@ -255,31 +251,6 @@ public class TestDtlspRS {
         rs.start();
         System.out.println("Server starting");
     }
-    
-    /**
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
-    }
 
     /**
      * Stops the server
@@ -289,9 +260,7 @@ public class TestDtlspRS {
      */
     public static void stop() throws IOException, AceException {
         rs.stop();
-        dpd.close();
         ai.close();
-        tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 

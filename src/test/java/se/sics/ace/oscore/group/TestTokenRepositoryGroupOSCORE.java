@@ -197,7 +197,7 @@ public class TestTokenRepositoryGroupOSCORE {
     private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
+                    + "tokens.json", null, new KissTime());
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -205,7 +205,7 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
+                        + "tokens.json", null, new KissTime());
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
