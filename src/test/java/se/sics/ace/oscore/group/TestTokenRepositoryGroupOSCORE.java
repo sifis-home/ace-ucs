@@ -216,9 +216,11 @@ public class TestTokenRepositoryGroupOSCORE {
     
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     

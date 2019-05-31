@@ -404,9 +404,12 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        ai.close();
+        ai2.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }
