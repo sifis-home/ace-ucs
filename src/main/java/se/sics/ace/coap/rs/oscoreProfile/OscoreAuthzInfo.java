@@ -116,21 +116,26 @@ public class OscoreAuthzInfo extends AuthzInfo {
             LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         if (!cbor.getType().equals(CBORType.Map)) {
             LOGGER.info("Invalid payload at authz-info: not a cbor map");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Payload to authz-info must be a CBOR map");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
         CBORObject token = cbor.get(
                 CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing manadory paramter 'token'");
+            LOGGER.info("Missing manadory paramter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Missing mandatory parameter 'access_token'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
@@ -149,9 +154,11 @@ public class OscoreAuthzInfo extends AuthzInfo {
         CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.CNONCE));
         if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
             LOGGER.info("Missing or invalid parameter type for:"
-                    + "'nonce', must be present and byte-string");
+                    + "'cnonce', must be present and byte-string");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Malformed or missing parameter cnonce");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n1 = nonce.GetByteString();
@@ -161,6 +168,8 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + "'OSCORE_Security_Context', must be CBOR-map");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Missing or malformed OSCORE security context");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n2 = new byte[8];
@@ -178,6 +187,8 @@ public class OscoreAuthzInfo extends AuthzInfo {
                 LOGGER.info("Invalid algorithmId: " + e.getMessage());
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "Malformed algorithm Id in OSCORE security context");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
         }
@@ -190,6 +201,8 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be byte-array");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "Malformed client Id in OSCORE security context");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             recipient_id = clientId.GetByteString(); 
@@ -200,6 +213,8 @@ public class OscoreAuthzInfo extends AuthzInfo {
             LOGGER.info("Invalid parameter: contextID must be null");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "contextId must be null in OSCORE security context");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
                 
@@ -212,6 +227,8 @@ public class OscoreAuthzInfo extends AuthzInfo {
                 LOGGER.info("Invalid kdf: " + e.getMessage());
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "Malformed KDF in OSCORE security context");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
         }
@@ -222,6 +239,9 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + " must be byte-array");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "malformed or missing master secret"
+                    + " in OSCORE security context");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         byte[] master_secret = ms.GetByteString();
@@ -234,6 +254,9 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be 32-bit integer");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "malformed replay window size"
+                        + " in OSCORE security context");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             replay_size = rpl.AsInt32();
@@ -247,6 +270,9 @@ public class OscoreAuthzInfo extends AuthzInfo {
                         + " must be byte-array");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "malformed master salt"
+                        + " in OSCORE security context");
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map);
             }
             master_salt = salt.GetByteString();
@@ -259,6 +285,9 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + " must be byte-array");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "malformed or missing server id"
+                    + " in OSCORE security context");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         byte[] sender_id = serverId.GetByteString();
@@ -278,6 +307,9 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     + e.getMessage());
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Error while creating OSCORE security context: "
+                    + e.getMessage());
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
