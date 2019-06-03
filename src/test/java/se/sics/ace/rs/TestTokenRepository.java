@@ -633,6 +633,9 @@ public class TestTokenRepository {
         Assert.assertEquals(TokenRepository.FORBID,
                 tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
         tr2.close();
+
+        //re-create the original TR
+        createTR(valid);
     }
     
     

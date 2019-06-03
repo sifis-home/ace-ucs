@@ -210,9 +210,11 @@ public class TestDtlspAuthzInfo {
          
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }

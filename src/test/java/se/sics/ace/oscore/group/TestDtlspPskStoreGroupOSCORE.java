@@ -77,10 +77,7 @@ public class TestDtlspPskStoreGroupOSCORE {
    
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-    private static AuthzInfoGroupOSCORE ai;
-
-    private static TokenRepository tr;
-    
+    private static AuthzInfoGroupOSCORE ai;    
     
     /**
      * Set up tests.
@@ -153,7 +150,6 @@ public class TestDtlspPskStoreGroupOSCORE {
      */
     @AfterClass
     public static void tearDown() throws AceException  {
-        tr.close();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }  
@@ -276,7 +272,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
         byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
@@ -422,7 +418,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
         byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
@@ -470,7 +466,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
         byte[] psk = store.getKey(new PskPublicInformation(psk_identity));

@@ -160,7 +160,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
-        String tokenFile = "";
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering token files
         new File(tokenFile).delete();
         

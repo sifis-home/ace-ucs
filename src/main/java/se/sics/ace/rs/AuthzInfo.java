@@ -458,6 +458,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
     public void close() throws AceException {
         if (TokenRepository.getInstance() != null) {
             TokenRepository.getInstance().close();
-        }        
+        }       
     }	
 }

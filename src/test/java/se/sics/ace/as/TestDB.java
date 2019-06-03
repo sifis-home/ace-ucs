@@ -199,6 +199,7 @@ public class TestDB {
     public static void tearDown() throws AceException
     {
         DBHelper.tearDownDB();
+        db.close();
     }
 
     /**
