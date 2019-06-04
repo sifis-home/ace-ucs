@@ -1,3 +1,5 @@
+*General steps
+
 1. Run the config.sh script
 
 2. Start Eclipse, then import the following projects:
@@ -17,11 +19,19 @@ oscore-cf
 californium-core
 element-connector
 
-*Right click project->Properties->Java Build Path->Add...
+To add dependencies:
+Right click project->Properties->Java Build Path->Add...
 
 *MySQL installation
 
 Note that mySQL is needed for the ace-parts to run correctly. To install it use:
 apt-get install mysql-server
+
 Then place a file under ace/db.pwd with the database root password.
 
+*Updating the JCE (Java Cryptography Extensions)
+
+If some of the JUnit tests fail due to "invalid key size" you may need to update the JCE.
+
+In such case follow these instructons:
+https://www.andreafortuna.org/2016/06/08/java-tips-how-to-fix-the-invalidkeyexception-illegal-key-size-or-default-parameters-runtime/
