@@ -43,6 +43,9 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -981,7 +984,7 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_MS, key128a);
         byte[] serverId = {0x05, 0x06};
         osc.Add(Constants.OS_SERVERID, serverId);
-        osc.Add(Constants.OS_HKDF, AlgorithmID.HKDF_HMAC_AES_128);
+        osc.Add(Constants.OS_HKDF, AlgorithmID.HKDF_HMAC_AES_128.AsCBOR());
         cbor.Add(Constants.OSCORE_Security_Context, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
@@ -1012,7 +1015,7 @@ public class TestOscoreAuthzInfo {
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
         map.Add(Constants.ERROR_DESCRIPTION, 
                 "Error while creating OSCORE security context: "
-                + " Invalid kdf: Unknown Algorithm Specified");
+                + "HKDF algorithm not supported");
         CBORObject rC = CBORObject.DecodeFromBytes(response.getRawPayload());
         System.out.println(rC);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
@@ -1025,10 +1028,57 @@ public class TestOscoreAuthzInfo {
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException  
+     * @throws OSException 
      */
     @Test
     public void testSuccess() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
+            InvalidCipherTextException, CoseException, AceException, 
+            OSException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject cbor = CBORObject.NewMap();
+        CBORObject osc = CBORObject.NewMap();
+        byte[] clientId = {0x09, 0x08};
+        osc.Add(Constants.OS_CLIENTID, clientId);
+        osc.Add(Constants.OS_MS, key128a);
+        byte[] serverId = {0x05, 0x06};
+        osc.Add(Constants.OS_SERVERID, serverId);
+        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
 
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x0e}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+
+
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        byte[] cnonce = {0x01, 0x02, 0x03};
+        payload.Add(Constants.CNONCE, cnonce);
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                payload);
+
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.CREATED);
+        
+        HashMapCtxDB db = HashMapCtxDB.getInstance();
+        OSCoreCtx osctx = db.getContext(clientId);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
+                false, null, serverId, clientId, null, null, null, null);
+        assert(osctx.equals(osctx2));
+        
+        
     }    
 }
