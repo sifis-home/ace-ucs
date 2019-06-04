@@ -116,7 +116,9 @@ public class CoapDeliverer implements MessageDeliverer {
         this.d = new ServerMessageDeliverer(root);
         this.asRCH = asRCHM; 
     }
-    
+  
+    //Really the TokenRepository _should not_ be closed here
+    @SuppressWarnings("resource") 
     @Override
     public void deliverRequest(final Exchange ex) {
         Request request = ex.getCurrentRequest();

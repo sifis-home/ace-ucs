@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.rs;
+package se.sics.ace.coap.oscoreProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -75,6 +75,8 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
+import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.IntrospectionHandler4Tests;
 
 /**
  * 

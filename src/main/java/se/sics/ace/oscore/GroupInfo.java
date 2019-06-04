@@ -1,5 +1,5 @@
- /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -56,13 +56,13 @@ public class GroupInfo {
 	private byte[] masterSecret;
 	private byte[] masterSalt;
 	
-	private Set<Integer> usedSenderIds = new HashSet<Integer>();
+	private Set<Integer> usedSenderIds = new HashSet<>();
 	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
 	private int maxSenderIdValue;
 	
 	// This map stores the public keys of the group members as COSE Keys (CBOR Maps).
 	// The map key (label) is the integer representation of the Sender ID of the group member. 
-	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<Integer, CBORObject>();
+	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;

@@ -41,7 +41,10 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -71,19 +74,24 @@ public class OscoreIntrospection implements IntrospectionHandler {
     private CoapClient client = null;
     
     /**
-     * Constructor, builds a client that uses raw public keys.
+     * Constructor, builds a client that uses an OSCORE context.
      * 
-     * @param rpk  the raw public key 
+     * @param ctx  the OSCORE context between the introspector (typically RS)
+     *      and the AS
      * @param introspectAddress  the IP address of the introspect endpoint
-     * 
-     * 
+     *
      * @throws CoseException
      * @throws IOException 
+     * @throws OSException 
      * 
      */
     public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress) 
-            throws CoseException, IOException {
-        //FIXME
+            throws CoseException, IOException, OSException {
+        OSCoreCoapStackFactory.useAsDefault();
+        HashMapCtxDB db = HashMapCtxDB.getInstance();
+        db.addContext(ctx);
+        db.addContext(introspectAddress, ctx);
+        this.client = new CoapClient(introspectAddress);
     }
       
     @Override
