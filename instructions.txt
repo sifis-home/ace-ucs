@@ -14,7 +14,8 @@ scandium
 4. To "test" add the following folders to the build path:
 ace
 oscore-cf
-
+californium-core
+element-connector
 
 *Right click project->Properties->Java Build Path->Add...
 
