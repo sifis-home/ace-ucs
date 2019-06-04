@@ -19,3 +19,9 @@ element-connector
 
 *Right click project->Properties->Java Build Path->Add...
 
+*MySQL installation
+
+Note that mySQL is needed for the ace-parts to run correctly. To install it use:
+apt-get install mysql-server
+Then place a file under ace/db.pwd with the database root password.
+
