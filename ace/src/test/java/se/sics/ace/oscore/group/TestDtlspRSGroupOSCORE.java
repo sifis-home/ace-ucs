@@ -114,6 +114,15 @@ public class TestDtlspRSGroupOSCORE {
             
             // set display name
             getAttributes().setTitle("Hello-World Resource");
+            
+//            // install needed cryptography providers
+//            try {
+//				org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+//			} catch (Exception e) {
+//				// TODO Auto-generated catch block
+//				LOGGER.error("Failed to install cryptography providers.");
+//				e.printStackTrace();
+//			}
         }
 
         @Override
@@ -547,12 +556,12 @@ public class TestDtlspRSGroupOSCORE {
         // Group OSCORE specific values for the countersignature
         
         // ECDSA_256
-        final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
-        final CBORObject csParams = null;
+        //final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
+        //final CBORObject csParams = null;
         
         // EDDSA (Ed25519)
-        //final AlgorithmID csAlg = AlgorithmID.EDDSA;
-        //final CBORObject csParams = KeyKeys.OKP_Ed25519;
+        final AlgorithmID csAlg = AlgorithmID.EDDSA;
+        final CBORObject csParams = KeyKeys.OKP_Ed25519;
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -597,7 +606,10 @@ public class TestDtlspRSGroupOSCORE {
     	myGroup.allocateSenderId(mySid);	
     	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
-    	String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	//String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x52 (EDDSA)
+    	String rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
@@ -610,7 +622,10 @@ public class TestDtlspRSGroupOSCORE {
     	myGroup.allocateSenderId(mySid);
     	
     	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
-    	String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	//String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (EDDSA)
+    	String rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
