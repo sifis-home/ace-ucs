@@ -107,7 +107,7 @@ public class TestOscoreIntrospection {
     }
 
     /**
-     * Test CoapIntrospect using RPK
+     * Test OscoreIntrospection using OSCORE
      * 
      * @throws Exception
      */

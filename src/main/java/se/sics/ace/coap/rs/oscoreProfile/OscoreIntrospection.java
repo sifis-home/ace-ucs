@@ -38,8 +38,9 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
@@ -68,10 +69,12 @@ public class OscoreIntrospection implements IntrospectionHandler {
     private static final Logger LOGGER 
         = Logger.getLogger(OscoreIntrospection.class.getName());
     
-        /**
+    /**
      * The CoAP client
      */
     private CoapClient client = null;
+    
+    
     
     /**
      * Constructor, builds a client that uses an OSCORE context.
@@ -102,10 +105,11 @@ public class OscoreIntrospection implements IntrospectionHandler {
         params.put(Constants.TOKEN, CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
         params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop")); 
         CoapResponse response;
+        Request r = new Request(Code.POST);
+        r.setPayload(Constants.getCBOR(params).EncodeToBytes());
+        r.getOptions().setOscore(new byte[0]);
         try {
-            response = this.client.post(
-                    Constants.getCBOR(params).EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+            response = this.client.advanced(r);
         } catch (ConnectorException | IOException e) {
             throw new AceException("Connector/IO Error: " + e.getMessage());
         }    

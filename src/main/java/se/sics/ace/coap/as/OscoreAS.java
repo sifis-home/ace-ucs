@@ -31,14 +31,11 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
@@ -53,7 +50,6 @@ import se.sics.ace.TimeProvider;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
 import se.sics.ace.as.Token;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreAceEndpoint;
 
 /**
  * An Authorization Server that offers secure connections and authentication via OSCORE.

@@ -39,7 +39,12 @@ import java.util.Set;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -104,11 +109,26 @@ public class CoapReq implements Message {
         if (ctx==null) {
             return null;
         }
-        Principal p = ctx.getPeerIdentity();
-        if (p==null) {
+        //XXX: kludge since OSCORE doesn't set PeerIdentity
+        if (ctx instanceof DtlsEndpointContext) {
+            Principal p = ctx.getPeerIdentity();
+            if (p==null) {
+                return null;
+            }
+            return p.getName();
+        }
+        OSCoreCtxDB db = HashMapCtxDB.getInstance();
+        OSCoreCtx osctx = db.getContextByToken(this.request.getToken());
+        if (osctx == null) {
             return null;
         }
-        return p.getName();
+        String senderId = "";
+        if (osctx.getIdContext() != null) {
+            senderId += Base64.encodeBytes(osctx.getIdContext());
+        }
+        senderId += new String(osctx.getSenderId(), Constants.charset);    
+        return senderId;
+     
     }
 
     @Override
