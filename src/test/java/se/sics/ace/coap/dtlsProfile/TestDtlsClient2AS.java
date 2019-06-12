@@ -62,7 +62,7 @@ import se.sics.ace.as.Token;
 /**
  * Test the coap classes.
  * 
- * NOTE: This will automatically start a server in another thread
+ * NOTE: This will automatically start an AS in another thread
  * 
  * @author Ludwig Seitz
  *
