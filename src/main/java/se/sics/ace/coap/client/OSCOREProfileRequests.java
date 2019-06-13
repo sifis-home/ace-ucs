@@ -101,12 +101,11 @@ public class OSCOREProfileRequests {
 
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
+        r.setPayload(payload.EncodeToBytes());
         OSCoreCtxDB db = HashMapCtxDB.getInstance();
         db.addContext(asAddr, ctx);
         try {
-            return client.post(
-                    payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+            return client.advanced(r);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("Connector error: " + e.getMessage());
             throw new AceException(e.getMessage());

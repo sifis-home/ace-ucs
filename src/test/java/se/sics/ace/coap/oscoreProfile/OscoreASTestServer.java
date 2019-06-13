@@ -72,7 +72,7 @@ public class OscoreASTestServer
     private static KissPDP pdp = null;
   
     /**
-     * The CoAPs server for testing, run this before running the Junit tests.
+     * The OSCORE AS for testing, autostarted by tests needing this.
      *  
      * @param args
      * @throws Exception

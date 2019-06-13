@@ -67,8 +67,8 @@ public class TestOscorepClient2AS {
     @BeforeClass
     public static void setUp() throws OSException {
         ctx = new OSCoreCtx(key128, true, null, 
+                "clientA".getBytes(Constants.charset),
                 "AS".getBytes(Constants.charset),
-                "clientA".getBytes(Constants.charset), 
                 null, null, null, null);
         srv = new RunTestServer();
         srv.run();
