@@ -35,7 +35,6 @@ import java.util.HashSet;
 import java.util.Set;
 
 import org.apache.log4j.BasicConfigurator;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;

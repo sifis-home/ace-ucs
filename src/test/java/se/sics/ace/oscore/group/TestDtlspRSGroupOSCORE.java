@@ -34,7 +34,6 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.AlgorithmParameterGeneratorSpi;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -62,7 +61,6 @@ import com.upokecenter.cbor.CBORType;
 import COSE.AlgorithmID;
 import COSE.CoseException;
 import COSE.KeyKeys;
-import COSE.KeySet;
 import COSE.MessageTag;
 import COSE.OneKey;
 import se.sics.ace.AceException;
@@ -76,12 +74,12 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AsRequestCreationHints;
-import se.sics.ace.rs.TokenRepository;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
@@ -97,7 +95,7 @@ public class TestDtlspRSGroupOSCORE {
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	private static Map<Integer, GroupInfo> activeGroups = new HashMap<Integer, GroupInfo>();
+	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
 	
     /**
      * Definition of the Hello-World Resource
@@ -316,6 +314,7 @@ public class TestDtlspRSGroupOSCORE {
         		try {
         			publicKey = new OneKey(coseKey);
 				} catch (CoseException e) {
+				    System.err.println(e.getMessage());
 					myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
             		return;
@@ -386,12 +385,12 @@ public class TestDtlspRSGroupOSCORE {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
+        	myMap.Add(OSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
+        	myMap.Add(OSCORESecurityContextObjectParameters.clientId, senderId);
+        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf());
+        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg());
+        	myMap.Add(OSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
+        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
         	if (myGroup.getCsParams() != null)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
@@ -456,8 +455,6 @@ public class TestDtlspRSGroupOSCORE {
         	
         }
     }
-    
-    private static TokenRepository tr = null;
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
     
@@ -784,6 +781,8 @@ public class TestDtlspRSGroupOSCORE {
     }
     
     /**
+     * @param str  the hex string
+     * @return  the byte array
      * @str   the hexadecimal string to be converted into a byte array
      * 
      * Return the byte array representation of the original string
