@@ -184,7 +184,6 @@ public class GetToken {
     public static CBORObject getClientCredentialsRequest(CBORObject aud, 
             CBORObject scope, CBORObject cnf) {
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.GRANT_TYPE, Constants.GT_CLI_CRED);
         if (aud != null) {
             payload.Add(Constants.AUDIENCE, aud);
         }
