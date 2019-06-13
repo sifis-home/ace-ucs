@@ -322,15 +322,10 @@ public class Token implements Endpoint, AutoCloseable {
         }
    
 	    //2. Check that this is a supported grant type
-	    if (msg.getParameter(Constants.GRANT_TYPE) == null) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            LOGGER.log(Level.INFO, "Message processing aborted: "
-                    + "grant_type missing");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	    }
-	      
-	    if (msg.getParameter(Constants.GRANT_TYPE).equals(clientCredentials)) {
+	    if (msg.getParameter(Constants.GRANT_TYPE) == null
+            //grant type == client credentials implied
+	        || msg.getParameter(
+	                Constants.GRANT_TYPE).equals(clientCredentials)) {
 	        return processCC(msg);
 	    } else if (msg.getParameter(Constants.GRANT_TYPE).equals(authzCode)) {
 	        return processAC(msg);
