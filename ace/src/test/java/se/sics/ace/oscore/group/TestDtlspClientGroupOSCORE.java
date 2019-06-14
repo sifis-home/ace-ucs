@@ -2534,7 +2534,7 @@ public class TestDtlspClientGroupOSCORE {
         
         //Defining variables to hold the information before derivation
         int ED25519 = KeyKeys.OKP_Ed25519.AsInt32();
-    	AlgorithmID algo = AlgorithmID.AES_CCM_16_64_128;
+        AlgorithmID algo = AlgorithmID.valueOf(contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg).AsString());
     	AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
     	
     	//Group OSCORE specific values for the countersignature
@@ -2542,10 +2542,8 @@ public class TestDtlspClientGroupOSCORE {
     	Integer par_countersign = ED25519; //Ed25519
 
     	// test vector OSCORE draft Appendix C.1.1
-    	byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-    			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
-    	byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
-    			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+    	byte[] master_secret = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.ms).GetByteString();
+    	byte[] master_salt = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.salt).GetByteString();
     	
     	byte[] sid = new byte[] { 0x25 };
     	String sid_private_key_string = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
@@ -2577,7 +2575,7 @@ public class TestDtlspClientGroupOSCORE {
 			System.err.println("Failed to derive Group OSCORE Context!");
 			e.printStackTrace();
 		}
-		ctx.addRecipientContext(rid1, rid1_public_key);
+		//ctx.addRecipientContext(rid1, rid1_public_key);
 		
     	
 }
