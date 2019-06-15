@@ -322,41 +322,32 @@ public class TestDtlspRSGroupOSCORE {
 				}
         		        		
         		// Sanity check on the type of public key
-        		// TODO: The Group Manager should actually tell the joining node the exact algorithm and parameters
-        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_256)) {
-        			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P256)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
-        		}
+        		// TODO: The "Bad Request" response should actually tell the joining node the exact algorithm and parameters
         		
-        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_384)) {
+        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_256) ||
+        		    myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_384) ||
+        		    myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_512)) {
         			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P384)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
-        		}
-        			
-        		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_512)) {
-        			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(COSE.KeyKeys.EC2_P521)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
+        			if (!publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2) ||
+        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.EC2_Curve)))) {
         				
+                			myGroup.deallocateSenderId(senderId);
+                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                			return;
+                		
+        			}
         		}
         		
         		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams())) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
+        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve))) ||
+            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType_OKP))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve)))) {
+        				
+                			myGroup.deallocateSenderId(senderId);
+                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                			return;
+                		
         			}
         				
         		}
@@ -393,8 +384,10 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
-        	if (myGroup.getCsParams() != null)
+        	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
+        	if (myGroup.getCsKeyParams().size() != 0)
+        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	
         	joinResponse.Add("key", myMap);
         	
@@ -414,7 +407,7 @@ public class TestDtlspRSGroupOSCORE {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add("exp", CBORObject.FromObject(1000000));
         	
-        	// NOTE: this is currently skipping the inclusion of the optional parameters 'pub_keys' and 'group_policies'.
+        	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
@@ -545,14 +538,23 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
+        AlgorithmID csAlg;
+        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
+        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
         
         // ECDSA_256
-        final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
-        final CBORObject csParams = null;
+        csAlg = AlgorithmID.ECDSA_256;
+        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
+        csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
         
         // EDDSA (Ed25519)
-        //final AlgorithmID csAlg = AlgorithmID.EDDSA;
-        //final CBORObject csParams = KeyKeys.OKP_Ed25519;
+        // csAlg = AlgorithmID.EDDSA;
+        // csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        // csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
+        // csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+
+        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
+        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -571,8 +573,8 @@ public class TestDtlspRSGroupOSCORE {
     			                          alg,
     			                          hkdf,
     			                          csAlg,
-    			                          csParams
-    			                          );
+    			                          csParams,
+    			                          csKeyParams);
         
     	byte[] mySid;
     	OneKey myKey;
