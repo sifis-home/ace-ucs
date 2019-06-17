@@ -37,10 +37,10 @@ import java.security.SecureRandom;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -94,7 +94,7 @@ public class OSCOREProfileRequests {
      * @throws AceException 
      * @throws OSException 
      */
-    public static CoapResponse getToken(String asAddr, CBORObject payload, 
+    public static Response getToken(String asAddr, CBORObject payload, 
             OSCoreCtx ctx) throws AceException, OSException {
         OSCoreCoapStackFactory.useAsDefault();
         CoapClient client = new CoapClient(asAddr);
@@ -105,7 +105,7 @@ public class OSCOREProfileRequests {
         OSCoreCtxDB db = HashMapCtxDB.getInstance();
         db.addContext(asAddr, ctx);
         try {
-            return client.advanced(r);
+            return client.advanced(r).advanced();
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("Connector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -125,7 +125,7 @@ public class OSCOREProfileRequests {
      *
      * @throws AceException 
      */
-    public static CoapResponse postToken(String rsAddr, CoapResponse asResp) 
+    public static Response postToken(String rsAddr, Response asResp) 
             throws AceException {
         if (asResp == null) {
             throw new AceException(
@@ -144,17 +144,20 @@ public class OSCOREProfileRequests {
             throw new AceException("AS response was not a CBOR map");
         }
         
-        CBORObject token = asPayload.get(Constants.ACCESS_TOKEN);
+        CBORObject token = asPayload.get(
+                CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
             throw new AceException("AS response did not contain a token");
         }
         
-        CBORObject cnf = asPayload.get(Constants.CNF);
+        CBORObject cnf = asPayload.get(
+                CBORObject.FromObject(Constants.CNF));
         if (cnf == null) {
             throw new AceException("AS response did not contain a cnf");
         }
         
-        CBORObject osc = cnf.get(Constants.OSCORE_Security_Context);
+        CBORObject osc = cnf.get(
+                CBORObject.FromObject(Constants.OSCORE_Security_Context));
         if (osc == null) {
             throw new AceException(
                     "cnf did not contain an OSCORE security context");
@@ -169,11 +172,11 @@ public class OSCOREProfileRequests {
         CoapClient client = new CoapClient(rsAddr);
 
         LOGGER.finest("Sending request payload: " + payload);
-        CoapResponse r = null;
+        Response r = null;
         try {
             r = client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    MediaTypeRegistry.APPLICATION_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
@@ -194,7 +197,8 @@ public class OSCOREProfileRequests {
             throw new AceException("RS didn't respond with a CBOR map");
         }
         
-        CBORObject n2C = rsPayload.get(Constants.CNONCE);
+        CBORObject n2C = rsPayload.get(
+                CBORObject.FromObject(Constants.CNONCE));
         if (n2C == null || !n2C.getType().equals(CBORType.ByteString)) {
             throw new AceException(
                     "Missing or malformed cnonce in RS response");
@@ -220,7 +224,7 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject clientId = osc.get(Constants.OS_CLIENTID);
-        byte[] recipient_id = null;
+        byte[] sender_id = null;
         if (clientId != null) {
             if (!clientId.getType().equals(CBORType.ByteString)) {
                 LOGGER.info("Invalid parameter: 'clientId',"
@@ -228,7 +232,7 @@ public class OSCOREProfileRequests {
                throw new AceException(
                         "Malformed client Id in OSCORE security context");
             }
-            recipient_id = clientId.GetByteString(); 
+            sender_id = clientId.GetByteString(); 
         }
                
         CBORObject ctxtId = osc.get(Constants.OS_CONTEXTID);
@@ -295,7 +299,7 @@ public class OSCOREProfileRequests {
                     "malformed or missing server id"
                     + " in OSCORE security context");
         }
-        byte[] sender_id = serverId.GetByteString();
+        byte[] recipient_id = serverId.GetByteString();
         
         try {
             OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sender_id, 
@@ -339,7 +343,7 @@ public class OSCOREProfileRequests {
             throw new AceException("OSCORE context not set for address: " 
                     + serverAddress);
         }
-
+        OSCoreCoapStackFactory.useAsDefault();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         return client;    
     }

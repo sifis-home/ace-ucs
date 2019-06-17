@@ -102,17 +102,17 @@ public class TestDtlspClient2RS {
          * @throws IOException 
          */
         public void stop() throws IOException, AceException {
-            TestDtlspRS.stop();
+            DtlspRSTestServer.stop();
         }
 
         @Override
         public void run() {
             try {
-                TestDtlspRS.main(null);
+                DtlspRSTestServer.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {
-                    TestDtlspRS.stop();
+                    DtlspRSTestServer.stop();
                 } catch (IOException | AceException e) {
                     System.err.println(e.getMessage());
                 }

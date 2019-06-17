@@ -51,6 +51,7 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -69,6 +70,7 @@ import se.sics.ace.as.Token;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
+@Ignore
 public class TestCoAPClientGroupOSCORE {
     
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};

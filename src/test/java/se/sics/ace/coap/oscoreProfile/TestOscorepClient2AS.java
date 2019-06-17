@@ -2,7 +2,7 @@ package se.sics.ace.coap.oscoreProfile;
 
 import java.util.Map;
 
-import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
@@ -93,7 +93,7 @@ public class TestOscorepClient2AS {
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp rw_config foobar"), null);
-        CoapResponse response = OSCOREProfileRequests.getToken(
+        Response response = OSCOREProfileRequests.getToken(
                 "coap://localhost/token", params, ctx);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);

@@ -47,8 +47,7 @@ import se.sics.ace.rs.AuthzInfo;
 
 
 /**
- * A CoAP resource implementing the authz-info endpoint at the RS 
- * for the DTLS profile.
+ * A CoAP resource implementing the authz-info endpoint at the RS.
  * 
  * @author Ludwig Seitz
  *

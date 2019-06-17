@@ -48,6 +48,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -75,6 +76,7 @@ import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
+@Ignore
 public class TestDtlspClientGroupOSCORE {
 
     private static byte[] key128

@@ -38,8 +38,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
@@ -51,7 +49,6 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.coap.CoapReq;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
@@ -81,7 +78,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
      * Temporary storage for the CNF claim
      */
     private CBORObject cnf;
-	
+
 	/**
 	 * Constructor.
 	 * 
@@ -162,146 +159,24 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n1 = nonce.GetByteString();
-        CBORObject osc = this.cnf.get(Constants.OSCORE_Security_Context);
-        if (osc == null || !osc.getType().equals(CBORType.Map)) {
-            LOGGER.info("Missing or invalid parameter type for "
-                    + "'OSCORE_Security_Context', must be CBOR-map");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Missing or malformed OSCORE security context");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-        }
         byte[] n2 = new byte[8];
         new SecureRandom().nextBytes(n2);
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
-                    
-        CBORObject algC = osc.get(Constants.OS_ALG);
-        AlgorithmID alg = null;
-        if (algC != null) {
-            try {
-                alg = AlgorithmID.FromCBOR(algC);
-            } catch (CoseException e) {
-                LOGGER.info("Invalid algorithmId: " + e.getMessage());
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                map.Add(Constants.ERROR_DESCRIPTION, 
-                        "Malformed algorithm Id in OSCORE security context");
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-            }
-        }
-        
-        CBORObject clientId = osc.get(Constants.OS_CLIENTID);
-        byte[] recipient_id = null;
-        if (clientId != null) {
-            if (!clientId.getType().equals(CBORType.ByteString)) {
-                LOGGER.info("Invalid parameter: 'clientId',"
-                        + " must be byte-array");
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                map.Add(Constants.ERROR_DESCRIPTION, 
-                        "Malformed client Id in OSCORE security context");
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-            }
-            recipient_id = clientId.GetByteString(); 
-	    }
-               
-        CBORObject ctxtId = osc.get(Constants.OS_CONTEXTID);
-        if (ctxtId != null) {
-            LOGGER.info("Invalid parameter: contextID must be null");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "contextId must be null in OSCORE security context");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-        }
-                
-        CBORObject kdfC = osc.get(Constants.OS_HKDF);
-        AlgorithmID kdf = null;
-        if (kdfC != null) {
-            try {
-                kdf = AlgorithmID.FromCBOR(kdfC);
-            } catch (CoseException e) {
-                LOGGER.info("Invalid kdf: " + e.getMessage());
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                map.Add(Constants.ERROR_DESCRIPTION, 
-                        "Malformed KDF in OSCORE security context");
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-            }
-        }
-        
-        CBORObject ms = osc.get(Constants.OS_MS);
-        if (ms == null || !ms.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter: 'master secret',"
-                    + " must be byte-array");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "malformed or missing master secret"
-                    + " in OSCORE security context");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-        }
-        byte[] master_secret = ms.GetByteString();
-        
-        CBORObject rpl = osc.get(Constants.OS_RPL);
-        Integer replay_size = null;
-        if (rpl != null) {
-            if (!rpl.CanFitInInt32()) {
-                LOGGER.info("Invalid parameter: 'replay window size',"
-                        + " must be 32-bit integer");
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                map.Add(Constants.ERROR_DESCRIPTION, 
-                        "malformed replay window size"
-                        + " in OSCORE security context");
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-            }
-            replay_size = rpl.AsInt32();
-        }
-
-        CBORObject salt = osc.get(Constants.OS_SALT);
-        byte[] master_salt = null;
-        if (salt != null) {
-            if (!salt.getType().equals(CBORType.ByteString)) {
-                LOGGER.info("Invalid parameter: 'master salt',"
-                        + " must be byte-array");
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-                map.Add(Constants.ERROR_DESCRIPTION, 
-                        "malformed master salt"
-                        + " in OSCORE security context");
-                return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-            }
-            master_salt = salt.GetByteString();
-        }
-
-        CBORObject serverId = osc.get(Constants.OS_SERVERID);
-        if (serverId == null 
-                || !serverId.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter: 'serverId',"
-                    + " must be byte-array");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "malformed or missing server id"
-                    + " in OSCORE security context");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-        }
-        byte[] sender_id = serverId.GetByteString();
-        
+   
+        OscoreSecurityContext osc;
         try {
-            OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sender_id, 
-                    recipient_id, kdf, replay_size, master_salt, contextId);
+            osc = new OscoreSecurityContext(this.cnf);
+        } catch (AceException e) {
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+        }
+            
+        OSCoreCtx ctx;
+        try {
+            ctx = osc.getContext(false, n1, n2);
             HashMapCtxDB db = HashMapCtxDB.getInstance();
             db.addContext(ctx);
-            if (msg instanceof CoapReq) {
-                CoapReq r = (CoapReq)msg;
-                db.addContext(r.getToken(), ctx);
-            }
-           
         } catch (OSException e) {
             LOGGER.info("Error while creating OSCORE context: " 
                     + e.getMessage());
@@ -315,12 +190,12 @@ public class OscoreAuthzInfo extends AuthzInfo {
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.CNONCE, n2);
+        LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);
 	}
 
 	@Override
 	protected synchronized void processOther(Map<Short, CBORObject> claims) {
-	    super.processOther(claims);
 	    this.cnf = claims.get(Constants.CNF);
 	}
 

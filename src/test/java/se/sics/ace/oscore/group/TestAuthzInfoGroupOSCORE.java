@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -79,6 +80,7 @@ import se.sics.ace.rs.TokenRepository;
  * 
  * @author Ludwig Seitz and Marco Tiloca
  */
+@Ignore
 public class TestAuthzInfoGroupOSCORE {
     
     static OneKey publicKey;

@@ -62,6 +62,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -363,7 +364,10 @@ public class TokenRepository implements AutoCloseable {
                 this.sid2kid.put(sid, kid);
             }
         } else if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
-            //FIXME: process key
+            OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
+            String kid = new String(osc.getClientId(), Constants.charset);
+            this.cti2kid.put(cti, kid);
+            this.sid2kid.put(kid, kid);       
         } else {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");

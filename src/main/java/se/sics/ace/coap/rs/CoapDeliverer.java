@@ -62,8 +62,10 @@ import se.sics.ace.rs.TokenRepository;
 /**
  * This deliverer processes incoming and outgoing messages at the RS 
  * according to the specifications of the ACE framework 
- * (draft-ietf-ace-oauth-authz) and the DTLS profile of that framework
- * (draft-ietf-ace-dtls-authorize).
+ * (draft-ietf-ace-oauth-authz).
+ * 
+ *  It can handle tokens passed through the DTLS handshake as specified in
+ *  draft-ietf-ace-dtls-authorize.
  * 
  * It's specific task is to match requests against existing access tokens
  * to see if the request is authorized.
@@ -139,15 +141,22 @@ public class CoapDeliverer implements MessageDeliverer {
             return;
         }      
        
+       
+        String subject;
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
-            LOGGER.warning("Unauthenticated client tried to get access");
-            failUnauthz(null, ex);
-            return;
+            //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+            if (ex.getCryptographicContextID()!= null) {                
+                subject = new String(ex.getCryptographicContextID(),
+                        Constants.charset);    
+            } else {
+                LOGGER.warning("Unauthenticated client tried to get access");
+                failUnauthz(null, ex);
+                return;
+            }
+        } else  {
+            subject = request.getSourceContext().getPeerIdentity().getName();
         }
-        
-        String subject = request.getSourceContext()
-                .getPeerIdentity().getName();
 
         TokenRepository tr = TokenRepository.getInstance();
         if (tr == null) {

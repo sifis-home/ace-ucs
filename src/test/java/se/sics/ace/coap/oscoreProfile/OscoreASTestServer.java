@@ -193,9 +193,10 @@ public class OscoreASTestServer
      * @throws Exception 
      */
     public static void stop() throws Exception {
+        DBHelper.tearDownDB();
         as.stop();
         pdp.close();
-        DBHelper.tearDownDB();
+      
     }
     
 }

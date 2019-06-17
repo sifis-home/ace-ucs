@@ -340,13 +340,17 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
                     .addToken(claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 
 	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}
 	

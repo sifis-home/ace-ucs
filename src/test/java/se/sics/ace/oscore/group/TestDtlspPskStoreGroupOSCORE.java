@@ -44,6 +44,7 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -71,6 +72,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
+@Ignore
 public class TestDtlspPskStoreGroupOSCORE {
 
     private static DtlspPskStoreGroupOSCORE store = null;

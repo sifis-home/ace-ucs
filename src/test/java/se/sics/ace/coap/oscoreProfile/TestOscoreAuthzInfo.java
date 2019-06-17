@@ -421,7 +421,7 @@ public class TestOscoreAuthzInfo {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, 
-                "Missing or malformed OSCORE security context");
+                "invalid/missing OSCORE_Security_Context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
@@ -471,7 +471,7 @@ public class TestOscoreAuthzInfo {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, 
-                "Missing or malformed OSCORE security context");
+                "invalid/missing OSCORE_Security_Context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
     }
     

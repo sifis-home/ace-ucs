@@ -56,6 +56,7 @@ import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -85,6 +86,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
+@Ignore
 public class TestDtlspAuthzInfoGroupOSCORE {
 
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
