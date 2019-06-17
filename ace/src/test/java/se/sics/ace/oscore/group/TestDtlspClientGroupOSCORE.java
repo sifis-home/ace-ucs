@@ -2475,6 +2475,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
         Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
         
+        CBORObject coseKeySetArray = null;
         if (askForPubKeys) {
         	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
@@ -2482,7 +2483,7 @@ public class TestDtlspClientGroupOSCORE {
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
         	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
-        	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        	coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
         	
@@ -2533,51 +2534,115 @@ public class TestDtlspClientGroupOSCORE {
         /* Context derivation below */
         
         //Defining variables to hold the information before derivation
+        
+        //Algorithm
+        AlgorithmID algo = null;
+        CBORObject alg_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg);
+        if(alg_param.getType() == CBORType.TextString) {
+        	algo = AlgorithmID.valueOf(alg_param.AsString());
+        } else if(alg_param.getType() == CBORType.SimpleValue) {
+        	algo = AlgorithmID.FromCBOR(alg_param);
+        }
+        
+        //KDF
+        AlgorithmID kdf = null;
+        CBORObject kdf_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.hkdf);
+        if(kdf_param.getType() == CBORType.TextString) {
+        	kdf = AlgorithmID.valueOf(kdf_param.AsString());
+        } else if(kdf_param.getType() == CBORType.SimpleValue) {
+        	kdf = AlgorithmID.FromCBOR(kdf_param);
+        }
+        
+    	//Algorithm for the countersignature
+        AlgorithmID alg_countersign = null;
+        CBORObject alg_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_alg);
+        if(alg_countersign_param.getType() == CBORType.TextString) {
+        	alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
+        } else if(alg_countersign_param.getType() == CBORType.SimpleValue) {
+        	alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
+        }
+        
+        //FIXME
+//        //Parameter for the countersignature
+//        Integer par_countersign = null;
+//        CBORObject par_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_params);
+//        if(par_countersign_param.getType() == CBORType.Map) {
+//        	par_countersign = par_countersign_param.get(0).AsInt32();
+//        } else if(par_countersign_param.getType() == CBORType.ByteString)
+//        	System.err.println("BS!");
+//        {
+//        	System.err.println("Unknown par_countersign value!");
+//        }
         int ED25519 = KeyKeys.OKP_Ed25519.AsInt32();
-        AlgorithmID algo = AlgorithmID.valueOf(contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg).AsString());
-    	AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
-    	
-    	//Group OSCORE specific values for the countersignature
-    	AlgorithmID alg_countersign = AlgorithmID.EDDSA;
     	Integer par_countersign = ED25519; //Ed25519
 
-    	// test vector OSCORE draft Appendix C.1.1
-    	byte[] master_secret = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.ms).GetByteString();
-    	byte[] master_salt = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.salt).GetByteString();
+    	//Master secret
+    	CBORObject master_secret_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.ms);
+    	byte[] master_secret = null;
+    	if(master_secret_param.getType() == CBORType.ByteString) {
+    		master_secret = master_secret_param.GetByteString();
+   		}
     	
-    	byte[] sid = new byte[] { 0x25 };
-    	String sid_private_key_string = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+    	//Master salt
+    	CBORObject master_salt_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.salt);
+    	byte[] master_salt = null;
+    	if(master_salt_param.getType() == CBORType.ByteString) {
+    		master_salt = master_salt_param.GetByteString();
+   		}
+ 
+    	//Sender ID
+    	byte[] sid = null;
+    	CBORObject sid_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.clientId);
+    	if(sid_param.getType() == CBORType.ByteString) {
+    		sid = sid_param.GetByteString();
+    	}
+    	
+    	//Group ID / Context ID
+    	CBORObject group_identifier_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.contextId);
+    	byte[] group_identifier = null;
+    	if(group_identifier_param.getType() == CBORType.ByteString) {
+    		group_identifier = group_identifier_param.GetByteString();
+    	}
+    	
+    	//RPL (replay window information)
+    	CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
+    	int rpl = 32; //Default value
+    	if(rpl_param != null && rpl_param.getType() == CBORType.SimpleValue) {
+    		rpl = rpl_param.AsInt32();
+    	}
+    	
+    	//Set up private & public keys for sender (not from response but set by client)
+    	String sid_private_key_string = groupKeyPair;
     	OneKey sid_private_key;
-    	
-    	byte[] rid1 = new byte[] { 0x52 }; //Recipient 1
-    	String rid1_public_key_string = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
-    	OneKey rid1_public_key;
-    	
-    	byte[] rid2 = new byte[] { 0x77 }; //Recipient 2
-    	String rid2_public_key_string = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
-    	OneKey rid2_public_key;
-    	
-    	byte[] group_identifier = new byte[] { 0x44, 0x61, 0x6c }; //Group ID
-    	
-    	//Add private & public keys for sender & receiver(s)
-    	sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
-    	rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(rid1_public_key_string)));
-    	rid2_public_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(rid2_public_key_string)));
-    			
-    	
+       	sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
+
     	//Now derive the actual context
     	
     	GroupOSCoreCtx ctx = null;
 		try {
-			ctx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, 32, 
+			ctx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, rpl, 
 					master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
 		} catch (OSException e) {
 			System.err.println("Failed to derive Group OSCORE Context!");
 			e.printStackTrace();
 		}
-		//ctx.addRecipientContext(rid1, rid1_public_key);
 		
-    	
+		//Finally add the recipient contexts from the coseKeySetArray
+		for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
+			
+			CBORObject key_param = coseKeySetArray.get(i);
+			
+	    	byte[] rid = null;
+	    	CBORObject rid_param = key_param.get(KeyKeys.KeyId.AsCBOR());
+	    	if(rid_param.getType() == CBORType.ByteString) {
+	    		rid = rid_param.GetByteString();
+	    	}
+			
+			OneKey recipient_key = new OneKey(key_param);
+			
+			ctx.addRecipientContext(rid, recipient_key);
+		}
+		
 }
     
     /**
