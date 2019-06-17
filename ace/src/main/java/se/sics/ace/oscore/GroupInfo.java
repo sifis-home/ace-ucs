@@ -40,7 +40,6 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -75,6 +74,7 @@ public class GroupInfo {
 	private AlgorithmID hkdf;
 	private AlgorithmID csAlg;
 	private CBORObject csParams;
+	private CBORObject csKeyParams;
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -90,6 +90,7 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF used in the OSCORE group.
 	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
 	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
+	 * @param csKeyParams         the parameters of the key for countersignature algorithm used in the OSCORE group.
 	 */
     public GroupInfo(final byte[] masterSecret,
     				 final byte[] masterSalt,
@@ -101,7 +102,8 @@ public class GroupInfo {
     		         final AlgorithmID alg,
     		         final AlgorithmID hkdf,
     		         final AlgorithmID csAlg,
-    		         final CBORObject csParams) {
+    		         final CBORObject csParams,
+    		         final CBORObject csKeyParams) {
     	
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
@@ -114,6 +116,7 @@ public class GroupInfo {
     	setHkdf(hkdf);
     	setCsAlg(csAlg);
     	setCsParams(csParams);
+    	setCsKeyParams(csKeyParams);
     	
     	if (senderIdSize < 1)
     		this.senderIdSize = 1;
@@ -328,20 +331,44 @@ public class GroupInfo {
     	
     }    
     
-    // Retrieve the countersignature algorithm used in the group
+    // Retrieve the parameters of the countersignature algorithm used in the group
     synchronized public final CBORObject getCsParams() {
     	
     	return this.csParams;
     	
     }
     
-    // Set the countersignature parameters used in the group
-    synchronized public void setCsParams(final CBORObject csParams) {
+    // Set the parameters of the countersignature algorithm used in the group
+    synchronized public boolean setCsParams(final CBORObject csParams) {
     
+    	if (csParams.getType() != CBORType.Map)
+    		return false;
+    	
     	this.csParams = csParams;
     	
-    }   
+    	return true;
+    	
+    }
+    
+    // Retrieve the parameters of the key of the countersignature algorithm used in the group
+    synchronized public final CBORObject getCsKeyParams() {
+    	
+    	return this.csKeyParams;
+    	
+    }
+    
+    // Set the parameters of the key of the countersignature algorithm used in the group
+    synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
+    
+    	if (csKeyParams.getType() != CBORType.Map)
+    		return false;
+    	
+    	this.csKeyParams = csKeyParams;
 
+    	return true;
+    	
+    }
+    
     // Find the first available Sender ID value and allocate it.
     // Return the allocated Sender ID value as a byte array, or null if all values are used.
     synchronized public byte[] allocateSenderId() {

@@ -114,15 +114,6 @@ public class TestDtlspRSGroupOSCORE {
             
             // set display name
             getAttributes().setTitle("Hello-World Resource");
-            
-//            // install needed cryptography providers
-//            try {
-//				org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
-//			} catch (Exception e) {
-//				// TODO Auto-generated catch block
-//				LOGGER.error("Failed to install cryptography providers.");
-//				e.printStackTrace();
-//			}
         }
 
         @Override
@@ -331,41 +322,36 @@ public class TestDtlspRSGroupOSCORE {
 				}
         		        		
         		// Sanity check on the type of public key
-        		// TODO: The Group Manager should actually tell the joining node the exact algorithm and parameters
-        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_256)) {
-        			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(KeyKeys.EC2_P256)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
-        		}
+        		// TODO: The "Bad Request" response should actually tell the joining node the exact algorithm and parameters
         		
-        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384)) {
+        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
+        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
+        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
         			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(KeyKeys.EC2_P384)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
-        		}
-        			
-        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
-        			
-        			if (!publicKey.get(KeyKeys.EC2_Curve).equals(KeyKeys.EC2_P521)) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
-        			}
+        			if (!publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
+        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve)))) {
         				
+                			myGroup.deallocateSenderId(senderId);
+                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                			return;
+                		
+        			}
         		}
         		
         		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams())) {
-                		myGroup.deallocateSenderId(senderId);
-        				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                		return;
+        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))) ||
+            			/*!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType_OKP))) ||*/
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve)))) {
+        				
+                			myGroup.deallocateSenderId(senderId);
+                			System.out.println("DEBUG"); //FIXME
+                			System.out.println("1 " + publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))));
+                			System.out.println("2 " + publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType_OKP))));
+                			System.out.println("3 " + publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))));
+                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                			return;
+                		
         			}
         				
         		}
@@ -402,8 +388,10 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
-        	if (myGroup.getCsParams() != null)
+        	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
+        	if (myGroup.getCsKeyParams().size() != 0)
+        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	
         	joinResponse.Add("key", myMap);
         	
@@ -423,7 +411,7 @@ public class TestDtlspRSGroupOSCORE {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add("exp", CBORObject.FromObject(1000000));
         	
-        	// NOTE: this is currently skipping the inclusion of the optional parameters 'pub_keys' and 'group_policies'.
+        	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
@@ -554,14 +542,23 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
+        AlgorithmID csAlg;
+        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
+        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
         
         // ECDSA_256
-        //final AlgorithmID csAlg = AlgorithmID.ECDSA_256;
-        //final CBORObject csParams = null;
+        //csAlg = AlgorithmID.ECDSA_256;
+        //csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
+        //csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
         
         // EDDSA (Ed25519)
-        final AlgorithmID csAlg = AlgorithmID.EDDSA;
-        final CBORObject csParams = KeyKeys.OKP_Ed25519;
+        csAlg = AlgorithmID.EDDSA;
+        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
+        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+
+        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
+        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -580,8 +577,8 @@ public class TestDtlspRSGroupOSCORE {
     			                          alg,
     			                          hkdf,
     			                          csAlg,
-    			                          csParams
-    			                          );
+    			                          csParams,
+    			                          csKeyParams);
         
     	byte[] mySid;
     	OneKey myKey;
@@ -607,7 +604,7 @@ public class TestDtlspRSGroupOSCORE {
     	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
     	//String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
-    	
+    	  	
     	// Store the public key of the group member with Sender ID 0x52 (EDDSA)
     	String rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
