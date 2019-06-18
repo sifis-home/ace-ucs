@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -50,12 +51,13 @@ import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * A store for Pre-Shared-Keys (PSK) at the RS.
  * 
  * Implements the retrieval of the access token as defined in section 4.1. of 
- * draft-gerdes-ace-dtls-authorize.
+ * draft-ietf-ace-dtls-authorize.
  * 
  * @author Ludwig Seitz
  *
@@ -84,13 +86,27 @@ public class DtlspPskStore implements PskStore {
         this.authzInfo = authzInfo;
     }
     
-    
     @Override
-    public byte[] getKey(String identity) {
+    public byte[] getKey(PskPublicInformation identity) {
+        return getKey(identity.getPublicInfoAsString());
+    }
+   
+    /**
+     * Avoid having to refactor all my code since the CF people decided 
+     * they needed to change public APIs
+     * 
+     * @param identity  the String identity of the key
+     * @return  the bytes of the key
+     */
+    private byte[] getKey(String identity) {
+        if (TokenRepository.getInstance() == null) {
+            LOGGER.severe("TokenRepository not initialized");
+            return null;
+        }
         //First try if we have that key
         OneKey key = null;
         try {
-            key = this.authzInfo.getKey(identity);
+            key = TokenRepository.getInstance().getKey(identity);
             if (key != null) {
                 return key.get(KeyKeys.Octet_K).GetByteString();
             }
@@ -126,7 +142,7 @@ public class DtlspPskStore implements PskStore {
             String ctiStr = Base64.getEncoder().encodeToString(
                     cti.GetByteString());
             try {
-                 key = this.authzInfo.getPoP(ctiStr);
+                 key = TokenRepository.getInstance().getPoP(ctiStr);
                  return key.get(KeyKeys.Octet_K).GetByteString();
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
@@ -138,21 +154,21 @@ public class DtlspPskStore implements PskStore {
     }
 
     @Override
-    public String getIdentity(InetSocketAddress inetAddress) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
         // Not needed here, this PskStore is for servers only
         return null;
     }
 
 
     @Override
-    public byte[] getKey(ServerNames serverNames, String identity) {
+    public byte[] getKey(ServerNames serverNames, PskPublicInformation identity) {
         //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }
 
 
     @Override
-    public String getIdentity(InetSocketAddress peerAddress,
+    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
         // XXX: No support for ServerNames extension yet
         return null;

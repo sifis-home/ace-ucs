@@ -49,17 +49,17 @@ import se.sics.ace.coap.CoapRes;
 
 /**
  * This class implements the ACE endpoints/resources 
- * (OAuth lingo vs CoAP lingo) token and introspect.
+ * (OAuth lingo vs CoAP lingo) token and introspect for the DTLS profile.
  * 
  * @author Ludwig Seitz
  *
  */
-public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
+public class CoapDtlsEndpoint extends CoapResource implements AutoCloseable {
     
     /**
      * The logger
      */
-    private static final Logger LOGGER = Logger.getLogger(CoapAceEndpoint.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger(CoapDtlsEndpoint.class.getName() );
     
     /**
      * The token library
@@ -72,7 +72,7 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
      * @param name  the resource name (should be "introspect" or "token")
      * @param e  the endpoint library instance
      */
-    public CoapAceEndpoint(String name, Endpoint e) {
+    public CoapDtlsEndpoint(String name, Endpoint e) {
         super(name);
         this.e = e;        
     }
@@ -82,7 +82,7 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
      * 
      * @param e  the endpoint library instance
      */
-    public CoapAceEndpoint(Introspect e) {
+    public CoapDtlsEndpoint(Introspect e) {
         super("introspect");
         this.e = e;
     }
@@ -92,7 +92,7 @@ public class CoapAceEndpoint extends CoapResource implements AutoCloseable {
      * 
      * @param e  the endpoint library instance
      */
-    public CoapAceEndpoint(Token e) {
+    public CoapDtlsEndpoint(Token e) {
         super("token");
         this.e = e;
     }

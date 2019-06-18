@@ -81,7 +81,6 @@ public class TestAuthzInfoAif {
     static SQLConnector db = null;
 
     private static AuthzInfo ai = null; 
-    private static TokenRepository tr = null;
     private static KissPDP pdp = null;
     
     /**
@@ -94,7 +93,8 @@ public class TestAuthzInfoAif {
     @BeforeClass
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
-
+        //Delete lingering old token file
+        new File(TestConfig.testFilePath + "tokens.json").delete();
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
@@ -120,49 +120,17 @@ public class TestAuthzInfoAif {
         resources.add("temp");
         resources.add("co2");
         Aif aif = new Aif(resources);
-        createTR(aif);
-        tr = TokenRepository.getInstance();
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         KissValidator valid = new KissValidator(Collections.singleton("rs1"), null);
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, ctx);
-    }
-
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(Aif valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
+        String tokenFile = TestConfig.testFilePath + "tokens.json";   
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
+                new KissTime(), null, valid, ctx, tokenFile, aif, false);
     }
     
     /**
@@ -173,7 +141,7 @@ public class TestAuthzInfoAif {
     public static void tearDown() throws Exception {
         DBHelper.tearDownDB();
         pdp.close();
-        tr.close();
+        ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
      

@@ -54,7 +54,6 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
-import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
@@ -95,8 +94,8 @@ public class PlugtestClient {
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
     
-    private static byte[] jim = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
-            0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11};
+    //private static byte[] jim = {0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    //        0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10, 0x11};
     
     //Needed to show token content
     private static CwtCryptoCtx ctx1 = null;
@@ -104,7 +103,7 @@ public class PlugtestClient {
     //Needed to show token content
     private static CwtCryptoCtx ctx2 = null;
     
-    private static CwtCryptoCtx ctxJim = null;
+    //private static CwtCryptoCtx ctxJim = null;
     
     private static String cX 
         = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
@@ -185,7 +184,7 @@ public class PlugtestClient {
         CBORObject as_y = CBORObject.FromObject(PlugtestAS.hexString2byteArray(asY));
         asRpkData.Add(KeyKeys.EC2_X.AsCBOR(), as_x);
         asRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), as_y);
-        OneKey asRPK = new OneKey(asRpkData);  
+        //OneKey asRPK = new OneKey(asRpkData);  
         
         CBORObject rsRpkData = CBORObject.NewMap();
         rsRpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -213,8 +212,8 @@ public class PlugtestClient {
                 KeyKeys.KeyType_Octet);
         pskData2.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client2));
-        String kidStr2 = "key2";
-        byte[] kidPSK2 = kidStr2.getBytes(Constants.charset);
+        //String kidStr2 = "key2";
+        //byte[] kidPSK2 = kidStr2.getBytes(Constants.charset);
         pskData2.Add(KeyKeys.KeyId.AsCBOR(), kid2);
         OneKey client2PSK = new OneKey(pskData2);
        
@@ -223,8 +222,8 @@ public class PlugtestClient {
                 KeyKeys.KeyType_Octet);
         pskData3.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client3));
-        String kidStr3 = "key3";
-        byte[] kidPSK3 = kidStr3.getBytes(Constants.charset);
+        //String kidStr3 = "key3";
+        //byte[] kidPSK3 = kidStr3.getBytes(Constants.charset);
         pskData3.Add(KeyKeys.KeyId.AsCBOR(), kid3);
         OneKey client3PSK = new OneKey(pskData3);
         
@@ -233,10 +232,10 @@ public class PlugtestClient {
                 KeyKeys.KeyType_Octet);
         pskData4.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(client4));
-        String kidStr4 = "key4";
-        byte[] kidPSK4 = kidStr4.getBytes(Constants.charset);
+        //String kidStr4 = "key4";
+        //byte[] kidPSK4 = kidStr4.getBytes(Constants.charset);
         pskData4.Add(KeyKeys.KeyId.AsCBOR(), kid4);
-        OneKey client4PSK = new OneKey(pskData4);
+        //OneKey client4PSK = new OneKey(pskData4);
                
         int testcase = Integer.parseInt(args[0]);
         String uri = args[1]; 
@@ -255,7 +254,7 @@ public class PlugtestClient {
         
         ctx2 = CwtCryptoCtx.encrypt0(rs2, coseP.getAlg().AsCBOR());
         
-        ctxJim = CwtCryptoCtx.encrypt0(jim, coseP.getAlg().AsCBOR());
+        //ctxJim = CwtCryptoCtx.encrypt0(jim, coseP.getAlg().AsCBOR());
         
         switch (testcase) {
 
@@ -766,7 +765,7 @@ public class PlugtestClient {
     }
 
     
-    private static void printResults(CoapResponse res) throws CoseException, Exception {
+    private static void printResults(CoapResponse res) {
         if (res != null) {
             System.out.print(res.getCode().codeClass + "." 
                     + "0" + res.getCode().codeDetail);

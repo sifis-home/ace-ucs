@@ -34,6 +34,8 @@ package se.sics.ace;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.core.coap.CoAP;
+
 import com.upokecenter.cbor.CBORObject;
 
 /**
@@ -48,60 +50,60 @@ import com.upokecenter.cbor.CBORObject;
 public interface Message {
 	
     /**
-     * Generic success code
-     */
-    public static int OK = 200;
-    
-    /**
      * Request has been fulfilled, resulting in the creation of a new resource.
      */
-    public static int CREATED = 201;
+    public static int CREATED = CoAP.ResponseCode.CREATED.value;
     
 	/**
 	 * Generic failure reasons code (following REST/HTTP/COAP).
 	 */
-	public static int FAIL_BAD_REQUEST = 400;
+	public static int FAIL_BAD_REQUEST = CoAP.ResponseCode.BAD_REQUEST.value;
 	
 	/**
 	 * Request was not authorized, the requester should try to authenticate
 	 */
-	public static int FAIL_UNAUTHORIZED = 401;
+	public static int FAIL_UNAUTHORIZED = CoAP.ResponseCode.UNAUTHORIZED.value;
 	
 	/**
 	 * Requester lacks permission to perform this request
 	 */
-	public static int FAIL_FORBIDDEN = 403;
+	public static int FAIL_FORBIDDEN = CoAP.ResponseCode.FORBIDDEN.value;
 	
 	/**
 	 * Requested resource was not found
 	 */
-	public static int FAIL_NOT_FOUND = 404;
+	public static int FAIL_NOT_FOUND = CoAP.ResponseCode.NOT_FOUND.value;
 	
 	/**
 	 * The requested operation on the resource is not allowed for this
 	 * 	requester
 	 */ 
-	public static int FAIL_METHOD_NOT_ALLOWED = 405;
+	public static int FAIL_METHOD_NOT_ALLOWED 
+	    = CoAP.ResponseCode.METHOD_NOT_ALLOWED.value;
 	
 	/**
 	 * The responder cannot generate acceptable data format in the response
 	 */
-	public static int FAIL_NOT_ACCEPTABLE = 406;
+	public static int FAIL_NOT_ACCEPTABLE 
+	    =  CoAP.ResponseCode.NOT_ACCEPTABLE.value;
 	
 	/**
 	 * The request contained payload in a unsupported data format
 	 */
-	public static int FAIL_UNSUPPORTED_CONTENT_FORMAT = 415;
+	public static int FAIL_UNSUPPORTED_CONTENT_FORMAT 
+	    =  CoAP.ResponseCode.UNSUPPORTED_CONTENT_FORMAT.value;
 	
 	/**
 	 * The server had some internal problem
 	 */
-	public static int FAIL_INTERNAL_SERVER_ERROR = 500;
+	public static int FAIL_INTERNAL_SERVER_ERROR 
+	    = CoAP.ResponseCode.INTERNAL_SERVER_ERROR.value;
 	
 	/**
 	 * The server doesn't implement some part required for this request
 	 */
-	public static int FAIL_NOT_IMPLEMENTED = 501;
+	public static int FAIL_NOT_IMPLEMENTED 
+	    = CoAP.ResponseCode.NOT_IMPLEMENTED.value;
 
 	/**
 	 * @return  the success/failure code

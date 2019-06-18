@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.as;
 
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import se.sics.ace.AceException;
@@ -72,6 +73,8 @@ public class Authorize implements Endpoint, AutoCloseable {
 
     @Override
     public Message processMessage(Message msg) {
+        LOGGER.log(Level.INFO, "Authorize received message: " 
+                + msg.getParameters());
         //TODO: Implement the authorize endpoint
         
         

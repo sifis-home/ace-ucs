@@ -36,10 +36,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
-import java.util.Arrays;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
@@ -49,9 +45,6 @@ import java.util.Map;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.logging.Logger;
-
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.json.JSONArray;
@@ -69,6 +62,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
@@ -159,32 +153,6 @@ public class TokenRepository implements AutoCloseable {
      * The filename + path for the JSON file in which the tokens are stored
      */
     private String tokenFile;
-
-    /**
-	 * The counter used to generate the cnonces.
-	 * -1 means we don't use cnonces.
-	 */
-	private Integer cnonceCounter = -1;
-	
-	/**
-	 * The last seen nonce
-	 */
-	private int cnonceSeen;
-	
-	/**
-     * The size of the replay window
-     */
-    private int cnonceWindowSize;
-
-	/**
-	 * Cnonce replay window, 
-	 */
-	private int cnonceWindow;
-	
-	/**
-	 * Cnonce HMAC key (32 bytes)
-	 */
-	private byte[] cnonceKey;
 	
 	/**
 	 * The time provider providing local time for this RS
@@ -198,14 +166,13 @@ public class TokenRepository implements AutoCloseable {
 	
 	
 	/**
-	 * The singleton getter
+	 * The singleton getter.
+	 * Note: The caller is expected to check if the singleton was initialized
+	 * with TokenRepository.create().
+	 * 
 	 * @return  the singleton repository
-	 * @throws AceException  if the repository is not initialized
 	 */
-	public static TokenRepository getInstance() throws AceException {
-	    if (singleton == null) {
-	        throw new AceException("Token repository not created");
-	    }
+	public static TokenRepository getInstance() {
 	    return singleton;
 	}
 	
@@ -217,31 +184,21 @@ public class TokenRepository implements AutoCloseable {
      * where each map represents the claims of a token, String mapped to
      * the Base64 encoded byte representation of the CBORObject.
      * 
-     * @param scopeValidator  the application specific scope validator
-     * @param tokenFile  the file storing the existing tokens, if the file
-     *     does not exist it is created
-     * @param ctx  the crypto context for reading encrypted tokens
-	 * 
 	 * @param scopeValidator  the validator for scopes
 	 * @param tokenFile  the file where to save tokens
 	 * @param ctx  the crypto context
 	 * @param time  the time provider for this RS
-	 * @param useCnonces  true if this RS is to use client-nonces for access 
-	 *     token freshness verification
-	 * @param cnonceReplayWindowSize  the cnonce replay window size (or null to
-	 *     use the default)
 	 * @throws AceException
 	 * @throws IOException
 	 */
 	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx, TimeProvider time, 
-            boolean useCnonces, Integer cnonceReplayWindowSize)
+            String tokenFile, CwtCryptoCtx ctx, TimeProvider time)
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
 	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, 
-	            time, useCnonces, cnonceReplayWindowSize);
+	            time);
 	}
 	
 	/**
@@ -256,16 +213,12 @@ public class TokenRepository implements AutoCloseable {
 	 * @param tokenFile  the file storing the existing tokens, if the file
 	 *     does not exist it is created
 	 * @param ctx  the crypto context for reading encrypted tokens
-	 * @param useCnonces  true if this RS is to use client-nonces for access 
-     *     token freshness verification
-	 * @param cnonceReplayWindowSize  the cnonce replay window size (or null to
-     *     use the default)
+     *
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
 	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx, TimeProvider time,
-	        boolean useCnonces, Integer cnonceWindowSize) 
+	        String tokenFile, CwtCryptoCtx ctx, TimeProvider time) 
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -274,23 +227,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.sid2kid = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
-	    if (useCnonces) {
-	        this.cnonceCounter = 1;
-	        this.cnonceSeen = 0;
-	        this.cnonceKey = new byte[32];
-	        SecureRandom sr = new SecureRandom();
-	        sr.nextBytes(this.cnonceKey);  
-	        this.cnonceWindow = 0;
-	        if (cnonceWindowSize == null) {
-	            //Use default
-	            this.cnonceWindowSize = 30;
-	        } else if (this.cnonceWindowSize > 32) {
-	            throw new IllegalArgumentException(
-	                    "cnonceWindow size must be between 0 and 32");
-	        } else {
-	            this.cnonceWindowSize = cnonceWindowSize;
-	        }
-	    }
+
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
 	    }
@@ -345,9 +282,6 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	public synchronized CBORObject addToken(Map<Short, CBORObject> claims, 
 	        CwtCryptoCtx ctx, String sid) throws AceException {
-	    
-	    //Check for cnonce
-	    checkNonce(claims);
 	    
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
@@ -429,6 +363,11 @@ public class TokenRepository implements AutoCloseable {
             if (sid != null) {
                 this.sid2kid.put(sid, kid);
             }
+        } else if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
+            OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
+            String kid = new String(osc.getClientId(), Constants.charset);
+            this.cti2kid.put(cti, kid);
+            this.sid2kid.put(kid, kid);       
         } else {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");
@@ -444,87 +383,6 @@ public class TokenRepository implements AutoCloseable {
         return cticb;
 	}
 	
-	/**
-	 * Implements the nonce checking
-	 * @throws AceException 
-	 */
-	private void checkNonce(Map<Short, CBORObject> claims) throws AceException {
-	    if (this.cnonceCounter == -1) {//Means we are not using the client nonces
-	        return;
-	    }
-	    CBORObject cnonce = claims.get(Constants.CNONCE);
-	    if (cnonce == null) {
-	        LOGGER.info("Expected a cnonce but found none");
-	        throw new AceException("cnonce expected but not found");
-	    }
-
-	    if (!cnonce.getType().equals(CBORType.ByteString)) {
-	        throw new AceException("Invalid cnonce type");
-	    }
-	    byte[] cnonceB = cnonce.GetByteString();
-	    if (cnonceB.length != 4+32) {//4 byte for the int counter, 16 bytes HMAC
-	        throw new AceException("Invalid cnonce length");
-	    }
-	    byte[] mac = new byte[32];
-	    byte[] counter = new byte[4];
-	    mac = Arrays.copyOfRange(cnonceB, 0, 32);
-	    counter = Arrays.copyOfRange(cnonceB, 32, 36);
-	    byte[] macExpected;
-	    //Verify MAC
-	    try {
-	        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-
-	        SecretKeySpec secret_key = new SecretKeySpec(
-	                this.cnonceKey, "HmacSHA256");
-	        sha256_HMAC.init(secret_key);
-
-	        macExpected = sha256_HMAC.doFinal(counter);
-	    } catch (NoSuchAlgorithmException | InvalidKeyException e) {
-	        LOGGER.severe("Error while verifying cnonce: " + e.getMessage());
-	        throw new AceException("Nonce verification failed");
-	    }
-
-	    if (!Arrays.equals(mac, macExpected)) {
-	        throw new AceException("cnonce invalid");
-	    }
-
-	    //Check if nonce is in the replay window
-	    ByteBuffer b = ByteBuffer.wrap(counter);
-	    int counterI = b.getInt();
-	    checkIncomingCounter(counterI);
-	}
-
-	/**
-	 * Check an incoming cnonce counter
-	 * @param counter
-	 * @throws AceException
-	 */
-	private synchronized void checkIncomingCounter(int counter) throws AceException {
-	    if (counter > this.cnonceSeen) {
-	        // Update the replay window
-	        int shift = counter - this.cnonceSeen;
-	        this.cnonceWindow = this.cnonceWindow << shift;
-	        this.cnonceSeen = counter;
-	    } else if (counter == this.cnonceSeen) {
-	        throw new AceException("cnonce replayed");
-	    } else { // counter < this.cnonceSeen
-	        if (counter + this.cnonceWindowSize < this.cnonceSeen) {
-	            LOGGER.severe("cnonce too old");
-	            throw new AceException("cnonce expired");
-	        }
-	        // seq+replay_window_size > recipient_seq
-	        int shift = this.cnonceSeen - counter;
-	        int pattern = 1 << shift;
-	        int verifier = this.cnonceWindow & pattern;
-	        verifier = verifier >> shift;
-	        if (verifier == 1) {
-	            throw new AceException("cnonce replayed");
-	        }
-	        this.cnonceWindow = this.cnonceWindow | pattern;
-	    }
-	}
-
-
     /**
 	 * Add the mappings for the cnf-key.
 	 * 
@@ -868,49 +726,6 @@ public class TokenRepository implements AutoCloseable {
      */
     public CBORObject getScope(String resource, short action) {
         return this.scopeValidator.getScope(resource, action);
-    }
-
-    /**
-     * Create a client-nonce to ensure freshness of access tokens, when the
-     * RS has no synchronzied clock with the AS. 
-     * 
-     * @return  a nonce
-     *
-     * @throws NoSuchAlgorithmException 
-     * @throws InvalidKeyException 
-     */
-    public byte[] createNonce() 
-            throws NoSuchAlgorithmException, InvalidKeyException {
-        if (this.cnonceCounter == -1) {
-            LOGGER.info("cnonce requested but not configured to handle them");
-            return null;
-        }
-        if (this.cnonceCounter == Integer.MAX_VALUE) {
-            LOGGER.info("cnonce counter wrapped");
-            this.cnonceCounter = 1;
-            this.cnonceSeen = 0;
-            this.cnonceWindow = 0;
-            //Generate a new key to invalidate the old cnonces
-            this.cnonceKey = new byte[32];
-            SecureRandom sr = new SecureRandom();
-            sr.nextBytes(this.cnonceKey);  
-        } 
-
-        byte[] mac = null;
-        byte[] counter = ByteBuffer.allocate(4).putInt(
-                this.cnonceCounter).array();
-        Mac sha256_HMAC = Mac.getInstance("HmacSHA256");
-        SecretKeySpec secret_key = new SecretKeySpec(
-                this.cnonceKey, "HmacSHA256");
-        sha256_HMAC.init(secret_key);
-        mac = sha256_HMAC.doFinal(counter);  
-        byte[] nonce = new byte[mac.length + counter.length];
-        System.arraycopy(mac,0, nonce, 0, mac.length);
-        System.arraycopy(counter, 0, nonce , mac.length, counter.length);
-        this.cnonceCounter++;       
-        
-        
-        return nonce;
     }
 
     /**

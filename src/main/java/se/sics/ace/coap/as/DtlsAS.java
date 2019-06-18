@@ -81,9 +81,9 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
      */
     Introspect i = null;
 
-    private CoapAceEndpoint token;
+    private CoapDtlsEndpoint token;
 
-    private CoapAceEndpoint introspect;
+    private CoapDtlsEndpoint introspect;
 
     /**
      * Constructor.
@@ -156,7 +156,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             boolean setAudHeader) 
                     throws AceException, CoseException {
         this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
-        this.token = new CoapAceEndpoint(tokenName, this.t);
+        this.token = new CoapDtlsEndpoint(tokenName, this.t);
         add(this.token);
         
         if (introspectName != null) {
@@ -165,7 +165,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             } else {
                 this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
             }
-            this.introspect = new CoapAceEndpoint(introspectName, this.i);
+            this.introspect = new CoapDtlsEndpoint(introspectName, this.i);
             add(this.introspect);    
         }
 
@@ -203,7 +203,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-       LOGGER.info("Closing down CoapsAS ...");
+       LOGGER.info("Closing down DtlsAS ...");
        this.token.close();
        this.introspect.close();
     }

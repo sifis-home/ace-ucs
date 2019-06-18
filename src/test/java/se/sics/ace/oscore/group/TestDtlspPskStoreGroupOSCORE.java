@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -40,6 +40,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -76,10 +77,7 @@ public class TestDtlspPskStoreGroupOSCORE {
    
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-    private static AuthzInfoGroupOSCORE ai;
-
-    private static TokenRepository tr;
-    
+    private static AuthzInfoGroupOSCORE ai;    
     
     /**
      * Set up tests.
@@ -134,42 +132,15 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-
-        createTR(valid);
-        tr = TokenRepository.getInstance();
         
-        ai = new AuthzInfoGroupOSCORE(tr, 
-                Collections.singletonList("TestAS"), new KissTime(), null, 
-                valid, ctx);
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering old token files
+        new File(tokenFile).delete();
+        
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+                new KissTime(), null, 
+                valid, tokenFile, valid, ctx);
         store = new DtlspPskStoreGroupOSCORE(ai);
-    }
-    
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
     }
     
     /**
@@ -179,7 +150,6 @@ public class TestDtlspPskStoreGroupOSCORE {
      */
     @AfterClass
     public static void tearDown() throws AceException  {
-        tr.close();
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }  
@@ -192,7 +162,7 @@ public class TestDtlspPskStoreGroupOSCORE {
      */
     @Test
     public void testInvalidPskId() throws Exception {
-        byte[] key = store.getKey("blah");
+        byte[] key = store.getKey(new PskPublicInformation("blah"));
         Assert.assertNull(key);
     }
     
@@ -232,7 +202,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenAsBytes.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertNull(psk);
     }
 
@@ -271,7 +241,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
      
@@ -302,10 +272,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -354,7 +324,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -407,7 +377,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
 
@@ -448,10 +418,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -496,10 +466,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        tr.addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(psk_identity);
+        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
         Assert.assertArrayEquals(key128 ,psk);
     }
     

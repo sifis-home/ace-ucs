@@ -98,7 +98,7 @@ public class TestAsRequestCreationHints {
             NoSuchAlgorithmException {
         AsRequestCreationHints ai = new AsRequestCreationHints(
                 "coaps://testAS/token", null, false, false);
-        CBORObject cbor = ai.getHints(null, null, null);
+        CBORObject cbor = ai.getHints(null, null);
         Map<Short, CBORObject> hints = AsRequestCreationHints.parseHints(cbor);
         Assert.assertTrue(hints.containsKey(Constants.AS));
         Assert.assertEquals(hints.get(Constants.AS).AsString(), "coaps://testAS/token");

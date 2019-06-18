@@ -280,14 +280,14 @@ public class PlugtestRS {
         Resource lock = new LockResource();
         KissValidator valid = new KissValidator(Collections.singleton("RS2"),
                 myScopes);
-        createTR(valid);
-        tr = TokenRepository.getInstance();
+        
+        String tokenFile = "tokens.json";
+        //Delete lingering old token file
+        new File(tokenFile).delete();
       
         //Set up the inner Authz-Info library
-        ai = new AuthzInfo(tr, Collections.singletonList("AS"), 
-                new KissTime(), 
-                null,
-                valid, ctx);
+        ai = new AuthzInfo( Collections.singletonList("AS"), 
+                new KissTime(), null, valid, ctx, tokenFile, valid, false);
         Resource authzInfo = new CoapAuthzInfo(ai);
         rs = new CoapServer();
         Resource ace = new CoapResource("ace");
@@ -296,7 +296,7 @@ public class PlugtestRS {
         rs.add(ace);
         rs.add(authzInfo);
 
-        dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
         DtlsConnectorConfig.Builder config 
         = new DtlsConnectorConfig.Builder().setAddress(
@@ -357,14 +357,15 @@ public class PlugtestRS {
      Resource lock = new LockResource();
      KissValidator valid = new KissValidator(Collections.singleton("RS1"),
              myScopes);
-     createTR(valid);
-     tr = TokenRepository.getInstance();
+    
+     
+     String tokenFile = "tokens.json";
+     //Delete lingering old token file
+     new File(tokenFile).delete();
    
      //Set up the inner Authz-Info library
-     ai = new AuthzInfo(tr, Collections.singletonList("AS"), 
-             new KissTime(), 
-             null,
-             valid, ctx);
+     ai = new AuthzInfo(Collections.singletonList("AS"), 
+             new KissTime(), null, valid, ctx, tokenFile, valid, false);
      Resource authzInfo = new CoapAuthzInfo(ai);
      rs = new CoapServer();
      Resource ace = new CoapResource("ace");
@@ -373,7 +374,7 @@ public class PlugtestRS {
      rs.add(ace);
      rs.add(authzInfo);
 
-     dpd = new CoapDeliverer(rs.getRoot(), tr, null, archm); 
+     dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
      DtlsConnectorConfig.Builder config 
      = new DtlsConnectorConfig.Builder().setAddress(
@@ -396,31 +397,6 @@ public class PlugtestRS {
     }
 
     /**
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(
-                    valid, "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
-    }
-
-    /**
      * Stops the server
      * 
      * @throws IOException 
@@ -428,7 +404,6 @@ public class PlugtestRS {
      */
     public static void stop() throws IOException, AceException {
         rs.stop();
-        dpd.close();
         ai.close();
         tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();

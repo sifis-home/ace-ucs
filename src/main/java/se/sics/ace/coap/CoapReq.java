@@ -38,7 +38,13 @@ import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -103,16 +109,26 @@ public class CoapReq implements Message {
         if (ctx==null) {
             return null;
         }
-        Principal p = ctx.getPeerIdentity();
-        if (p==null) {
+        //XXX: kludge since OSCORE doesn't set PeerIdentity
+        if (ctx instanceof DtlsEndpointContext) {
+            Principal p = ctx.getPeerIdentity();
+            if (p==null) {
+                return null;
+            }
+            return p.getName();
+        }
+        OSCoreCtxDB db = HashMapCtxDB.getInstance();
+        OSCoreCtx osctx = db.getContextByToken(this.request.getToken());
+        if (osctx == null) {
             return null;
         }
-       //XXX: Kludge to temporarily fix bug #649 in Scandium
-        String name = p.getName();
-        if (name.startsWith(":")) {
-            name = name.substring(1);
+        String senderId = "";
+        if (osctx.getIdContext() != null) {
+            senderId += Base64.encodeBytes(osctx.getIdContext());
         }
-       return name;
+        senderId += new String(osctx.getSenderId(), Constants.charset);    
+        return senderId;
+     
     }
 
     @Override
@@ -143,41 +159,14 @@ public class CoapReq implements Message {
 
     @Override
     public Message successReply(int code, CBORObject payload) {
-        ResponseCode coapCode = null;
-        switch (code) {
-        case Message.CREATED :
-            coapCode = ResponseCode.CREATED;
-            break;
-        default:
-            coapCode = ResponseCode._UNKNOWN_SUCCESS_CODE;
-            break;
-        }
-        CoapRes res = new CoapRes(coapCode, payload);
-        
+        ResponseCode coapCode = ResponseCode.valueOf(code);
+        CoapRes res = new CoapRes(coapCode, payload);       
         return res;
     }
 
     @Override
     public Message failReply(int failureReason, CBORObject payload) {
-        ResponseCode coapCode = null;
-        switch (failureReason) {
-        case Message.FAIL_UNAUTHORIZED :
-            coapCode = ResponseCode.UNAUTHORIZED;
-            break;
-        case Message.FAIL_BAD_REQUEST :
-            coapCode = ResponseCode.BAD_REQUEST;
-            break;
-        case Message.FAIL_FORBIDDEN :
-            coapCode = ResponseCode.FORBIDDEN;
-            break;
-        case Message.FAIL_INTERNAL_SERVER_ERROR :
-            coapCode = ResponseCode.INTERNAL_SERVER_ERROR;
-            break;
-        case Message.FAIL_NOT_IMPLEMENTED :
-            coapCode = ResponseCode.NOT_IMPLEMENTED;
-            break; 
-        default :
-        }
+        ResponseCode coapCode = ResponseCode.valueOf(failureReason);
         CoapRes res = new CoapRes(coapCode, payload);
         return res;
     }
@@ -196,5 +185,12 @@ public class CoapReq implements Message {
     @Override
     public int getMessageCode() {
         return this.request.getCode().value;
+    }
+    
+    /**
+     * @return  the CoAP token associated with this message
+     */
+    public Token getToken() {
+        return this.request.getToken();
     }
 }

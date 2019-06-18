@@ -1,5 +1,5 @@
- /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -40,7 +40,6 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
-import COSE.KeyKeys;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -56,13 +55,13 @@ public class GroupInfo {
 	private byte[] masterSecret;
 	private byte[] masterSalt;
 	
-	private Set<Integer> usedSenderIds = new HashSet<Integer>();
+	private Set<Integer> usedSenderIds = new HashSet<>();
 	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
 	private int maxSenderIdValue;
 	
 	// This map stores the public keys of the group members as COSE Keys (CBOR Maps).
 	// The map key (label) is the integer representation of the Sender ID of the group member. 
-	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<Integer, CBORObject>();
+	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -127,13 +126,16 @@ public class GroupInfo {
     		this.senderIdSize = senderIdSize;
     	
     	if (senderIdSize == 4)
-    		maxSenderIdValue = (2 << 31) - 1;
+    		this.maxSenderIdValue = (2 << 31) - 1;
     	else
-    		maxSenderIdValue = (2 << (senderIdSize * 8)) - 1;
+    		this.maxSenderIdValue = (2 << (senderIdSize * 8)) - 1;
     	
     }
     
-    // Retrieve the OSCORE Master Secret value
+    /** Retrieve the OSCORE Master Secret value
+     * 
+     * @return  the master secret
+     */
     synchronized public final byte[] getMasterSecret() {
     	
     	byte[] myArray = new byte[this.masterSecret.length];
@@ -142,7 +144,10 @@ public class GroupInfo {
     	
     }
     
-    // Set the OSCORE Master Secret value
+    /** 
+     * Set the OSCORE Master Secret value
+     * @param masterSecret
+     */
     synchronized public void setMasterSecret(final byte[] masterSecret) {
     	
     	this.masterSecret = new byte[masterSecret.length];
@@ -150,7 +155,10 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the OSCORE Master Salt value
+    /**
+     *  Retrieve the OSCORE Master Salt value
+     * @return  the master salt
+     */
     synchronized public final byte[] getMasterSalt() {
     	
     	byte[] myArray = new byte[this.masterSalt.length];
@@ -159,7 +167,10 @@ public class GroupInfo {
     	
     }
     
-    // Set the OSCORE Master Salt value
+    /**
+     * Set the OSCORE Master Salt value
+     * @param masterSalt
+     */
     synchronized public void setMasterSalt(final byte[] masterSalt) {
     	
     	if (masterSalt == null) {
@@ -172,7 +183,10 @@ public class GroupInfo {
     	
     }
     
-    // Get the Group ID Prefix as byte array
+    /**
+     *  Get the Group ID Prefix as byte array
+     * @return  the Group ID Prefix
+     */
     synchronized public final byte[] getGroupIdPrefix() {
     	
     	byte[] myArray = new byte[this.groupIdPrefix.length];
@@ -181,8 +195,11 @@ public class GroupInfo {
     	
     }
     
-    // Set the Group ID Prefix.
-    // Return false in case of error, or true otherwise.
+    /**
+     *  Set the Group ID Prefix.
+     * @param groupIdPrefix
+     * @return false in case of error, or true otherwise.
+     */
     synchronized public boolean setGroupIdPrefix(final byte[] groupIdPrefix) {
     	
     	if (groupIdPrefix.length != this.groupIdPrefixSize)
@@ -194,10 +211,13 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the Group ID Epoch value as an integer
+    /**
+     *  Retrieve the Group ID Epoch value as an integer
+     * @return  the Group ID Epoch
+     */
     synchronized public final int getGroupIdEpoch() {
     	
-    	return groupIdEpoch;
+    	return this.groupIdEpoch;
     	
     }
     
@@ -217,55 +237,62 @@ public class GroupInfo {
     	if (groupIdEpochSize == 4)
     		this.maxGroupIdEpochValue = (2 << 31) - 1;
     	else
-    		this.maxGroupIdEpochValue = (2 << (groupIdEpochSize * 8)) - 1;
-    	
+    	    this.maxGroupIdEpochValue = (2 << (groupIdEpochSize * 8)) - 1;
+
     	this.groupIdEpoch = groupIdEpoch;
-    	
+
     	return true;
     }
-    
-    // Set an arbitrary new value of the Group ID Epoch.
-    // Return false in case of invalid input parameters, or true otherwise.
+
+    /**
+     *  Set an arbitrary new value of the Group ID Epoch.
+     * @param groupIdEpoch
+     * @return  false in case of invalid input parameters, or true otherwise.
+     */
     synchronized public boolean setGroupIdEpoch(final int groupIdEpoch) {
-    	
-    	// The Group ID Epoch can only grow
-    	if (groupIdEpoch <= this.groupIdEpoch)
-    		return false;
-    	
-    	if (groupIdEpoch > this.maxGroupIdEpochValue)
-    		return false;
-    	
-    	this.groupIdEpoch = groupIdEpoch;
-    	return true;
-    	
+
+        // The Group ID Epoch can only grow
+        if (groupIdEpoch <= this.groupIdEpoch)
+            return false;
+
+        if (groupIdEpoch > this.maxGroupIdEpochValue)
+            return false;
+
+        this.groupIdEpoch = groupIdEpoch;
+        return true;
+
     }
-    
-    // Increment the value of the Group ID Epoch.
-    // Return false if the maximum value is passed, or true otherwise.
+
+    /**
+     *  Increment the value of the Group ID Epoch.
+     * @return  false if the maximum value is passed, or true otherwise.
+     */
     synchronized public boolean incrementGroupIdEpoch() {
-    	
-    	boolean ret = false;
-    	
-    	// This should trigger a group rekeying
-    	if (this.groupIdEpoch == this.maxGroupIdEpochValue)
-    		this.groupIdEpoch = 0;
-    	
-    	else {
-    		this.groupIdEpoch++;
-    		ret = true;
-    	}
+
+        boolean ret = false;
+
+        // This should trigger a group rekeying
+        if (this.groupIdEpoch == this.maxGroupIdEpochValue)
+            this.groupIdEpoch = 0;
+
+        else {
+            this.groupIdEpoch++;
+            ret = true;
+        }
     	
     	return ret;
     	
     }
     
-    // Retrieve the full {Prefix + Epoch} Group ID as a Byte Array
+    /**
+     * @return  the full {Prefix + Epoch} Group ID as a Byte Array
+     */
     synchronized public final byte[] getGroupId() {
     	
     	byte[] myArray = new byte[this.groupIdPrefix.length + this.groupIdEpochSize];
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
     	
-    	byte[] groupIdEpochArray = intToBytes(groupIdEpoch);
+    	byte[] groupIdEpochArray = intToBytes(this.groupIdEpoch);
     	
     	if (groupIdEpochArray.length != 0)
     		System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
@@ -281,14 +308,19 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the AEAD algorithm used in the group
+    /**
+     * @return the AEAD algorithm used in the group
+     */
     synchronized public final AlgorithmID getAlg() {
     	
     	return this.alg;
     	
     }
     
-    // Set the AEAD algorithm used in the group
+    /**
+     *  Set the AEAD algorithm used in the group
+     * @param alg
+     */
     synchronized public void setAlg(final AlgorithmID alg) {
     	
     	if (alg == null)
@@ -298,14 +330,19 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the KDF used in the group
+    /**
+     * @return the KDF used in the group
+     */
     synchronized public final AlgorithmID getHkdf() {
     	
     	return this.hkdf;
     	
     }
     
-    // Set the KDF used in the group
+    /**
+     *  Set the KDF used in the group
+     * @param hkdf
+     */
     synchronized public void setHkdf(final AlgorithmID hkdf) {
     	
     	if (hkdf == null)
@@ -315,14 +352,19 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the countersignature algorithm used in the group
+    /**
+     * @return  the countersignature algorithm used in the group
+     */
     synchronized public final AlgorithmID getCsAlg() {
     	
     	return this.csAlg;
     	
     }
     
-    // Set the countersignature algorithm used in the group
+    /**
+     *  Set the countersignature algorithm used in the group
+     * @param csAlg
+     */
     synchronized public void setCsAlg(final AlgorithmID csAlg) {
     	
     	if (csAlg == null)
@@ -332,16 +374,23 @@ public class GroupInfo {
     	
     }    
     
-    // Retrieve the parameters of the countersignature algorithm used in the group
+    /**
+     * @return  the countersignature algorithm used in the group
+     */
     synchronized public final CBORObject getCsParams() {
     	
     	return this.csParams;
     	
     }
-    
-    // Set the parameters of the countersignature algorithm used in the group
+
+    /**
+     * Set the countersignature parameters used in the group
+     * @param csParams
+     * 
+     * @return true of the parameters were successfully set, false otherwise
+     */
     synchronized public boolean setCsParams(final CBORObject csParams) {
-    
+
     	if (csParams.getType() != CBORType.Map)
     		return false;
     	
@@ -351,27 +400,37 @@ public class GroupInfo {
     	
     }
     
-    // Retrieve the parameters of the key of the countersignature algorithm used in the group
+    /**
+     * @return parameters of the key of the countersignature algorithm 
+     *      used in the group
+     */
     synchronized public final CBORObject getCsKeyParams() {
     	
     	return this.csKeyParams;
     	
     }
     
-    // Set the parameters of the key of the countersignature algorithm used in the group
+    /**
+     *  Set the parameters of the key of the countersignature algorithm used
+     *   in the group
+     * @param csKeyParams  the parameters
+     * @return  true if the parameters were successfully set, false otherwise
+     */
     synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
     
     	if (csKeyParams.getType() != CBORType.Map)
     		return false;
     	
     	this.csKeyParams = csKeyParams;
-
     	return true;
     	
     }
     
-    // Find the first available Sender ID value and allocate it.
-    // Return the allocated Sender ID value as a byte array, or null if all values are used.
+
+    /**
+     * Find the first available Sender ID value and allocate it.
+     * @return  the allocated Sender ID value as a byte array, or null if all values are used.
+     */
     synchronized public byte[] allocateSenderId() {
     	
     	// All the possible values for the Sender IDs are used
@@ -392,8 +451,11 @@ public class GroupInfo {
     	
     }
     
-    // Check if a particular Sender ID value provided as an integer is available.
-    // If so, allocate it and return true. Otherwise, return false.
+    /**
+     *  Check if a particular Sender ID value provided as an integer is available.
+     * @param id
+     * @return  if available allocate it and return true. Otherwise, return false.
+     */
     synchronized public boolean allocateSenderId(final int id) {
     	
     	// All the possible values for the Sender IDs are used
@@ -412,8 +474,11 @@ public class GroupInfo {
     	
     }
     
-    // Check if a particular Sender ID value provided as a byte array is available.
-    // If so, allocate it and return true. Otherwise, return false.
+    /**
+     *  Check if a particular Sender ID value provided as a byte array is available.
+     * @param id
+     * @return   If available, allocate it and return true. Otherwise, return false.
+     */
     synchronized public boolean allocateSenderId(byte[] id) {
     	
     	// All the possible values for the Sender IDs are used
@@ -428,15 +493,20 @@ public class GroupInfo {
     	
     }
     
-    // Return the set of allocated Sender Ids in the OSCORE group
+    /**
+     * @return  the set of allocated Sender Ids in the OSCORE group
+     */
     synchronized public final Set<Integer> getUsedSenderIds() {
     	
-    	return new HashSet<Integer>(this.usedSenderIds);
+    	return new HashSet<>(this.usedSenderIds);
     	
     }
     
-    // Release a particular Sender ID value provided as an integer.
-    // Return false in case of failure, or true otherwise.
+    /**
+     *  Release a particular Sender ID value provided as an integer.
+     * @param id
+     * @return  false in case of failure, or true otherwise.
+     */
     synchronized public boolean deallocateSenderId(final int id) {
     	
     	if (id < 0 || id > this.maxSenderIdValue)
@@ -451,8 +521,11 @@ public class GroupInfo {
     	
     }
     
-    // Release a particular Sender ID value provided as an byte array.
-    // Return false in case of failure, or true otherwise.
+    /**
+     *  Release a particular Sender ID value provided as an byte array.
+     * @param idByteArray
+     * @return  false in case of failure, or true otherwise.
+     */
     synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
     	
     	if (idByteArray.length != this.senderIdSize)
@@ -465,45 +538,62 @@ public class GroupInfo {
     	
     }
     
-    // Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
-    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+    /**
+     *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
+     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+     * @param sid
+     * @param key
+     * @return  true if it worked, false if it failed
+     */
     synchronized public boolean storePublicKey(final Integer sid, final CBORObject key) {
     	
-    	if (!usedSenderIds.contains(sid))
+    	if (!this.usedSenderIds.contains(sid))
     		return false;
     	
     	if (key.getType() != CBORType.Map)
     		return false;
     	
-    	publicKeyRepo.put(sid, key);
+    	this.publicKeyRepo.put(sid, key);
     	
     	return true;
     	
     }
     
-    // Retrieve the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+    /**
+     * @param sid
+     * @return  the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+     */
     // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
     synchronized public CBORObject getPublicKey(final Integer sid) {
     	
-    	return publicKeyRepo.get(sid);
+    	return this.publicKeyRepo.get(sid);
     	
     }
 
-    // Remove the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
-    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+    /**
+     *  Remove the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
+     *  
+     * @param sid
+     * @return  true if it was there, false if it wasn't
+     */
     synchronized public boolean deletePublicKey(final Integer sid) {
     	
-    	if (!publicKeyRepo.containsKey(sid))
+    	if (!this.publicKeyRepo.containsKey(sid))
     		return false;
     	
-    	publicKeyRepo.remove(sid);
+    	this.publicKeyRepo.remove(sid);
     	
     	return true;
     	
     }
     
-    // Convert a positive integer into a byte array of minimal size.
-    // The positive integer can be up to 2,147,483,647 
+    /**
+     *  Convert a positive integer into a byte array of minimal size.
+     *  The positive integer can be up to 2,147,483,647 
+     * @param num
+     * @return  the byte array
+     */
     public static byte[] intToBytes(final int num) {
 
     	// Big-endian
@@ -540,10 +630,15 @@ public class GroupInfo {
     	
     }
 
-    // Convert a byte array into an equivalent unsigned integer.
-    // The input byte array can be up to 4 bytes in size.
-    //
-    // N.B. If the input array is 4 bytes in size, the returned integer may be negative! The calling method has to check, if relevant!
+    /**
+     * Convert a byte array into an equivalent unsigned integer.
+     * The input byte array can be up to 4 bytes in size.
+     *
+     * N.B. If the input array is 4 bytes in size, the returned integer may be negative! The calling method has to check, if relevant!
+     * 
+     * @param bytes 
+     * @return   the converted integer
+     */
     public static int bytesToInt(final byte[] bytes) {
     	
     	if (bytes.length > 4)

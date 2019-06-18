@@ -29,39 +29,31 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.oscoreProfile;
 
-import java.net.InetSocketAddress;
-import java.util.Base64;
 import java.util.Map;
 
-import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.oscore.OSCoreCtx;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.OneKey;
-
 import se.sics.ace.Constants;
-import se.sics.ace.TestConfig;
-import se.sics.ace.coap.rs.dtlsProfile.CoapsIntrospection;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
 
 /**
- * Test for the CoapsIntrospection class. 
+ * Test for the OscoreIntrospection class. 
  * 
  *  NOTE: This will automatically start a server in another thread
  * 
  * @author Ludwig Seitz
  *
  */
-public class TestCoapsIntrospection {
+public class TestOscoreIntrospection {
 
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-
-    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
 
     static RunTestServer srv = null;
 
@@ -76,17 +68,17 @@ public class TestCoapsIntrospection {
          * @throws Exception 
          */
         public void stop() throws Exception {
-            CoapASTestServer.stop();
+            OscoreASTestServer.stop();
         }
 
         @Override
         public void run() {
             try {
-                CoapASTestServer.main(null);
+                OscoreASTestServer.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {
-                    CoapASTestServer.stop();
+                    OscoreASTestServer.stop();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -115,15 +107,17 @@ public class TestCoapsIntrospection {
     }
 
     /**
-     * Test CoapIntrospect using RPK
+     * Test OscoreIntrospection using OSCORE
      * 
      * @throws Exception
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        OneKey key = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-        CoapsIntrospection i = new CoapsIntrospection(key, "coaps://localhost/introspect");
+        byte[] senderId = "rs1".getBytes(Constants.charset);
+        byte[] recipientId = "AS".getBytes(Constants.charset);
+        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
+                senderId, recipientId, null, null, null, null);
+        OscoreIntrospection i = new OscoreIntrospection(ctx, "coap://localhost/introspect");
         Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
         assert(map.containsKey(Constants.AUD));
         assert(map.get(Constants.AUD).AsString().equals("actuators"));
@@ -135,40 +129,4 @@ public class TestCoapsIntrospection {
         assert(map.containsKey(Constants.EXP));
 
     }
-
-    /**
-     * Test CoapIntrospect using PSK
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testCoapIntrospectPSK() throws Exception {
-        BksStore.init( TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
-                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg"); 
-          
-        BksStore keystore = new BksStore(TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
-                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg");
-        
-        keystore.addKey(key128, "rs1");
-        keystore.addAddress(new InetSocketAddress("localhost", 
-                CoAP.DEFAULT_COAP_SECURE_PORT), "rs1");
-        
-        CoapsIntrospection i = new CoapsIntrospection(
-                key128, "rs1", 
-                TestConfig.testFilePath + "IntrospectTestKeyStore.bks",
-                "password",
-                TestConfig.testFilePath + "IntrospectTestAddr2id.cfg",
-                "coaps://localhost/introspect");
-        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
-        assert(map.containsKey(Constants.AUD));
-        assert(map.get(Constants.AUD).AsString().equals("actuators"));
-        assert(map.containsKey(Constants.SCOPE));
-        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
-        assert(map.containsKey(Constants.ACTIVE));
-        assert(map.get(Constants.ACTIVE).isTrue());
-        assert(map.containsKey(Constants.CTI));
-        assert(map.containsKey(Constants.EXP));
-
-    }
-
 }

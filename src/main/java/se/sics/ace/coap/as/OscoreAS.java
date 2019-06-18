@@ -31,19 +31,177 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
+import java.util.Set;
+import java.util.logging.Logger;
+
+import org.eclipse.californium.core.CoapServer;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
+import org.eclipse.californium.oscore.OSException;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+
+import COSE.OneKey;
+import se.sics.ace.AceException;
+import se.sics.ace.Constants;
+import se.sics.ace.TimeProvider;
+import se.sics.ace.as.Introspect;
+import se.sics.ace.as.PDP;
+import se.sics.ace.as.Token;
+
 /**
  * An Authorization Server that offers secure connections and authentication via OSCORE.
+ * 
+ * This server uses the following conventions:
+ * 
+ * alg = AES_CCM_16_64_128
+ * salt = null
+ * kdf = HKDF_HMAC_SHA_256
+ * recipient_replay_window_size = 32
+ * id_context = null
+ * sender_id = asId
+ * recipient_id = rs/client id
  * 
  * @author Ludwig Seitz
  *
  */
-public class OscoreAS {
+public class OscoreAS extends CoapServer implements AutoCloseable {
 
     /**
-     * Not implemented in this branch
+     * The logger
      */
-    public OscoreAS() {
+    private static final Logger LOGGER 
+        = Logger.getLogger(OscoreAS.class.getName());
+    
+    /**
+     * The database of OSCORE contexts
+     */
+    private OSCoreCtxDB oscoreDb;
+    
 
+    /**
+     * The token endpoint
+     */
+    Token t = null;
+    
+    /**
+     * The introspect endpoint
+     */
+    Introspect i = null;
+
+    private OscoreAceEndpoint token;
+
+    private OscoreAceEndpoint introspect;
+    /**
+     * Constructor.
+     * 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS or 
+     *      null if it hasn't any
+     * @param port  the port number to run the server on
+     * 
+     * @throws AceException 
+     * @throws OSException 
+     * 
+     */
+    public OscoreAS(String asId, CoapDBConnector db, 
+            PDP pdp, TimeProvider time, 
+            OneKey asymmetricKey, int port) 
+                    throws AceException, OSException {
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
+                null, false);
+    }
+    
+    
+    /**
+     * Constructor.
+     * 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS or 
+     *      null if it hasn't any
+     * @throws AceException 
+     * @throws OSException 
+     * 
+     */
+    public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
+            OneKey asymmetricKey) throws AceException, OSException {
+        this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
+                CoAP.DEFAULT_COAP_PORT, null, false);
+    }
+    
+    
+    /**
+     * Constructor.
+     * 
+     * @param asId  identifier of the AS
+     * @param db    database connector of the AS
+     * @param pdp   PDP for deciding who gets which token
+     * @param time  time provider, must not be null
+     * @param asymmetricKey  asymmetric key pair of the AS or 
+     *      null if it hasn't any
+     * @param tokenName the name of the token endpoint 
+     *      (will be converted into the address as well)
+     * @param introspectName  the name of the introspect endpoint 
+     *      (will be converted into the address as well), if this is null,
+     *      no introspection endpoint will be offered
+     * @param port  the port number to run the server on
+     * @param claims  the claim types to include in tokens issued by this 
+     *                AS, can be null to use default set
+     * @param setAudHeader  insert the AUD as header in the CWT.  
+     * 
+     * @throws AceException 
+     * @throws OSException 
+     * 
+     */
+    public OscoreAS(String asId, CoapDBConnector db,
+            PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
+            String introspectName, int port, Set<Short> claims, 
+            boolean setAudHeader) throws AceException, OSException {
+        this.oscoreDb = HashMapCtxDB.getInstance();
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
+        this.token = new OscoreAceEndpoint(tokenName, this.t);
+        add(this.token);
+        
+        if (introspectName != null) {
+            if (asymmetricKey == null) {
+                this.i = new Introspect(pdp, db, time, null);
+            } else {
+                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+            }
+            this.introspect = new OscoreAceEndpoint(introspectName, this.i);
+            add(this.introspect);    
+        }
+        
+        OSCoreCoapStackFactory.useAsDefault();
+        loadOscoreCtx(db, asId);
+    }
+
+    private void loadOscoreCtx(CoapDBConnector db, String asId) throws AceException, OSException {
+        Set<String> ids = db.getRSS();
+        ids.addAll(db.getClients());
+        
+        for (String id : ids) {
+            byte[] key = db.getKey(new PskPublicInformation(id));
+            OSCoreCtx ctx = new OSCoreCtx(key, false, null, asId.getBytes(Constants.charset), 
+                    id.getBytes(Constants.charset), null, null, null, null);
+            this.oscoreDb.addContext(ctx);
+        }
+        LOGGER.finest("Loaded OSCORE contexts");
+    }
+
+    @Override
+    public void close() throws Exception {
+        LOGGER.info("Closing down OscoreAS ...");
+        this.token.close();
+        this.introspect.close();       
     }
 
 }

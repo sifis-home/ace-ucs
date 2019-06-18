@@ -88,7 +88,6 @@ public class TestDtlspAuthzInfo {
 
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static TokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfo ai;
     private static CoapAuthzInfo dai;
@@ -125,8 +124,9 @@ public class TestDtlspAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);  
-        createTR(valid);
-        tr = TokenRepository.getInstance();
+        
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        new File(tokenFile).delete(); 
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -134,10 +134,9 @@ public class TestDtlspAuthzInfo {
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
         //Set up the inner Authz-Info library
-        ai = new AuthzInfo(tr, Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, ctx);
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
+                new KissTime(), null, valid, ctx, tokenFile, valid,
+                false);
         
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfo(ai);
@@ -160,34 +159,6 @@ public class TestDtlspAuthzInfo {
         payload = token.encode(ctx);
         
         
-    }
-    
-    /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(KissValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
     }
     
     /**
@@ -227,19 +198,23 @@ public class TestDtlspAuthzInfo {
         String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
-                ai.getKey(kid).get(KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
                
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "temp", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(
+                        kid, kid, "temp", Constants.GET, null));
     }
          
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }

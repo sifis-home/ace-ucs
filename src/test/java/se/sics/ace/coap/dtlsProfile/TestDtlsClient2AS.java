@@ -29,8 +29,9 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.dtlsProfile;
 
+import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.HashMap;
@@ -61,12 +62,12 @@ import se.sics.ace.as.Token;
 /**
  * Test the coap classes.
  * 
- * NOTE: This will automatically start a server in another thread
+ * NOTE: This will automatically start an AS in another thread
  * 
  * @author Ludwig Seitz
  *
  */
-public class TestCoAPClient {
+public class TestDtlsClient2AS {
     
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -84,17 +85,17 @@ public class TestCoAPClient {
          * @throws Exception 
          */
         public void stop() throws Exception {
-            CoapASTestServer.stop();
+            DtlsASTestServer.stop();
         }
         
         @Override
         public void run() {
             try {
-                CoapASTestServer.main(null);
+                DtlsASTestServer.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {
-                    CoapASTestServer.stop();
+                    DtlsASTestServer.stop();
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -152,7 +153,7 @@ public class TestCoAPClient {
             client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 MediaTypeRegistry.APPLICATION_CBOR);
-        } catch (RuntimeException ex) {
+        } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
                 HandshakeException he = (HandshakeException)cause;
