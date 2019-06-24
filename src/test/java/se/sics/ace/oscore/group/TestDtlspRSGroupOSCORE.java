@@ -340,7 +340,7 @@ public class TestDtlspRSGroupOSCORE {
         		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
         			
         			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve))) ||
-            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType_OKP))) ||
+            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType))) ||
         				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve)))) {
         				
                 			myGroup.deallocateSenderId(senderId);
