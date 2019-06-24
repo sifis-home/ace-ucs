@@ -34,10 +34,14 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -89,6 +93,9 @@ public class TestDtlspClientGroupOSCORE {
     
     // Private and public key to be used in the OSCORE group (ECDSA_256)
     private static String groupKeyPair = "piJYIBZKbV1Ll/VtH2ChKBHVXeegVeusYWTJ75MCy8v/Hwq+I1ggO+AEdZm0KqRLj4oPqI1NoRaXtY2fzE45RD6YQ78jBYYDJgECIVgg6Pmo1YUKUzzaJLn6ih7ik/ag4egeHlYKZP8TTWX37OwgAQ==";
+    
+    // Private and public key to be used in the OSCORE group (ECDSA_256)
+    private static String groupKeyPair2 = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
     
     // Public key to be received for the group member with Sender ID 0x52 (ECDSA_256)
     private static String strPublicKeyPeer1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
@@ -151,6 +158,12 @@ public class TestDtlspClientGroupOSCORE {
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         rsRPK = new OneKey(CBORObject.DecodeFromBytes(
                 Base64.getDecoder().decode(rpk)));
+        
+    	final Provider PROVIDER = new BouncyCastleProvider();
+    	final Provider EdDSA = new EdDSASecurityProvider();
+    	Security.insertProviderAt(PROVIDER, 1);
+    	Security.insertProviderAt(EdDSA, 0);
+    	
     }
     
     /**
@@ -279,6 +292,9 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
+        	//OneKey publicKey2 = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair2))).PublicKey();
+        	
         	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
         	
         }
