@@ -341,14 +341,11 @@ public class TestDtlspRSGroupOSCORE {
         		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
         			
         			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))) ||
-            			/*!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType_OKP))) ||*/
+           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType))) ||
         				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve)))) {
-        				
+
                 			myGroup.deallocateSenderId(senderId);
-                			System.out.println("DEBUG"); //FIXME
-                			System.out.println("1 " + publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))));
-                			System.out.println("2 " + publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType_OKP))));
-                			System.out.println("3 " + publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))));
+
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
                 			return;
                 		
