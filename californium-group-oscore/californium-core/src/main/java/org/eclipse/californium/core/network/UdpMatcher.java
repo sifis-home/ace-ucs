@@ -350,7 +350,7 @@ public final class UdpMatcher extends BaseMatcher {
 						if (currentRequest.isMulticast()) {
 							// do some check, e.g. NON ...
 							// this avoids flooding of ACK messages to multicast groups
-							if (response.getType() != Type.NON && response.getType() != Type.CON) { //Rikard: Changed to accepted CON responses to multicast requests
+							if (response.getType() != Type.NON) {
 								LOGGER.debug(
 										"ignoring response of type {} for multicast request with token [{}], from {}",
 										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());

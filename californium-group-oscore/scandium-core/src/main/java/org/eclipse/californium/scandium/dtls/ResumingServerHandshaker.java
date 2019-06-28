@@ -32,7 +32,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -61,15 +60,39 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 	// Constructor ////////////////////////////////////////////////////
 
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
-			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, recordLayer, sessionListener, config, maxTransmissionUnit);
+	/**
+	 * Creates a new handshaker for resuming an existing session with a client.
+	 * 
+	 * @param sequenceNumber
+	 *            the initial message sequence number to expect from the peer
+	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
+	 *            counter to another value than 0, e.g. if one or more cookie exchange round-trips
+	 *            have been performed with the peer before the handshake starts).
+	 * @param session
+	 *            the session to negotiate with the client.
+	 * @param recordLayer
+	 *            the object to use for sending flights to the peer.
+	 * @param connection
+	 *            the connection related with the session.
+	 * @param config
+	 *            the DTLS configuration parameters to use for the handshake.
+	 * @param maxTransmissionUnit
+	 *            the MTU value reported by the network interface the record layer is bound to.
+	 * @throws IllegalArgumentException
+	 *            if the given session does not contain an identifier.
+	 * @throws IllegalStateException
+	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
+	 * @throws NullPointerException
+	 *            if session, recordLayer or config is <code>null</code>
+	 */
+	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
+		super(sequenceNumber, session, recordLayer, connection, config, maxTransmissionUnit);
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 
 		// log record now (even if message is still encrypted) in case an Exception
 		// is thrown during processing
@@ -112,7 +135,7 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 
 			incrementNextReceiveSeq();
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
 
 		default:
@@ -149,22 +172,27 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 							AlertDescription.ILLEGAL_PARAMETER,
 							clientHello.getPeer()));
 		} else {
+			clientRandom = clientHello.getRandom();
+			serverRandom = new Random();
+
+			HelloExtensions serverHelloExtensions = new HelloExtensions();
+			processHelloExtensions(clientHello, serverHelloExtensions);
+
+			initMessageDigest();
+
 			flightNumber += 2;
 			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 			md.update(clientHello.getRawMessage());
 
-			clientRandom = clientHello.getRandom();
-			serverRandom = new Random(new SecureRandom());
-
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-					session.getCipherSuite(), session.getCompressionMethod(), null, clientHello.getPeer());
-			flight.addMessage(wrapMessage(serverHello));
+					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
+			wrapMessage(flight, serverHello);
 			md.update(serverHello.toByteArray());
 
 			calculateKeys(session.getMasterSecret());
 
 			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
-			flight.addMessage(wrapMessage(changeCipherSpecMessage));
+			wrapMessage(flight, changeCipherSpecMessage);
 			setCurrentWriteState();
 
 			MessageDigest mdWithServerFinished = null;
@@ -180,8 +208,9 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 			}
 
 			handshakeHash = md.digest();
-			Finished finished = new Finished(session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
-			flight.addMessage(wrapMessage(finished));
+			String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+			Finished finished = new Finished(prfMacName, session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
@@ -199,7 +228,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		message.verifyData(session.getMasterSecret(), true, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), true, handshakeHash);
 		sessionEstablished();
 		handshakeCompleted();
 	}

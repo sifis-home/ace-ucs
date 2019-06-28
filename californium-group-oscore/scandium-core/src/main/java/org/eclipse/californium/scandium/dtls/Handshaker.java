@@ -53,6 +53,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - suppress duplicates only from
  *                                                    the same epoch
  *    Achim Kraus (Bosch Software Innovations GmbH) - redesign DTLSFlight and RecordLayer
+ *    Achim Kraus (Bosch Software Innovations GmbH) - remove copy of master secret
+ *    Achim Kraus (Bosch Software Innovations GmbH) - redesign wrapMessage
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
@@ -81,12 +83,14 @@ import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction;
 import org.eclipse.californium.scandium.dtls.cipher.PseudoRandomFunction.Label;
@@ -104,8 +108,7 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Handshaker {
 
-	private static final String MESSAGE_DIGEST_ALGORITHM_NAME = "SHA-256";
-	private static final Logger LOGGER = LoggerFactory.getLogger(Handshaker.class.getName());
+	private final Logger LOGGER = LoggerFactory.getLogger(getClass().getName());
 
 	/**
 	 * Indicates whether this handshaker performs the client or server part of
@@ -121,8 +124,6 @@ public abstract class Handshaker {
 
 	/** The helper class to execute the ECDHE key agreement and key generation. */
 	protected ECDHECryptography ecdhe;
-
-	private byte[] masterSecret;
 
 	private SecretKey clientWriteMACKey;
 	private SecretKey serverWriteMACKey;
@@ -144,6 +145,12 @@ public abstract class Handshaker {
 	protected final TrustedRpkStore rpkStore;
 
 	/**
+	 * The configured connection id length. {@code null}, not supported,
+	 * {@code 0} supported but not used.
+	 */
+	protected final ConnectionIdGenerator connectionIdGenerator;
+
+	/**
 	 * The current sequence number (in the handshake message called message_seq)
 	 * for this handshake.
 	 */
@@ -155,20 +162,30 @@ public abstract class Handshaker {
 	/** The current flight number. */
 	protected int flightNumber = 0;
 
+	/** Maximum length of reassembled fragmented handshake messages */
+	private final int maxFragmentedHandshakeMessageLength;
 	/** Maximum number of application data messages, which may be processed deferred after the handshake */
 	private final int maxDeferredProcessedApplicationDataMessages;
-	/** List of application data messages, which are processed deferred after the handshake */
-	private final  List<Object> deferredApplicationData;
-
+	/** List of application data messages, which are send deferred after the handshake */
+	private final  List<RawData> deferredApplicationData;
+	/** List of received application data messages, which are processed deferred after the handshake */
+	private final  List<Record> deferredRecords;
+	/** Currently pending flight */
 	private final AtomicReference<DTLSFlight> pendingFlight = new AtomicReference<DTLSFlight>();
 
 	private final RecordLayer recordLayer;
+	/**
+	 * Associated connection for this handshaker.
+	 */
+	private final Connection connection;
 
 	/** Buffer for received records that can not be processed immediately. */
 	protected InboundMessageBuffer inboundMessageBuffer;
-	
-	/** Store the fragmented messages until we are able to reassemble the handshake message. */
-	protected Map<Integer, SortedSet<FragmentedHandshakeMessage>> fragmentedMessages = new HashMap<Integer, SortedSet<FragmentedHandshakeMessage>>();
+
+	/**
+	 * Store for partial to reassembled handshake messages.
+	 */
+	protected Map<Integer, ReassemblingHandshakeMessage> reassembledMessages = new HashMap<Integer, ReassemblingHandshakeMessage>();
 
 	/**
 	 * The message digest to compute the handshake hashes sent in the
@@ -177,7 +194,7 @@ public abstract class Handshaker {
 	protected MessageDigest md;
 
 	/** All the handshake messages exchanged before the CertificateVerify message. */
-	protected byte[] handshakeMessages = new byte[] {};
+	protected byte[] handshakeMessages = Bytes.EMPTY;
 
 	/** The handshaker's private key. */
 	protected PrivateKey privateKey;
@@ -193,37 +210,14 @@ public abstract class Handshaker {
 	 */
 	protected boolean sniEnabled = true;
 
-	private Set<SessionListener> sessionListeners = new LinkedHashSet<>();
+	private final Set<SessionListener> sessionListeners = new LinkedHashSet<>();
 
 	private boolean changeCipherSuiteMessageExpected = false;
 	private boolean sessionEstablished = false;
+	private boolean handshakeFailed = false;
+	private Throwable cause;
 
 	// Constructor ////////////////////////////////////////////////////
-
-	/**
-	 * Creates a new handshaker for negotiating a DTLS session with a given
-	 * peer.
-	 * 
-	 * @param isClient indicates whether this handshaker plays the client or
-	 *            server role.
-	 * @param session the session this handshaker is negotiating.
-	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param sessionListener the listener to notify about the session's
-	 *            life-cycle events.
-	 * @param certVerifier the verifier in charge of validating the peer's
-	 *            certificate chain
-	 * @param maxTransmissionUnit the MTU value reported by the network
-	 *            interface the record layer is bound to.
-	 * @param rpkStore the store containing the trusted raw public keys.
-	 * @throws IllegalStateException if the message digest required for
-	 *             computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException if session or recordLayer is
-	 *             <code>null</code>.
-	 */
-	protected Handshaker(boolean isClient, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
-		this(isClient, 0, session, recordLayer, sessionListener, config, maxTransmissionUnit);
-	}
 
 	/**
 	 * Creates a new handshaker for negotiating a DTLS session with a given
@@ -240,22 +234,17 @@ public abstract class Handshaker {
 	 *            handshake starts.
 	 * @param session the session this handshaker is negotiating.
 	 * @param recordLayer the object to use for sending flights to the peer.
-	 * @param sessionListener the listener to notify about the session's
-	 *            life-cycle events.
-	 * @param certVerifier the verifier in charge of validating the peer's
-	 *            certificate chain
+	 * @param connection the connection related to this handshaker.
+	 * @param config the dtls configuration
 	 * @param maxTransmissionUnit the MTU value reported by the network
 	 *            interface the record layer is bound to.
-	 * @param rpkStore the store containing the trusted raw public keys.
-	 * @throws IllegalStateException if the message digest required for
-	 *             computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException if session or recordLayer is
+	 * @throws NullPointerException if session, recordLayer, or config is
 	 *             <code>null</code>.
 	 * @throws IllegalArgumentException if the initial message sequence number
 	 *             is negative
 	 */
 	protected Handshaker(boolean isClient, int initialMessageSeq, DTLSSession session, RecordLayer recordLayer,
-			SessionListener sessionListener, DtlsConnectorConfig config, int maxTransmissionUnit) {
+			Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
 		if (session == null) {
 			throw new NullPointerException("DTLS Session must not be null");
 		} else if (recordLayer == null) {
@@ -270,21 +259,19 @@ public abstract class Handshaker {
 		this.nextReceiveSeq = initialMessageSeq;
 		this.session = session;
 		this.recordLayer = recordLayer;
+		this.connection = connection;
+		this.connectionIdGenerator = config.getConnectionIdGenerator();
+		this.maxFragmentedHandshakeMessageLength = config.getMaxFragmentedHandshakeMessageLength();
 		this.maxDeferredProcessedApplicationDataMessages = config.getMaxDeferredProcessedApplicationDataMessages();
-		this.deferredApplicationData = new ArrayList<Object>(maxDeferredProcessedApplicationDataMessages);
-		addSessionListener(sessionListener);
+		this.deferredApplicationData = new ArrayList<RawData>(maxDeferredProcessedApplicationDataMessages);
+		this.deferredRecords = new ArrayList<Record>(maxDeferredProcessedApplicationDataMessages);
+		if (connection != null) {
+			addSessionListener(connection.getSessionListener());
+		}
 		this.certificateVerifier = config.getCertificateVerifier();
 		this.session.setMaxTransmissionUnit(maxTransmissionUnit);
 		this.inboundMessageBuffer = new InboundMessageBuffer();
 
-		try {
-			this.md = MessageDigest.getInstance(MESSAGE_DIGEST_ALGORITHM_NAME);
-		} catch (NoSuchAlgorithmException e) {
-			// this cannot happen on a Java SE 7 VM because SHA-256 is mandatory
-			// to implement
-			throw new IllegalStateException(String.format("Message digest algorithm %s is not available on JVM",
-					MESSAGE_DIGEST_ALGORITHM_NAME));
-		}
 		this.rpkStore = config.getRpkTrustStore();
 	}
 
@@ -538,17 +525,36 @@ public abstract class Handshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	/**
-	 * First, generates the master secret from the given premaster secret and
-	 * then applying the key expansion on the master secret generates a large
-	 * enough key block to generate the write, MAC and IV keys. See <a
-	 * href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC 5246</a> for
-	 * further details about the keys.
+	 * Initialize message digest for FINISH message.
+	 * 
+	 * @throw IllegalStateException if message digest is not available for this
+	 *        platform. The supported message digest are checked by
+	 *        {@link CipherSuite#isSupported()}.
+	 */
+	protected final void initMessageDigest() {
+		String hashName = session.getCipherSuite().getPseudoRandomFunctionHashName();
+		try {
+			this.md = MessageDigest.getInstance(hashName);
+		} catch (NoSuchAlgorithmException e) {
+			throw new IllegalStateException(
+					String.format("Message digest algorithm %s is not available on JVM", hashName));
+		}
+	}
+
+	/**
+	 * First, generates the master secret from the given premaster secret, set
+	 * it in {@link #session}, and then applying the key expansion on the master
+	 * secret generates a large enough key block to generate the write, MAC and
+	 * IV keys. 
+	 * 
+	 * See <a href="http://tools.ietf.org/html/rfc5246#section-6.3">RFC5246</a>
+	 * for further details about the keys.
 	 * 
 	 * @param premasterSecret
 	 *            the shared premaster secret.
 	 */
 	protected final void generateKeys(byte[] premasterSecret) {
-		masterSecret = generateMasterSecret(premasterSecret);
+		byte[] masterSecret = generateMasterSecret(premasterSecret);
 		session.setMasterSecret(masterSecret);
 
 		calculateKeys(masterSecret);
@@ -562,12 +568,6 @@ public abstract class Handshaker {
 	 *            the master secret.
 	 */
 	protected void calculateKeys(byte[] masterSecret) {
-		// See http://tools.ietf.org/html/rfc5246#section-6.3:
-		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
-		//                      SecurityParameters.server_random + SecurityParameters.client_random);
-		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getRandomBytes(), clientRandom.getRandomBytes());
-		byte[] data = PseudoRandomFunction.doPRF(masterSecret, Label.KEY_EXPANSION_LABEL, seed);
-
 		/*
 		 * Create keys as suggested in
 		 * http://tools.ietf.org/html/rfc5246#section-6.3:
@@ -579,25 +579,41 @@ public abstract class Handshaker {
 		 * server_write_IV[SecurityParameters.fixed_iv_length]
 		 */
 
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
 		int macKeyLength = session.getCipherSuite().getMacKeyLength();
 		int encKeyLength = session.getCipherSuite().getEncKeyLength();
 		int fixedIvLength = session.getCipherSuite().getFixedIvLength();
+		int totalLength = (macKeyLength + encKeyLength + fixedIvLength) * 2;
+		// See http://tools.ietf.org/html/rfc5246#section-6.3:
+		//      key_block = PRF(SecurityParameters.master_secret, "key expansion",
+		//                      SecurityParameters.server_random + SecurityParameters.client_random);
+		byte[] seed = ByteArrayUtils.concatenate(serverRandom.getBytes(), clientRandom.getBytes());
+		byte[] data = PseudoRandomFunction.doPRF(prfMacName, masterSecret, Label.KEY_EXPANSION_LABEL, seed, totalLength);
 
-		clientWriteMACKey = new SecretKeySpec(data, 0, macKeyLength, "Mac");
-		serverWriteMACKey = new SecretKeySpec(data, macKeyLength, macKeyLength, "Mac");
 
-		clientWriteKey = new SecretKeySpec(data, 2 * macKeyLength, encKeyLength, "AES");
-		serverWriteKey = new SecretKeySpec(data, (2 * macKeyLength) + encKeyLength, encKeyLength, "AES");
+		int index = 0;
+		int length = macKeyLength;
+		clientWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		index += length;
+		serverWriteMACKey = new SecretKeySpec(data, index, length, "Mac");
+		index += length;
 
-		clientWriteIV = new IvParameterSpec(data, (2 * macKeyLength) + (2 * encKeyLength), fixedIvLength);
-		serverWriteIV = new IvParameterSpec(data, (2 * macKeyLength) + (2 * encKeyLength) + fixedIvLength, fixedIvLength);
+		length = encKeyLength;
+		clientWriteKey = new SecretKeySpec(data, index, length, "AES");
+		index += length;
+		serverWriteKey = new SecretKeySpec(data, index, length, "AES");
+		index += length;
 
+		length = fixedIvLength;
+		clientWriteIV = new IvParameterSpec(data, index, length);
+		index += length;
+		serverWriteIV = new IvParameterSpec(data, index, length);
 	}
 
 	/**
 	 * Generates the master secret from a given shared premaster secret as
-	 * described in <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC
-	 * 5246</a>.
+	 * described in 
+	 * <a href="http://tools.ietf.org/html/rfc5246#section-8.1">RFC5246</a>.
 	 * 
 	 * <pre>
 	 * master_secret = PRF(pre_master_secret, "master secret",
@@ -609,8 +625,9 @@ public abstract class Handshaker {
 	 * @return the master secret.
 	 */
 	private byte[] generateMasterSecret(byte[] premasterSecret) {
-		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getRandomBytes(), serverRandom.getRandomBytes());
-		return PseudoRandomFunction.doPRF(premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		byte[] randomSeed = ByteArrayUtils.concatenate(clientRandom.getBytes(), serverRandom.getBytes());
+		return PseudoRandomFunction.doPRF(prfMacName, premasterSecret, Label.MASTER_SECRET_LABEL, randomSeed);
 	}
 
 	/**
@@ -622,7 +639,7 @@ public abstract class Handshaker {
 	 * @param otherSecret - either is zeroes (plain PSK case) or comes 
 	 * from the EC Diffie-Hellman exchange (ECDHE_PSK). 
 	 * @see <a href="http://tools.ietf.org/html/rfc4279#section-2">RFC 4279</a>
-	 * @return
+	 * @return byte array with generated premaster secret.
 	 */
 	protected final byte[] generatePremasterSecretFromPSK(byte[] psk, byte[] otherSecret) {
 		/*
@@ -661,80 +678,86 @@ public abstract class Handshaker {
 	}
 
 	/**
-	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records.
+	 * Wraps a DTLS message fragment into (potentially multiple) DTLS records
+	 * and add them to the flight.
 	 * 
-	 * Sets the record's epoch, sequence number and handles fragmentation
-	 * for handshake messages.
+	 * Sets the record's epoch, sequence number and handles fragmentation for
+	 * handshake messages.
 	 * 
-	 * @param fragment
-	 *            the message fragment
-	 * @return the records containing the message fragment, ready to be sent to the
-	 *            peer
-	 * @throws HandshakeException if the message could not be encrypted using the session's
-	 *            current security parameters
+	 * @param flight the flight to add the wrapped messages
+	 * @param fragment the message fragment
+	 * @throws HandshakeException if the message could not be encrypted using
+	 *             the session's current security parameters
 	 */
-	protected final List<Record> wrapMessage(DTLSMessage fragment) throws HandshakeException {
+	protected final void wrapMessage(DTLSFlight flight, DTLSMessage fragment) throws HandshakeException {
 
 		try {
-			switch(fragment.getContentType()) {
+			switch (fragment.getContentType()) {
 			case HANDSHAKE:
-				return wrapHandshakeMessage((HandshakeMessage) fragment);
+				wrapHandshakeMessage(flight, (HandshakeMessage) fragment);
+				break;
+			case CHANGE_CIPHER_SPEC:
+				// CCS has only 1 byte payload and doesn't require fragmentation
+				flight.addMessage(new Record(fragment.getContentType(), session.getWriteEpoch(),
+						session.getSequenceNumber(), fragment, session, false, 0));
+				break;
 			default:
-				// other message types should not be prone to fragmentation
-				// since they are only a few bytes in length
-				List<Record> records = new ArrayList<Record>();
-				records.add(new Record(fragment.getContentType(), session.getWriteEpoch(), session.getSequenceNumber(),
-						fragment, session));
-				return records;
+				throw new HandshakeException("Cannot create " + fragment.getContentType() + " record for flight",
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 			}
 		} catch (GeneralSecurityException e) {
-			throw new HandshakeException(
-					"Cannot create record",
+			throw new HandshakeException("Cannot create record",
 					new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR, session.getPeer()));
 		}
 	}
 
-	private List<Record> wrapHandshakeMessage(HandshakeMessage handshakeMessage) throws GeneralSecurityException {
+	private void wrapHandshakeMessage(DTLSFlight flight, HandshakeMessage handshakeMessage) throws GeneralSecurityException {
 		setSequenceNumber(handshakeMessage);
-		List<Record> result = new ArrayList<>();
-		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
+		int messageLength = handshakeMessage.getMessageLength();
+		int maxFragmentLength = session.getMaxFragmentLength();
 
-		if (messageBytes.length <= session.getMaxFragmentLength()) {
-			result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), handshakeMessage, session));
-		} else {
-			// message needs to be fragmented
-			LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
-					handshakeMessage.getMessageType(), handshakeMessage.getPeer(), session.getMaxFragmentLength());
-			// create N handshake messages, all with the
-			// same message_seq value as the original handshake message
-			int messageSeq = handshakeMessage.getMessageSeq();
-			int numFragments = (messageBytes.length / session.getMaxFragmentLength()) + 1;
-			int offset = 0;
-			for (int i = 0; i < numFragments; i++) {
-				int fragmentLength = session.getMaxFragmentLength();
-				if (offset + fragmentLength > messageBytes.length) {
-					// the last fragment is normally shorter than the maximal size
-					fragmentLength = messageBytes.length - offset;
-				}
-				byte[] fragmentBytes = new byte[fragmentLength];
-				System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
-
-				FragmentedHandshakeMessage fragmentedMessage =
-						new FragmentedHandshakeMessage(
-								fragmentBytes,
-								handshakeMessage.getMessageType(),
-								offset,
-								messageBytes.length,
-								session.getPeer());
-
-				// all fragments have the same message_seq
-				fragmentedMessage.setMessageSeq(messageSeq);
-				offset += fragmentBytes.length;
-
-				result.add(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(), fragmentedMessage, session));
-			}
+		if (messageLength <= maxFragmentLength) {
+			boolean useCid = handshakeMessage.getMessageType() == HandshakeType.FINISHED;
+			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(),
+					session.getSequenceNumber(), handshakeMessage, session, useCid, 0));
+			return;
 		}
-		return result;
+
+		// message needs to be fragmented
+		LOGGER.debug("Splitting up {} message for [{}] into multiple fragments of max {} bytes",
+				handshakeMessage.getMessageType(), handshakeMessage.getPeer(), maxFragmentLength);
+		// create N handshake messages, all with the
+		// same message_seq value as the original handshake message
+		byte[] messageBytes = handshakeMessage.fragmentToByteArray();
+		if (messageBytes.length != messageLength) {
+			throw new IllegalStateException(
+					"message length " + messageLength + " differs from message " + messageBytes.length + "!");
+		}
+		int messageSeq = handshakeMessage.getMessageSeq();
+		int offset = 0;
+		while (offset < messageLength) {
+			int fragmentLength = maxFragmentLength;
+			if (offset + fragmentLength > messageLength) {
+				// the last fragment is normally shorter than the maximal size
+				fragmentLength = messageLength - offset;
+			}
+			byte[] fragmentBytes = new byte[fragmentLength];
+			System.arraycopy(messageBytes, offset, fragmentBytes, 0, fragmentLength);
+
+			FragmentedHandshakeMessage fragmentedMessage =
+					new FragmentedHandshakeMessage(
+							handshakeMessage.getMessageType(),
+							messageLength,
+							messageSeq,
+							offset,
+							fragmentBytes,
+							session.getPeer());
+
+			offset += fragmentLength;
+
+			flight.addMessage(new Record(ContentType.HANDSHAKE, session.getWriteEpoch(), session.getSequenceNumber(),
+					fragmentedMessage, session, false, 0));
+		}
 	}
 
 	/**
@@ -752,114 +775,41 @@ public abstract class Handshaker {
 	protected final HandshakeMessage handleFragmentation(FragmentedHandshakeMessage fragment) throws HandshakeException {
 
 		LOGGER.debug("Processing {} message fragment ...", fragment.getMessageType());
-		HandshakeMessage reassembledMessage = null;
-		int messageSeq = fragment.getMessageSeq();
-		SortedSet<FragmentedHandshakeMessage> existingFragments = fragmentedMessages.get(messageSeq);
-		if (existingFragments == null) {
-			existingFragments = new TreeSet<FragmentedHandshakeMessage>(new Comparator<FragmentedHandshakeMessage>() {
-
-				// @Override
-				public int compare(FragmentedHandshakeMessage o1, FragmentedHandshakeMessage o2) {
-					if (o1.getFragmentOffset() == o2.getFragmentOffset()) {
-						return 0;
-					} else if (o1.getFragmentOffset() < o2.getFragmentOffset()) {
-						return -1;
-					} else {
-						return 1;
-					}
-				}
-			});
-			fragmentedMessages.put(messageSeq, existingFragments);
-		}
-		// store fragment together with other fragments of same message_seq
-		existingFragments.add(fragment);
 		
-		reassembledMessage = reassembleFragments(messageSeq, existingFragments,
-				fragment.getMessageLength(), fragment.getMessageType(), session);
-		if (reassembledMessage != null) {
-			LOGGER.debug("Successfully re-assembled {} message", reassembledMessage.getMessageType());
-			fragmentedMessages.remove(messageSeq);
+		if (fragment.getMessageLength() > maxFragmentedHandshakeMessageLength) {
+			throw new HandshakeException(
+					"Fragmented message length exceeded (" + fragment.getMessageLength() + " > " + maxFragmentedHandshakeMessageLength + ")!",
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
-
-		return reassembledMessage;
-	}
-
-	/**
-	 * Reassembles handshake message fragments into the original message.
-	 * 
-	 * @param messageSeq
-	 *            the fragment's message_seq
-	 * @param fragments the fragments to reassemble
-	 * @param totalLength
-	 *            the expected total length of the reassembled fragment
-	 * @param type
-	 *            the type of the handshake message
-	 * @param session
-	 *            the {@link DTLSSession}
-	 * @return the reassembled handshake message (if all fragements are available),
-	 *         <code>null</code> otherwise.
-	 * @throws HandshakeException
-	 *             if the reassembled fragments cannot be parsed into a valid <code>HandshakeMessage</code>
-	 */
-	private final HandshakeMessage reassembleFragments(
-			int messageSeq,
-			SortedSet<FragmentedHandshakeMessage> fragments,
-			int totalLength,
-			HandshakeType type,
-			DTLSSession session) throws HandshakeException {
-
-		HandshakeMessage message = null;
-
-		byte[] reassembly = new byte[] {};
-		int offset = 0;
-		for (FragmentedHandshakeMessage fragmentedHandshakeMessage : fragments) {
-
-			int fragmentOffset = fragmentedHandshakeMessage.getFragmentOffset();
-			int fragmentLength = fragmentedHandshakeMessage.getFragmentLength();
-
-			if (fragmentOffset == offset) { // eliminate duplicates
-				// case: no overlap
-				reassembly = ByteArrayUtils.concatenate(reassembly, fragmentedHandshakeMessage.fragmentToByteArray());
-				offset = reassembly.length;
-			} else if (fragmentOffset < offset && (fragmentOffset + fragmentLength) > offset) {
-				// case: overlap fragment
-				
-				// determine the offset where the fragment adds new information for the reassembly
-				int newOffset = offset - fragmentOffset;
-				int newLength = fragmentLength - newOffset;
-				byte[] newBytes = new byte[newLength];
-				// take only the new bytes and add them
-				System.arraycopy(fragmentedHandshakeMessage.fragmentToByteArray(), newOffset, newBytes, 0, newLength);
-				reassembly = ByteArrayUtils.concatenate(reassembly, newBytes);
-
-				offset = reassembly.length;
+		int messageSeq = fragment.getMessageSeq();
+		ReassemblingHandshakeMessage reassembledMessage = reassembledMessages.get(messageSeq);
+		try {
+			if (reassembledMessage == null) {
+				reassembledMessage = new ReassemblingHandshakeMessage(fragment);
+				reassembledMessages.put(messageSeq, reassembledMessage);
 			}
-		}
-
-		if (reassembly.length == totalLength) {
-			// the reassembled fragment has the expected length
-			FragmentedHandshakeMessage wholeMessage =
-					new FragmentedHandshakeMessage(type, totalLength, messageSeq, 0, reassembly, getPeerAddress());
-			reassembly = wholeMessage.toByteArray();
-
-			HandshakeParameter parameter = null;
-			if (session != null) {
-				parameter = session.getParameter();
+			else {
+				reassembledMessage.add(fragment);
 			}
-			message = HandshakeMessage.fromByteArray(reassembly, parameter, getPeerAddress());
+			if (reassembledMessage.isComplete()) {
+				HandshakeMessage message = HandshakeMessage.fromByteArray(reassembledMessage.toByteArray(),
+						session.getParameter(), reassembledMessage.getPeer());
+				LOGGER.debug("Successfully re-assembled {} message", message.getMessageType());
+				reassembledMessages.remove(messageSeq);
+				return message;
+			}
+		} catch (IllegalArgumentException ex) {
+			throw new HandshakeException(ex.getMessage(),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, fragment.getPeer()));
 		}
-
-		return message;
+		
+		return null;
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
 
 	protected final KeyExchangeAlgorithm getKeyExchangeAlgorithm() {
 		return session.getKeyExchange();
-	}
-
-	final byte[] getMasterSecret() {
-		return masterSecret;
 	}
 
 	final SecretKey getClientWriteMACKey() {
@@ -906,6 +856,33 @@ public abstract class Handshaker {
 	}
 
 	/**
+	 * Gets related connection.
+	 * 
+	 * @return connection
+	 */
+	public final Connection getConnection() {
+		return connection;
+	}
+
+	/**
+	 * Get client random.
+	 * 
+	 * @return client random, or {@code null}, if not available.
+	 */
+	public Random getClientRandom() {
+		return clientRandom;
+	}
+
+	/**
+	 * Get server random.
+	 * 
+	 * @return server random, or {@code null}, if not available.
+	 */
+	public Random getServerRandom() {
+		return serverRandom;
+	}
+
+	/**
 	 * Sets the message sequence number on an outbound handshake message.
 	 * 
 	 * Also increases the sequence number counter afterwards.
@@ -934,16 +911,22 @@ public abstract class Handshaker {
 		}
 	}
 
-	public void addApplicationDataForDeferredProcessing(Record incomingMessage) {
-		if (deferredApplicationData.size() < maxDeferredProcessedApplicationDataMessages) {
-			deferredApplicationData.add(incomingMessage);
+	public void addRecordsForDeferredProcessing(Record incomingMessage) {
+		if (deferredRecords.size() < maxDeferredProcessedApplicationDataMessages) {
+			deferredRecords.add(incomingMessage);
 		}
 	}
 
-	public List<Object> takeDeferredApplicationData() {
-		List<Object> applicationData = new ArrayList<Object>(deferredApplicationData);
+	public List<RawData> takeDeferredApplicationData() {
+		List<RawData> applicationData = new ArrayList<RawData>(deferredApplicationData);
 		deferredApplicationData.clear();
 		return applicationData;
+	}
+
+	public List<Record> takeDeferredRecords() {
+		List<Record> records = new ArrayList<Record>(deferredRecords);
+		deferredRecords.clear();
+		return records;
 	}
 
 	public void takeDeferredApplicationData(Handshaker replacedHandshaker) {
@@ -957,7 +940,6 @@ public abstract class Handshaker {
 	 * flight will be cancelled also.
 	 * 
 	 * @param pendingFlight the flight
-	 * @see #cancelPendingFlight()
 	 */
 	public void setPendingFlight(DTLSFlight pendingFlight) {
 		DTLSFlight flight = this.pendingFlight.getAndSet(pendingFlight);
@@ -966,20 +948,10 @@ public abstract class Handshaker {
 		}
 	}
 
-	/**
-	 * Cancels any pending re-transmission of an outbound flight that has been registered
-	 * previously using the {@link #setPendingFlight(DTLSFlight)} method.
-	 * 
-	 * This method is usually invoked once an flight has been acknowledged by the peer. 
-	 */
-	public void cancelPendingFlight() {
-		setPendingFlight(null);
-	}
-
 	public void sendFlight(DTLSFlight flight) {
 		setPendingFlight(null);
 		try {
-			recordLayer.sendFlight(flight);
+			recordLayer.sendFlight(flight, connection);
 			setPendingFlight(flight);
 		} catch(IOException e) {
 			handshakeFailed(new Exception("handshake flight " + flight.getFlightNumber() + " failed!", e));
@@ -1017,37 +989,71 @@ public abstract class Handshaker {
 	}
 
 	protected final void sessionEstablished() throws HandshakeException {
-		sessionEstablished = true;
-		for (SessionListener sessionListener : sessionListeners) {
-			sessionListener.sessionEstablished(this, this.getSession());
+		if (!sessionEstablished) {
+			sessionEstablished = true;
+			for (SessionListener sessionListener : sessionListeners) {
+				sessionListener.sessionEstablished(this, this.getSession());
+			}
 		}
 	}
 
 	public final void handshakeCompleted() {
-		cancelPendingFlight();
+		setPendingFlight(null);
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeCompleted(this);
 		}
 	}
 
 	/**
-	 * Notifies all registered session listeners about a handshake
-	 * failure.
+	 * Notifies all registered session listeners about a handshake failure.
+	 * 
+	 * If {@link #setFailureCause(Throwable)} was called before, only calls with
+	 * the same cause will notify the listeners. If
+	 * {@link #setFailureCause(Throwable)} wasn't called before, set the
+	 * {@link #cause} according the provided cause.
 	 * 
 	 * @param cause The reason for the failure.
 	 */
 	public final void handshakeFailed(Throwable cause) {
-		cancelPendingFlight();
-		if (!sessionEstablished) {
-			for (SessionListener sessionListener : sessionListeners) {
-				sessionListener.handshakeFailed(this, cause);
-			}
-			for (Object message : takeDeferredApplicationData()) {
-				if (message instanceof RawData) {
-					((RawData) message).onError(cause);
+		if (this.cause == null) {
+			this.cause = cause;
+		}
+		if (!handshakeFailed && this.cause == cause) {
+			handshakeFailed = true;
+			setPendingFlight(null);
+			if (!sessionEstablished) {
+				for (SessionListener sessionListener : sessionListeners) {
+					sessionListener.handshakeFailed(this, cause);
 				}
 			}
 		}
+	}
+
+	/**
+	 * Get cause of failure.
+	 * 
+	 * @return cause of failure, or {@code null}, if the cause is unknown and not set before
+	 * @see #setFailureCause(Throwable)
+	 * @see #handshakeFailed(Throwable)
+	 */
+	public Throwable getFailureCause() {
+		return cause;
+	}
+
+	/**
+	 * Set the failure cause.
+	 * 
+	 * In some cases the cleanup of the handshake may consider a different
+	 * failure as cause. This prevents {@link #handshakeFailed(Throwable)} to
+	 * notify listener in that case.
+	 * 
+	 * @param cause failure cause
+	 * @see #handshakeFailed(Throwable)
+	 * @see #getFailureCause()
+	 */
+	public void setFailureCause(Throwable cause) {
+		setPendingFlight(null);
+		this.cause = cause;
 	}
 
 	/**
@@ -1060,25 +1066,9 @@ public abstract class Handshaker {
 		for (SessionListener sessionListener : sessionListeners) {
 			sessionListener.handshakeFlightRetransmitted(this, flight);
 		}
-		for (Object message : deferredApplicationData) {
-			if (message instanceof RawData) {
-				((RawData) message).onDtlsRetransmission(flight);
-			}
+		for (RawData message : deferredApplicationData) {
+			message.onDtlsRetransmission(flight);
 		}
-	}
-
-	/**
-	 * Checks whether this handshake has been initiated by the given message.
-	 * 
-	 * @param handshakeMessage the message to check.
-	 * @return <code>true</code> if the given message has initially started this handshake.
-	 */
-	public final boolean hasBeenStartedByMessage(final HandshakeMessage handshakeMessage) {
-		return isFirstMessageReceived(handshakeMessage);
-	}
-
-	protected boolean isFirstMessageReceived(final HandshakeMessage handshakeMessage) {
-		return false;
 	}
 
 	/**

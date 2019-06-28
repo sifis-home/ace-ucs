@@ -39,7 +39,6 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
-import java.security.SecureRandom;
 
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -78,8 +77,8 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 *            the session to resume.
 	 * @param recordLayer
 	 *            the object to use for sending flights to the peer.
-	 * @param sessionListener
-	 *            the listener to notify about the session's life-cycle events.
+	 * @param connection
+	 *            the connection related with the session.
 	 * @param config
 	 *            the DTLS configuration parameters to use for the handshake.
 	 * @param maxTransmissionUnit
@@ -91,9 +90,9 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	 * @throws NullPointerException
 	 *            if session, recordLayer or config is <code>null</code>
 	 */
-	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, SessionListener sessionListener,
+	public ResumingClientHandshaker(DTLSSession session, RecordLayer recordLayer, Connection connection,
 			DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(session, recordLayer, sessionListener, config, maxTransmissionUnit);
+		super(session, recordLayer, connection, config, maxTransmissionUnit);
 		if (session.getSessionIdentifier() == null) {
 			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
 		}
@@ -102,7 +101,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected synchronized void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
 		if (fullHandshake){
 			// handshake resumption was refused by the server
 			// we do a full handshake
@@ -156,7 +155,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				{
 					LOGGER.debug(
 							"Server [{}] refuses to resume session [{}], performing full handshake instead...",
-							new Object[]{serverHello.getPeer(), session.getSessionIdentifier()});
+							serverHello.getPeer(), session.getSessionIdentifier());
 					// Server refuse to resume the session, go for a full handshake
 					fullHandshake  = true;
 					super.receivedServerHello(serverHello);
@@ -178,7 +177,15 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				} else {
 					this.serverHello = serverHello;
 					serverRandom = serverHello.getRandom();
+					if (connectionIdGenerator != null) {
+						ConnectionIdExtension extension = serverHello.getConnectionIdExtension();
+						if (extension != null) {
+							ConnectionId connectionId = extension.getConnectionId();
+							session.setWriteConnectionId(connectionId);
+						}
+					}
 					expectChangeCipherSpecMessage();
+					initMessageDigest();
 				}
 				break;
 
@@ -198,7 +205,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 				incrementNextReceiveSeq();
 			}
 			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					new Object[]{handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer()});
+					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
 			break;
 
 		default:
@@ -224,6 +231,7 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 			// this last flight
 			return;
 		}
+
 		flightNumber += 2;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
 
@@ -249,15 +257,16 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 		// the handshake hash to check the server's verify_data (without the
 		// server's finished message included)
 		handshakeHash = md.digest();
-		message.verifyData(session.getMasterSecret(), false, handshakeHash);
+		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
+		message.verifyData(prfMacName, session.getMasterSecret(), false, handshakeHash);
 		
 		ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(message.getPeer());
-		flight.addMessage(wrapMessage(changeCipherSpecMessage));
+		wrapMessage(flight, changeCipherSpecMessage);
 		setCurrentWriteState();
 
 		handshakeHash = mdWithServerFinish.digest();
-		Finished finished = new Finished(session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
-		flight.addMessage(wrapMessage(finished));
+		Finished finished = new Finished(prfMacName, session.getMasterSecret(), isClient, handshakeHash, message.getPeer());
+		wrapMessage(flight, finished);
 		state = HandshakeType.FINISHED.getCode();
 
 		flight.setRetransmissionNeeded(false);
@@ -271,33 +280,23 @@ public class ResumingClientHandshaker extends ClientHandshaker {
 	@Override
 	public void startHandshake() throws HandshakeException {
 		handshakeStarted();
-		ClientHello message = new ClientHello(new ProtocolVersion(), new SecureRandom(), session,
+		ClientHello message = new ClientHello(new ProtocolVersion(), session,
 				supportedClientCertificateTypes, supportedServerCertificateTypes);
 
 		clientRandom = message.getRandom();
 
 		message.addCompressionMethod(session.getCompressionMethod());
-		if (maxFragmentLengthCode != null) {
-			MaxFragmentLengthExtension ext = new MaxFragmentLengthExtension(maxFragmentLengthCode); 
-			message.addExtension(ext);
-			LOGGER.debug(
-					"Indicating max. fragment length [{}] to server [{}]",
-					new Object[]{maxFragmentLengthCode, getPeerAddress()});
-		}
+
+		addConnectionId(message);
+		addMaxFragmentLength(message);
+		addServerNameIndication(message);
 
 		state = message.getMessageType().getCode();
 		clientHello = message;
-		
+
 		flightNumber = 1;
 		DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-		flight.addMessage(wrapMessage(message));
+		wrapMessage(flight, message);
 		sendFlight(flight);
 	}
-
-//	@Override
-//	protected boolean isChangeCipherSpecMessageDue() {
-//
-//		// in an abbreviated handshake we immediately expect the server's ChangeCipherSpec message
-//		return true;
-//	}
 }

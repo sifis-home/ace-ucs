@@ -42,11 +42,12 @@ import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.tcp.TcpClientConnector;
 import org.eclipse.californium.elements.tcp.TlsClientConnector;
 import org.eclipse.californium.elements.util.SslContextUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.dtls.pskstore.StringPskStore;
+import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -148,6 +149,7 @@ public class ClientInitializer {
 		int staleTimeout = config.getInt(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD);
 		int senderThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_SENDER_THREAD_COUNT);
 		int receiverThreads = config.getInt(NetworkConfig.Keys.NETWORK_STAGE_RECEIVER_THREAD_COUNT);
+		Integer cidLength = config.getOptInteger(Keys.DTLS_CONNECTION_ID_LENGTH);
 
 		if (arguments.uri.startsWith(CoAP.COAP_SECURE_URI_SCHEME)) {
 			SslContextUtil.Credentials clientCredentials = null;
@@ -188,8 +190,9 @@ public class ClientInitializer {
 					byte[] rid = new byte[8];
 					SecureRandom random = new SecureRandom();
 					random.nextBytes(rid);
-					dtlsConfig.setPskStore(new PlugPskStore(ByteArrayUtils.toHex(rid)));
+					dtlsConfig.setPskStore(new PlugPskStore(StringUtil.byteArray2Hex(rid)));
 				}
+				dtlsConfig.setConnectionIdGenerator(new SingleNodeConnectionIdGenerator(cidLength));
 				dtlsConfig.setClientOnly();
 				dtlsConfig.setMaxConnections(maxPeers);
 				dtlsConfig.setConnectionThreadCount(senderThreads);
@@ -220,7 +223,7 @@ public class ClientInitializer {
 		return endpoint;
 	}
 
-	public static class PlugPskStore implements PskStore {
+	public static class PlugPskStore extends StringPskStore {
 
 		private final String identity;
 		private final byte[] secret;
@@ -254,13 +257,13 @@ public class ClientInitializer {
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress inetAddress) {
+		public String getIdentityAsString(InetSocketAddress inetAddress) {
 			return identity;
 		}
 
 		@Override
-		public String getIdentity(InetSocketAddress peerAddress, ServerNames virtualHost) {
-			return getIdentity(peerAddress);
+		public String getIdentityAsString(InetSocketAddress peerAddress, ServerNames virtualHost) {
+			return getIdentityAsString(peerAddress);
 		}
 	}
 

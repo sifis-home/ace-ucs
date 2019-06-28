@@ -22,6 +22,7 @@
 package org.eclipse.californium.scandium.config;
 
 import static org.hamcrest.CoreMatchers.*;
+import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -42,7 +43,6 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.eclipse.californium.scandium.util.ListUtilsTest;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -115,14 +115,16 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test
-	public void testBuilderSetsAllCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
+	public void testBuilderSetsAtLeastAllMandatoryCipherSuitesWhenKeysAndPskStoreAreSet() throws Exception {
 		DtlsConnectorConfig config = builder.setClientAuthenticationRequired(false)
 				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
 				.setPskStore(new StaticPskStore("ID", "KEY".getBytes())).build();
 		List<CipherSuite> cipherSuites = config.getSupportedCipherSuites();
-		assertThat(cipherSuites, ListUtilsTest.containsAll(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
-				CipherSuite.TLS_PSK_WITH_AES_128_CCM_8, CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256,
-				CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+		assertThat(cipherSuites,
+				hasItems(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256,
+						CipherSuite.TLS_PSK_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
+						CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256));
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -212,7 +214,7 @@ public class DtlsConnectorConfigTest {
 	}
 
 	@Test(expected = IllegalStateException.class)
-	public void testBuildDetectsErrorForAnonymousClientwithotuTrust() {
+	public void testBuildDetectsErrorForAnonymousClientWithoutTrust() {
 		builder.setClientOnly().setSupportedCipherSuites(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8).build();
 	}
 
@@ -227,5 +229,98 @@ public class DtlsConnectorConfigTest {
 
 		// THEN
 		assertThat("Certificate chain should be null for RawPublicKey only configuration", chain, is(nullValue()));
+	}
+
+	@Test
+	public void testWantedAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		builder.setClientAuthenticationWanted(true);
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.isClientAuthenticationWanted(), is(true));
+		assertThat(config.isClientAuthenticationRequired(), is(false));
+	}
+
+	@Test
+	public void testDisabledRequiredAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey());
+		builder.setClientAuthenticationRequired(false);
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.isClientAuthenticationWanted(), is(false));
+		assertThat(config.isClientAuthenticationRequired(), is(false));
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testClientOnlyWantedAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setClientOnly();
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		// WHEN client authentication is wanted
+		builder.setClientAuthenticationWanted(true);
+		// THEN fails
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testClientOnlyRequiredAuthentication() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setClientOnly();
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		// WHEN client authentication is required
+		builder.setClientAuthenticationRequired(true);
+		// THEN fails
+	}
+
+	@Test(expected = IllegalStateException.class)
+	public void testServerOnlyWithDisabledRequiredAuthenticationFailsOnTrust() throws Exception {
+		// GIVEN a configuration supporting RawPublicKey only and wanted client authentication
+		builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getPublicKey())
+				.setRpkTrustAll();
+		builder.setServerOnly(true);
+		builder.setClientAuthenticationRequired(false);
+		// WHEN configuration is build
+		builder.build();
+		// THEN fails
+	}
+
+	@Test(expected = IllegalArgumentException.class)
+	public void testAntiReplayFilterAndWindowFilter() throws Exception {
+		builder.setUseAntiReplayFilter(true);
+		builder.setUseWindowFilter(true);
+	}
+
+	@Test
+	public void testAntiReplayFilterDefault() throws Exception {
+		builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes()));
+		
+		builder.build();
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.useAntiReplayFilter(), is(true));
+		assertThat(config.useWindowFilter(), is(false));
+	}
+
+	@Test
+	public void testAntiReplayFilterDefaultWithWindowFilter() throws Exception {
+		builder.setPskStore(new StaticPskStore("ID", "KEY".getBytes()));
+		builder.setUseWindowFilter(true);
+		builder.build();
+		// WHEN configuration is build
+		DtlsConnectorConfig config = builder.build();
+
+		// THEN
+		assertThat(config.useAntiReplayFilter(), is(false));
+		assertThat(config.useWindowFilter(), is(true));
 	}
 }

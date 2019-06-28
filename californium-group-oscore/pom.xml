@@ -7,7 +7,7 @@
 
 	<groupId>org.eclipse.californium</groupId>
 	<artifactId>parent</artifactId>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>2.0.0-M15</version>
 	<packaging>pom</packaging>
 
 	<name>Californium (Cf) Parent</name>
@@ -235,7 +235,7 @@
 		<module>demo-apps</module>
 		<module>demo-certs</module>
 		<module>legal</module>
-		<module>oscore-cf</module>
+		<module>oscore-cf</module> <!-- Rikard: Changed to match old folder name -->
 	</modules>
 
 	<build>
@@ -308,6 +308,15 @@
 					<groupId>org.apache.felix</groupId>
 					<artifactId>maven-bundle-plugin</artifactId>
 					<version>3.5.0</version>
+					<executions>
+						<execution>
+							<id>bundle-manifest</id>
+							<phase>process-classes</phase>
+							<goals>
+								<goal>manifest</goal>
+							</goals>
+						</execution>
+					</executions>
 				</plugin>
 				<plugin>
 					<artifactId>maven-javadoc-plugin</artifactId>
@@ -320,6 +329,10 @@
 							</goals>
 						</execution>
 					</executions>
+					<configuration>
+						<doclint>none</doclint>
+						<additionalparam>${javadoc.opts}</additionalparam>
+					</configuration>
 				</plugin>
 				<plugin>
 					<artifactId>maven-assembly-plugin</artifactId>
@@ -379,6 +392,11 @@
 							<annotation>org.eclipse.californium.elements.util.NotForAndroid</annotation>
 						</annotations>
 					</configuration>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>license-maven-plugin</artifactId>
+					<version>1.16</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>
@@ -468,23 +486,22 @@
 			</activation>
 			<build>
 				<plugins>
-				<plugin>
-					<groupId>org.codehaus.mojo</groupId>
-					<artifactId>license-maven-plugin</artifactId>
-					<version>1.16</version>
-					<executions>
-						<execution>
-							<id>download-licenses</id>
-							<configuration>
-								<excludedGroups>org.eclipse.californium</excludedGroups>
-								<excludedScopes>system,test</excludedScopes>
-							</configuration>
-							<goals>
-								<goal>download-licenses</goal>
-							</goals>
-						</execution>
-					</executions>
-				</plugin>
+					<plugin>
+						<groupId>org.codehaus.mojo</groupId>
+						<artifactId>license-maven-plugin</artifactId>
+						<executions>
+							<execution>
+								<id>download-licenses</id>
+								<configuration>
+									<excludedGroups>org.eclipse.californium</excludedGroups>
+									<excludedScopes>system,test</excludedScopes>
+								</configuration>
+								<goals>
+									<goal>download-licenses</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
 				</plugins>
 			</build>
 		</profile>
@@ -508,6 +525,15 @@
 					</plugin>
 				</plugins>
 			</build>
+		</profile>
+		<profile>
+			<id>java11-html4</id>
+			<activation>
+				<jdk>[1.11,)</jdk>
+			</activation>
+			<properties>
+				<javadoc.opts>-X-html4</javadoc.opts>
+			</properties>
 		</profile>
 		<profile>
 			<!-- this profile signs artifacts so that they can be deployed to repo.eclipse.org -->

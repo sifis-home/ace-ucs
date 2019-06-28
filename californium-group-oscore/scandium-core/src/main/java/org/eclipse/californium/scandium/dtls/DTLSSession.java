@@ -70,7 +70,6 @@ public final class DTLSSession {
 
 	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
-	 * <p>
 	 * <ol>
 	 * <li>12 bytes DTLS message header</li>
 	 * <li>13 bytes DTLS record header</li>
@@ -78,7 +77,6 @@ public final class DTLSSession {
 	 * <li>20 bytes IP header</li>
 	 * <li>36 bytes optional IP options</li>
 	 * </ol>
-	 * <p>
 	 * 53 bytes in total.
 	 */
 	public static final int HEADER_LENGTH = 12 // bytes DTLS message headers
@@ -96,7 +94,7 @@ public final class DTLSSession {
 	/**
 	 * This session's peer's IP address and port.
 	 */
-	private final InetSocketAddress peer;
+	private InetSocketAddress peer;
 
 	/**
 	 * An arbitrary byte sequence chosen by the server to identify this session.
@@ -133,6 +131,11 @@ public final class DTLSSession {
 	 * key material from.
 	 */
 	private byte[] masterSecret = null;
+
+	/**
+	 * Connection id used for all outbound records.
+	 */
+	private ConnectionId writeConnectionId = null;
 
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
@@ -282,6 +285,15 @@ public final class DTLSSession {
 		return sessionIdentifier;
 	}
 
+	/**
+	 * Sets the session identifier.
+	 * 
+	 * Resets the {@link #masterSecret}, if the session identifier is changed.
+	 * 
+	 * @param sessionIdentifier new session identifier
+	 * @throws NullPointerException if the provided session identifier is
+	 *             {@code null}
+	 */
 	void setSessionIdentifier(SessionId sessionIdentifier) {
 		if (sessionIdentifier == null) {
 			throw new NullPointerException("session identifier must not be null!");
@@ -291,6 +303,25 @@ public final class DTLSSession {
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
+	}
+
+	/**
+	 * Get connection id for outbound records.
+	 * 
+	 * @return connection id for outbound records. {@code null}, if connection
+	 *         id is not used by other peer
+	 */
+	public ConnectionId getWriteConnectionId() {
+		return writeConnectionId;
+	}
+
+	/**
+	 * Set connection id for outbound records.
+	 * 
+	 * @param connectionId connection id for outbound records
+	 */
+	void setWriteConnectionId(ConnectionId connectionId) {
+		this.writeConnectionId = connectionId;
 	}
 
 	/**
@@ -406,7 +437,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the algorithms to be used
 	 */
-	CipherSuite getCipherSuite() {
+	public CipherSuite getCipherSuite() {
 		return cipherSuite;
 	}
 
@@ -497,12 +528,12 @@ public final class DTLSSession {
 		}
 	}
 
-	private synchronized void incrementReadEpoch() {
+	private void incrementReadEpoch() {
 		resetReceiveWindow();
 		this.readEpoch++;
 	}
 
-	private synchronized void incrementWriteEpoch() {
+	private void incrementWriteEpoch() {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
@@ -517,7 +548,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber() {
+	public long getSequenceNumber() {
 		return getSequenceNumber(writeEpoch);
 	}
 
@@ -531,7 +562,7 @@ public final class DTLSSession {
 	 * @throws IllegalStateException if the maximum sequence number for the
 	 *     epoch has been reached (2^48 - 1)
 	 */
-	public synchronized long getSequenceNumber(int epoch) {
+	public long getSequenceNumber(int epoch) {
 		long sequenceNumber = this.sequenceNumbers.get(epoch);
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
 			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
@@ -557,7 +588,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current read state.
 	 */
-	synchronized DTLSConnectionState getReadState() {
+	DTLSConnectionState getReadState() {
 		return readState;
 	}
 
@@ -578,7 +609,7 @@ public final class DTLSSession {
 	 * @param readState the current read state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setReadState(DTLSConnectionState readState) {
+	void setReadState(DTLSConnectionState readState) {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
@@ -592,7 +623,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	public synchronized String getReadStateCipher() {
+	public String getReadStateCipher() {
 		return readState.getCipherSuite().name();
 	}
 
@@ -609,7 +640,7 @@ public final class DTLSSession {
 	 * 
 	 * @return The current write state.
 	 */
-	synchronized DTLSConnectionState getWriteState() {
+	DTLSConnectionState getWriteState() {
 		return writeState;
 	}
 
@@ -631,7 +662,7 @@ public final class DTLSSession {
 	 * @param writeState the current write state
 	 * @throws NullPointerException if the given state is <code>null</code>
 	 */
-	synchronized void setWriteState(DTLSConnectionState writeState) {
+	void setWriteState(DTLSConnectionState writeState) {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
@@ -647,7 +678,7 @@ public final class DTLSSession {
 	 * 
 	 * @return the name.
 	 */
-	synchronized public String getWriteStateCipher() {
+	public String getWriteStateCipher() {
 		return writeState.getCipherSuite().name();
 	}
 
@@ -695,14 +726,15 @@ public final class DTLSSession {
 	 * Sets the master secret to use for encrypting application layer data
 	 * exchanged in this session.
 	 * 
-	 * Once the master secret has been set, it cannot be changed.
+	 * Once the master secret has been set, it cannot be changed without
+	 * changing the session id ahead.
 	 * 
 	 * @param masterSecret the secret
-	 * @throws NullPointerException if the secret is <code>null</code>
+	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
 	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
 	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
-	 * @throws IllegalStateException if the secret is already set
+	 * @throws IllegalStateException if the master secret is already set
 	 */
 	void setMasterSecret(final byte[] masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
@@ -774,6 +806,8 @@ public final class DTLSSession {
 		} else {
 			LOGGER.debug("Setting MTU for peer [{}] to {} bytes", peer, mtu);
 			this.maxTransmissionUnit = mtu;
+			// use mtu as fragment length will be detected as too large
+			// and is reduced to the maximum fragment length for this mtu
 			determineMaxFragmentLength(mtu);
 		}
 	}
@@ -829,6 +863,10 @@ public final class DTLSSession {
 		return peer;
 	}
 
+	public void setPeer(InetSocketAddress peer) {
+		this.peer = peer;
+	}
+
 	/**
 	 * Gets the authenticated peer's identity.
 	 * 
@@ -853,20 +891,24 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * * Checks whether a given record can be processed within the context
-	 * of this session.
+	 * Checks whether a given record can be processed within the context of this
+	 * session.
 	 * 
 	 * This is the case if
 	 * <ul>
-	 * <li>the record is from the same epoch as session's current read epoch</li>
+	 * <li>the record is from the same epoch as session's current read
+	 * epoch</li>
 	 * <li>the record has not been received before</li>
 	 * </ul>
-	 *  
+	 * 
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
-	 * @return <code>true</code> if the record satisfies the conditions above
+	 * @param useWindowOnly {@code true} use only message window for filter. For
+	 *            message too old for the message window {@code true} is
+	 *            returned.
+	 * @return {@code true} if the record satisfies the conditions above
 	 */
-	public boolean isRecordProcessable(long epoch, long sequenceNo) {
+	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
 		if (epoch < getReadEpoch()) {
 			// record is from a previous epoch
 			// discard record as proposed in DTLS 1.2
@@ -877,16 +919,12 @@ public final class DTLSSession {
 			// discard record as allowed in DTLS 1.2
 			// http://tools.ietf.org/html/rfc6347#section-4.1
 			return false;
+		} else if (sequenceNo < receiveWindowLowerBoundary) {
+			// record lies out of receive window's "left" edge
+			// discard
+			return useWindowOnly;
 		} else {
-			synchronized (this) {
-				if (sequenceNo < receiveWindowLowerBoundary) {
-					// record lies out of receive window's "left" edge
-					// discard
-					return false;
-				} else {
-					return !isDuplicate(sequenceNo);
-				}
-			}
+			return !isDuplicate(sequenceNo);
 		}
 	}
 
@@ -901,7 +939,7 @@ public final class DTLSSession {
 	 * @param sequenceNo the record's sequence number
 	 * @return <code>true</code> if the record has already been received
 	 */
-	synchronized boolean isDuplicate(long sequenceNo) {
+	boolean isDuplicate(long sequenceNo) {
 		if (sequenceNo > receiveWindowUpperBoundary) {
 			return false;
 		} else {
@@ -931,7 +969,7 @@ public final class DTLSSession {
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
 	 */
-	public synchronized void markRecordAsRead(long epoch, long sequenceNo) {
+	public void markRecordAsRead(long epoch, long sequenceNo) {
 
 		if (epoch == getReadEpoch()) {
 			if (sequenceNo > receiveWindowUpperBoundary) {
@@ -955,7 +993,7 @@ public final class DTLSSession {
 	 * The receive window is reset to sequence number zero and all
 	 * information about received records is cleared.
 	 */
-	private synchronized void resetReceiveWindow() {
+	private void resetReceiveWindow() {
 		receivedRecordsVector = 0;
 		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
 		receiveWindowLowerBoundary = 0;

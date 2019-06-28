@@ -287,27 +287,36 @@ public class CoapServer implements ServerInterface {
 		LOGGER.info("Destroying server");
 		// prevent new tasks from being submitted
 		try {
-			if (!detachExecutor) {
-				executor.shutdown(); // cannot be started again
-				try {
-					// wait for currently executing tasks to complete
-					if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
-						// cancel still executing tasks
-						// and ignore all remaining tasks scheduled for later
-						List<Runnable> runningTasks = executor.shutdownNow();
-						if (runningTasks.size() > 0) {
-							// this is e.g. the case if we have performed an incomplete blockwise transfer
-							// and the BlockwiseLayer has scheduled a pending BlockCleanupTask for tidying up
-							LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+			if (!detachExecutor)
+				if (running) {
+					executor.shutdown(); // cannot be started again
+					try {
+						// wait for currently executing tasks to complete
+						if (!executor.awaitTermination(1, TimeUnit.SECONDS)) {
+							// cancel still executing tasks
+							// and ignore all remaining tasks scheduled for
+							// later
+							List<Runnable> runningTasks = executor.shutdownNow();
+							if (runningTasks.size() > 0) {
+								// this is e.g. the case if we have performed an
+								// incomplete blockwise transfer
+								// and the BlockwiseLayer has scheduled a
+								// pending BlockCleanupTask for tidying up
+								LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+							}
+							// wait for executing tasks to respond to being
+							// cancelled
+							executor.awaitTermination(1, TimeUnit.SECONDS);
 						}
-						// wait for executing tasks to respond to being cancelled
-						executor.awaitTermination(1, TimeUnit.SECONDS);
+					} catch (InterruptedException e) {
+						executor.shutdownNow();
+						Thread.currentThread().interrupt();
 					}
-				} catch (InterruptedException e) {
-					executor.shutdownNow();
-					Thread.currentThread().interrupt();
+				} else {
+					if (executor !=null) {
+						executor.shutdownNow();
+					}
 				}
-			}
 		} finally {
 			for (Endpoint ep : endpoints) {
 				ep.destroy();
@@ -444,19 +453,22 @@ public class CoapServer implements ServerInterface {
 		private static final String SPACE = "                                               "; // 47 until line end
 		private final String VERSION = CoapServer.class.getPackage().getImplementationVersion()!=null ?
 				"Cf "+CoapServer.class.getPackage().getImplementationVersion() : SPACE;
-		private final String msg = new StringBuilder()
-			.append("************************************************************\n")
-			.append("CoAP RFC 7252").append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
-			.append("************************************************************\n")
-			.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
-			.append("published under EPL+EDL: http://www.eclipse.org/californium/\n")
-			.append("\n")
-			.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
-			.append("************************************************************")
-			.toString();
+		private final String msg;
 
 		public RootResource() {
 			super("");
+			String nodeId = config.getString(NetworkConfig.Keys.DTLS_CONNECTION_ID_NODE_ID);
+			StringBuilder builder = new StringBuilder()
+					.append("************************************************************\n").append("CoAP RFC 7252")
+					.append(SPACE.substring(VERSION.length())).append(VERSION).append("\n")
+					.append("************************************************************\n")
+					.append("This server is using the Eclipse Californium (Cf) CoAP framework\n")
+					.append("published under EPL+EDL: http://www.eclipse.org/californium/\n").append("\n");
+			if (nodeId != null && !nodeId.isEmpty()) {
+				builder.append("node id = ").append(nodeId).append("\n\n");
+			}
+			msg = builder.append("(c) 2014, 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others\n")
+					.append("************************************************************").toString();
 		}
 
 		@Override

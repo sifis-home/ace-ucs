@@ -108,6 +108,10 @@ public class CookieGenerator {
 
 	/**
 	 * Return a fresh HMAC algorithm instance.
+	 * 
+	 * @return fresh HMAC
+	 * @throws GeneralSecurityException if an security related exception occurs
+	 *             when refreshing the HMAC.
 	 */
 	private Mac getHMAC() throws GeneralSecurityException {
 
@@ -162,8 +166,6 @@ public class CookieGenerator {
 	 * Generate a new secret key for MAC algorithm.
 	 * 
 	 * MUST be called in write scope of {@link #lock}!
-	 * 
-	 * @return secret key for MAC algorithm (cookie generation).
 	 */
 	private void generateSecretKey() {
 		nextKeyGenerationNanos = ClockUtil.nanoRealtime() + KEY_LIFE_TIME;
@@ -182,6 +184,7 @@ public class CookieGenerator {
 	 * as suggested
 	 * <a href="http://tools.ietf.org/html/rfc6347#section-4.2.1">here</a>.
 	 *
+	 * @param clientHello received client hello to generate a cookie for
 	 * @return the cookie generated from the client's parameters
 	 * @throws GeneralSecurityException if the cookie cannot be computed
 	 */
@@ -197,8 +200,8 @@ public class CookieGenerator {
 		// Client-Parameters
 		hmac.update((byte) clientHello.getClientVersion().getMajor());
 		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getRandomBytes());
-		hmac.update(clientHello.getSessionId().getId());
+		hmac.update(clientHello.getRandom().getBytes());
+		hmac.update(clientHello.getSessionId().getBytes());
 		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
 		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
 		return hmac.doFinal();

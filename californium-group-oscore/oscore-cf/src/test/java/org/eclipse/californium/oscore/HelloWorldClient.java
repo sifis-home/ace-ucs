@@ -16,12 +16,15 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.io.IOException;
+
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.Request;
 
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.exception.ConnectorException;
 
 /**
  * 
@@ -44,7 +47,7 @@ public class HelloWorldClient {
 	private final static byte[] sid = new byte[0];
 	private final static byte[] rid = new byte[] { 0x01 };
 
-	public static void main(String[] args) throws OSException {
+	public static void main(String[] args) throws OSException, ConnectorException, IOException {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriLocal, ctx);
 

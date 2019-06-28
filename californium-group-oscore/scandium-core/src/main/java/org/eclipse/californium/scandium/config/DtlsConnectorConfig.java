@@ -47,6 +47,8 @@ import java.util.List;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.dtls.rpkstore.TrustAllRpks;
@@ -85,6 +87,10 @@ public final class DtlsConnectorConfig {
 	 */
 	public static final int DEFAULT_MAX_CONNECTIONS = 150000;
 	/**
+	 * The default value for the <em>maxFragmentedHandshakeMessageLength</em> property.
+	 */
+	public static final int DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH = 8192;
+	/**
 	 * The default value for the <em>staleConnectionThreshold</em> property.
 	 */
 	public static final long DEFAULT_STALE_CONNECTION_TRESHOLD = 30 * 60; // 30 minutes
@@ -114,10 +120,17 @@ public final class DtlsConnectorConfig {
 	 */
 	private static final int DEFAULT_RECEIVER_THREADS = (Runtime.getRuntime().availableProcessors() + 1) / 2;
 
-	private static final String EC_ALGORITHM_NAME = "EC";
-
+	/**
+	 * Local network interface.
+	 */
 	private InetSocketAddress address;
+	/**
+	 * Truststore for trusted certificates  
+	 */
 	private X509Certificate[] trustStore;
+	/**
+	 * Certificate verifier for dynamic trust.
+	 */
 	private CertificateVerifier certificateVerifier;
 
 	/**
@@ -134,6 +147,11 @@ public final class DtlsConnectorConfig {
 	 * The maximum fragment length this connector can process at once.
 	 */
 	private Integer maxFragmentLengthCode;
+
+	/**
+	 * The maximum length of a reassembled fragmented handshake message.
+	 */
+	private Integer maxFragmentedHandshakeMessageLength;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
 	private Integer retransmissionTimeout;
@@ -206,9 +224,9 @@ public final class DtlsConnectorConfig {
 	 * Indicates, that "server name indication" is used (client side) and
 	 * supported (server side). The support on the server side currently
 	 * includes a server name specific PSK secret lookup and to forward the
-	 * server name to the CoAP stack in the {@link EndpointContext}.
+	 * server name to the CoAP stack in the {@link org.eclipse.californium.elements.EndpointContext}.
 	 * 
-	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">
+	 * See <a href="https://tools.ietf.org/html/rfc6066#section-3">RFC 6066, Section 3</a>
 	 */
 	private Boolean sniEnabled;
 
@@ -235,6 +253,39 @@ public final class DtlsConnectorConfig {
 	 */
 	private Boolean useNoServerSessionId;
 
+	/**
+	 * Use anti replay filter.
+	 * 
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	private Boolean useAntiReplayFilter;
+
+	/**
+	 * Use filter for record in window only.
+	 * 
+	 * Messages too old for the filter window will pass the filter.
+	 * 
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	private Boolean useWindowFilter;
+
+	/**
+	 * Logging tag.
+	 * 
+	 * Tag logging messages, if multiple connectors share the same logging
+	 * instance.
+	 */
+	private String loggingTag;
+
+	/**
+	 * Connection id generator. {@code null}, if connection id is not supported.
+	 * The generator may only support the use of a connection id without using
+	 * it by itself. In that case
+	 * {@link ConnectionIdGenerator#useConnectionId()} will return
+	 * {@code false}.
+	 */
+	private ConnectionIdGenerator connectionIdGenerator;
+
 	private DtlsConnectorConfig() {
 		// empty
 	}
@@ -255,6 +306,15 @@ public final class DtlsConnectorConfig {
 	 */
 	public Integer getMaxFragmentLengthCode() {
 		return maxFragmentLengthCode;
+	}
+
+	/**
+	 * Gets the maximum length of a reassembled fragmented handshake message.
+	 * 
+	 * @return maximum length
+	 */
+	public Integer getMaxFragmentedHandshakeMessageLength() {
+		return maxFragmentedHandshakeMessageLength;
 	}
 
 	/**
@@ -324,13 +384,13 @@ public final class DtlsConnectorConfig {
 	 * server is specified with hostname rather then with a raw ip-address. The
 	 * server side support currently includes a server name specific PSK secret
 	 * lookup and a forwarding of the server name to the CoAP stack in the
-	 * {@link EndpointContext}. The x509 or RPK credentials lookup is currently
+	 * {@link DtlsEndpointContext}. The x509 or RPK credentials lookup is currently
 	 * not server name specific, therefore the server's certificate will be the
 	 * same, regardless of the indicated server name.
 	 * <p>
 	 * The default value of this property is {@code null}. If this property is
 	 * not set explicitly using {@link Builder#setSniEnabled(boolean)}, then the
-	 * {@link Builder#build()} method will set it to {@code true}.
+	 * {@link Builder#build()} method will set it to {@code false}.
 	 * 
 	 * @return {@code true} if SNI should be used.
 	 */
@@ -362,11 +422,30 @@ public final class DtlsConnectorConfig {
 	 * handshakes without verified peers are pending than this threshold, then a
 	 * verify request is used.
 	 * 
+	 * Note: a value larger than 0 will call
+	 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+	 * If that implementation is expensive, please ensure, that this value is
+	 * configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid session
+	 * ids may be spoofed and gets too expensive.
+	 * 
 	 * @return threshold handshakes without verified peer in percent of
 	 *         {@link #getMaxConnections()}.
 	 */
 	public Integer getVerifyPeersOnResumptionThreshold() {
 		return verifyPeersOnResumptionThreshold;
+	}
+
+	/**
+	 * Gets connection ID generator.
+	 * 
+	 * @return connection id generator. {@code null} for not supported. The
+	 *         returned generator may only support the use of a connection id
+	 *         without using it by itself. In that case
+	 *         {@link ConnectionIdGenerator#useConnectionId()} will return
+	 *         {@code false}.
+	 */
+	public ConnectionIdGenerator getConnectionIdGenerator() {
+		return connectionIdGenerator;
 	}
 
 	/**
@@ -440,12 +519,16 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
-	 * Gets the trusted root certificates to use when verifying
-	 * a peer's certificate during authentication.
+	 * Gets the trusted root certificates to use when verifying a peer's
+	 * certificate during authentication.
 	 * 
-	 * @return the root certificates
+	 * Only valid, if {@link Builder#setTrustStore(Certificate[])} is used.
+	 * 
+	 * @return the root certificates. If empty (length of zero), all
+	 *         certificates are trusted. If {@code null}, the trust may be
+	 *         implemented by a {@link CertificateVerifier}.
+	 * @see #getCertificateVerifier()
 	 */
-	@Deprecated
 	public X509Certificate[] getTrustStore() {
 		if (trustStore == null) {
 			return null;
@@ -600,11 +683,42 @@ public final class DtlsConnectorConfig {
 	}
 
 	/**
+	 * Use anti replay filter.
+	 * 
+	 * @return {@code true}, apply anti replay filter
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	public Boolean useAntiReplayFilter() {
+		return useAntiReplayFilter;
+	}
+
+	/**
+	 * Use window filter.
+	 * 
+	 * Messages too old for the filter window will pass the filter.
+	 * 
+	 * @return {@code true}, apply window filter
+	 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+	 */
+	public Boolean useWindowFilter() {
+		return useWindowFilter;
+	}
+
+	/**
 	 * @return The trust store for raw public keys verified out-of-band for
 	 *         DTLS-RPK handshakes
 	 */
 	public TrustedRpkStore getRpkTrustStore() {
 		return trustedRPKs;
+	}
+
+	/**
+	 * Get instance logging tag.
+	 * 
+	 * @return logging tag.
+	 */
+	public String getLoggingTag() {
+		return loggingTag;
 	}
 
 	/**
@@ -619,6 +733,7 @@ public final class DtlsConnectorConfig {
 		cloned.earlyStopRetransmission = earlyStopRetransmission;
 		cloned.enableReuseAddress = enableReuseAddress;
 		cloned.maxFragmentLengthCode = maxFragmentLengthCode;
+		cloned.maxFragmentedHandshakeMessageLength = maxFragmentedHandshakeMessageLength;
 		cloned.retransmissionTimeout = retransmissionTimeout;
 		cloned.maxRetransmissions = maxRetransmissions;
 		cloned.maxTransmissionUnit = maxTransmissionUnit;
@@ -643,6 +758,10 @@ public final class DtlsConnectorConfig {
 		cloned.sniEnabled = sniEnabled;
 		cloned.verifyPeersOnResumptionThreshold = verifyPeersOnResumptionThreshold;
 		cloned.useNoServerSessionId = useNoServerSessionId;
+		cloned.loggingTag = loggingTag;
+		cloned.useAntiReplayFilter = useAntiReplayFilter;
+		cloned.useWindowFilter = useWindowFilter;
+		cloned.connectionIdGenerator = connectionIdGenerator;
 		return cloned;
 	}
 
@@ -652,10 +771,10 @@ public final class DtlsConnectorConfig {
 	 *
 	 */
 	public static final class Builder {
-		
+
 		private DtlsConnectorConfig config;
 		private boolean clientOnly;
-		
+
 		/**
 		 * Creates a new instance for setting configuration options
 		 * for a <code>DTLSConnector</code> instance.
@@ -808,6 +927,17 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Set maximum length of handshake message.
+		 * 
+		 * @param length maximum length of handshake message
+		 * @return this builder for command chaining
+		 */
+		public Builder setMaxFragmentedHandshakeMessageLength(Integer length) {
+			config.maxFragmentedHandshakeMessageLength = length;
+			return this;
+		}
+
+		/**
 		 * Sets the number of outbound messages that can be buffered in memory before
 		 * dropping messages.
 		 * 
@@ -853,45 +983,56 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
-		 * Sets whether the connector wants (requests) DTLS clients to authenticate
-		 * during the handshake. The handshake doesn't fail, if the client didn't
-		 * authenticate itself during the handshake. That mostly requires the client
-		 * to use a proprietary mechanism to authenticate itself on the application
-		 * layer (e.g. username/password). It's mainly used, if the implementation
-		 * of the other peer has no PSK cipher suite and client certificate should
-		 * not be used for some reason.
+		 * Sets whether the connector wants (requests) DTLS clients to
+		 * authenticate during the handshake. The handshake doesn't fail, if the
+		 * client didn't authenticate itself during the handshake. That mostly
+		 * requires the client to use a proprietary mechanism to authenticate
+		 * itself on the application layer (e.g. username/password). It's mainly
+		 * used, if the implementation of the other peer has no PSK cipher suite
+		 * and client certificate should not be used for some reason.
 		 * 
-		 * Only used by the DTLS server side.
+		 * The default is {@code false}. Only used by the DTLS server side.
 		 * 
-		 * @param authWanted
-		 *            <code>true</code> if clients wanted to authenticate
+		 * @param authWanted <code>true</code> if clients wanted to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationRequired(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationWanted(boolean authWanted) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authWanted && Boolean.TRUE.equals(config.clientAuthenticationRequired)) {
-				throw new IllegalStateException("client authentication is already required!");
+				throw new IllegalArgumentException("client authentication is already required!");
 			}
 			config.clientAuthenticationWanted = authWanted;
 			return this;
 		}
 
 		/**
-		 * Sets whether the connector requires DTLS clients to authenticate during
-		 * the handshake. Only used by the DTLS server side.
+		 * Sets whether the connector requires DTLS clients to authenticate
+		 * during the handshake.
 		 * 
-		 * @param authRequired
-		 *            <code>true</code> if clients need to authenticate
+		 * The default is {@code true}. If
+		 * {@link #setClientAuthenticationWanted(boolean)} is set to
+		 * {@code true}, the default is {@code false}. Only used by the DTLS
+		 * server side.
+		 * 
+		 * @param authRequired <code>true</code> if clients need to authenticate
 		 * @return this builder for command chaining
+		 * @throws IllegalStateException if configuration is for client only
+		 * @throws IllegalArgumentException if authWanted is {@code true}, but
+		 *             {@link #setClientAuthenticationWanted(boolean)} was set
+		 *             to {@code true} before.
 		 */
 		public Builder setClientAuthenticationRequired(boolean authRequired) {
 			if (clientOnly) {
 				throw new IllegalStateException("client authentication is not supported for client only!");
 			}
 			if (authRequired && Boolean.TRUE.equals(config.clientAuthenticationWanted)) {
-				throw new IllegalStateException("client authentication is already wanted!");
+				throw new IllegalArgumentException("client authentication is already wanted!");
 			}
 			config.clientAuthenticationRequired = authRequired;
 			return this;
@@ -924,11 +1065,13 @@ public final class DtlsConnectorConfig {
 		 * order) during the DTLS handshake when negotiating a cipher suite with
 		 * a peer.
 		 * 
-		 * @param cipherSuites the supported cipher suites in the order of preference
+		 * @param cipherSuites the supported cipher suites in the order of
+		 *            preference
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the given array is empty or
-		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
+		 *             contains {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}, or
+		 *             contains a cipher suite, not supported by the JVM.
 		 */
 		public Builder setSupportedCipherSuites(List<CipherSuite> cipherSuites) {
 			if (cipherSuites == null) {
@@ -939,6 +1082,11 @@ public final class DtlsConnectorConfig {
 			} 
 			if (cipherSuites.contains(CipherSuite.TLS_NULL_WITH_NULL_NULL)) {
 				throw new IllegalArgumentException("NULL Cipher Suite is not supported by connector");
+			}
+			for (CipherSuite cipherSuite : cipherSuites) {
+				if (!cipherSuite.isSupported()) {
+					throw new IllegalArgumentException("cipher-suites " + cipherSuite + " is not supported by JVM!");
+				}
 			}
 			config.supportedCipherSuites = cipherSuites;
 			return this;
@@ -1200,12 +1348,18 @@ public final class DtlsConnectorConfig {
 		 * requesting a client certificate during the DTLS handshake.</li>
 		 * </ul>
 		 * 
-		 * @param trustedCerts the trusted root certificates. if empty (length
+		 * This method must not be called, if
+		 * {@link #setCertificateVerifier(CertificateVerifier)} is already set.
+		 * 
+		 * @param trustedCerts the trusted root certificates. If empty (length
 		 *            of zero), trust all certificates.
 		 * @return this builder for command chaining
 		 * @throws NullPointerException if the given array is <code>null</code>
 		 * @throws IllegalArgumentException if the array contains a non-X.509
 		 *             certificate
+		 * @throws IllegalStateException if
+		 *             {@link #setCertificateVerifier(CertificateVerifier)} is
+		 *             already set.
 		 * @see #setTrustCertificateTypes
 		 */
 		public Builder setTrustStore(Certificate[] trustedCerts) {
@@ -1213,6 +1367,8 @@ public final class DtlsConnectorConfig {
 				throw new NullPointerException("Trust store must not be null");
 			} else if (trustedCerts.length == 0) {
 				config.trustStore = new X509Certificate[0];
+			} else if (config.certificateVerifier != null) {
+				throw new IllegalStateException("Trust store must not be used after certificate verifier is set!");
 			} else {
 				config.trustStore = SslContextUtil.asX509Certificates(trustedCerts);
 			}
@@ -1229,15 +1385,23 @@ public final class DtlsConnectorConfig {
 		 * <li>revocation not provided by the default implementation (e.g. OCSP)
 		 * <li>cipher suites restriction per client
 		 * </ul>
+		 * 
+		 * This method must not be called, if
+		 * {@link #setTrustStore(Certificate[])} is already set.
 		 *
 		 * @param verifier certificate verifier
 		 * @return this builder for command chaining
-		 * @throws NullPointerException if the given certificate verifier is {@code null}
+		 * @throws NullPointerException if the given certificate verifier is
+		 *             {@code null}
+		 * @throws IllegalStateException if
+		 *             {@link #setTrustStore(Certificate[])} is already set.
 		 * @see #setTrustCertificateTypes
 		 */
 		public Builder setCertificateVerifier(CertificateVerifier verifier) {
 			if (verifier == null) {
 				throw new NullPointerException("CertificateVerifier must not be null");
+			} else if (config.trustStore != null) {
+				throw new IllegalStateException("CertificateVerifier must not be used after trust store is set!");
 			}
 			config.certificateVerifier = verifier;
 			return this;
@@ -1379,6 +1543,21 @@ public final class DtlsConnectorConfig {
 		}
 
 		/**
+		 * Sets the connection id generator.
+		 * 
+		 * @param connectionIdGenerator connection id generator. {@code null}
+		 *            for not supported. The generator may only support the use
+		 *            of a connection id without using it by itself. In that
+		 *            case {@link ConnectionIdGenerator#useConnectionId()} must
+		 *            return {@code false}.
+		 * @return this builder for command chaining.
+		 */
+		public Builder setConnectionIdGenerator(ConnectionIdGenerator connectionIdGenerator) {
+			config.connectionIdGenerator = connectionIdGenerator;
+			return this;
+		}
+
+		/**
 		 * Set the number of thread which should be used to handle DTLS
 		 * connection.
 		 * <p>
@@ -1422,8 +1601,8 @@ public final class DtlsConnectorConfig {
 		 * @throws IllegalArgumentException if the timeout is below 1
 		 *             millisecond
 		 */
-		public Builder setAutoResumptionTimeoutMillis(long timeoutInMillis) {
-			if (timeoutInMillis < 1) {
+		public Builder setAutoResumptionTimeoutMillis(Long timeoutInMillis) {
+			if (timeoutInMillis != null && timeoutInMillis < 1) {
 				throw new IllegalArgumentException("auto resumption timeout must not below 1!");
 			}
 			config.autoResumptionTimeoutMillis = timeoutInMillis;
@@ -1450,6 +1629,12 @@ public final class DtlsConnectorConfig {
 		/**
 		 * Sets threshold in percent of {@link #setMaxConnections(int)}, whether
 		 * a HELLO_VERIFY_REQUEST should be used also for session resumption.
+		 * 
+		 * Note: a value larger than 0 will call
+		 * {@link SessionCache#get(org.eclipse.californium.scandium.dtls.SessionId)}.
+		 * If that implementation is expensive, please ensure, that this value
+		 * is configured with {@code 0}. Otherwise, CLIENT_HELLOs with invalid
+		 * session ids may be spoofed and gets too expensive.
 		 * 
 		 * @param threshold 0 := always use HELLO_VERIFY_REQUEST, 1 ... 100 :=
 		 *            dynamically determine to use HELLO_VERIFY_REQUEST. Default
@@ -1480,6 +1665,51 @@ public final class DtlsConnectorConfig {
 				throw new IllegalArgumentException("not applicable for client only!");
 			}
 			config.useNoServerSessionId = flag;
+			return this;
+		}
+
+		/**
+		 * Use anti replay filter.
+		 * 
+		 * @param enable {@code true} to enable filter. Default {@code true}.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if window filter is active.
+		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 */
+		public Builder setUseAntiReplayFilter(boolean enable) {
+			if (enable && Boolean.TRUE.equals(config.useWindowFilter)) {
+				throw new IllegalArgumentException("Window filter is active!");
+			}
+			config.useAntiReplayFilter = enable;
+			return this;
+		}
+
+		/**
+		 * Use window filter.
+		 * 
+		 * Messages too old for the filter window will pass the filter.
+		 * 
+		 * @param enable {@code true} to enable filter. Default {@code false}.
+		 * @return this builder for command chaining.
+		 * @throws IllegalArgumentException if anti replay window filter is active.
+		 * @see http://tools.ietf.org/html/rfc6347#section-4.1
+		 */
+		public Builder setUseWindowFilter(boolean enable) {
+			if (enable && Boolean.TRUE.equals(config.useAntiReplayFilter)) {
+				throw new IllegalArgumentException("Anti replay filter is active!");
+			}
+			config.useWindowFilter = enable;
+			return this;
+		}
+
+		/**
+		 * Set instance logging tag.
+		 * 
+		 * @param tag logging tag of configure instance
+		 * @return this builder for command chaining.
+		 */
+		public Builder setLoggingTag(String tag) {
+			config.loggingTag = tag;
 			return this;
 		}
 
@@ -1524,6 +1754,9 @@ public final class DtlsConnectorConfig {
 			if (config.address == null) {
 				config.address = new InetSocketAddress(0);
 			}
+			if (config.loggingTag == null) {
+				config.loggingTag = "";
+			}
 			if (config.enableReuseAddress == null) {
 				config.enableReuseAddress = false;
 			}
@@ -1536,11 +1769,18 @@ public final class DtlsConnectorConfig {
 			if (config.maxRetransmissions == null) {
 				config.maxRetransmissions = DEFAULT_MAX_RETRANSMISSIONS;
 			}
-			if (config.clientAuthenticationRequired == null) {
-				config.clientAuthenticationRequired = true;
+			if (config.maxFragmentedHandshakeMessageLength == null) {
+				config.maxFragmentedHandshakeMessageLength = DEFAULT_MAX_FRAGMENTED_HANDSHAKE_MESSAGE_LENGTH;
 			}
 			if (config.clientAuthenticationWanted == null) {
 				config.clientAuthenticationWanted = false;
+			}
+			if (config.clientAuthenticationRequired == null) {
+				if (clientOnly) {
+					config.clientAuthenticationRequired = false;
+				} else {
+					config.clientAuthenticationRequired = !config.clientAuthenticationWanted;
+				}
 			}
 			if (config.serverOnly == null) {
 				config.serverOnly = false;
@@ -1567,7 +1807,13 @@ public final class DtlsConnectorConfig {
 				config.staleConnectionThreshold = DEFAULT_STALE_CONNECTION_TRESHOLD;
 			}
 			if (config.sniEnabled == null) {
-				config.sniEnabled = Boolean.TRUE;
+				config.sniEnabled = Boolean.FALSE;
+			}
+			if (config.useAntiReplayFilter == null) {
+				config.useAntiReplayFilter = !Boolean.TRUE.equals(config.useWindowFilter);
+			}
+			if (config.useWindowFilter == null) {
+				config.useWindowFilter = false;
 			}
 			if (config.verifyPeersOnResumptionThreshold == null) {
 				config.verifyPeersOnResumptionThreshold = DEFAULT_VERIFY_PEERS_ON_RESUMPTION_THRESHOLD_IN_PERCENT;
@@ -1587,7 +1833,7 @@ public final class DtlsConnectorConfig {
 				}
 			} 
 
-			if (!config.clientAuthenticationRequired && !config.clientAuthenticationWanted
+			if (config.serverOnly && !config.clientAuthenticationRequired && !config.clientAuthenticationWanted
 					&& config.trustCertificateTypes != null) {
 				throw new IllegalStateException(
 						"configured trusted certificates or certificate verifier are not used for disabled client authentication!");
@@ -1601,6 +1847,11 @@ public final class DtlsConnectorConfig {
 			if (config.supportedCipherSuites == null || config.supportedCipherSuites.isEmpty()) {
 				throw new IllegalStateException("Supported cipher suites must be set either " +
 						"explicitly or implicitly by means of setting the identity or PSK store");
+			}
+			for (CipherSuite cipherSuite : config.supportedCipherSuites) {
+				if (!cipherSuite.isSupported()) {
+					throw new IllegalStateException("cipher-suites " + cipherSuite + " is not supported by JVM!");
+				}
 			}
 
 			if (config.trustCertificateTypes != null) {
@@ -1621,20 +1872,12 @@ public final class DtlsConnectorConfig {
 			boolean certifacte = false;
 			boolean psk = false;
 			for (CipherSuite suite : config.supportedCipherSuites) {
-				switch (suite) {
-				case TLS_PSK_WITH_AES_128_CCM_8:
-				case TLS_PSK_WITH_AES_128_CBC_SHA256:
-				case TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256:
+				if (suite.isPskBased()) {
 					verifyPskBasedCipherConfig(suite);
 					psk = true;
-					break;
-				case TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8:
-				case TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256:
-					verifyEcBasedCipherConfig(suite);
+				} else if (suite.requiresServerCertificateMessage()) {
+					verifyCertificateBasedCipherConfig(suite);
 					certifacte = true;
-					break;
-				default:
-					break;
 				}
 			}
 
@@ -1665,22 +1908,22 @@ public final class DtlsConnectorConfig {
 			}
 		}
 
-		private void verifyEcBasedCipherConfig(CipherSuite suite) {
+		private void verifyCertificateBasedCipherConfig(CipherSuite suite) {
 			if (config.privateKey == null || config.publicKey == null) {
 				if (!clientOnly) {
 					throw new IllegalStateException("Identity must be set for configured " + suite.name());
 				}
-			} else if (suite.isEccBased()) {
-				if (!EC_ALGORITHM_NAME.equals(config.privateKey.getAlgorithm())
-						|| !EC_ALGORITHM_NAME.equals(config.publicKey.getAlgorithm())) {
-					// test if private & public key are ECDSA capable
-					throw new IllegalStateException("Keys must be ECDSA capable for configured " + suite.name());
+			} else {
+				String algorithm = suite.getCertificateKeyAlgorithm().name();
+				if (!algorithm.equals(config.privateKey.getAlgorithm())
+						|| !algorithm.equals(config.publicKey.getAlgorithm())) {
+					throw new IllegalStateException(
+							"Keys must be " + algorithm + " capable for configured " + suite.name());
 				}
 			}
-			if (config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
+			if (clientOnly || config.clientAuthenticationRequired || config.clientAuthenticationWanted) {
 				if (config.trustCertificateTypes == null) {
-					throw new IllegalStateException(
-							"trust must be set for configured " + suite.name());
+					throw new IllegalStateException("trust must be set for configured " + suite.name());
 				}
 				if (config.trustCertificateTypes.contains(CertificateType.RAW_PUBLIC_KEY)) {
 					if (config.trustedRPKs == null) {
@@ -1704,14 +1947,12 @@ public final class DtlsConnectorConfig {
 			boolean certificates = isConfiguredWithKeyPair() || config.trustCertificateTypes != null;
 
 			if (certificates) {
-				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8);
-				ciphers.add(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256);
+				// currently only ECDSA is supported!
+				ciphers.addAll(CipherSuite.getEcdsaCipherSuites());
 			}
 
 			if (config.pskStore != null) {
-				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8);
-				ciphers.add(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256);
-				ciphers.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
+				ciphers.addAll(CipherSuite.getPskCipherSuites(true));
 			}
 
 			config.supportedCipherSuites = ciphers;

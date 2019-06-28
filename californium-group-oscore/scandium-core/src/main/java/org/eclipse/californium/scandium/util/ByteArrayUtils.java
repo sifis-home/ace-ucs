@@ -20,6 +20,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.util;
 
+import org.eclipse.californium.elements.util.Bytes;
+
 public class ByteArrayUtils {
 
 	/**
@@ -44,48 +46,6 @@ public class ByteArrayUtils {
 	}
 
 	/**
-	 * Takes a byte array and returns it HEX representation.
-	 * 
-	 * Intended for logging.
-	 * 
-	 * @param byteArray the byte array.
-	 * @return the HEX representation. Separated by spaces, e.g. "11 22 0A". if
-	 *         {@code null} or a empty array is provided, the result is "--".
-	 */
-	public static String toHexString(byte[] byteArray) {
-
-		if (byteArray != null && byteArray.length != 0) {
-			char[] bytesHexadecimal = new char[byteArray.length * 3];
-			for (int src = 0, dest = 0; src < byteArray.length; src++) {
-				int value = byteArray[src] & 0xFF;
-				bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value >>> 4];
-				bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value & 0x0F];
-				bytesHexadecimal[dest++] = ' ';
-			}
-			return new String(bytesHexadecimal, 0, bytesHexadecimal.length - 1);
-		} else {
-			return "--";
-		}
-	}
-
-	/**
-	 * Takes a byte array and returns it compact HEX representation.
-	 * 
-	 * @param byteArray the byte array.
-	 * @return the HEX representation.
-	 */
-	public static String toHex(byte[] byteArray) {
-
-		char[] bytesHexadecimal = new char[byteArray.length * 2];
-		for (int src = 0, dest = 0; src < byteArray.length; src++) {
-			int value = byteArray[src] & 0xFF;
-			bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value >>> 4];
-			bytesHexadecimal[dest++] = BIN_TO_HEX_ARRAY[value & 0x0F];
-		}
-		return new String(bytesHexadecimal);
-	}
-
-	/**
 	 * Trims the leading zeros.
 	 * 
 	 * @param byeArray the byte array with possible leading zeros.
@@ -101,15 +61,12 @@ public class ByteArrayUtils {
 			// no leading zeros initially
 			return byeArray;
 		}
-		byte[] trimmedByteArray = new byte[byeArray.length - count];
-		System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
-		return trimmedByteArray;
+		if (count < byeArray.length) {
+			byte[] trimmedByteArray = new byte[byeArray.length - count];
+			System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
+			return trimmedByteArray;
+		} else {
+			return Bytes.EMPTY;
+		}
 	}
-	
-	/**
-	 * Lookup table for hexadecimal digits.
-	 * 
-	 * @see #toHexString(byte[])
-	 */
-	private final static char[] BIN_TO_HEX_ARRAY = "0123456789ABCDEF".toCharArray();
 }

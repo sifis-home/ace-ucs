@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>parent</artifactId>
-		<version>2.0.0-SNAPSHOT</version>
+		<version>2.0.0-M15</version>
 	</parent>
 
 	<artifactId>element-connector-tcp</artifactId>
@@ -127,6 +127,9 @@
 					<descriptors>
 						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
 					</descriptors>
+					<archive>
+						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
+					</archive>
 				</configuration>
 			</plugin>
 		</plugins>
