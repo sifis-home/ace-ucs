@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -44,7 +45,6 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -72,12 +72,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
      */
     private static final Logger LOGGER 
         = Logger.getLogger(AuthzInfo.class.getName());
-    
-    /**
-     * The token storage
-     */
-	private TokenRepository tr;
-	
+
 	/**
 	 * The acceptable issuers
 	 */
@@ -104,25 +99,39 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	private CwtCryptoCtx ctx;	
 	
 	/**
-	 * Constructor.
+	 * Flag to indicate if we need to check cnonces
+	 */
+	private boolean checkCnonce;
+	
+	/**
+	 * Constructor. Needs an initialized TokenRepository.
 	 * 
-	 * @param tr  a token repository
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
+	 * @param tokenFile  the file where to save tokens when persisting
+	 * @param scopeValidator  the application specific scope validator 
+	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @throws AceException  if the token repository is not initialized
+	 * @throws IOException 
 	 */
-	public AuthzInfo(TokenRepository tr, List<String> issuers, 
+	public AuthzInfo(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx) {
-		this.tr = tr;
+			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
+			ScopeValidator scopeValidator, boolean checkCnonce) 
+			        throws AceException, IOException {
+        if (TokenRepository.getInstance()==null) {     
+            TokenRepository.create(scopeValidator, tokenFile, ctx, time);
+        }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
 		this.time = time;
 		this.intro = intro;
 		this.audience = audience;
 		this.ctx = ctx;
+		this.checkCnonce = checkCnonce;
 	}
 
 	@Override
@@ -135,9 +144,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
-	    
+	    return processToken(token, msg);
+	}
+	
+	protected synchronized Message processToken(CBORObject token,  Message msg) {
 	    Map<Short, CBORObject> claims = null;
 
 		//1. Check whether it is a CWT or REF type
@@ -283,7 +295,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //7. Check if any part of the scope is meaningful to us
 	    boolean meaningful = false;
 	    try {
-	        meaningful = this.tr.checkScope(scope);
+	        meaningful = TokenRepository.getInstance().checkScope(scope);
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "
                     + "message processing aborted: " + e.getMessage());
@@ -304,25 +316,54 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //8. Handle EXI if present
 	    handleExi(claims);
 	    
-	    //9. Store the claims of this token
+	    //9. Handle cnonce if required
+	    try {
+	        handleCnonce(claims);
+	    } catch (AceException e) {
+	        CBORObject map = CBORObject.NewMap();
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+            LOGGER.log(Level.INFO, "Message processing aborted: "
+                    + "error while checking cnonce: " + e.getMessage());
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+	    
+	    //9. Extension point for handling other special claims in the future
+	    processOther(claims);
+	    
+	    //10. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {
-            cti = this.tr.addToken(claims, this.ctx, sid);
+            cti = TokenRepository.getInstance()
+                    .addToken(claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
-            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 
-	    //10. Create success message
+	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}
 	
 	/**
+	 * Extension point for handling other special claims.
+	 * 
+	 * @param claims all claims
+	 */
+	protected synchronized void processOther(Map<Short, CBORObject> claims) {
+	    //No processing needed
+    }
+
+    /**
 	 * Process a message containing a CWT.
 	 * 
 	 * Note: The behavior implemented here is the following:
@@ -342,7 +383,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * 
 	 * @throws Exception  when using a not supported key wrap
 	 */
-	private Map<Short,CBORObject> processCWT(CBORObject token)
+	protected synchronized Map<Short,CBORObject> processCWT(CBORObject token)
 	        throws IntrospectionException, AceException, 
 	        CoseException, Exception {
 	    CWT cwt = CWT.processCOSE(token.EncodeToBytes(), this.ctx);
@@ -370,7 +411,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    private Map<Short, CBORObject> processRefrenceToken(CBORObject token)
+    protected synchronized Map<Short, CBORObject> processRefrenceToken(CBORObject token)
                 throws AceException, IntrospectionException {
 		// This should be a CBOR String
         if (token.getType() != CBORType.ByteString) {
@@ -397,7 +438,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
      * 
      * @param claims
      */
-    private void handleExi(Map<Short, CBORObject> claims) {
+    private synchronized void handleExi(Map<Short, CBORObject> claims) {
         CBORObject exi = claims.get(Constants.EXI);
         if (exi != null) {
             Long now = this.time.getCurrentTime();
@@ -408,34 +449,19 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
     }
     
     /**
-     * Get the proof-of-possession key of a token identified by its 'cti'.
-     * 
-     * @param cti  the Base64 encoded cti of the token
-     * 
-     * @return  the pop key or null if this cti is unknown
-     * 
+     * Handle cnonce if required
      * @throws AceException 
      */
-    public OneKey getPoP(String cti) throws AceException {
-        return this.tr.getPoP(cti);
+    private synchronized void handleCnonce(Map<Short, CBORObject> claims) throws AceException {
+        if (this.checkCnonce) {
+            CnonceHandler.getInstance().checkNonce(claims);
+        }
     }
     
-    /**
-     * Get a key identified by it's 'kid'.
-     * 
-     * @param kid  the kid of the key
-     * 
-     * @return  the key identified by this kid of null if we don't have it
-     * 
-     * @throws AceException 
-     */
-    public OneKey getKey(String kid) throws AceException {
-        return this.tr.getKey(kid);
-    }
-
     @Override
     public void close() throws AceException {
-        this.tr.close();
-        
+        if (TokenRepository.getInstance() != null) {
+            TokenRepository.getInstance().close();
+        }       
     }	
 }

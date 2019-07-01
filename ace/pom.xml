@@ -13,7 +13,12 @@
   	<repository>
 	  <id>wso2-nexus</id>
 	<url>http://maven.wso2.org/nexus/content/repositories/releases</url>
-	</repository>	
+	</repository>
+	 <repository>
+      <id>repo.eclipse.org</id>
+      <name>Californium Repository</name>
+      <url>https://repo.eclipse.org/content/repositories/californium/</url>
+    </repository>	
   </repositories>
   <dependencies>
   	<dependency>
@@ -61,12 +66,17 @@
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>californium-core</artifactId>
-		<version>2.0.0-M13</version>
+		<version>2.0.0-M15</version>
 	</dependency>
 	<dependency>
 		<groupId>org.eclipse.californium</groupId>
 		<artifactId>scandium</artifactId>
-		<version>2.0.0-M13</version>
+		<version>2.0.0-M15</version>
+	</dependency>
+	<dependency>
+		<groupId>org.eclipse.californium</groupId>
+		<artifactId>cf-oscore</artifactId>
+		<version>2.0.0-M15</version>
 	</dependency>
 	<dependency>
 		<groupId>com.augustcellars.cose</groupId>
@@ -83,7 +93,7 @@
        <groupId>org.slf4j</groupId>
        <artifactId>slf4j-api</artifactId>
        <version>1.7.5</version>
-   </dependency> 
+   </dependency>
    
   </dependencies>
   <build>

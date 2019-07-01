@@ -97,7 +97,7 @@ public class TestDtlspRSGroupOSCORE {
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	private static Map<Integer, GroupInfo> activeGroups = new HashMap<Integer, GroupInfo>();
+	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
 	
     /**
      * Definition of the Hello-World Resource
@@ -316,6 +316,7 @@ public class TestDtlspRSGroupOSCORE {
         		try {
         			publicKey = new OneKey(coseKey);
 				} catch (CoseException e) {
+					System.err.println(e.getMessage());
 					myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
             		return;
@@ -450,8 +451,6 @@ public class TestDtlspRSGroupOSCORE {
         	
         }
     }
-    
-    private static TokenRepository tr = null;
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
     
@@ -630,11 +629,11 @@ public class TestDtlspRSGroupOSCORE {
     	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
     	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+
+    	String tokenFile = TestConfig.testFilePath + "tokens.json";
+    	//Delete lingering old token files
+    	new File(tokenFile).delete();
     	
-    	
-        createTR(valid);
-        tr = TokenRepository.getInstance();
-        
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
@@ -649,10 +648,10 @@ public class TestDtlspRSGroupOSCORE {
 
         
         //Set up the inner Authz-Info library
-        ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
         	 new KissTime(), 
              null,
-             valid, ctx);
+             valid, tokenFile, valid, ctx);
       
         // M.T.
         // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
@@ -765,7 +764,7 @@ public class TestDtlspRSGroupOSCORE {
   	    rs.add(join); // M.T.
   	    rs.add(authzInfo);
       
-  	    dpd = new CoapDeliverer(rs.getRoot(), tr, null, asi); 
+  	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
 
       
   	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
@@ -793,6 +792,8 @@ public class TestDtlspRSGroupOSCORE {
     }
     
     /**
+     * @param str  the hex string
+     * @return  the byte array
      * @str   the hexadecimal string to be converted into a byte array
      * 
      * Return the byte array representation of the original string
@@ -822,31 +823,6 @@ public class TestDtlspRSGroupOSCORE {
     }
     
     /**
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
-    }
-
-    /**
      * Stops the server
      * 
      * @throws IOException 
@@ -854,9 +830,7 @@ public class TestDtlspRSGroupOSCORE {
      */
     public static void stop() throws IOException, AceException {
         rs.stop();
-        dpd.close();
         ai.close();
-        tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 

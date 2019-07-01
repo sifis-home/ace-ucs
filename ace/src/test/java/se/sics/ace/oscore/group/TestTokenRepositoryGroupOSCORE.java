@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -197,7 +197,7 @@ public class TestTokenRepositoryGroupOSCORE {
     private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
+                    + "tokens.json", null, new KissTime());
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -205,7 +205,7 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
+                        + "tokens.json", null, new KissTime());
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -216,9 +216,11 @@ public class TestTokenRepositoryGroupOSCORE {
     
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        tr.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
     

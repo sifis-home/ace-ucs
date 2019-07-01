@@ -47,6 +47,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -67,13 +68,13 @@ import se.sics.ace.rs.IntrospectionHandler;
  * @author Ludwig Seitz
  *
  */
-public class CoapsIntrospection implements IntrospectionHandler {
+public class DtlspIntrospection implements IntrospectionHandler {
     
     /**
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(CoapsIntrospection.class.getName());
+        = Logger.getLogger(DtlspIntrospection.class.getName());
     
         /**
      * The CoAP client
@@ -91,7 +92,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
      * @throws IOException 
      * 
      */
-    public CoapsIntrospection(OneKey rpk, String introspectAddress) 
+    public DtlspIntrospection(OneKey rpk, String introspectAddress) 
             throws CoseException, IOException {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
                 .setAddress(new InetSocketAddress(0));
@@ -131,7 +132,7 @@ public class CoapsIntrospection implements IntrospectionHandler {
      * @throws NoSuchAlgorithmException 
      * 
      */
-    public CoapsIntrospection(byte[] psk, String pskIdentity,
+    public DtlspIntrospection(byte[] psk, String pskIdentity,
             String keystoreLocation, String keystorePwd, String addr2idFile,
             String introspectAddress) throws CoseException, IOException,
             NoSuchAlgorithmException, CertificateException, KeyStoreException,
@@ -164,9 +165,14 @@ public class CoapsIntrospection implements IntrospectionHandler {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
         params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop")); 
-        CoapResponse response =  this.client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        CoapResponse response;
+        try {
+            response = this.client.post(
+                    Constants.getCBOR(params).EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (ConnectorException | IOException e) {
+            throw new AceException("Connector/IO Error: " + e.getMessage());
+        }    
         if (response == null) {
             throw new AceException("AS didn't respond");
         }

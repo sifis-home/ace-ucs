@@ -35,6 +35,7 @@ import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -78,8 +79,19 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
         super(dbAdapter);
     }
 
+
     @Override
-    public byte[] getKey(String identity) {
+    public byte[] getKey(PskPublicInformation identity) {
+        return getKey(identity.getPublicInfoAsString());
+    }
+
+    /**
+     * Avoid having to refactor all my code because the CF people decided they needed to change APIs.
+     * 
+     * @param identity  the identity of the key
+     * @return  the key
+     */
+    private byte[] getKey(String identity) {
         OneKey key = null;
         try {
             key = super.getCPSK(identity);
@@ -127,9 +139,9 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
        }
        return CoapDBConnector.connector;
    }
-
+    
     @Override
-    public String getIdentity(InetSocketAddress inetAddress) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
         return null;
     }
     
@@ -146,15 +158,16 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     }
 
     @Override
-    public byte[] getKey(ServerNames serverNames, String identity) {
+    public byte[] getKey(ServerNames serverName,
+            PskPublicInformation identity) {
         // XXX: We don't support the server names extension.
         return getKey(identity);
     }
 
     @Override
-    public String getIdentity(InetSocketAddress peerAddress,
+    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
-        //XXX: We don't support the server names extension.
+        // XXX: We don't support the server names extension
         return null;
     }
 

@@ -46,6 +46,7 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
@@ -141,9 +142,14 @@ public class DTLSProfileRequests {
             LOGGER.severe("Failed to start DTLSConnector: " + e.getMessage());
             throw new AceException(e.getMessage());
         }
-        return client.post(
-                payload.EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        try {
+            return client.post(
+                    payload.EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (ConnectorException | IOException e) {
+            LOGGER.severe("DTLSConnector error: " + e.getMessage());
+            throw new AceException(e.getMessage());
+        }
     }
     
     /**
@@ -199,9 +205,15 @@ public class DTLSProfileRequests {
             throw new AceException(ex.getMessage());
         }
                LOGGER.finest("Sending request payload: " + payload);
-        CoapResponse r = client.post(
-                payload.EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        CoapResponse r = null;
+        try {
+            r = client.post(
+                    payload.EncodeToBytes(), 
+                    MediaTypeRegistry.APPLICATION_CBOR);
+        } catch (ConnectorException | IOException ex) {
+            LOGGER.severe("DTLSConnector error: " + ex.getMessage());
+            throw new AceException(ex.getMessage());
+        }
         e.stop();
         return r;
     }

@@ -29,7 +29,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************/
-package se.sics.ace.coap;
+package se.sics.ace.coap.oscoreProfile;
 
 import java.util.Base64;
 import java.util.HashMap;
@@ -49,7 +49,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
-import se.sics.ace.coap.as.DtlsAS;
+import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 
@@ -62,18 +62,17 @@ import se.sics.ace.examples.KissTime;
  * @author Ludwig Seitz
  *
  */
-public class CoapASTestServer
+public class OscoreASTestServer
 {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
     
     private static CoapDBConnector db = null;
-    private static DtlsAS as = null;
+    private static OscoreAS as = null;
     private static KissPDP pdp = null;
   
     /**
-     * The CoAPs server for testing, run this before running the Junit tests.
+     * The OSCORE AS for testing, autostarted by tests needing this.
      *  
      * @param args
      * @throws Exception
@@ -81,9 +80,6 @@ public class CoapASTestServer
     public static void main(String[] args) throws Exception {
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
-
-        OneKey akey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -107,7 +103,6 @@ public class CoapASTestServer
         Set<String> auds = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        keyTypes.add("RPK");
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
@@ -116,7 +111,7 @@ public class CoapASTestServer
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                expiration, authPsk, tokenPsk, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -188,7 +183,7 @@ public class CoapASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        as = new OscoreAS("AS", db, pdp, time, asymmKey);
         as.start();
         System.out.println("Server starting");
     }
@@ -198,9 +193,10 @@ public class CoapASTestServer
      * @throws Exception 
      */
     public static void stop() throws Exception {
+        DBHelper.tearDownDB();
         as.stop();
         pdp.close();
-        DBHelper.tearDownDB();
+      
     }
     
 }

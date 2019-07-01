@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -89,7 +89,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
 
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static TokenRepository tr;
     private static CwtCryptoCtx ctx;
     private static AuthzInfoGroupOSCORE ai; // M.T.
     private static AuthzInfoGroupOSCORE ai2; // M.T.
@@ -156,19 +155,20 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         valid.setJoinResources(Collections.singleton("feedca570000"));
         
-        createTR(valid);
-        tr = TokenRepository.getInstance();
-        
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        //Delete lingering token files
+        new File(tokenFile).delete();
+        
         //Set up the inner Authz-Info library
-        ai = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 null,
-                valid, ctx);
+                valid, tokenFile, valid, ctx);
         
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfoGroupOSCORE(ai);
@@ -176,10 +176,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // M.T.
         // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
-        ai2 = new AuthzInfoGroupOSCORE(tr, Collections.singletonList("TestAS"), 
+        ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 null,
-                valid, ctx);
+                valid, tokenFile, valid, ctx);
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
@@ -258,34 +258,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     }
     
     /**
-     * Create the Token repository if not already created,
-     * if already create ignore.
-     * 
-     * @param valid 
-     * @throws IOException 
-     * 
-     */
-    private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
-        try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime(), false, null);
-        } catch (AceException e) {
-            System.err.println(e.getMessage());
-            try {
-                TokenRepository tr = TokenRepository.getInstance();
-                tr.close();
-                new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime(), false, null);
-            } catch (AceException e2) {
-               throw new RuntimeException(e2);
-            }
-           
-            
-        }
-    }
-    
-    /**
      * Test a POST to /authz-info
      * @throws AceException 
      * @throws IntrospectionException 
@@ -322,12 +294,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
-                ai.getKey(kid).get(KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
                
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "temp", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(
+                        kid, kid, "temp", Constants.GET, null));
     }
      
     // M.T.
@@ -369,12 +343,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String kid = new String(new byte[]{0x03, 0x04}, Constants.charset);
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
-                ai2.getKey(kid).get(KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
                
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "feedca570000", Constants.POST, null));
+               TokenRepository.getInstance().canAccess(
+                       kid, kid, "feedca570000", Constants.POST, null));
     }
     
     // M.T.
@@ -416,19 +392,24 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String kid = new String(new byte[]{0x05, 0x06}, Constants.charset);
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
-                ai2.getKey(kid).get(KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
                
       
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kid, kid, "feedca570000", Constants.POST, null));
+                TokenRepository.getInstance().canAccess(
+                        kid, kid, "feedca570000", Constants.POST, null));
     }
     
     /**
      * Deletes the test file after the tests
+     * @throws AceException 
      */
     @AfterClass
-    public static void tearDown() {
+    public static void tearDown() throws AceException {
+        ai.close();
+        ai2.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 }

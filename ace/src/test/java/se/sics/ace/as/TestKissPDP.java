@@ -268,8 +268,8 @@ public class TestKissPDP {
      */
     @AfterClass
     public static void tearDown() throws Exception {
-        pdp.close();
         DBHelper.tearDownDB();
+        pdp.close();
     }
     
     /**

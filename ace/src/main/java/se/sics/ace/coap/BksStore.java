@@ -55,6 +55,7 @@ import java.util.logging.Logger;
 
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
@@ -163,9 +164,10 @@ public class BksStore implements PskStore {
         File file = new File(addr2idFile);
         file.createNewFile();        
     }
-        
+    
     @Override
-    public byte[] getKey(String identity) {
+    public byte[] getKey(PskPublicInformation info) {
+        String identity = info.getPublicInfoAsString();
         try {
             if (!this.keystore.containsAlias(identity)) {
                 return null;
@@ -186,11 +188,15 @@ public class BksStore implements PskStore {
         }
         return key.getEncoded();
     }
-
+          
     @Override
-    public String getIdentity(InetSocketAddress inetAddress) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
         String id = inetAddress.getHostString() + ":" + inetAddress.getPort();
-        return this.addr2id.get(id);
+        String identity = this.addr2id.get(id);
+        if (identity != null) {
+            return new PskPublicInformation(identity);
+        }
+        return null;
                 
     }
     
@@ -294,18 +300,16 @@ public class BksStore implements PskStore {
     }
 
     @Override
-    public byte[] getKey(ServerNames arg0, String identity) {
-        //XXX: ServerNames extension not supported for this Store
+    public byte[] getKey(ServerNames serverName,
+            PskPublicInformation identity) {
+        //XXX SNI not implemented
         return getKey(identity);
     }
 
     @Override
-    public String getIdentity(InetSocketAddress peerAddress,
+    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
-        //XXX: ServerNames extension not supported for this Store
-        return null;
+        //XXX SNI not implemented 
+        return getIdentity(peerAddress);
     }
-    
-    
-
 }

@@ -40,6 +40,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.cert.CertificateException;
 
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -140,7 +141,7 @@ public class TestBksStore {
     public void testGetKeySuccess() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         keystore.addKey(key, "identity1");
-        byte[] key2 = keystore.getKey("identity1");
+        byte[] key2 = keystore.getKey(new PskPublicInformation("identity1"));
         Assert.assertArrayEquals(key, key2);
         keystore.removeKey("identity1");
     }
@@ -155,7 +156,7 @@ public class TestBksStore {
     public void testGetKeyFailId() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         keystore.addKey(key, "identity1");
-        byte[] key2 = keystore.getKey("wrongidentity");
+        byte[] key2 = keystore.getKey(new PskPublicInformation("wrongidentity"));
         Assert.assertNull(key2);
         keystore.removeKey("identity1");
     }
@@ -169,13 +170,16 @@ public class TestBksStore {
     @Test
     public void testGetIdentitySuccess() throws Exception {
         String id = keystore.getIdentity(
-                InetSocketAddress.createUnresolved("example.com", 5684));
+                InetSocketAddress.createUnresolved(
+                        "example.com", 5684)).getPublicInfoAsString();
         assert(id.equals("id1"));
         id = keystore.getIdentity(
-                InetSocketAddress.createUnresolved("blah.se", 5684));
+                InetSocketAddress.createUnresolved(
+                        "blah.se", 5684)).getPublicInfoAsString();
         assert(id.equals("id2"));
         id = keystore.getIdentity(
-                InetSocketAddress.createUnresolved("blubb.de", 5684));
+                InetSocketAddress.createUnresolved(
+                        "blubb.de", 5684)).getPublicInfoAsString();
         assert(id.equals("id3"));
     }
     
@@ -186,7 +190,7 @@ public class TestBksStore {
      */
     @Test
     public void testGetIdentityFail() throws Exception {
-        String id = keystore.getIdentity(
+     PskPublicInformation id = keystore.getIdentity(
                 InetSocketAddress.createUnresolved("404.com", 5684));
         Assert.assertNull(id);
     }
