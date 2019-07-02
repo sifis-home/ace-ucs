@@ -44,8 +44,8 @@ public class HelloWorldClient {
 			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
 			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
-	private final static byte[] sid = new byte[0];
-	private final static byte[] rid = new byte[] { 0x01 };
+	private final static byte[] sid = new byte[] { 0x01 };
+	private final static byte[] rid = new byte[] { 0x02 };
 
 	public static void main(String[] args) throws OSException, ConnectorException, IOException {
 		OSCoreCtx ctx = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
@@ -55,12 +55,8 @@ public class HelloWorldClient {
 		CoapClient c = new CoapClient(uriLocal + hello1);
 
 		Request r = new Request(Code.GET);
-		CoapResponse resp = c.advanced(r);
-		printResponse(resp);
-
-		r = new Request(Code.GET);
 		r.getOptions().setOscore(new byte[0]);
-		resp = c.advanced(r);
+		CoapResponse resp = c.advanced(r);
 		printResponse(resp);
 		c.shutdown();
 	}

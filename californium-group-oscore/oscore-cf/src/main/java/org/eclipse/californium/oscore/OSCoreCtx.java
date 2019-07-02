@@ -109,6 +109,14 @@ public class OSCoreCtx {
 	public OSCoreCtx(byte[] master_secret, boolean client, AlgorithmID alg, byte[] sender_id, byte[] recipient_id,
 			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId) throws OSException {
 
+		//Install cryptographic providers that may be needed. TODO: Move?
+		try {
+			InstallCryptoProviders.installProvider();
+		} catch (Exception e1) {
+			LOGGER.error("Failed to install cryptographic providers!");
+			e1.printStackTrace();
+		}
+
 		if (alg == null) {
 			this.common_alg = AlgorithmID.AES_CCM_16_64_128;
 		} else {

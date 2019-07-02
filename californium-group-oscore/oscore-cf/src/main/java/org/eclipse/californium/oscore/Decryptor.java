@@ -14,7 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
- *    Rikard Höglund (RISE SICS)
+ *    Rikard HÃ¶glund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -108,7 +108,7 @@ public abstract class Decryptor {
 				else {
 					ctx.checkIncomingSeq(seq); //Fixed
 				}
-				
+
 				nonce = OSSerializer.nonceGeneration(partialIV, recipientId, ctx.getCommonIV(),
 						ctx.getIVLength());
 			}
@@ -124,10 +124,10 @@ public abstract class Decryptor {
 			seq = seqByToken;
 
 			if (tmp == null) {
-				
+
 				//Rikard: Take recipient ID from message instead of context
 				recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
-				
+
 				// this should use the partialIV that arrived in the request and
 				// not the response
 				//seq = seqByToken;
@@ -135,9 +135,15 @@ public abstract class Decryptor {
 				nonce = OSSerializer.nonceGeneration(partialIV,	ctx.getSenderId(), ctx.getCommonIV(), 
 						ctx.getIVLength());
 			} else {
-				
-				//Rikard: Take recipient ID from message instead of context
-				recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
+
+				//Rikard: Take recipient ID from message instead of context (for Group OSCORE)
+				if(ctx instanceof GroupOSCoreCtx) {
+					recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
+				} else {
+					//For OSCORE the recipientID can be taken from the OSCORE Context
+					//since the response will not contain a KID.
+					recipientId = ctx.getRecipientId();
+				}
 
 				partialIV = tmp.GetByteString();
 				partialIV = expandToIntSize(partialIV);
@@ -161,66 +167,71 @@ public abstract class Decryptor {
 		enc.setExternal(aad);
 		
 		/* ------ Rikard: Prepare check of the countersignature	------ */
+		//TODO: Move to different method?
 		//Rikard: TODO: Clean up, Fail if sig is bad
+		CounterSign1 sign = null;
+		if(ctx instanceof GroupOSCoreCtx) {
 
-		//First remove the countersignature from the payload
-		byte[] full_payload = null;
-		try {
-			full_payload = enc.getEncryptedContent();
-		} catch (CoseException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
-		
-		int countersignature_length = ((GroupOSCoreCtx)ctx).getCountersignLength();
-		byte[] countersign_bytes  = Arrays.copyOfRange(full_payload, full_payload.length - countersignature_length, full_payload.length);
-		
-		if(Utility.DETAILED_DEBUG) {
-			System.out.println("Decrypt " + "Countersignature length:\t" + countersign_bytes.length);
-			System.out.println("Decrypt " + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
-		}
-		
-		byte[] ciphertext = Arrays.copyOfRange(full_payload, 0, full_payload.length - countersignature_length);
+			//First remove the countersignature from the payload (if existing and if using Group OSCORE)
+			byte[] full_payload = null;
+			try {
+				full_payload = enc.getEncryptedContent();
+			} catch (CoseException e1) {
+				// TODO Auto-generated catch block
+				e1.printStackTrace();
+			}
 
-		enc.setEncryptedContent(ciphertext); //Rikard: Set new truncated ciphertext
-		
-		//Now actually prepare to check the countersignature
-		OneKey recipient_public_key = ((GroupOSCoreCtx)ctx).getRecipientPublicKey(recipientId);
-		//countersign_bytes[3] = (byte) 0xff; //Corrupt countersignature
-		CounterSign1 sign = new CounterSign1(countersign_bytes);
-		sign.setKey(recipient_public_key);
-		
-		if(Utility.DETAILED_DEBUG) {
-			byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
-			String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
-			System.out.println("Decrypt " + "Recipient Public Key:\t" + base64_encoded);
-		}
-		
-		CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
-		sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
-		
-		sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
-		
-		//CBORObject countersign_cbor = CBORObject.FromObject(countersign_bytes); 
-		//enc.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
-		//sign.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
+			int countersignature_length = ((GroupOSCoreCtx)ctx).getCountersignLength();
+			byte[] countersign_bytes  = Arrays.copyOfRange(full_payload, full_payload.length - countersignature_length, full_payload.length);
 
-		//boolean valid = false;
-		//valid = enc.validate(sign);
-		//System.out.println("Decrypt " + "Countersignature Valid:\t" + valid);
-		
+			if(Utility.DETAILED_DEBUG) {
+				System.out.println("Decrypt " + "Countersignature length:\t" + countersign_bytes.length);
+				System.out.println("Decrypt " + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
+			}
+
+			byte[] ciphertext = Arrays.copyOfRange(full_payload, 0, full_payload.length - countersignature_length);
+
+			enc.setEncryptedContent(ciphertext); //Rikard: Set new truncated ciphertext
+
+			//Now actually prepare to check the countersignature
+			OneKey recipient_public_key = ((GroupOSCoreCtx)ctx).getRecipientPublicKey(recipientId);
+			//countersign_bytes[3] = (byte) 0xff; //Corrupt countersignature
+			sign = new CounterSign1(countersign_bytes);
+			sign.setKey(recipient_public_key);
+
+			if(Utility.DETAILED_DEBUG) {
+				byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
+				String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+				System.out.println("Decrypt " + "Recipient Public Key:\t" + base64_encoded);
+			}
+
+			CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
+			sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
+
+			sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+
+			//CBORObject countersign_cbor = CBORObject.FromObject(countersign_bytes);
+			//enc.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
+			//sign.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
+
+			//boolean valid = false;
+			//valid = enc.validate(sign);
+			//System.out.println("Decrypt " + "Countersignature Valid:\t" + valid);
+
+		}
+
 		/* ------ End prepare check of the countersignature	------ */
-		
-		
+
+
 		/* ------ Rikard: Prints for debugging ------ */
-		
+
 		boolean DEBUG = Utility.DETAILED_DEBUG;
-		
+
 		String messageType = "Response: ";
 		if(isRequest) {
 			messageType = "Request:  ";
 		}
-		
+
 		if(DEBUG) {
 			//System.out.println("Decrypt " + messageType + "Common IV:\t" + Utility.arrayToString(ctx.getCommonIV()));
 			System.out.println("Decrypt " + messageType + "Nonce:\t" + Utility.arrayToString(nonce));
@@ -228,29 +239,36 @@ public abstract class Decryptor {
 			//System.out.println("Decrypt " + messageType + "Sender ID:\t" + Utility.arrayToString(ctx.getSenderId()));
 			//System.out.println("Decrypt " + messageType + "Sender Key:\t" + Utility.arrayToString(ctx.getSenderKey()));
 			//System.out.println("Decrypt " + messageType + "Recipient ID:" + Utility.arrayToString(recipientId));
-			System.out.println("Decrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
+			if(ctx instanceof GroupOSCoreCtx) { //If using Group OSCORE take the KID from the response
+				System.out.println("Decrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
+			} else { //For OSCORE take the KID from the OSCORE Context
+				System.out.println("Decrypt " + messageType + "Message KID:\t" + Utility.arrayToString(ctx.getRecipientId()));
+			}
+
 			System.out.println("Decrypt " + messageType + "Recipient Key:" + Utility.arrayToString(key));
 			System.out.println("Decrypt " + messageType + "External AAD:\t" + Utility.arrayToString(aad));
 		}
-		
+
 		/* ------ End prints for debugging ------ */
-			
+
 		try {
 
 			enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg().AsCBOR(), Attribute.DO_NOT_SEND);
 			enc.addAttribute(HeaderKeys.IV, CBORObject.FromObject(nonce), Attribute.DO_NOT_SEND);
 			plaintext = enc.decrypt(key);
-			
+
 			//Rikard: Now finally check the countersignature (seems it must be done after decryption)
-			boolean countersign_valid = false;
-			countersign_valid = enc.validate(sign);
-			
-			if(countersign_valid == false) {
-				System.err.println("Error: Countersignature verification failed!");
-			}
-			
-			if(DEBUG) {
-				System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
+			if(ctx instanceof GroupOSCoreCtx) {
+				boolean countersign_valid = false;
+				countersign_valid = enc.validate(sign);
+
+				if(countersign_valid == false) {
+					System.err.println("Error: Countersignature verification failed!");
+				}
+
+				if(DEBUG) {
+					System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
+				}
 			}
 
 		} catch (CoseException e) {

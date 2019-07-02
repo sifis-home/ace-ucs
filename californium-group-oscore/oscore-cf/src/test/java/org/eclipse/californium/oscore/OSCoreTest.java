@@ -214,7 +214,6 @@ public class OSCoreTest {
 	 * 
 	 * @throws OSException
 	 */
-	@Ignore
 	@Test
 	public void testEncryptDecryptOptions() throws OSException {
 		Request request = Request.newGet().setURI("coap://localhost:5683");
@@ -222,7 +221,7 @@ public class OSCoreTest {
 		request.getOptions().addOption(new Option(OptionNumberRegistry.OSCORE));
 		assertEquals(2, request.getOptions().getLocationPathCount());
 		try {
-			ObjectSecurityLayer.prepareSend(request, db.getContext("coap://localhost:5683"));
+			request = ObjectSecurityLayer.prepareSend(request, db.getContext("coap://localhost:5683"));
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);
@@ -232,7 +231,7 @@ public class OSCoreTest {
 		dbClientToServer();
 
 		try {
-			ObjectSecurityLayer.prepareReceive(request);
+			request = ObjectSecurityLayer.prepareReceive(request);
 		} catch (OSException e) {
 			e.printStackTrace();
 			assertTrue(false);

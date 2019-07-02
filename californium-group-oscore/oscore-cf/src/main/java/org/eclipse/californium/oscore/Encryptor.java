@@ -89,8 +89,13 @@ public abstract class Encryptor {
 				enc.addAttribute(HeaderKeys.PARTIAL_IV, CBORObject.FromObject(partialIV), Attribute.UNPROTECTED);
 			} else {
 				
+				//If recipient ID is null here and not using Group OSCORE simply take it from the OSCORE Context
+				//When using Group OSCORE the Recipient ID should be provided in the call to this method
 				if(recipientId == null) {
-					System.err.println("Error: Recipient ID was null!");
+					//System.err.println("Error: Recipient ID was null!");
+					if(ctx instanceof GroupOSCoreCtx == false) {
+						recipientId = ctx.getRecipientId();
+					}
 				}
 
 				if (!newPartialIV) {
@@ -115,86 +120,93 @@ public abstract class Encryptor {
 			}
 
 			/* ------ Rikard: Prints for debugging ------ */
-			
+
 			boolean DEBUG = Utility.DETAILED_DEBUG;
-			
+
 			String messageType = "Response: ";
 			if(isRequest) {
 				messageType = "Request:  ";
 			}
-			
+
 			if(DEBUG) {
-				//System.out.println("Encrypt " + messageType + "Common IV:\t" + Utility.arrayToString(ctx.getCommonIV()));
+				System.out.println("Encrypt " + messageType + "Common IV:\t" + Utility.arrayToString(ctx.getCommonIV()));
 				System.out.println("Encrypt " + messageType + "Nonce:\t" + Utility.arrayToString(nonce));
 				//System.out.println("Encrypt " + messageType + "Sequence Nr.:\t" + seq);
-				//System.out.println("Encrypt " + messageType + "Sender ID:\t" + Utility.arrayToString(ctx.getSenderId()));
-				//System.out.println("Encrypt " + messageType + "Sender Key:\t" + Utility.arrayToString(ctx.getSenderKey()));
+				System.out.println("Encrypt " + messageType + "Sender ID:\t" + Utility.arrayToString(ctx.getSenderId()));
+				System.out.println("Encrypt " + messageType + "Sender Key:\t" + Utility.arrayToString(ctx.getSenderKey()));
 				//System.out.println("Encrypt " + messageType + "Recipient ID:" + Utility.arrayToString(recipientId));
 				System.out.println("Encrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
-				//System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
+				System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
 				System.out.println("Encrypt " + messageType + "External AAD:\t" + Utility.arrayToString(enc.getExternal()));
 			}
-			
+
 			/* ------ End prints for debugging ------ */
-			
+
 			enc.addAttribute(HeaderKeys.IV, CBORObject.FromObject(nonce), Attribute.DO_NOT_SEND);
 			enc.addAttribute(HeaderKeys.Algorithm, AlgorithmID.AES_CCM_16_64_128.AsCBOR(), Attribute.DO_NOT_SEND);
-			
-			/* ------ Rikard: Add the countersignature	------ */	
-			OneKey sender_private_key = ((GroupOSCoreCtx)ctx).getSenderPrivateKey();
-			CounterSign1 sign = new CounterSign1(sender_private_key);
-			
-			CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
-			sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
-			sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
-			enc.setCountersign1(sign);
-		
-			enc.encrypt(key);
 
-			CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());
-			byte[] countersign_bytes = mySignature.GetByteString();
-			if(DEBUG) {
-				System.out.println("Encrypt " + messageType + "Countersignature length:\t" + countersign_bytes.length);
-				System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
-				
-				byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
-				String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
-				System.out.println("Encrypt " + messageType + "Sender Private Key:\t" + base64_encoded);
+			/* ------ Rikard: Add the countersignature (if using Group OSCORE) ------ */
+			//TODO: Extract to separate method?
+			if(ctx instanceof GroupOSCoreCtx) {
+				OneKey sender_private_key = ((GroupOSCoreCtx)ctx).getSenderPrivateKey();
+				CounterSign1 sign = new CounterSign1(sender_private_key);
+
+				CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
+				sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
+				sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+				enc.setCountersign1(sign);
+
+				enc.encrypt(key);
+
+				CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());
+				byte[] countersign_bytes = mySignature.GetByteString();
+				if(DEBUG) {
+					System.out.println("Encrypt " + messageType + "Countersignature length:\t" + countersign_bytes.length);
+					System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
+
+					byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
+					String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+					System.out.println("Encrypt " + messageType + "Sender Private Key:\t" + base64_encoded);
+				}
+
+				if(countersign_bytes.length != ((GroupOSCoreCtx)ctx).getCountersignLength()) {
+					System.err.println("Error: Unexpected countersignature length!");
+				}
+
+				//If countersignature is not to be used empty the byte array
+				if(((GroupOSCoreCtx)ctx).getCountersignLength() == 0) {
+					countersign_bytes = new byte[0];
+				}
+
+				//Append countersignature to ciphertext
+				byte[] ciphertext = enc.getEncryptedContent();
+
+				ByteArrayOutputStream os = new ByteArrayOutputStream( );
+				try {
+					os.write(ciphertext);
+					os.write(countersign_bytes);
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+
+				byte[] full_payload = os.toByteArray();
+
+				/* ------ End add the countersignature	------ */
+
+				return full_payload;
+			} else { //If using normal OSCORE
+				enc.encrypt(key);
+				return enc.getEncryptedContent();
 			}
-			
-			if(countersign_bytes.length != ((GroupOSCoreCtx)ctx).getCountersignLength()) {
-				System.err.println("Error: Unexpected countersignature length!");
-			}
-			
-			//If countersignature is not to be used empty the byte array
-			if(((GroupOSCoreCtx)ctx).getCountersignLength() == 0) {
-				countersign_bytes = new byte[0];
-			}
-			
-			//Append countersignature to ciphertext
-			byte[] ciphertext = enc.getEncryptedContent();
-			
-			ByteArrayOutputStream os = new ByteArrayOutputStream( );
-			try {
-				os.write(ciphertext);
-				os.write(countersign_bytes);
-			} catch (IOException e) {
-				// TODO Auto-generated catch block
-				e.printStackTrace();
-			}
-			
-			byte[] full_payload = os.toByteArray();
-			
-			/* ------ End add the countersignature	------ */			
-			
-			return full_payload;
 		} catch (CoseException e) {
 			LOGGER.error("COSE/Crypto exception: " + e.getMessage());
+			e.printStackTrace();
 			throw new OSException(e.getMessage());
 		}
 	}
-	
-	//Rikard: New method to support supplying recipientId
+
+	//Rikard: Old method that did not support supplying recipientId
 	protected static byte[] encryptAndEncode(Encrypt0Message enc, OSCoreCtx ctx, Message mess, boolean newPartialIV)
 			throws OSException {
 		return encryptAndEncode(enc, ctx, mess, newPartialIV, null);

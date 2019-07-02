@@ -15,6 +15,8 @@
 + ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapStackFactory;
@@ -27,6 +29,8 @@ import org.eclipse.californium.core.network.stack.CoapStack;
  * {@link ObjectSecurityLayer}.
  */
 public class OSCoreCoapStackFactory implements CoapStackFactory {
+
+	private static AtomicBoolean init = new AtomicBoolean();
 
 	@Override
 	public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
@@ -42,6 +46,8 @@ public class OSCoreCoapStackFactory implements CoapStackFactory {
 	 * @see CoapEndpoint#setDefaultCoapStackFactory(CoapStackFactory)
 	 */
 	public static void useAsDefault() {
-		CoapEndpoint.setDefaultCoapStackFactory(new OSCoreCoapStackFactory());
+		if (init.compareAndSet(false, true)) {
+			CoapEndpoint.setDefaultCoapStackFactory(new OSCoreCoapStackFactory());
+		}
 	}
 }

@@ -94,6 +94,7 @@ public class ResponseDecryptor extends Decryptor {
 			DataParser.parseOptionsAndPayload(reader, response);
 		} catch (Exception e) {
 			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED);
+			e.printStackTrace();
 			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
 		}
 
@@ -103,7 +104,9 @@ public class ResponseDecryptor extends Decryptor {
 
 		//Rikard: Commented out removal of token. This is needed for Group OSCORE
 		//Rikard: FIXME: Remove the token later
-		//db.removeToken(token);
+		if(ctx instanceof GroupOSCoreCtx == false) {
+			db.removeToken(token);
+		}
 
 		return response;
 	}
