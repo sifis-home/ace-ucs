@@ -112,7 +112,7 @@ public abstract class Decryptor {
 				nonce = OSSerializer.nonceGeneration(partialIV, recipientId, ctx.getCommonIV(),
 						ctx.getIVLength());
 			}
-		} else {
+		} else { //Response
 			if (seqByToken == null) {
 				LOGGER.error("Decryption failed: the arrived response is not connected to a request we sent");
 				throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
@@ -125,9 +125,14 @@ public abstract class Decryptor {
 
 			if (tmp == null) {
 
-				//Rikard: Take recipient ID from message instead of context
-				recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
-
+				//Rikard: Take recipient ID from message instead of context if using Group OSCORE
+				//For Group OSCORE it is always there in responses, but not for OSCORE.
+				if(ctx instanceof GroupOSCoreCtx) {
+					recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
+				} else { //Otherwise take it from the OSCORE Context
+					recipientId = ctx.getRecipientId();
+				}
+				
 				// this should use the partialIV that arrived in the request and
 				// not the response
 				//seq = seqByToken;

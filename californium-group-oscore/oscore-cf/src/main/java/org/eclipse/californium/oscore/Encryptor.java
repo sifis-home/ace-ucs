@@ -327,7 +327,11 @@ public abstract class Encryptor {
 	public static byte[] encodeOSCoreResponse(OSCoreCtx ctx, final boolean newPartialIV) {
 		int firstByte = 0x00;
 		ByteArrayOutputStream bRes = new ByteArrayOutputStream();
-		firstByte = firstByte | 0x08; //Rikard: Set the KID bit
+		
+		//Include KID in response if using Group OSCORE
+		if(ctx instanceof GroupOSCoreCtx) {
+			firstByte = firstByte | 0x08; //Rikard: Set the KID bit
+		}
 		
 		byte[] partialIV = null;
 		if (newPartialIV) {
@@ -340,7 +344,10 @@ public abstract class Encryptor {
 			if(newPartialIV) {
 				bRes.write(partialIV);
 			}
-			bRes.write(ctx.getSenderId()); //Rikard: Write sender ID
+			//Include KID in response if using Group OSCORE
+			if(ctx instanceof GroupOSCoreCtx) {
+				bRes.write(ctx.getSenderId()); //Rikard: Write sender ID
+			}
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
