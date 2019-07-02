@@ -16,8 +16,6 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.io.IOException;
-
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -25,6 +23,8 @@ import org.eclipse.californium.core.coap.Request;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.exception.ConnectorException;
+
+import java.io.IOException;
 
 /**
  * 
@@ -62,6 +62,7 @@ public class HelloWorldClient {
 		r.getOptions().setOscore(new byte[0]);
 		resp = c.advanced(r);
 		printResponse(resp);
+		c.shutdown();
 	}
 
 	private static void printResponse(CoapResponse resp) {
