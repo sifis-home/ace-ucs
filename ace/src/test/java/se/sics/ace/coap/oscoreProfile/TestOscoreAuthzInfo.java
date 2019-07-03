@@ -44,6 +44,7 @@ import java.util.Set;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
@@ -103,6 +104,9 @@ public class TestOscoreAuthzInfo {
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
 
+    	//Rikard: Added this here to fix issue with setting default coap stack factory
+    	OSCoreCoapStackFactory.useAsDefault(); 
+    	
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
