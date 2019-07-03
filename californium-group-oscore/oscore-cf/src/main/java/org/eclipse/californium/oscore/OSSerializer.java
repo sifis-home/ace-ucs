@@ -121,7 +121,7 @@ public class OSSerializer {
 					if(recipientId != null) {
 						aad.Add(recipientId); //Rikard: Added this
 					} else {
-						System.err.println("This should never happen!");
+						//System.err.println("This should never happen for Group OSCORE!");
 						aad.Add(ctx.getRecipientId()); //Fixed
 					}
 
@@ -133,7 +133,7 @@ public class OSSerializer {
 							aad.Add(processPartialIV(((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId)));
 						} else {
 							aad.Add(processPartialIV(ctx.getReceiverSeq())); //Fixed
-							System.err.println("Should not happen!");
+							//System.err.println("Should not happen for Group OSCORE!");
 						}
 						
 					}
@@ -292,7 +292,7 @@ public class OSSerializer {
 						if(recipientId != null) {
 							aad.Add(recipientId); //Rikard: Added this
 						} else {
-							System.err.println("This should never happen!");
+							//System.err.println("This should never happen for Group OSCORE!");
 							aad.Add(ctx.getRecipientId()); //Fixed
 						}
 						

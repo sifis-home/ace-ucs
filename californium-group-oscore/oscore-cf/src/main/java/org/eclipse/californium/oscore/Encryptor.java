@@ -106,7 +106,7 @@ public abstract class Encryptor {
 						partialIV = OSSerializer.processPartialIV(recSeq);
 					} else {
 						partialIV = OSSerializer.processPartialIV(ctx.getReceiverSeq()); //Fixed
-						System.err.println("Should never happen!");
+						//System.err.println("Should never happen for Group OSCORE!");
 					}
 					
 					nonce = OSSerializer.nonceGeneration(partialIV, recipientId, ctx.getCommonIV(),
