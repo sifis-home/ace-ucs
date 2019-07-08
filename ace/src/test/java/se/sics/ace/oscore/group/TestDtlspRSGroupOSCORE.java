@@ -468,6 +468,9 @@ public class TestDtlspRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+        //Install needed cryptography providers
+        org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);

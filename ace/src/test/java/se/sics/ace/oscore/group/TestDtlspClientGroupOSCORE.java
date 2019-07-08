@@ -2330,7 +2330,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
-        System.out.println("AAA: " + r2.getResponseText()); //FIXME
+        //System.out.println("Payload: " + r2.getResponseText());
         Assert.assertEquals("CREATED", r2.getCode().name());
         
         byte[] responsePayload = r2.getPayload();
@@ -2580,7 +2580,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
-        System.out.println("Payload: " + r2.getResponseText()); //FIXME
+        //System.out.println("Payload: " + r2.getResponseText());
         Assert.assertEquals("CREATED", r2.getCode().name());
         
         byte[] responsePayload = r2.getPayload();
