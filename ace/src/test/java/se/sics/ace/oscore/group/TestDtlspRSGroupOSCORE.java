@@ -94,6 +94,10 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspRSGroupOSCORE {
 
+	//Sets the secure and unsecure port to use
+	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+	private final static int PORT = CoAP.DEFAULT_COAP_PORT;
+
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
@@ -772,7 +776,7 @@ public class TestDtlspRSGroupOSCORE {
       
   	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
               .setAddress(
-                      new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+                      new InetSocketAddress(SECURE_PORT));
   	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -787,11 +791,12 @@ public class TestDtlspRSGroupOSCORE {
   	    rs.addEndpoint(cep);
   	    //Add a CoAP (no 's') endpoint for authz-info
   	    CoapEndpoint aiep = new Builder().setInetSocketAddress(
-               new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
+               new InetSocketAddress(PORT)).build();
   	    rs.addEndpoint(aiep);
   	    rs.setMessageDeliverer(dpd);
   	    rs.start();
-  	    System.out.println("Server starting");
+  	    System.out.println("Resource Server (GM) starting on port " + aiep.getAddress().getPort() +
+  	    	    " and " + cep.getAddress().getPort() + " (DTLS)");
     }
     
     /**
