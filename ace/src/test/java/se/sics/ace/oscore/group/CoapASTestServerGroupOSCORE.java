@@ -71,7 +71,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 public class CoapASTestServerGroupOSCORE
 {
 
-	//Sets the secure and unsecure port to use
+	//Sets the secure port to use
 	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
 
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};

@@ -38,6 +38,7 @@ import java.util.Map;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
@@ -63,7 +64,12 @@ import se.sics.ace.as.Token;
  *
  */
 public class CoAPClientGroupOSCORE {
-    
+
+	//Sets the secure port to use
+	private final static int AS_SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+	//Set the hostname/IP of the AS
+	private final static String AS_ADDRESS = "localhost";
+
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
@@ -88,7 +94,11 @@ public class CoAPClientGroupOSCORE {
      * 
      */
     public static void groupOSCOREMultipleRolesCWT() throws IOException, ConnectorException, AceException { 
-        
+
+    	String tokenURI = "coaps://" + AS_ADDRESS + ":" + AS_SECURE_PORT + "/token";
+
+    	System.out.println("Performing Token request to AS at " + tokenURI);
+
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
@@ -105,7 +115,7 @@ public class CoAPClientGroupOSCORE {
         ceb.setConnector(dtlsConnector);
         ceb.setNetworkConfig(NetworkConfig.getStandard());
         CoapEndpoint e = ceb.build();
-        CoapClient client = new CoapClient("coaps://localhost/token");
+        CoapClient client = new CoapClient(tokenURI);
         client.setEndpoint(e);
         dtlsConnector.start();
     	
@@ -289,7 +299,7 @@ public class CoAPClientGroupOSCORE {
 //        ceb.setConnector(dtlsConnector);
 //        ceb.setNetworkConfig(NetworkConfig.getStandard());
 //        CoapEndpoint e = ceb.build();
-//        CoapClient client = new CoapClient("coaps://localhost/token");
+//        CoapClient client = new CoapClient(tokenURI);
 //        client.setEndpoint(e);
 //        dtlsConnector.start();
 //    	

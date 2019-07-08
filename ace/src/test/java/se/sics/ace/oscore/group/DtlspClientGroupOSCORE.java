@@ -78,6 +78,13 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  */
 public class DtlspClientGroupOSCORE {
 
+	//Sets the secure port to use
+	private final static int GM_SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+	//Sets the insecure port to use
+	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
+	//Set the hostname/IP of the RS (GM)
+	private final static String GM_ADDRESS = "localhost";
+
     private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -103,6 +110,8 @@ public class DtlspClientGroupOSCORE {
     //private static String strPublicKeyPeer2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     
     private static String rsAddrC;
+    private static String rsGroupRes;
+    private static String zeroEpochGroupID;
     
     private static CwtCryptoCtx ctx;
     
@@ -112,12 +121,14 @@ public class DtlspClientGroupOSCORE {
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
         
     	//Setup some needed parameters
-        rsAddrC = "coap://localhost/authz-info";
+        rsAddrC = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/authz-info";
+
+        zeroEpochGroupID = "feedca570000";
+        rsGroupRes = "coaps://" + GM_ADDRESS + ":" + GM_SECURE_PORT + "/" + zeroEpochGroupID;
         
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
-    	
         
         //Perform Token post and Join procedure
         postPSKGroupOSCOREMultipleRolesContextDerivation();
@@ -184,6 +195,7 @@ public class DtlspClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
+        System.out.println("Posting Token to GM at " + rsAddrC);
         @SuppressWarnings("unused")
 		CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         //CBORObject cbor = CBORObject.FromObject(r.getPayload());
@@ -194,7 +206,8 @@ public class DtlspClientGroupOSCORE {
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
                 kidStr.getBytes(Constants.charset),
                 key);
-        c.setURI("coaps://localhost/feedca570000");
+        System.out.println("Performing Join request to GM at " + rsGroupRes);
+        c.setURI(rsGroupRes);
         
         CBORObject requestPayload = CBORObject.NewMap();
         
