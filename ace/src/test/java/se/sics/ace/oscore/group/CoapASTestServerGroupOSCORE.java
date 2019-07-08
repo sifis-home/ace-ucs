@@ -40,15 +40,20 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 
+import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
+import se.sics.ace.TimeProvider;
 import se.sics.ace.as.AccessTokenFactory;
+import se.sics.ace.as.PDP;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissTime;
@@ -65,6 +70,10 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  */
 public class CoapASTestServerGroupOSCORE
 {
+
+	//Sets the secure and unsecure port to use
+	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
@@ -398,9 +407,10 @@ public class CoapASTestServerGroupOSCORE
         Set<String> rs3 = Collections.singleton("rs3");
         pdp.addOSCOREGroupManagers("rs3", rs3);
         
-        as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        //as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);
         as.start();
-        System.out.println("Server starting");
+        System.out.println("AS Server starting on port " + SECURE_PORT  + " (DTLS)");
     }
     
     /**
