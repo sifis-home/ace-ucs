@@ -1,0 +1,36 @@
+A short overview of the newly implemented standalone applications.
+And their corresponding servers.
+
+
+*Client->GM Application:
+
+Name: DtlspClientGroupOSCORE
+Security protocol: DTLS
+Security type: PSK
+CWT protection: PSK
+
+
+*GM Application:
+
+Name: TestDtlspRSGroupOSCORE
+Security protocol: DTLS
+Security type: PSK / RPK(?)
+CWT protection: PSK / RPK(?)
+
+
+*Client->AS Application:
+
+Name: CoAPClientGroupOSCORE
+Security protocol: DTLS
+Security type: PSK
+CWT protection: PSK
+
+
+*AS Application:
+
+Name: CoapASTestServerGroupOSCORE
+Security protocol: DTLS
+Security type: PSK / RPK(?)
+CWT protection: PSK / RPK(?)
+
+

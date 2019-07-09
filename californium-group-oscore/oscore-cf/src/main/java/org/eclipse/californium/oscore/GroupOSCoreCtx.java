@@ -195,7 +195,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		this.sender_private_key = sender_private_key;
 				
 		//Print information about the created context
-		Utility.printContextInfo(this);
+		//Utility.printContextInfo(this);
 	}
 	
 	//Rikard: Overloaded constructor without recipient id since they are added separately
@@ -241,7 +241,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		hmap.put(index, aCtx);
 		
 		//Print information about the recipient context
-		Utility.printRecipientContextInfo(aCtx);
+		//Utility.printRecipientContextInfo(aCtx);
 	}
 	
 	/**

@@ -133,6 +133,8 @@ public class Utility {
 //		System.out.println("Recipient Context: ");
 //		System.out.print("\tRecipient ID: ");
 //		System.out.print("\tRecipient Key: ");
+		
+		printAllRecipientContextInfo(ctx);
 	}
 	
 	/**
