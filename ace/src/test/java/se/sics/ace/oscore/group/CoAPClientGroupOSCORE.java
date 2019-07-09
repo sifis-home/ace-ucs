@@ -84,10 +84,10 @@ public class CoAPClientGroupOSCORE {
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
      
     	//Perform token request to AS using PSK
-    	groupOSCOREMultipleRolesCWT();
+    	//groupOSCOREMultipleRolesCWT();
     	
     	//Perform token request to AS using RPK
-    	//groupOSCOREMultipleRolesCWT_RPK();
+    	groupOSCOREMultipleRolesCWT_RPK();
     }
     
     // M.T.
@@ -174,6 +174,9 @@ public class CoAPClientGroupOSCORE {
      */
     public static void groupOSCOREMultipleRolesCWT_RPK() throws IOException, ConnectorException, AceException, CoseException { 
 
+    	//Rikard: Name that clientF will have getSenderId() in Token when using RPK:
+        // ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w
+
     	String tokenURI = "coaps://" + AS_ADDRESS + ":" + AS_SECURE_PORT + "/token";
 
     	System.out.println("Performing Token request to AS at " + tokenURI);
@@ -186,7 +189,7 @@ public class CoAPClientGroupOSCORE {
     	//RPK connecting code from TestDtlsClient2
     	OneKey key = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-    	System.out.println("AAAAAAAAA " + key.get(KeyKeys.Algorithm));
+
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);

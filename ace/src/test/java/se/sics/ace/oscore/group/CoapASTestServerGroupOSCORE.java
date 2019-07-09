@@ -207,6 +207,8 @@ public class CoapASTestServerGroupOSCORE
         
         db.addClient("clientF", profiles, null, null, 
                 keyTypes, authPsk, clientF_publicKey);
+        db.addClient("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, null, null,
+                keyTypes, authPsk, clientF_publicKey); //Rikard: RPK clientF
         
         // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
@@ -249,8 +251,8 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-        
-        
+
+
         cti = Base64.getEncoder().encodeToString(new byte[]{0x02});
         claims = new HashMap<>();
         
@@ -268,6 +270,7 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
+
         
         cti = Base64.getEncoder().encodeToString(new byte[]{0x03});
         claims = new HashMap<>();
@@ -332,8 +335,7 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-        
-        
+
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new GroupOSCOREJoinPDP(db);
         
@@ -398,6 +400,12 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientF", "rs2", "feedca570000_requester_purelistener");
         pdp.addAccess("clientF", "rs3", "feedca570000_requester_purelistener");
         
+        //Rikard: Adding clientF when connecting with RPK
+        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs2", "feedca570000_requester_purelistener");
+        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs3", "feedca570000_requester_purelistener");
+        //Rikard: Name that clientF will have getSenderId() in Token when using RPK:
+        // ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w
+
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
         // This client is allowed to be only listener.
