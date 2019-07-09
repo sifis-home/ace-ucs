@@ -199,8 +199,14 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
+        
+        //clientF RPK support //Rikard
+        OneKey clientF_publicKey = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey))).PublicKey();
+        keyTypes.add("RPK");    
+        
         db.addClient("clientF", profiles, null, null, 
-                keyTypes, authPsk, null);
+                keyTypes, authPsk, clientF_publicKey);
         
         // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
@@ -262,7 +268,6 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-        
         
         cti = Base64.getEncoder().encodeToString(new byte[]{0x03});
         claims = new HashMap<>();

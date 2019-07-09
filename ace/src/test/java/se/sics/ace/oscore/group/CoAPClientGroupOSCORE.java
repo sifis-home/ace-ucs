@@ -33,6 +33,7 @@ package se.sics.ace.oscore.group;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -43,6 +44,9 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.KeyKeys;
+import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -79,8 +83,11 @@ public class CoAPClientGroupOSCORE {
     	//Install needed cryptography providers
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
      
-    	//Perform token request to AS
+    	//Perform token request to AS using PSK
     	groupOSCOREMultipleRolesCWT();
+    	
+    	//Perform token request to AS using RPK
+    	//groupOSCOREMultipleRolesCWT_RPK();
     }
     
     // M.T.
@@ -98,7 +105,8 @@ public class CoAPClientGroupOSCORE {
     	String tokenURI = "coaps://" + AS_ADDRESS + ":" + AS_SECURE_PORT + "/token";
 
     	System.out.println("Performing Token request to AS at " + tokenURI);
-
+    	System.out.println("Using PSK DTLS towards AS");
+    	
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("purelistener");
@@ -109,6 +117,86 @@ public class CoAPClientGroupOSCORE {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        Builder ceb = new Builder();
+        ceb.setConnector(dtlsConnector);
+        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        CoapEndpoint e = ceb.build();
+        CoapClient client = new CoapClient(tokenURI);
+        client.setEndpoint(e);
+        dtlsConnector.start();
+    	
+        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	
+        // Both requested roles are allowed in the specified group
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        CBORObject cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+    	
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject(byteStringScope));
+        
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        
+		CoapResponse response = client.post(
+                Constants.getCBOR(params).EncodeToBytes(), 
+                MediaTypeRegistry.APPLICATION_CBOR);    
+		
+        CBORObject responseFromAS = CBORObject.DecodeFromBytes(response.getPayload());
+        
+        
+        Map<Short, CBORObject> map = Constants.getParams(responseFromAS);
+        
+        //assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        //assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
+        
+        System.out.println("Received reply from AS: " + responseFromAS.ToJSONString());
+        System.out.println("Access Token: " + map.get(Constants.ACCESS_TOKEN).ToJSONString());
+        System.out.println("Cnf: " + map.get(Constants.CNF).ToJSONString());
+     }
+    
+    // M.T.
+    /**
+     * Request a CoapToken using RPK, for asking access to an
+     * OSCORE group with multiple roles, using a CWT.
+     * 
+     * @throws IOException if communication fails
+     * @throws ConnectorException if communication fails
+     * @throws AceException if ACE processing fails
+     * @throws CoseException 
+     * 
+     */
+    public static void groupOSCOREMultipleRolesCWT_RPK() throws IOException, ConnectorException, AceException, CoseException { 
+
+    	String tokenURI = "coaps://" + AS_ADDRESS + ":" + AS_SECURE_PORT + "/token";
+
+    	System.out.println("Performing Token request to AS at " + tokenURI);
+    	System.out.println("Using RPK DTLS towards AS");
+    	
+    	String gid = new String("feedca570000");
+    	String role1 = new String("requester");
+    	String role2 = new String("purelistener");
+    	
+    	//RPK connecting code from TestDtlsClient2
+    	OneKey key = new OneKey(
+                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+    	System.out.println("AAAAAAAAA " + key.get(KeyKeys.Algorithm));
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        builder.setClientOnly();
+        builder.setSniEnabled(false);
+        builder.setIdentity(key.AsPrivateKey(), 
+                key.AsPublicKey());
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setRpkTrustAll();
+        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
         ceb.setNetworkConfig(NetworkConfig.getStandard());

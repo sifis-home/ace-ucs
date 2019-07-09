@@ -22,7 +22,7 @@ CWT protection: PSK / RPK(?)
 
 Name: CoAPClientGroupOSCORE
 Security protocol: DTLS
-Security type: PSK
+Security type: PSK & (RPK WIP)
 CWT protection: PSK
 
 
@@ -30,7 +30,7 @@ CWT protection: PSK
 
 Name: CoapASTestServerGroupOSCORE
 Security protocol: DTLS
-Security type: PSK / RPK(?)
+Security type: PSK / RPK
 CWT protection: PSK / RPK(?)
 
 
