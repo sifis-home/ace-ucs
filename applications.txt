@@ -10,6 +10,7 @@ Security type: PSK
 CWT protection: PSK
 Run with: TestDtlspRSGroupOSCORE
 
+
 *GM Application:
 
 Name: TestDtlspRSGroupOSCORE
@@ -25,6 +26,7 @@ Security protocol: DTLS
 Security type: PSK & RPK
 CWT protection: PSK
 Run with: CoapASTestServerGroupOSCORE
+
 
 *AS Application:
 
@@ -44,4 +46,24 @@ Security type: PSK & (RKP for Client->AS)
 CWT protection: PSK
 Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
 (Be careful to set the AS & RS ports so they do not overlap)
+
+
+*Client->GM Application (OSCORE):
+
+For testing with Peter van der Stok.
+
+Name: TestOSCoreRSGroupOSCORE
+Security protocol: OSCORE
+CWT protection: PSK
+Run with: OSCoreClientGroupOSCORE
+
+
+*GM Application (OSCORE):
+
+For testing with Peter van der Stok.
+
+Name: OSCoreClientGroupOSCORE
+Security protocol: OSCORE
+CWT protection: PSK
+
 

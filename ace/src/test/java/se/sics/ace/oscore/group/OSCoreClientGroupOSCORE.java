@@ -44,7 +44,11 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
@@ -54,7 +58,11 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
 
@@ -69,23 +77,38 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 
 /**
- * A client running the DTLS profile.
+ * A client for testing Group Joining over OSCORE.
  * Post a Token to the GM followed by the group join procedure.
  * 
- * This should be run with TestDtlspRSGroupOSCORE as server.
+ * This should be run with TestOSCoreRSGroupOSCORE as server.
  * 
  * @author Ludwig Seitz, Marco Tiloca & Rikard Höglund
  *
  */
-public class DtlspClientGroupOSCORE {
+public class OSCoreClientGroupOSCORE {
 
-	//Sets the secure port to use
-	private final static int GM_SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
-	//Sets the insecure port to use
+	//Sets the port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
 	private final static String GM_ADDRESS = "localhost";
+	
+	//Set some OSCORE related parameters
+	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static String uriGM = "coap://" + GM_ADDRESS;
+	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
+	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+			0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+			0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23 };
+	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
+			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	private final static byte[] context_id = {0x42, 0x04, 0x23, 0x13, 0x72, 0x79, (byte) 0x98,
+			0x27, 0x19, (byte) 0x98, (byte) 0x90, 0x05, 0x67, (byte) 0x89 };
+	private final static byte[] sid = new byte[] { 'C', '1' };
+	private final static byte[] rid = new byte[] { 'G', 'M' };
+	//End OSCORE parameters
+	
     private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -101,16 +124,28 @@ public class DtlspClientGroupOSCORE {
     
     private static CwtCryptoCtx ctx;
     
+    //Use DTLS rather than OSCORE
+    private static boolean useDTLS = false;
+    
     public static void main(String[] args) throws Exception {
-    	
+
     	//Install needed cryptography providers
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
         
+    	//Set OSCORE Context information
+    	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+		db.addContext(uriGM, ctxOSCore);
+		OSCoreCoapStackFactory.useAsDefault();
+		
     	//Setup some needed parameters
         rsAddrC = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/authz-info";
 
         zeroEpochGroupID = "feedca570000";
-        rsGroupRes = "coaps://" + GM_ADDRESS + ":" + GM_SECURE_PORT + "/" + zeroEpochGroupID;
+        if(useDTLS) {
+        rsGroupRes = "coaps://" + GM_ADDRESS + ":" + (GM_PORT + 1 ) + "/" + zeroEpochGroupID;
+        } else {
+        	rsGroupRes = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/" + zeroEpochGroupID;
+        }
         
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -168,7 +203,10 @@ public class DtlspClientGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostPSKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
+        if(!useDTLS) {
+        	params.put(Constants.PROFILE, CBORObject.FromObject("coap_oscore"));
+        }
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
@@ -176,15 +214,30 @@ public class DtlspClientGroupOSCORE {
         CBORObject payload = token.encode(ctx);
         System.out.println("Posting Token to GM at " + rsAddrC);
         
-        @SuppressWarnings("unused")
-		CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CoapClient tokenPoster = new CoapClient(rsAddrC);
         
-        CoapClient c = DTLSProfileRequests.getPskClient(
+        //@SuppressWarnings("unused")
+		//CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        System.out.println("Sent Token to GM: " + payload.toString());
+        @SuppressWarnings("unused")
+        CoapResponse r = tokenPoster.post(payload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
+        
+        CBORObject tokenPostResponse = CBORObject.DecodeFromBytes(r.getPayload());
+        System.out.println("Received Token post response from GM: " + tokenPostResponse.toString());
+        
+        //Below is section for performing Join request
+        CoapClient c;
+        if(useDTLS) {
+        c = DTLSProfileRequests.getPskClient(
                 new InetSocketAddress("localhost", 
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
                 kidStr.getBytes(Constants.charset),
                 key);
-        System.out.println("Performing Join request to GM at " + rsGroupRes);
+        } else {
+        	c = new CoapClient();	
+        }
+        
+        System.out.println("Performing Join request using OSCORE to GM at " + rsGroupRes);
         c.setURI(rsGroupRes);
         
         CBORObject requestPayload = CBORObject.NewMap();
@@ -206,13 +259,31 @@ public class DtlspClientGroupOSCORE {
         	
         }
         
-        CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
+        Request joinReq = new Request(Code.POST, Type.CON);
+        joinReq.setPayload(requestPayload.EncodeToBytes());
+        joinReq.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_CBOR);
+        if(!useDTLS) {
+        	joinReq.getOptions().setOscore(Bytes.EMPTY); //Enable OSCORE for Join request
+        }
+        
+        //CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
+        System.out.println("Sent Join request to GM: " + requestPayload.toString());
+        CoapResponse r2 = c.advanced(joinReq);
         
         byte[] responsePayload = r2.getPayload();
+
+        //System.out.println("Received response to Join req from GM: " + r2.getResponseText());
+        
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
         CBORObject myMap = joinResponse.get("key");
         
+        if(myMap.size() != 9) {
+        	System.out.println("Received bad response from GM: " + r2.getResponseText());
+        } else {
+        	System.out.println("Received Join response from GM: " + joinResponse.toString());
+        }
+
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
@@ -345,6 +416,8 @@ public class DtlspClientGroupOSCORE {
 		}
 		
 		//Print information about the created context
+		System.out.println();
+		System.out.println("Generated Group OSCORE Context from received information:");
 		Utility.printContextInfo(ctx);
 		
 		
