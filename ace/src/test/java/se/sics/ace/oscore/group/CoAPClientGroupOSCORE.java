@@ -84,10 +84,10 @@ public class CoAPClientGroupOSCORE {
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
      
     	//Perform token request to AS using PSK
-    	//groupOSCOREMultipleRolesCWT();
+    	groupOSCOREMultipleRolesCWT();
     	
     	//Perform token request to AS using RPK
-    	groupOSCOREMultipleRolesCWT_RPK();
+    	//groupOSCOREMultipleRolesCWT_RPK();
     }
     
     // M.T.

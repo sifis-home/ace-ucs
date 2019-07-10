@@ -8,7 +8,7 @@ Name: DtlspClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK
 CWT protection: PSK
-
+Run with: TestDtlspRSGroupOSCORE
 
 *GM Application:
 
@@ -24,7 +24,7 @@ Name: CoAPClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK & RPK
 CWT protection: PSK
-
+Run with: CoapASTestServerGroupOSCORE
 
 *AS Application:
 
@@ -33,4 +33,15 @@ Security protocol: DTLS
 Security type: PSK / RPK
 CWT protection: PSK / RPK(?)
 
+
+*Client->AS & Client->GM Application:
+
+Work in progress. Currently fails with "Unsupported key wrap algorithm in token: null" from AS.
+
+Name: DtlsAsRsClientGroupOSCORE
+Security protocol: DTLS
+Security type: PSK & (RKP for Client->AS)
+CWT protection: PSK
+Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
+(Be careful to set the AS & RS ports so they do not overlap)
 
