@@ -544,20 +544,30 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg;
+        AlgorithmID csAlg = null;
         Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
         Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
         
+        // Uncomment to set ECDSA with curve P256 for countersignatures
+        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        
+        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+        
         // ECDSA_256
-        // csAlg = AlgorithmID.ECDSA_256;
-        // csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        // csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlg = AlgorithmID.ECDSA_256;
+        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        }
         
         // EDDSA (Ed25519)
-        csAlg = AlgorithmID.EDDSA;
-        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlg = AlgorithmID.EDDSA;
+        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        }
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
@@ -589,8 +599,13 @@ public class TestDtlspRSGroupOSCORE {
     	/*
     	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
         
- 		// OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-    	OneKey testKey = OneKey.generateKey(AlgorithmID.EDDSA);
+        OneKey testKey = null;
+ 		
+ 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
         
     	byte[] testKeyBytes = testKey.EncodeToBytes();
     	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
@@ -607,11 +622,15 @@ public class TestDtlspRSGroupOSCORE {
     	mySid = new byte[] { (byte) 0x52 };
     	myGroup.allocateSenderId(mySid);	
     	
+    	String rpkStr1 = "";
+    	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
-    	// String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
     	
     	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
-    	String rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
     	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
     	
@@ -624,11 +643,15 @@ public class TestDtlspRSGroupOSCORE {
     	mySid = new byte[] { (byte) 0x77 };
     	myGroup.allocateSenderId(mySid);
     	
+    	String rpkStr2 = "";
+    	
     	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
-    	// String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     	
     	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
-    	String rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
     	
