@@ -422,7 +422,7 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
         Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
+        // Assume that "coap_group_oscore_app" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("exp"));

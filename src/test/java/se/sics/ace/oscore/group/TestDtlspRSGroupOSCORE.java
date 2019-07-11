@@ -402,7 +402,7 @@ public class TestDtlspRSGroupOSCORE {
         	// 2) The OSCORE group should be rekeyed
 
         	
-        	// CBOR Value assigned to the coap_group_oscore profile.
+        	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
         	joinResponse.Add("profile", CBORObject.FromObject(0));
         	
