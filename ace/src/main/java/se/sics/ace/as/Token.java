@@ -624,6 +624,7 @@ public class Token implements Endpoint, AutoCloseable {
                             CBORObject coseKey = CBORObject.NewMap();
                             coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
                             claims.put(Constants.CNF, coseKey);
+                            System.out.println("COSE Key " + coseKey.ToJSONString());
                         }
                     } catch (NoSuchAlgorithmException | CoseException e) {
                         this.cti--; //roll-back

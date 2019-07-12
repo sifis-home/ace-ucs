@@ -73,7 +73,7 @@ public class DtlsAsRsClientGroupOSCORE {
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
 	private final static String GM_ADDRESS = "localhost";
-	
+		
 	/**
 	 * Main method that executes the Token request and Token post.
 	 * 
@@ -86,14 +86,14 @@ public class DtlsAsRsClientGroupOSCORE {
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
      
     	//Perform token request to AS using PSK
-    	CBORObject token = groupOSCOREMultipleRolesCWT();
-    	System.out.println("Received Token from AS: " + token.toString());	
+    	CBORObject asResponse = groupOSCOREMultipleRolesCWT();
+    	System.out.println("Received Response from AS: " + asResponse.toString());	
     	//Perform token request to AS using RPK
-    	//CBORObject token = groupOSCOREMultipleRolesCWT_RPK();
+    	//CBORObject asResponse = groupOSCOREMultipleRolesCWT_RPK();
     	
     	//Send token and perform joining request to GM
     	System.out.println("Sending Token to GM followed by Join request: ");	
-    	postPSKGroupOSCOREMultipleRolesContextDerivation(token);
+    	postPSKGroupOSCOREMultipleRolesContextDerivation(asResponse);
     	
     	//Cleans up after the execution
     	new File(TestConfig.testFilePath + "tokens.json").delete();	
@@ -172,10 +172,10 @@ public class DtlsAsRsClientGroupOSCORE {
         System.out.println("Access Token: " + map.get(Constants.ACCESS_TOKEN).ToJSONString());
         System.out.println("Cnf: " + map.get(Constants.CNF).ToJSONString());
         
-        //Returns the token
-        CBORObject token = CBORObject.DecodeFromBytes(map.get(Constants.ACCESS_TOKEN).GetByteString());
+        //Returns the full response from the AS (a CBORObject map)
+        //CBORObject token = CBORObject.DecodeFromBytes(map.get(Constants.ACCESS_TOKEN).GetByteString());
         //return map.get(Constants.ACCESS_TOKEN);
-        return token;
+        return responseFromAS;
      }
     
     // M.T.
@@ -286,7 +286,22 @@ public class DtlsAsRsClientGroupOSCORE {
      * @throws ConnectorException  for communication failures
      * 
      */
-    public static void postPSKGroupOSCOREMultipleRolesContextDerivation(CBORObject tokenToPost) throws CoseException, IllegalStateException, InvalidCipherTextException, AceException, ConnectorException, IOException {
+    public static void postPSKGroupOSCOREMultipleRolesContextDerivation(CBORObject asResponse) throws CoseException, IllegalStateException, InvalidCipherTextException, AceException, ConnectorException, IOException {
+    	
+    	//First parse the response from the AS
+    	CBORObject tokenToPost = null;
+    	OneKey cnfKey = null;
+    	if(asResponse != null) {
+    		Map<Short, CBORObject> map = Constants.getParams(asResponse);
+    		
+    		tokenToPost = map.get(Constants.ACCESS_TOKEN);
+    		
+    		CBORObject cnf = map.get(Constants.CNF);
+    		
+    		Map<Short, CBORObject> cnfMap = Constants.getParams(cnf);
+    	
+    		cnfKey = new OneKey(cnfMap.get(Constants.COSE_KEY));
+    	}
     	
     	//Set some parameters
     	byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -353,17 +368,27 @@ public class DtlsAsRsClientGroupOSCORE {
         	token = new CWT(params);
         	payload = token.encode(ctx);
         }
-        
+        //If the PSK Identity and PSK has been set earlier during the Token request to the AS use them
+        byte[] kidBytes = null;
+        if (cnfKey != null) {
+        	kidBytes = cnfKey.get(KeyKeys.KeyId).GetByteString();
+        	key = cnfKey;
+        } else {
+        	kidBytes = kidStr.getBytes(Constants.charset);
+        	System.out.println("cnfKey is null!");
+        }
+
         System.out.println("Posting Token to GM at " + rsAddrC);
         System.out.println("Using Token: " + payload.ToJSONString());
         
         @SuppressWarnings("unused")
 		CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         
+        //Prepare for join request
         CoapClient c = DTLSProfileRequests.getPskClient(
                 new InetSocketAddress("localhost", 
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
-                kidStr.getBytes(Constants.charset),
+                kidBytes,
                 key);
         System.out.println("Performing Join request to GM at " + rsGroupRes);
         c.setURI(rsGroupRes);
