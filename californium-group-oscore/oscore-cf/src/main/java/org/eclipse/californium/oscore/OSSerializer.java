@@ -21,11 +21,16 @@ package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
 
+import javax.xml.bind.DatatypeConverter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Message;
+import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
@@ -161,6 +166,127 @@ public class OSSerializer {
 		return serializeSendResponseAAD(version, ctx, options, newPartialIV, null);
 	}
 
+//	/**
+//	 * Prepare the additional authenticated data of a message.
+//	 * 
+//	 * Note that for the request* parameters they must contain the value of what was in
+//	 * a request. Either this actual request or the request associated to this response. 
+//	 * 
+//	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_piv :
+//	 * bstr, options : bstr]
+//	 * 
+//	 * @param version the CoAP version number
+//	 * @param algorithm AEAD algorithm
+//	 * @param requestSeq the sequence number (request PIV)
+//	 * @param requestSenderId sender ID (request KID)
+//	 * @param options the option set
+//	 * @return byte array with AAD
+//	 */
+//	public static byte[] serializeAAD(int version, AlgorithmID algorithm, int requestSeq, byte[] requestSenderId, OptionSet options) {
+//		if (version == CoAP.VERSION) {
+//			if (requestSeq > -1) {
+//				if (algorithm != null) {
+//					if (options != null) {
+//						CBORObject algorithms = CBORObject.NewArray();
+//						algorithms.Add(algorithm.AsCBOR());
+//
+//						CBORObject aad = CBORObject.NewArray();
+//						aad.Add(version);
+//						aad.Add(algorithms);
+//						aad.Add(requestSenderId);
+//						aad.Add(processPartialIV(requestSeq));
+//						
+//						//I-class options (currently none)
+//						aad.Add(CBORObject.FromObject(EMPTY));
+//						
+//						return aad.EncodeToBytes();
+//					} else {
+//						LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
+//						throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
+//					}
+//				} else {
+//					LOGGER.error(ErrorDescriptions.ALGORITHM_NOT_DEFINED);
+//					throw new NullPointerException(ErrorDescriptions.ALGORITHM_NOT_DEFINED);
+//				}
+//			} else {
+//				LOGGER.error(ErrorDescriptions.SEQ_NBR_INVALID);
+//				throw new IllegalArgumentException(ErrorDescriptions.SEQ_NBR_INVALID);
+//			}
+//		} else {
+//			LOGGER.error(ErrorDescriptions.WRONG_VERSION_NBR);
+//			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
+//		}
+//	}
+
+	
+	/**
+	 * Prepare the additional authenticated data of a message for signing.
+	 * 
+	 * external_aad = [ ver : uint, alg : int, request_kid : bstr, request_seq :
+	 * bstr, options : bstr]
+	 * 
+	 * @param version the CoAP version number
+	 * @param seq the sequence number
+	 * @param ctx the OSCore context
+	 * @param options the option set
+	 * 
+	 * @return the serialized AAD for OSCore
+	 */
+	public static byte[] serializeSigningAAD(boolean incoming, Message message, byte[] senderID, int version, int seq, OSCoreCtx ctx, OptionSet options, boolean newPartialIV) {
+		if (version == CoAP.VERSION) { //FIXME, OSCORE version
+			if (seq > -1) {
+				if (ctx != null) {
+					if (options != null) {
+						CBORObject algorithms = CBORObject.NewArray();
+						algorithms.Add(ctx.getAlg().AsCBOR());
+
+						//Rikard: If this is a Group OSCORE Context add AAD material 
+						addGroupOSCoreAlgs(ctx, algorithms);
+						
+						CBORObject aad = CBORObject.NewArray();
+						aad.Add(version);
+						aad.Add(algorithms);
+						
+						aad.Add(senderID);
+						aad.Add(processPartialIV(seq));
+
+						//Added the last parameter which should be the options
+						aad.Add(CBORObject.FromObject(EMPTY));
+						
+						//Add the OSCORE option (external AAD for signature)
+						byte[] optionBytes = null;
+						if(!incoming) {
+							if(message instanceof Request) {
+								optionBytes = Encryptor.encodeOSCoreRequest(ctx);
+							} else {
+								optionBytes = Encryptor.encodeOSCoreResponse(ctx, newPartialIV);
+							}
+						} else {
+							optionBytes = message.getOptions().getOscore();
+						}
+						aad.Add(CBORObject.FromObject(optionBytes)); //Add OSCORE option value
+						
+						System.out.println(("OSCORE Option value: " + Utility.arrayToString(optionBytes)));
+						
+						return aad.EncodeToBytes();
+					} else {
+						LOGGER.error(ErrorDescriptions.OPTIONSET_NULL);
+						throw new NullPointerException(ErrorDescriptions.OPTIONSET_NULL);
+					}
+				} else {
+					LOGGER.error(ErrorDescriptions.CTX_NULL);
+					throw new NullPointerException(ErrorDescriptions.CTX_NULL);
+				}
+			} else {
+				LOGGER.error(ErrorDescriptions.SEQ_NBR_INVALID);
+				throw new IllegalArgumentException(ErrorDescriptions.SEQ_NBR_INVALID);
+			}
+		} else {
+			LOGGER.error(ErrorDescriptions.WRONG_VERSION_NBR);
+			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
+		}
+	}
+
 	/**
 	 * Prepare the additional authenticated data of a received response.
 	 * 
@@ -212,7 +338,7 @@ public class OSSerializer {
 			throw new IllegalArgumentException(ErrorDescriptions.WRONG_VERSION_NBR);
 		}
 	}
-
+	
 	/**
 	 * Prepare the additional authenticated data of a request to be sent.
 	 * 

@@ -44,6 +44,7 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.CounterSign1;
 import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.junit.Assert;
 
 /**
  * 
@@ -203,6 +204,19 @@ public abstract class Decryptor {
 			//countersign_bytes[3] = (byte) 0xff; //Corrupt countersignature
 			sign = new CounterSign1(countersign_bytes);
 			sign.setKey(recipient_public_key);
+			
+			//Testing new external AAD for signing
+			//byte[] currentExternalAAD = enc.getExternal();
+			//System.out.println("Decryption: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
+			byte[] newExternalAAD = null;
+			if(message instanceof Request) {
+				newExternalAAD = OSSerializer.serializeSigningAAD(true, message, recipientId, CoAP.VERSION, seq, ctx, message.getOptions(), false);
+			} else if (message instanceof Response) {
+				newExternalAAD = OSSerializer.serializeSigningAAD(true, message, ctx.getSenderId(), CoAP.VERSION, seq, ctx, message.getOptions(), false);
+			}
+			System.out.println("Decryption: New   external   AAD:\t" + Utility.arrayToString(newExternalAAD));
+			//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
+			//End testing new external AAD for signing
 
 			if(Utility.DETAILED_DEBUG) {
 				byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
@@ -213,7 +227,8 @@ public abstract class Decryptor {
 			CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
 			sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
 
-			sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+			//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+			sign.setExternal(newExternalAAD); //Set external AAD for signing
 
 			//CBORObject countersign_cbor = CBORObject.FromObject(countersign_bytes);
 			//enc.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);

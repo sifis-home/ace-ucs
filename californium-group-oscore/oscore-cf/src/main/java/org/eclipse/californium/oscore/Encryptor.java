@@ -43,6 +43,7 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.CounterSign1;
 import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.junit.Assert;
 
 /**
  * 
@@ -101,8 +102,9 @@ public abstract class Encryptor {
 				if (!newPartialIV) {
 					// use nonce from request
 					
+					int recSeq = -1;
 					if(ctx instanceof GroupOSCoreCtx) {
-						int recSeq = ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId); 
+						recSeq = ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId); 
 						partialIV = OSSerializer.processPartialIV(recSeq);
 					} else {
 						partialIV = OSSerializer.processPartialIV(ctx.getReceiverSeq()); //Fixed
@@ -153,9 +155,24 @@ public abstract class Encryptor {
 
 				CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
 				sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
-				sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+				//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
 				enc.setCountersign1(sign);
-
+				
+				//Testing new external AAD for signing
+				//byte[] currentExternalAAD = sign.getExternal();
+				//System.out.println("Encrypting: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
+				byte[] newExternalAAD = null;
+				if(mess instanceof Request) {
+					newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, ctx.getSenderId(), CoAP.VERSION, ctx.getSenderSeq(), ctx, mess.getOptions(), false);
+				} else if (mess instanceof Response) {
+					newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, recipientId, CoAP.VERSION, ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId), ctx, mess.getOptions(), newPartialIV);
+				}
+				System.out.println("Encrypting: New   external   AAD:\t" + Utility.arrayToString(newExternalAAD));
+				//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
+				//End testing new external AAD for signing
+				
+				sign.setExternal(newExternalAAD); //Set external AAD for signing
+				
 				enc.encrypt(key);
 
 				CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());

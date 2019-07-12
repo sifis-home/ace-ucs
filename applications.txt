@@ -38,7 +38,7 @@ CWT protection: PSK / RPK(?)
 
 *Client->AS & Client->GM Application:
 
-Work in progress. Currently fails with "Unsupported key wrap algorithm in token: null" from AS.
+Work in progress. Currently fails with "Unsupported key wrap algorithm in token: null" from AS. (?)
 
 Name: DtlsAsRsClientGroupOSCORE
 Security protocol: DTLS
@@ -51,16 +51,17 @@ Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
 *Client->GM Application (OSCORE):
 
 For testing with Peter van der Stok.
+(Work in progress)
 
 Name: TestOSCoreRSGroupOSCORE
 Security protocol: OSCORE
 CWT protection: PSK
 Run with: OSCoreClientGroupOSCORE
 
-
 *GM Application (OSCORE):
 
 For testing with Peter van der Stok.
+(Work in progress)
 
 Name: OSCoreClientGroupOSCORE
 Security protocol: OSCORE
