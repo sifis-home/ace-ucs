@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 
@@ -175,8 +174,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         OSCoreCtx ctx;
         try {
             ctx = osc.getContext(false, n1, n2);
-            HashMapCtxDB db = HashMapCtxDB.getInstance();
-            db.addContext(ctx);
+            OscoreCtxDbSingleton.getInstance().addContext(ctx);
         } catch (OSException e) {
             LOGGER.info("Error while creating OSCORE context: " 
                     + e.getMessage());

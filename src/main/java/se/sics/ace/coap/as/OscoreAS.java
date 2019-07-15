@@ -36,10 +36,9 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
-import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 
@@ -50,6 +49,7 @@ import se.sics.ace.TimeProvider;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
 import se.sics.ace.as.Token;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
  * An Authorization Server that offers secure connections and authentication via OSCORE.
@@ -75,12 +75,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     private static final Logger LOGGER 
         = Logger.getLogger(OscoreAS.class.getName());
     
-    /**
-     * The database of OSCORE contexts
-     */
-    private OSCoreCtxDB oscoreDb;
-    
-
     /**
      * The token endpoint
      */
@@ -165,7 +159,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
             boolean setAudHeader) throws AceException, OSException {
-        this.oscoreDb = HashMapCtxDB.getInstance();
         this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
@@ -179,12 +172,24 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             this.introspect = new OscoreAceEndpoint(introspectName, this.i);
             add(this.introspect);    
         }
-        
-        OSCoreCoapStackFactory.useAsDefault();
+        this.addEndpoint(new CoapEndpoint.Builder()
+                .setCoapStackFactory(new OSCoreCoapStackFactory())
+                .setPort(CoAP.DEFAULT_COAP_PORT).build());  
+        OSCoreCoapStackFactory.useAsDefault(
+                OscoreCtxDbSingleton.getInstance());
         loadOscoreCtx(db, asId);
     }
 
-    private void loadOscoreCtx(CoapDBConnector db, String asId) throws AceException, OSException {
+    /**
+     * Load the OSCORE contexts from the database
+     * 
+     * @param db  the database connector
+     * @param asId  the AS identifier
+     * 
+     * @throws AceException
+     * @throws OSException
+     */
+    private static void loadOscoreCtx(CoapDBConnector db, String asId) throws AceException, OSException {
         Set<String> ids = db.getRSS();
         ids.addAll(db.getClients());
         
@@ -192,7 +197,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             byte[] key = db.getKey(new PskPublicInformation(id));
             OSCoreCtx ctx = new OSCoreCtx(key, false, null, asId.getBytes(Constants.charset), 
                     id.getBytes(Constants.charset), null, null, null, null);
-            this.oscoreDb.addContext(ctx);
+            OscoreCtxDbSingleton.getInstance().addContext(ctx);
         }
         LOGGER.finest("Loaded OSCORE contexts");
     }

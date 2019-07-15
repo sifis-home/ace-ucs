@@ -43,8 +43,8 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -58,6 +58,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -67,6 +68,7 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -1074,7 +1076,7 @@ public class TestOscoreAuthzInfo {
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
-        HashMapCtxDB db = HashMapCtxDB.getInstance();
+        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         OSCoreCtx osctx = db.getContext(clientId);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
                 false, null, serverId, clientId, null, null, null, null);

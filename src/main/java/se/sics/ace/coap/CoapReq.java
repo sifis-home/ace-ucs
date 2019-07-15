@@ -42,9 +42,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.Base64;
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCtx;
-import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -53,6 +51,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
  * A CoAP request implementing the Message interface for the ACE library.
@@ -116,9 +115,10 @@ public class CoapReq implements Message {
                 return null;
             }
             return p.getName();
-        }
-        OSCoreCtxDB db = HashMapCtxDB.getInstance();
-        OSCoreCtx osctx = db.getContextByToken(this.request.getToken());
+        } 
+       
+        OSCoreCtx osctx = OscoreCtxDbSingleton.getInstance()
+                .getContextByToken(this.request.getToken());
         if (osctx == null) {
             return null;
         }
