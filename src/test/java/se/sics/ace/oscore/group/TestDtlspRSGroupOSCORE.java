@@ -34,6 +34,8 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -41,6 +43,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
@@ -63,6 +66,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -340,7 +344,7 @@ public class TestDtlspRSGroupOSCORE {
         		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
         			
         			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve))) ||
-            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType_OKP))) ||
+            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType))) ||
         				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve)))) {
         				
                 			myGroup.deallocateSenderId(senderId);
@@ -398,7 +402,7 @@ public class TestDtlspRSGroupOSCORE {
         	// 2) The OSCORE group should be rekeyed
 
         	
-        	// CBOR Value assigned to the coap_group_oscore profile.
+        	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
         	joinResponse.Add("profile", CBORObject.FromObject(0));
         	
@@ -465,6 +469,11 @@ public class TestDtlspRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+    	final Provider PROVIDER = new BouncyCastleProvider();
+    	final Provider EdDSA = new EdDSASecurityProvider();
+    	Security.insertProviderAt(PROVIDER, 1);
+    	Security.insertProviderAt(EdDSA, 0);
+    	
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -535,20 +544,30 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg;
+        AlgorithmID csAlg = null;
         Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
         Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
         
+        // Uncomment to set ECDSA with curve P256 for countersignatures
+        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        
+        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+        
         // ECDSA_256
-        csAlg = AlgorithmID.ECDSA_256;
-        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlg = AlgorithmID.ECDSA_256;
+        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        }
         
         // EDDSA (Ed25519)
-        // csAlg = AlgorithmID.EDDSA;
-        // csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        // csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        // csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlg = AlgorithmID.EDDSA;
+        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        }
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
@@ -576,10 +595,17 @@ public class TestDtlspRSGroupOSCORE {
     	byte[] mySid;
     	OneKey myKey;
     	
-    	/*
-    	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)
     	
-    	OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	/*
+    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
+        
+        OneKey testKey = null;
+ 		
+ 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
         
     	byte[] testKeyBytes = testKey.EncodeToBytes();
     	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
@@ -591,12 +617,21 @@ public class TestDtlspRSGroupOSCORE {
     	System.out.println(testPublicKeyBytesBase64);
     	*/
     	
+    	
     	// Add a group member with Sender ID 0x52
     	mySid = new byte[] { (byte) 0x52 };
     	myGroup.allocateSenderId(mySid);	
     	
+    	String rpkStr1 = "";
+    	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
-    	String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
@@ -608,8 +643,16 @@ public class TestDtlspRSGroupOSCORE {
     	mySid = new byte[] { (byte) 0x77 };
     	myGroup.allocateSenderId(mySid);
     	
+    	String rpkStr2 = "";
+    	
     	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
-    	String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
