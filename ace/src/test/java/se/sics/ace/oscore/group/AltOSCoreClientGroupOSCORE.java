@@ -85,7 +85,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  * @author Ludwig Seitz, Marco Tiloca & Rikard Höglund
  *
  */
-public class OSCoreClientGroupOSCORE {
+public class AltOSCoreClientGroupOSCORE {
 
 	//Sets the port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;

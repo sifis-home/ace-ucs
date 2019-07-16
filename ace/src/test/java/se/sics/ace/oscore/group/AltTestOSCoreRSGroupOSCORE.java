@@ -93,7 +93,7 @@ import se.sics.ace.rs.AsRequestCreationHints;
  * @author Ludwig Seitz, Marco Tiloca & Rikard Höglund
  *
  */
-public class TestOSCoreRSGroupOSCORE {
+public class AltTestOSCoreRSGroupOSCORE {
 
 	//Sets the port to use
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT;

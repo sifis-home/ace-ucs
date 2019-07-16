@@ -38,7 +38,8 @@ CWT protection: PSK / RPK(?)
 
 *Client->AS & Client->GM Application:
 
-Work in progress. Currently fails with "Unsupported key wrap algorithm in token: null" from AS. (?)
+Work in progress. Currently DTLS handshake from Client to GM fails.
+Perhaps due to bad data in Token or bad PSK Identity used by the Client.
 
 Name: DtlsAsRsClientGroupOSCORE
 Security protocol: DTLS
@@ -50,8 +51,9 @@ Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
 
 *Client->GM Application (OSCORE):
 
-For testing with Peter van der Stok.
-(Work in progress)
+Code for testing with Peter van der Stok during Hackathon.
+OSCORE Client->GM and GM applications. The client generates its own Token followed
+by posting it and performing the Join process.
 
 Name: TestOSCoreRSGroupOSCORE
 Security protocol: OSCORE
@@ -60,11 +62,25 @@ Run with: OSCoreClientGroupOSCORE
 
 *GM Application (OSCORE):
 
-For testing with Peter van der Stok.
-(Work in progress)
-
 Name: OSCoreClientGroupOSCORE
 Security protocol: OSCORE
 CWT protection: PSK
 
+
+*Client->GM Application (OSCORE) (old):
+
+Older code starting from DTLS-base. Works but only when using bypass method.
+
+Name: AltTestOSCoreRSGroupOSCORE
+Security protocol: OSCORE
+CWT protection: PSK
+Run with: OSCoreClientGroupOSCORE
+
+*GM Application (OSCORE) (old):
+
+Older code starting from DTLS-base. Works but only when using bypass method.
+
+Name: AltOSCoreClientGroupOSCORE
+Security protocol: OSCORE
+CWT protection: PSK
 
