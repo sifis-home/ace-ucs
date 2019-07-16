@@ -60,6 +60,7 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -210,7 +211,7 @@ public class OscoreRSTestServer {
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
       
-      //OSCoreCoapStackFactory.useAsDefault();
+      
       rs = new CoapServer();
       rs.add(hello);
       rs.add(temp);
@@ -218,6 +219,8 @@ public class OscoreRSTestServer {
       rs.addEndpoint(new CoapEndpoint.Builder()
               .setCoapStackFactory(new OSCoreCoapStackFactory())
               .setPort(CoAP.DEFAULT_COAP_PORT)
+              .setCustomCoapStackArgument(
+                      OscoreCtxDbSingleton.getInstance())
               .build());
 
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 

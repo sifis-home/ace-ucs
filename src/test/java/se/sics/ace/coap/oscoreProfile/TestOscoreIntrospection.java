@@ -33,7 +33,6 @@ package se.sics.ace.coap.oscoreProfile;
 
 import java.util.Map;
 
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -42,7 +41,6 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
 
 /**
@@ -95,8 +93,6 @@ public class TestOscoreIntrospection {
      */
     @BeforeClass
     public static void setUp() {
-        OSCoreCoapStackFactory.useAsDefault(
-                OscoreCtxDbSingleton.getInstance());
         srv = new RunTestServer();
         srv.run();
     }

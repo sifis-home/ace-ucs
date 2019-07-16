@@ -40,7 +40,6 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
@@ -117,8 +116,6 @@ public class TestOscorepClient2RS {
      */
     @BeforeClass
     public static void setUp() throws OSException {
-        OSCoreCoapStackFactory.useAsDefault(
-                OscoreCtxDbSingleton.getInstance());
         srv = new RunTestServer();
         srv.run();
         //Initialize a fake context

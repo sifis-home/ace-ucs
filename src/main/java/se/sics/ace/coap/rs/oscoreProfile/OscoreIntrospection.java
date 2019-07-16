@@ -100,6 +100,7 @@ public class OscoreIntrospection implements IntrospectionHandler {
         this.client = new CoapClient(introspectAddress);
         this.client.setEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
+                .setCustomCoapStackArgument(db)
                 .setPort(CoAP.DEFAULT_COAP_PORT)
                 .build());
     }

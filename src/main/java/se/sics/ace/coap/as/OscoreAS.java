@@ -43,6 +43,7 @@ import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 
 import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
@@ -174,10 +175,11 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         }
         this.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
-                .setPort(CoAP.DEFAULT_COAP_PORT).build());  
-        OSCoreCoapStackFactory.useAsDefault(
-                OscoreCtxDbSingleton.getInstance());
-        loadOscoreCtx(db, asId);
+                .setPort(CoAP.DEFAULT_COAP_PORT)
+                .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
+                .build());  
+        loadOscoreCtx(db, asId);        
+
     }
 
     /**

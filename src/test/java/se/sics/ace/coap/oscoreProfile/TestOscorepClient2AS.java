@@ -34,7 +34,6 @@ package se.sics.ace.coap.oscoreProfile;
 import java.util.Map;
 
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
@@ -46,7 +45,6 @@ import com.upokecenter.cbor.CBORObject;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
  * Test the DTLSProfileRequests class C->AS

@@ -41,6 +41,8 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
@@ -95,15 +97,19 @@ public class OSCOREProfileRequests {
      */
     public static Response getToken(String asAddr, CBORObject payload, 
             OSCoreCtx ctx) throws AceException, OSException {
-        CoapClient client = new CoapClient(asAddr);
 
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
         r.setPayload(payload.EncodeToBytes());
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-        db.addContext(ctx);
-        OSCoreCoapStackFactory.useAsDefault(db);
-       
+        db.addContext(asAddr, ctx);
+        
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
+        Endpoint clientEndpoint = builder.build();
+        CoapClient client = new CoapClient(asAddr);
+        client.setEndpoint(clientEndpoint);  
         try {
             return client.advanced(r).advanced();
         } catch (ConnectorException | IOException e) {
@@ -240,8 +246,12 @@ public class OSCOREProfileRequests {
             throw new AceException("OSCORE context not set for address: " 
                     + serverAddress);
         }
-        OSCoreCoapStackFactory.useAsDefault(db);
+        CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+        builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
+        Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
+        client.setEndpoint(clientEndpoint);
         return client;    
     }
 }
