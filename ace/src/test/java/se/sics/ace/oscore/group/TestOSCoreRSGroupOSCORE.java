@@ -2,6 +2,7 @@ package se.sics.ace.oscore.group;
 
 import java.io.File;
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -39,6 +40,7 @@ import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.group.AltTestOSCoreRSGroupOSCORE.GroupOSCOREJoinResource;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
@@ -157,6 +159,9 @@ public class TestOSCoreRSGroupOSCORE {
     public static void main(String[] args) throws Exception {
     	OSCoreCoapStackFactory.useAsDefault();
     	
+    	//Install needed cryptography providers
+        org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+    	
       //Set up token repository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -170,6 +175,16 @@ public class TestOSCoreRSGroupOSCORE {
         Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
+        
+        Set<Short> actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        actions3.add(Constants.POST);
+        Map<String, Set<Short>> myResource3 = new HashMap<>();
+        myResource3.put("feedca570000", actions3);
+        myScopes.put("r_feedca570000", myResource3);
+        
+        //Create the OSCORE Group(s)
+        OSCOREGroupCreation();
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
@@ -230,12 +245,14 @@ public class TestOSCoreRSGroupOSCORE {
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
       Resource manage = new ManageResource();
+      Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
       
       OSCoreCoapStackFactory.useAsDefault();
       rs = new CoapServer(PORT);
       rs.add(hello);
       rs.add(temp);
       rs.add(manage);
+      rs.add(join);
       rs.add(authzInfo);
       
 
@@ -282,8 +299,16 @@ public class TestOSCoreRSGroupOSCORE {
         }
 
         @Override
+        public void handleGET(CoapExchange exchange) {
+        	System.out.println("GET request reached the GM");
+        	exchange.respond("GET request reached the GM");
+        }
+        
+        @Override
         public void handlePOST(CoapExchange exchange) {
             
+        	System.out.println("POST request reached the GM");
+        	
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
@@ -596,6 +621,115 @@ public class TestOSCoreRSGroupOSCORE {
         
     }
     
+    private static void OSCOREGroupCreation() throws CoseException
+    {
+    	// Create the OSCORE group
+        final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
+                					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
+                					  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+
+        final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
+                					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
+
+        // Group OSCORE specific values for the AEAD algorithm and HKDF
+        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+
+        // Group OSCORE specific values for the countersignature
+        AlgorithmID csAlg;
+        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
+        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        
+        // ECDSA_256
+        //csAlg = AlgorithmID.ECDSA_256;
+        //csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
+        //csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        
+        // EDDSA (Ed25519)
+        csAlg = AlgorithmID.EDDSA;
+        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
+        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+
+        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
+        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
+        
+        final int senderIdSize = 1; // Up to 4 bytes
+
+        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+        // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
+    	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
+    	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
+    	
+    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    			                          masterSalt,
+    			                          groupIdPrefixSize,
+    			                          groupIdPrefix,
+    			                          groupIdEpoch.length,
+    			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          senderIdSize,
+    			                          alg,
+    			                          hkdf,
+    			                          csAlg,
+    			                          csParams,
+    			                          csKeyParams);
+        
+    	byte[] mySid;
+    	OneKey myKey;
+    	
+    	/*
+    	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)
+    	
+    	OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        
+    	byte[] testKeyBytes = testKey.EncodeToBytes();
+    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
+    	System.out.println(testKeyBytesBase64);
+    	
+    	OneKey testPublicKey = testKey.PublicKey();
+    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
+    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
+    	System.out.println(testPublicKeyBytesBase64);
+    	*/
+    	
+    	// Add a group member with Sender ID 0x52
+    	mySid = new byte[] { (byte) 0x52 };
+    	myGroup.allocateSenderId(mySid);	
+    	
+    	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
+    	//String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	  	
+    	// Store the public key of the group member with Sender ID 0x52 (EDDSA)
+    	String rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+    	
+    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+    	
+    	
+    	// Add a group member with Sender ID 0x77
+    	mySid = new byte[] { (byte) 0x77 };
+    	myGroup.allocateSenderId(mySid);
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
+    	//String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (EDDSA)
+    	String rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+    	
+    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
+    	
+    	
+    	// Add this OSCORE group to the set of active groups
+    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
+    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	
+    }
 
 
 }

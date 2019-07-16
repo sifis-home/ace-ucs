@@ -45,6 +45,8 @@ public class OSCoreClientGroupOSCORE {
 	private final static String GM_ADDRESS = "localhost";
 	
 	private static String GM_HOST;
+	//private static String REQUESTED_RESOURCE = "helloWorld";
+	private static String REQUESTED_RESOURCE = "feedca570000";
 	
     /**
      * The cnf key used in these tests
@@ -96,7 +98,7 @@ public class OSCoreClientGroupOSCORE {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_" + REQUESTED_RESOURCE));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
@@ -121,21 +123,24 @@ public class OSCoreClientGroupOSCORE {
         asRes.setPayload(payload.EncodeToBytes());
         
         //Post the Token to GM
-        System.out.println("Posting Token to GM at " + "coap://" + GM_HOST + "/authz-info");
+        String tokenURI = "coap://" + GM_HOST + "/authz-info";
+        System.out.println("Posting Token to GM at " + tokenURI);
         System.out.println("Simulated response from AS used: " + payload.ToJSONString());
         Response rsRes = OSCOREProfileRequests.postToken(
-                "coap://" + GM_HOST + "/authz-info", asRes);
+        		tokenURI, asRes);
         System.out.println("GM Response to Token post: " + Utility.arrayToString(rsRes.getPayload()));
        
         System.out.println("Due to Token post the following OSCORE Context has been generated:");
-        OSCoreCtx generatedContext = HashMapCtxDB.getInstance().getContext("coap://" + GM_HOST + "/helloWorld");
+        String resourceURI = "coap://" + GM_HOST + "/" + REQUESTED_RESOURCE;
+        OSCoreCtx generatedContext = HashMapCtxDB.getInstance().getContext(resourceURI);
         Utility.printContextInfo(generatedContext);
         
 		//Submit a request to GM
-		System.out.println("Performing request to GM at " + "coap://" + GM_HOST + "/helloWorld" + " (port " + GM_PORT + ")");
+		System.out.println("Performing request to GM at " + resourceURI + " (port " + GM_PORT + ")");
 		CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-				"coap://" + GM_HOST + "/helloWorld", GM_PORT));
-		Request helloReq = new Request(CoAP.Code.GET);
+				resourceURI, GM_PORT));
+		Request helloReq = new Request(CoAP.Code.POST);
+		helloReq.setPayload("HELLO");
 		helloReq.getOptions().setOscore(new byte[0]);
 		CoapResponse helloRes = c.advanced(helloReq);
 		System.out.println("Received response from GM:" + helloRes.getResponseText());
