@@ -343,7 +343,7 @@ public class OSCOREProfileRequests {
             throw new AceException("OSCORE context not set for address: " 
                     + serverAddress);
         }
-        OSCoreCoapStackFactory.useAsDefault();
+        //OSCoreCoapStackFactory.useAsDefault();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         return client;    
     }
