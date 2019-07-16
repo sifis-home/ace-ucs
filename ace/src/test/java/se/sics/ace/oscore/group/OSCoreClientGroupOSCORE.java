@@ -14,11 +14,6 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Test;
-
 import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
@@ -36,6 +31,8 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * Posts a Token to the GM followed by the group join procedure.
  * 
  * This should be run with TestOSCoreRSGroupOSCORE as server.
+ * 
+ * For testing with Peter van der Stok.
  * 
  * @author Ludwig Seitz, Rikard Höglund & Marco Tiloca
  *
@@ -58,7 +55,8 @@ public class OSCoreClientGroupOSCORE {
      * The AS <-> RS key used in these tests
      */
     private static byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    private static OSCoreCtx osctx;
+    @SuppressWarnings("unused")
+	private static OSCoreCtx osctx;
     
     public static void main(String[] args) throws Exception {
     	OSCoreCoapStackFactory.useAsDefault();
@@ -133,14 +131,14 @@ public class OSCoreClientGroupOSCORE {
         OSCoreCtx generatedContext = HashMapCtxDB.getInstance().getContext("coap://" + GM_HOST + "/helloWorld");
         Utility.printContextInfo(generatedContext);
         
-       //Submit a request to GM
-       System.out.println("Performing request to GM at " + "coap://" + GM_HOST + "/helloWorld" + " (port " + GM_PORT + ")");
-       CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://" + GM_HOST + "/helloWorld", GM_PORT));
-       Request helloReq = new Request(CoAP.Code.GET);
-       helloReq.getOptions().setOscore(new byte[0]);
-       CoapResponse helloRes = c.advanced(helloReq);
-       System.out.println("Received response from GM:" + helloRes.getResponseText());
+		//Submit a request to GM
+		System.out.println("Performing request to GM at " + "coap://" + GM_HOST + "/helloWorld" + " (port " + GM_PORT + ")");
+		CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
+				"coap://" + GM_HOST + "/helloWorld", GM_PORT));
+		Request helloReq = new Request(CoAP.Code.GET);
+		helloReq.getOptions().setOscore(new byte[0]);
+		CoapResponse helloRes = c.advanced(helloReq);
+		System.out.println("Received response from GM:" + helloRes.getResponseText());
 
        
     }
