@@ -137,6 +137,64 @@ public class Utility {
 		printAllRecipientContextInfo(ctx);
 	}
 	
+	//Printing for OSCORE Context
+	public static void printContextInfo(OSCoreCtx ctx) {
+		if(!DEBUG) {
+			return;
+		}
+				
+		byte[] master_secret, master_salt, common_iv, id_context;
+		byte[] sender_id, sender_key;
+		int sender_seq_number;
+		//byte[] recipient_id, recipient_key;	
+		
+		//Common context
+		master_secret = ctx.getMasterSecret();
+		master_salt = ctx.getSalt();
+		common_iv = ctx.getCommonIV();
+		id_context = ctx.getIdContext();
+		
+		//Sender context
+		sender_id = ctx.getSenderId();
+		sender_key = ctx.getSenderKey();
+		sender_seq_number = ctx.getSenderSeq();
+
+		System.out.println("Common Context:");
+		System.out.print("\tMaster Secret: ");
+		System.out.println(arrayToString(master_secret));
+		System.out.print("\tMaster Salt: ");
+		System.out.println(arrayToString(master_salt));
+		System.out.print("\tCommon IV: ");
+		System.out.println(arrayToString(common_iv));
+		System.out.print("\tID Context: ");
+		System.out.println(arrayToString(id_context));
+		
+		System.out.println("Sender Context:");
+		System.out.print("\tSender ID: ");
+		System.out.println(arrayToString(sender_id));
+		System.out.print("\tSender Key: ");
+		System.out.println(arrayToString(sender_key));
+		System.out.print("\tSender Seq Number: ");
+		System.out.println(sender_seq_number);
+
+		byte[] recipient_id, recipient_key;
+		//int recipient_seq_number;
+
+		recipient_id = ctx.getRecipientId();
+		recipient_key = ctx.recipient_key;
+		//recipient_seq_number = rcpCtx.recipient_seq;
+		
+		System.out.println("Recipient Context:");
+		System.out.print("\tRecipient ID: ");
+		System.out.println(arrayToString(recipient_id));
+		System.out.print("\tRecipient Key: ");
+		System.out.println(arrayToString(recipient_key));
+		//System.out.print("\tRecipient Seq Number: ");
+		//System.out.println(recipient_seq_number);
+		
+	}
+	
+	
 	/**
 	 * Print information about all recipient context in a Group Context 
 	 * @param ctx

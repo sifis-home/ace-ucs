@@ -13,6 +13,7 @@ import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
+import org.eclipse.californium.oscore.Utility;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -90,11 +91,12 @@ public class OSCoreClientGroupOSCORE {
      * @throws Exception 
      */
     public static void testSuccess() throws Exception {
-        //Generate a token
+        //Generate a token and simulated response from As
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
@@ -113,26 +115,33 @@ public class OSCoreClientGroupOSCORE {
         cnf.Add(Constants.OSCORE_Security_Context, osc);
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
+        
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
+        
+        //Post the Token to GM
+        System.out.println("Posting Token to GM at " + "coap://" + GM_HOST + "/authz-info");
+        System.out.println("Simulated response from AS used: " + payload.ToJSONString());
         Response rsRes = OSCOREProfileRequests.postToken(
                 "coap://" + GM_HOST + "/authz-info", asRes);
-        assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
-        //Check that the OSCORE context has been created:
-       Assert.assertNotNull(HashMapCtxDB.getInstance().getContext(
-               "coap://" + GM_HOST  + "/helloWorld"));
+        System.out.println("GM Response to Token post: " + Utility.arrayToString(rsRes.getPayload()));
        
-       //Submit a request
+        System.out.println("Due to Token post the following OSCORE Context has been generated:");
+        OSCoreCtx generatedContext = HashMapCtxDB.getInstance().getContext("coap://" + GM_HOST + "/helloWorld");
+        Utility.printContextInfo(generatedContext);
+        
+       //Submit a request to GM
+       System.out.println("Performing request to GM at " + "coap://" + GM_HOST + "/helloWorld" + " (port " + GM_PORT + ")");
        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
                "coap://" + GM_HOST + "/helloWorld", GM_PORT));
        Request helloReq = new Request(CoAP.Code.GET);
        helloReq.getOptions().setOscore(new byte[0]);
        CoapResponse helloRes = c.advanced(helloReq);
-       Assert.assertEquals("Hello World!", helloRes.getResponseText());
-       
+       System.out.println("Received response from GM:" + helloRes.getResponseText());
+
        
     }
 
