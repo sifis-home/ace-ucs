@@ -69,6 +69,12 @@ public class TestOSCoreRSGroupOSCORE {
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
 	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
 
+	 //Public key (ECDSA)
+	 //private static String publicKeyStr = "piJYIBZKbV1Ll/VtH2ChKBHVXeegVeusYWTJ75MCy8v/Hwq+I1ggO+AEdZm0KqRLj4oPqI1NoRaXtY2fzE45RD6YQ78jBYYDJgECIVgg6Pmo1YUKUzzaJLn6ih7ik/ag4egeHlYKZP8TTWX37OwgAQ==";
+
+	 //Public key (EDDSA)
+	 private static String publicKeyStr = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+	 
     /**
      * Definition of the Hello-World Resource
      */
@@ -158,6 +164,18 @@ public class TestOSCoreRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+    	// install needed cryptography providers
+    	try {
+    		org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+    	} catch (Exception e) {
+    		System.err.println("Failed to install cryptography providers.");
+    		e.printStackTrace();
+    	}
+    	
+    	OneKey privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(publicKeyStr)));
+    	OneKey publicKey = privateKey.PublicKey();
+    	
+    	  	
     	OSCoreCoapStackFactory.useAsDefault();
     	
     	//Install needed cryptography providers
@@ -220,13 +238,20 @@ public class TestOSCoreRSGroupOSCORE {
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      
-               
-        //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+                   
+        //Set up COSE parameters (enable for encrypting Tokens)
+//        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+//                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+//        CwtCryptoCtx ctx 
+//            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+        
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.EDDSA, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Verify(
+                publicKey, coseP.getAlg().AsCBOR());
+        
+        CwtCryptoCtx ctx_sign = CwtCryptoCtx.sign1Create(
+                privateKey, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -260,14 +285,13 @@ public class TestOSCoreRSGroupOSCORE {
       params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
       CBORObject payload = CBORObject.NewMap();
-      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+      //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting
+      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign));
       byte[] n1 = new byte[8];
-      new SecureRandom().nextBytes(n1); //Settingt of nonce n1
-      //byte[] overrideNonce = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, (byte) 0x88 }; //Override nonce
-      //n1 = overrideNonce;
+      new SecureRandom().nextBytes(n1); 
       payload.Add(Constants.CNONCE, n1);
       
-      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
+      ai.processMessage(new LocalMessage(0, null, null, payload));
 
       AsRequestCreationHints archm 
           = new AsRequestCreationHints(

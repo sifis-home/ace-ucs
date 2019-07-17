@@ -161,7 +161,10 @@ public class OscoreAuthzInfo extends AuthzInfo {
         byte[] n1 = nonce.GetByteString();
         byte[] n2 = new byte[8];
         new SecureRandom().nextBytes(n2);
-   
+        //Generation of nonce n2
+//        byte[] newNonce = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
+//        n2 = newNonce;
+        
         OscoreSecurityContext osc;
         try {
             osc = new OscoreSecurityContext(this.cnf);

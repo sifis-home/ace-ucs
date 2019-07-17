@@ -70,6 +70,13 @@ public class OSCoreClientGroupOSCORE {
 
     //Use a string scope for the Token
     private static boolean scopeIsBytestring = true;
+    
+    //Public key (ECDSA)
+    //private static String publicKeyStr = "piJYIBZKbV1Ll/VtH2ChKBHVXeegVeusYWTJ75MCy8v/Hwq+I1ggO+AEdZm0KqRLj4oPqI1NoRaXtY2fzE45RD6YQ78jBYYDJgECIVgg6Pmo1YUKUzzaJLn6ih7ik/ag4egeHlYKZP8TTWX37OwgAQ==";
+    
+    //Public key (EDDSA)
+    private static String publicKeyStr = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+
 	
     /**
      * The cnf key used in these tests
@@ -84,6 +91,14 @@ public class OSCoreClientGroupOSCORE {
 	private static OSCoreCtx osctx;
     
     public static void main(String[] args) throws Exception {
+    	// install needed cryptography providers
+    	try {
+    		org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+    	} catch (Exception e) {
+    		System.err.println("Failed to install cryptography providers.");
+    		e.printStackTrace();
+    	}
+    	
     	OSCoreCoapStackFactory.useAsDefault();
     	
     	GM_HOST = GM_ADDRESS + ":" + GM_PORT;
@@ -114,6 +129,8 @@ public class OSCoreClientGroupOSCORE {
      * @throws Exception 
      */
     public static void testSuccess() throws Exception {
+    	OneKey privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(publicKeyStr)));
+    	
     	//Create a byte string scope for use later
     	String gid = new String("feedca570000");
      	String role1 = new String("requester");
@@ -129,10 +146,14 @@ public class OSCoreClientGroupOSCORE {
     	
     	
         //Generate a token and simulated response from As
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+//        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+//                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.EDDSA, AlgorithmID.Direct);
+//        CwtCryptoCtx ctx 
+//            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
+        		privateKey, coseP.getAlg().AsCBOR());
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         if(!scopeIsBytestring) {

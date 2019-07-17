@@ -60,6 +60,8 @@ Code for testing with Peter van der Stok during Hackathon.
 OSCORE Client->GM and GM applications. The client generates its own Token followed
 by posting it and performing the Join process.
 
+TODO: Make a copy of this as a JUnit.
+
 Name: TestOSCoreRSGroupOSCORE
 Security protocol: OSCORE
 CWT protection: PSK
