@@ -68,6 +68,8 @@ public class OSCoreClientGroupOSCORE {
 	// Private and public key to be used in the OSCORE group (EDDSA)
     private static String groupKeyPair = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 
+    //Use a string scope for the Token
+    private static boolean scopeIsBytestring = false;
 	
     /**
      * The cnf key used in these tests
@@ -112,6 +114,20 @@ public class OSCoreClientGroupOSCORE {
      * @throws Exception 
      */
     public static void testSuccess() throws Exception {
+    	//Create a byte string scope for use later
+    	String gid = new String("feedca570000");
+     	String role1 = new String("requester");
+     	String role2 = new String("listener");
+    	
+        CBORObject cborArrayScope = CBORObject.NewArray();
+    	cborArrayScope.Add(gid);
+    	CBORObject cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+    	
+    	
         //Generate a token and simulated response from As
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -119,7 +135,11 @@ public class OSCoreClientGroupOSCORE {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_" + REQUESTED_RESOURCE));
+        if(!scopeIsBytestring) {
+        	params.put(Constants.SCOPE, CBORObject.FromObject("r_" + REQUESTED_RESOURCE));
+        } else {
+        	 params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        }
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
@@ -173,18 +193,6 @@ public class OSCoreClientGroupOSCORE {
 		//First set up some parameters
 		boolean askForPubKeys = true;
     	boolean providePublicKey = true;
-    	
-        String gid = new String("feedca570000");
-     	String role1 = new String("requester");
-     	String role2 = new String("listener");
-    	
-        CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	//Now proceed with creating Join request
 		
