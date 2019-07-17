@@ -167,6 +167,8 @@ public class OSCOREProfileRequests {
         payload.Add(Constants.ACCESS_TOKEN, token);
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
+        //byte[] overrideNonce = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, (byte) 0x88 }; //Override nonce
+        //n1 = overrideNonce;
         payload.Add(Constants.CNONCE, n1);
         
         CoapClient client = new CoapClient(rsAddr);

@@ -184,26 +184,39 @@ public class TestOSCoreRSGroupOSCORE {
         myResource3.put("feedca570000", actions3);
         myScopes.put("r_feedca570000", myResource3);
         
+        // M.T.
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions4 = new HashSet<>();
+        actions4.add(Constants.POST);
+        Map<String, Set<Short>> myResource4 = new HashMap<>();
+        myResource4.put("feedca570000", actions4);
+        myScopes.put("feedca570000_requester", myResource4);
+        myScopes.put("feedca570000_listener", myResource4);
+        myScopes.put("feedca570000_purelistener", myResource4);
+        myScopes.put("feedca570000_requester_listener", myResource4);
+        myScopes.put("feedca570000_requester_purelistener", myResource4);
+        
         //Create the OSCORE Group(s)
         OSCOREGroupCreation();
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+//        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
+//                myScopes);
 
-//        // M.T.
-//        Set<String> auds = new HashSet<>();
-//        auds.add("rs1"); // Simple test audience
-//        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-//        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
-//        
-//        // M.T.
-//        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-//        valid.setGMAudiences(Collections.singleton("rs1"));
-//        
-//        // M.T.
-//        // Include this resource as a join resource for Group OSCORE.
-//        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-//        valid.setJoinResources(Collections.singleton("feedca570000"));
+        // M.T.
+        Set<String> auds = new HashSet<>();
+        auds.add("rs1"); // Simple test audience
+        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        
+        // M.T.
+        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+        valid.setGMAudiences(Collections.singleton("rs2"));
+        
+        // M.T.
+        // Include this resource as a join resource for Group OSCORE.
+        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+        valid.setJoinResources(Collections.singleton("feedca570000"));
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -249,7 +262,9 @@ public class TestOSCoreRSGroupOSCORE {
       CBORObject payload = CBORObject.NewMap();
       payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
       byte[] n1 = new byte[8];
-      new SecureRandom().nextBytes(n1);
+      new SecureRandom().nextBytes(n1); //Settingt of nonce n1
+      //byte[] overrideNonce = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, (byte) 0x88 }; //Override nonce
+      //n1 = overrideNonce;
       payload.Add(Constants.CNONCE, n1);
       
       ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));

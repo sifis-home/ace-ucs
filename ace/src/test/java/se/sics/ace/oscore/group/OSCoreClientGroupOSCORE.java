@@ -140,11 +140,12 @@ public class OSCoreClientGroupOSCORE {
         } else {
         	 params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         }
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
+        //Setting of OSCORE Context information in Token
         CBORObject osc = CBORObject.NewMap();
         byte[] clientId = "clientA".getBytes(Constants.charset);
         osc.Add(Constants.OS_CLIENTID, clientId);
