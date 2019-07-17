@@ -41,6 +41,7 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.group.AltTestOSCoreRSGroupOSCORE.GroupOSCOREJoinResource;
+import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
@@ -189,6 +190,21 @@ public class TestOSCoreRSGroupOSCORE {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
 
+//        // M.T.
+//        Set<String> auds = new HashSet<>();
+//        auds.add("rs1"); // Simple test audience
+//        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+//        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+//        
+//        // M.T.
+//        // Include this audience in the list of audiences recognized as OSCORE Group Managers 
+//        valid.setGMAudiences(Collections.singleton("rs1"));
+//        
+//        // M.T.
+//        // Include this resource as a join resource for Group OSCORE.
+//        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
+//        valid.setJoinResources(Collections.singleton("feedca570000"));
+        
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       

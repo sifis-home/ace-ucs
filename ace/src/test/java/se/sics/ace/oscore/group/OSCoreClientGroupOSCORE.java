@@ -69,7 +69,7 @@ public class OSCoreClientGroupOSCORE {
     private static String groupKeyPair = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 
     //Use a string scope for the Token
-    private static boolean scopeIsBytestring = false;
+    private static boolean scopeIsBytestring = true;
 	
     /**
      * The cnf key used in these tests
