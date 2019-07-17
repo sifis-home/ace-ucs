@@ -212,7 +212,7 @@ public class OSCOREProfileRequests {
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-       OSCoreCtx ctx = osc.getContext(false, n1, n2);
+       OSCoreCtx ctx = osc.getContext(true, n1, n2);
        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
        db.addContext(ctx);
        db.addContext(rsAddr, ctx);

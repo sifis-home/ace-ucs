@@ -40,7 +40,6 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
@@ -93,16 +92,14 @@ public class OscoreIntrospection implements IntrospectionHandler {
      */
     public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress) 
             throws CoseException, IOException, OSException {
-        //OSCoreCoapStackFactory.useAsDefault();
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         db.addContext(ctx);
         db.addContext(introspectAddress, ctx);
         this.client = new CoapClient(introspectAddress);
-        this.client.setEndpoint(new CoapEndpoint.Builder()
-                .setCoapStackFactory(new OSCoreCoapStackFactory())
-                .setCustomCoapStackArgument(db)
-                .setPort(CoAP.DEFAULT_COAP_PORT)
-                .build());
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
+        ceb.setCoapStackFactory(new OSCoreCoapStackFactory());
+        ceb.setCustomCoapStackArgument(db);
+        this.client.setEndpoint(ceb.build());
     }
       
     @Override

@@ -113,9 +113,7 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
         }
         LOGGER.log(Level.FINEST, "Received request: " 
                 + ((req==null)?"null" : req.toString()));
-        //FIXME: Set sender Id
-        
-        
+
         Message m = this.e.processMessage(req);
         if (m instanceof CoapRes) {
             CoapRes res = (CoapRes)m;
