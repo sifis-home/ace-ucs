@@ -245,14 +245,14 @@ public abstract class Decryptor {
 
 		/* ------ Rikard: Prints for debugging ------ */
 
-		boolean DEBUG = Utility.DETAILED_DEBUG;
+		boolean DETAILED_DEBUG = Utility.DETAILED_DEBUG;
 
 		String messageType = "Response: ";
 		if(isRequest) {
 			messageType = "Request:  ";
 		}
 
-		if(DEBUG) {
+		if(DETAILED_DEBUG) {
 			//System.out.println("Decrypt " + messageType + "Common IV:\t" + Utility.arrayToString(ctx.getCommonIV()));
 			System.out.println("Decrypt " + messageType + "Nonce:\t" + Utility.arrayToString(nonce));
 			//System.out.println("Decrypt " + messageType + "Sequence Nr.:\t" + seq);
@@ -286,7 +286,7 @@ public abstract class Decryptor {
 					System.err.println("Error: Countersignature verification failed!");
 				}
 
-				if(DEBUG) {
+				if(DETAILED_DEBUG) {
 					System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
 				}
 			}

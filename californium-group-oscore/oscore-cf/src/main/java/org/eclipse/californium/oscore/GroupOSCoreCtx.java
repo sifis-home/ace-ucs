@@ -186,6 +186,9 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 			System.err.println("Warning: Not appending countersignatures!");
 		} else if(alg_countersign == AlgorithmID.EDDSA && par_countersign == ED25519) {
 			countersign_length = 64;
+		} else if(alg_countersign == AlgorithmID.ECDSA_256) {
+			countersign_length = -1;
+			System.err.println("Add constructor check for ECDSA");
 		} else {
 			System.err.println("Error: Unknown countersignature length!");
 		}

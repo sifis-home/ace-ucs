@@ -96,6 +96,7 @@ public class Utility {
 		//Extra for convenience
 		countersign_length = ctx.getCountersignLength();
 		
+		System.out.println("Group OSCORE Context:");
 		System.out.println("Common Context:");
 		System.out.print("\tMaster Secret: ");
 		System.out.println(arrayToString(master_secret));
@@ -159,6 +160,7 @@ public class Utility {
 		sender_key = ctx.getSenderKey();
 		sender_seq_number = ctx.getSenderSeq();
 
+		System.out.println("OSCORE Context:");
 		System.out.println("Common Context:");
 		System.out.print("\tMaster Secret: ");
 		System.out.println(arrayToString(master_secret));

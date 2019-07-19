@@ -123,14 +123,14 @@ public abstract class Encryptor {
 
 			/* ------ Rikard: Prints for debugging ------ */
 
-			boolean DEBUG = Utility.DETAILED_DEBUG;
+			boolean DETAILED_DEBUG = Utility.DETAILED_DEBUG;
 
 			String messageType = "Response: ";
 			if(isRequest) {
 				messageType = "Request:  ";
 			}
 
-			if(DEBUG) {
+			if(DETAILED_DEBUG) {
 				System.out.println("Encrypt " + messageType + "Common IV:\t" + Utility.arrayToString(ctx.getCommonIV()));
 				System.out.println("Encrypt " + messageType + "Nonce:\t" + Utility.arrayToString(nonce));
 				//System.out.println("Encrypt " + messageType + "Sequence Nr.:\t" + seq);
@@ -177,7 +177,7 @@ public abstract class Encryptor {
 
 				CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());
 				byte[] countersign_bytes = mySignature.GetByteString();
-				if(DEBUG) {
+				if(DETAILED_DEBUG) {
 					System.out.println("Encrypt " + messageType + "Countersignature length:\t" + countersign_bytes.length);
 					System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
 

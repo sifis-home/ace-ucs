@@ -113,7 +113,7 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 			}
 		}
 		
-		System.err.println("RETURNING NULL!!!");
+		//System.err.println("RETURNING NULL!!!");
 		return null;
 	}
 
