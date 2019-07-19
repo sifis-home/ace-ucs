@@ -26,6 +26,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
@@ -66,6 +67,11 @@ public class GroupOSCOREInteropReceiver {
 	 */
 	static final boolean randomUnicastIP = false;
 
+	/**
+	 * String the server will reply with for tests
+	 */
+	private static String SERVER_RESPONSE = "Hello World!";
+	
 	/* --- Partial OSCORE Security Context information (receiver) --- */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uriLocal = "coap://localhost";
@@ -134,7 +140,13 @@ public class GroupOSCOREInteropReceiver {
 		CoapEndpoint endpoint = createEndpoints(config);
 		CoapServer server = new CoapServer(config);
 		server.addEndpoint(endpoint);
+		
+		//Creating resource hierarchy //FIXME
 		server.add(new HelloWorldResource());
+		oscore_hello.add(oscore_hello_coap);				
+		oscore_hello.add(oscore_hello_1);
+		oscore.add(oscore_hello);
+		server.add(oscore);
 		
 		//Information about the receiver
 		System.out.println("==================");
@@ -145,7 +157,7 @@ public class GroupOSCOREInteropReceiver {
 		System.out.println("Unicast IP: " + endpoint.getAddress().getHostString());
 		System.out.println("Incoming port: " + endpoint.getAddress().getPort());
 		System.out.print("CoAP resources: ");
-		for(Resource res : server.getRoot().getChildren()) {
+		for(Resource res : server.getRoot().getChildren()) { //FIXME
 			System.out.print(res.getURI() + " ");
 		}
 		System.out.println("");	
@@ -175,6 +187,7 @@ public class GroupOSCOREInteropReceiver {
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}
 
+	//Hello world resource that additionally replies with an ID
 	private static class HelloWorldResource extends CoapResource {
 
 		private int id;
@@ -231,6 +244,38 @@ public class GroupOSCOREInteropReceiver {
 			}
 			
 		}
-		
 	}
+	
+	/** --- Resources for interop tests follow --- **/
+	
+	//Base resource for OSCORE interop test resources
+	static OSCoreResource oscore = new OSCoreResource("oscore", true);
+	
+	//Second level base resource for OSCORE interop test resources
+	static OSCoreResource oscore_hello = new OSCoreResource("hello", true);
+	
+	//CoAP resource for OSCORE interop tests
+	static CoapResource oscore_hello_coap = new CoapResource("coap", true) {
+
+		@Override
+		public void handleGET(CoapExchange exchange) {
+			Response r = new Response(ResponseCode.CONTENT);
+			r.setPayload(SERVER_RESPONSE);
+			r.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+			
+			exchange.respond(r);
+		}
+	};
+	
+	//1 resource for OSCORE interop tests
+	static OSCoreResource oscore_hello_1 = new OSCoreResource("1", true) {
+		@Override
+		public void handleGET(CoapExchange exchange) {
+			Response r = new Response(ResponseCode.CONTENT);
+			r.setPayload(SERVER_RESPONSE);
+			r.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
+
+			exchange.respond(r);
+		}
+	};
 }
