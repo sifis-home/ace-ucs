@@ -80,8 +80,8 @@ public class GroupOSCOREInteropSender {
 	 * URI to perform request against.
 	 */
 	static final String requestResource  = "/helloWorld";
-	static final String requestIP = "31.133.136.216";
-	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress();
+	static final String requestIP = "31.133.136.216"; //Jim server #1
+	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress(); //Multicast
 	static final String requestURI = "coap://" + requestIP + ":" + COAP_PORT + requestResource;
 	
 	/**
@@ -92,7 +92,7 @@ public class GroupOSCOREInteropSender {
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uri = requestURI;
 	
-	private final static byte[] rid0 = new byte[] { (byte) 0xCC }; //Does not exist
+	private final static byte[] rid0 = new byte[] { (byte) 0xCC }; //Does not exist (testing)
 	
 	public static void main(String args[]) throws Exception {
 		//Install cryptographic providers //TODO: Move
@@ -100,12 +100,11 @@ public class GroupOSCOREInteropSender {
 		//InstallCryptoProviders.generateCounterSignKey(); //For generating keys
 		
 		//Add private & public keys for sender & receiver(s)
-		OneKey sid_private_key = new OneKey(CBORObject.DecodeFromBytes(
-				DatatypeConverter.parseBase64Binary(Contexts.Entity_1.sid_private_key_string)));
+		OneKey sid_private_key = new OneKey(Contexts.Client.signing_key_cbor);
 		OneKey rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(
-				DatatypeConverter.parseBase64Binary(Contexts.Entity_2.rid1_public_key_string)));
+				DatatypeConverter.parseBase64Binary(Contexts.Server_1.rid1_public_key_string)));
 		OneKey rid2_public_key = new OneKey(CBORObject.DecodeFromBytes(
-				DatatypeConverter.parseBase64Binary(Contexts.Entity_3.rid2_public_key_string)));
+				DatatypeConverter.parseBase64Binary(Contexts.Server_2.rid2_public_key_string)));
 		
 		//If OSCORE is being used set the context information
 		if(useOSCORE) {
@@ -115,7 +114,7 @@ public class GroupOSCOREInteropSender {
 					Contexts.Common.master_secret,
 					true,
 					Contexts.alg,
-					Contexts.Entity_1.sid,
+					Contexts.Client.sid,
 					Contexts.kdf,
 					Contexts.replay_size,
 					Contexts.Common.master_salt,
@@ -126,13 +125,13 @@ public class GroupOSCOREInteropSender {
 			
 			//Add the pre-configured recipient contexts
 			ctx.addRecipientContext(rid0);
-			ctx.addRecipientContext(Contexts.Entity_2.rid1, rid1_public_key);
-			ctx.addRecipientContext(Contexts.Entity_3.rid2, rid2_public_key);
+			ctx.addRecipientContext(Contexts.Server_1.sid, rid1_public_key);
+			ctx.addRecipientContext(Contexts.Server_2.sid, rid2_public_key);
 			db.addContext(uri, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
 			
-			//OneKey test = new OneKey(Contexts.Entity_1.signing_key_cbor);
+			//OneKey test = new OneKey(Contexts.Client.signing_key_cbor);
 			
 			System.out.println("Current Group OSCORE Context:");
 			Utility.printContextInfo(ctx);

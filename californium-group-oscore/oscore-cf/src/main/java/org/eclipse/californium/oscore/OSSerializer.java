@@ -19,7 +19,9 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -93,7 +95,11 @@ public class OSSerializer {
 			if(((GroupOSCoreCtx)ctx).getParCountersign() != null) {
 				CBORObject parCountersignCBOR = CBORObject.FromObject(((GroupOSCoreCtx)ctx).getParCountersign());
 				algorithms.Add(parCountersignCBOR);
-				algorithms.Add(CBORObject.FromObject(new byte[] {(byte) 0x82, 0x01, 0x06} )); //FIXME
+				
+				CBORObject cs_key_params = CBORObject.NewArray();
+				cs_key_params.Add(CBORObject.FromObject((int)1)); //When using EDDSA
+				cs_key_params.Add(CBORObject.FromObject((int)6)); //When using EDDSA
+				algorithms.Add(CBORObject.FromObject(cs_key_params));
 			}
 		}
 	}

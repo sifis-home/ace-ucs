@@ -41,6 +41,8 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
 
 import com.upokecenter.cbor.CBORObject;
 
+import ch.qos.logback.core.Context;
+
 /**
  * Group OSCORE interop test receiver application.
  * 
@@ -76,11 +78,11 @@ public class GroupOSCOREInteropReceiver {
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uriLocal = "coap://localhost";
 	
-	private static byte[] sid = new byte[] { 0x52 };
+	private static byte[] sid = Contexts.Server_1.sid;
 	private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
 	private static OneKey sid_private_key;
 	
-	private final static byte[] rid1 = new byte[] { (byte) 0xA2 };
+	private final static byte[] rid1 = Contexts.Client.sid;
 	private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
 	private static OneKey rid1_public_key;
 	
@@ -97,7 +99,7 @@ public class GroupOSCOREInteropReceiver {
 		//TODO: Re-enable
 		//Check command line arguments (flag to use different sid and sid key)
 		if(args.length != 0) {
-			sid = new byte[] { 0x77 };
+			sid = Contexts.Server_2.sid;
 			System.out.println("Starting with alternative sid 0x" + Utility.arrayToString(sid));
 			sid_private_key_string = "pQMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bouI1gge/Yvdn7Rz0xgkR/En9/Mub1HzH6fr0HLZjadXIUIsjk=";
 			sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
