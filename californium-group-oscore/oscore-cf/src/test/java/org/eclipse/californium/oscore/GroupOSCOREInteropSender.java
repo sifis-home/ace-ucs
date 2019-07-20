@@ -121,12 +121,12 @@ public class GroupOSCOREInteropSender {
 			//Add the pre-configured recipient contexts
 
 			//Add contexts for Jim's servers
-			ctx.addRecipientContext(Contexts.Jim.rid1, new OneKey(Contexts.Jim.public_key_cbor));
-			ctx.addRecipientContext(Contexts.Jim.rid2, new OneKey(Contexts.Jim.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Jim.server_1_rid, new OneKey(Contexts.Jim.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Jim.server_2_rid, new OneKey(Contexts.Jim.public_key_cbor));
 			
 			//Add contexts for Peter's servers
-			ctx.addRecipientContext(Contexts.Peter.rid1, new OneKey(Contexts.Peter.public_key_cbor));
-			ctx.addRecipientContext(Contexts.Peter.rid2, new OneKey(Contexts.Peter.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Peter.server_1_rid, new OneKey(Contexts.Peter.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Peter.server_2_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			
 			db.addContext(uri, ctx);
 

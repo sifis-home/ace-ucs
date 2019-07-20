@@ -113,13 +113,9 @@ public class GroupOSCOREInteropReceiver {
 			
 			//Add the pre-configured recipient contexts
 			
-			//Add contexts for Jim's servers
-			ctx.addRecipientContext(Contexts.Jim.rid1, new OneKey(Contexts.Jim.public_key_cbor));
-			ctx.addRecipientContext(Contexts.Jim.rid2, new OneKey(Contexts.Jim.public_key_cbor));
-			
-			//Add contexts for Peter's servers
-			ctx.addRecipientContext(Contexts.Peter.rid1, new OneKey(Contexts.Peter.public_key_cbor));
-			ctx.addRecipientContext(Contexts.Peter.rid2, new OneKey(Contexts.Peter.public_key_cbor));
+			//Add contexts for clients from Jim and Peter
+			ctx.addRecipientContext(Contexts.Jim.client_rid, new OneKey(Contexts.Jim.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Peter.client_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			
 			db.addContext(uriLocal, ctx);
 

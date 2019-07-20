@@ -11,7 +11,6 @@ public class Contexts {
 	final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	final static int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
-	//static final int TEMP = KeyKeys.EC2_P256.AsInt32();
 	final static int replay_size = 32;
 	
 	//Common Context
@@ -25,8 +24,10 @@ public class Contexts {
 		final static Integer par_countersign = ED25519; //Ed25519
 		
 	}
+
+	//Contexts for my clients and servers (Based on Entity #2)
 	
-	//Entity #1
+	//Client
 	public static class Client {
 	
 		final static byte[] sid = new byte[] { (byte) 0xB1 };
@@ -59,10 +60,13 @@ public class Contexts {
 		public static CBORObject signing_key_cbor = Contexts.Client.signing_key_cbor; //Same as Client key
 	}
 	
+	//Context for external client/servers
+	
 	//Jim
 	public static class Jim {
-		final static byte rid1[] = new byte[] { (byte) 0xA2 };
-		final static byte rid2[] = new byte[] { (byte) 0xA3 };
+		final static byte client_rid[] = new byte[] { (byte) 0xA1 };
+		final static byte server_1_rid[] = new byte[] { (byte) 0xA2 };
+		final static byte server_2_rid[] = new byte[] { (byte) 0xA3 };
 		
 		public static byte[] data = new byte[] { (byte) 0xA4, (byte) 0x01, (byte) 0x01, (byte) 0x20, (byte) 0x06, (byte) 0x21, (byte) 0x58, (byte) 0x20, (byte) 0x4C, (byte) 0x5E, (byte) 0x5A, (byte) 0x89, (byte) 0x8A, (byte) 0xFC, (byte) 0x77, (byte) 0xD9, (byte) 0xC9, (byte) 0x07, (byte) 0x73, (byte) 0xD9, (byte) 0xB4, (byte) 0xF5, (byte) 0xE7, (byte) 0xB3, (byte) 0x78, (byte) 0x60, (byte) 0x57, (byte) 0x53, (byte) 0xF9, (byte) 0xBA, (byte) 0x9E, (byte) 0x8A, (byte) 0x62, (byte) 0x48, (byte) 0x8C, (byte) 0x64, (byte) 0xE1, (byte) 0xA5, (byte) 0x24, (byte) 0xB0, (byte) 0x23, (byte) 0x58, (byte) 0x20, (byte) 0xC9, (byte) 0xAF, (byte) 0xCF, (byte) 0x66, (byte) 0x10, (byte) 0xBA, (byte) 0xB6, (byte) 0x9A, (byte) 0x7E, (byte) 0x72, (byte) 0xB7, (byte) 0x8B, (byte) 0x6D, (byte) 0x36, (byte) 0x4B, (byte) 0xE8, (byte) 0x6F, (byte) 0x12, (byte) 0xCF, (byte) 0x29, (byte) 0x35, (byte) 0x23, (byte) 0xDA, (byte) 0x51, (byte) 0x43, (byte) 0x3B, (byte) 0x09, (byte) 0xA7, (byte) 0x99, (byte) 0xFF, (byte) 0x0F, (byte) 0x62 };
 		public static CBORObject public_key_cbor = CBORObject.DecodeFromBytes(data);
@@ -70,8 +74,9 @@ public class Contexts {
 	
 	//Peter
 	public static class Peter {
-		final static byte rid1[] = new byte[] { (byte) 0xC2 };
-		final static byte rid2[] = new byte[] { (byte) 0xC3 };
+		final static byte client_rid[] = new byte[] { (byte) 0xC1 };		
+		final static byte server_1_rid[] = new byte[] { (byte) 0xC2 };
+		final static byte server_2_rid[] = new byte[] { (byte) 0xC3 };
 		
 		public static byte[] data = new byte[] { (byte) 0xA3, (byte) 0x01, (byte) 0x01, (byte) 0x20, (byte) 0x06, (byte) 0x21, (byte) 0x58, (byte) 0x20, (byte) 0x50, (byte) 0x8A, (byte) 0xFC, (byte) 0x1C, (byte) 0x29, (byte) 0x03, (byte) 0x7E, (byte) 0xF3, (byte) 0x61, (byte) 0x4D, (byte) 0x63, (byte) 0xAF, (byte) 0x87, (byte) 0xE1, (byte) 0xEA, (byte) 0x31, (byte) 0xD8, (byte) 0x91, (byte) 0xD7, (byte) 0x6B, (byte) 0x1F, (byte) 0x90, (byte) 0x60, (byte) 0x98, (byte) 0xAF, (byte) 0x8F, (byte) 0xA3, (byte) 0x9B, (byte) 0xBE, (byte) 0x87, (byte) 0x40, (byte) 0x19 };
 		public static CBORObject public_key_cbor = CBORObject.DecodeFromBytes(data);

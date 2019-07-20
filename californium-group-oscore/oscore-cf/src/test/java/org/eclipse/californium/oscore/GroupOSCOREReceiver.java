@@ -12,7 +12,7 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
- *    Rikard Höglund (RISE SICS)
+ *    Rikard HÃ¶glund (RISE SICS)
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
