@@ -11,6 +11,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Arrays;
 
+import org.eclipse.californium.oscore.Utility;
+
 /**
  *
  * @author jimsch
@@ -164,6 +166,8 @@ public abstract class SignCommon extends Message {
             Signature sig = Signature.getInstance(algName);
             sig.initVerify(pubKey);
             sig.update(rgbToBeSigned);
+            
+            System.out.println("To be signed:" + Utility.arrayToString(rgbToBeSigned)); //FIXME: Remove
 
             if (convert) {
                 rgbSignature = convertConcatToDer(rgbSignature);

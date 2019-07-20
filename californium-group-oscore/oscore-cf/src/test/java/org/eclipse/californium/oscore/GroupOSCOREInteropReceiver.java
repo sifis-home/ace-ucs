@@ -135,6 +135,9 @@ public class GroupOSCOREInteropReceiver {
 		
 		//Creating resource hierarchy
 		
+		//Hello resource
+		CoapResource root_hello = new CoapResource("hello", true);
+		
 		//Base resource for OSCORE interop test resources
 		OSCoreResource oscore = new OSCoreResource("oscore", true);
 		
@@ -151,6 +154,7 @@ public class GroupOSCOREInteropReceiver {
 		oscore_hello.add(oscore_hello_1);
 		oscore.add(oscore_hello);
 		server.add(oscore);
+		server.add(root_hello);
 		server.add(new HelloWorldResource());
 		
 		//Information about the receiver

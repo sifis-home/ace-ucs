@@ -91,6 +91,12 @@ public abstract class Decryptor {
 			
 			//Rikard: Take recipient ID from message instead of context
 			recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
+			
+			//FIXME: Generate recipient context if non-existent here?
+			HashMapCtxDB db = HashMapCtxDB.getInstance();
+			if(ctx instanceof GroupOSCoreCtx && db.getContext(recipientId) == null) {
+				System.out.println("Received Group OSCORE response but no matching recipient context found!");
+			}
 
 			if (tmp == null) {
 				LOGGER.error("Decryption failed: no partialIV in request");
@@ -196,6 +202,10 @@ public abstract class Decryptor {
 			}
 
 			byte[] ciphertext = Arrays.copyOfRange(full_payload, 0, full_payload.length - countersignature_length);
+			
+			if(Utility.DETAILED_DEBUG) {
+				System.out.println("Decrypt " + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
+			}
 
 			enc.setEncryptedContent(ciphertext); //Rikard: Set new truncated ciphertext
 
