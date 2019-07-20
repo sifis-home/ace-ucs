@@ -79,7 +79,7 @@ public class GroupOSCOREInteropReceiver {
 	private static Random random;
 	
 	public static void main(String[] args) throws Exception {
-		//Install cryptographic providers //TODO: Move
+		//Install cryptographic providers
 		InstallCryptoProviders.installProvider();
 		
 		//Set sender & receiver keys for countersignatures

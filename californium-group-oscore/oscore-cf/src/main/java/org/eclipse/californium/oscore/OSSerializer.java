@@ -97,7 +97,7 @@ public class OSSerializer {
 				algorithms.Add(parCountersignCBOR);
 				
 				CBORObject cs_key_params = CBORObject.NewArray();
-				cs_key_params.Add(CBORObject.FromObject((int)1)); //When using EDDSA
+				cs_key_params.Add(CBORObject.FromObject((int)1)); //When using EDDSA. TODO: Extract to context.
 				cs_key_params.Add(CBORObject.FromObject((int)6)); //When using EDDSA
 				algorithms.Add(CBORObject.FromObject(cs_key_params));
 			}

@@ -94,7 +94,7 @@ public class GroupOSCOREInteropSender {
 	private final static String uri = requestURI;
 	
 	public static void main(String args[]) throws Exception {
-		//Install cryptographic providers //TODO: Move
+		//Install cryptographic providers
 		InstallCryptoProviders.installProvider();
 		//InstallCryptoProviders.generateCounterSignKey(); //For generating keys
 		
@@ -131,9 +131,7 @@ public class GroupOSCOREInteropSender {
 			db.addContext(uri, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
-			
-			//OneKey test = new OneKey(Contexts.Client.signing_key_cbor);
-			
+	
 			System.out.println("Current Group OSCORE Context:");
 			Utility.printContextInfo(ctx);
 		}
