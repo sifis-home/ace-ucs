@@ -263,7 +263,7 @@ public class GroupOSCOREInteropReceiver {
 	
 	/** --- Resources for interop tests follow --- **/
 	
-	//CoAP resource for OSCORE interop tests
+	//CoAP resource for OSCORE interop tests (normal CoAP resource)
 	static class OSCoreHelloCoAP extends CoapResource {
 
 		public OSCoreHelloCoAP(String name, boolean isProtected) {
@@ -280,7 +280,7 @@ public class GroupOSCOREInteropReceiver {
 		}
 	};
 	
-	//1 resource for OSCORE interop tests
+	//1 resource for OSCORE interop tests (OSCORE protected Resource)
 	static class OSCoreHello1 extends OSCoreResource {
 		public OSCoreHello1(String name, boolean isProtected) {
 			super(name, isProtected);

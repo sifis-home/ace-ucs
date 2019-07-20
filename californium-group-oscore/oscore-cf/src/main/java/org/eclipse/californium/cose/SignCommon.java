@@ -65,6 +65,9 @@ public abstract class SignCommon extends Message {
             Signature sig = Signature.getInstance(algName);
             sig.initSign(privKey);
             sig.update(rgbToBeSigned);
+            
+            System.out.println("COSE: To be signed: " + Utility.arrayToString(rgbToBeSigned)); //FIXME: Remove
+            
             result = sig.sign();
             if (sigLen > 0) {
                 result = convertDerToConcat(result, sigLen);
@@ -167,7 +170,7 @@ public abstract class SignCommon extends Message {
             sig.initVerify(pubKey);
             sig.update(rgbToBeSigned);
             
-            System.out.println("To be signed:" + Utility.arrayToString(rgbToBeSigned)); //FIXME: Remove
+            System.out.println("COSE: To be signed (checked): " + Utility.arrayToString(rgbToBeSigned)); //FIXME: Remove
 
             if (convert) {
                 rgbSignature = convertConcatToDer(rgbSignature);

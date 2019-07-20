@@ -262,6 +262,18 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	}
 	
 	/**
+	 * Enables setting the recipient key for a certain recipient ID
+	 * 
+	 * @param recipient_id the recipient ID to set the recipient key for
+	 * @param recipientKey the recipient key to set
+	 */
+	public void setRecipientKey(byte[] recipient_id, byte[] recipientKey) {
+		String index = Base64.encodeBytes(recipient_id);
+		
+		hmap.get(index).recipient_key = recipientKey.clone();
+	}
+	
+	/**
 	 * @return get the receiver sequence number for a certain recipient ID
 	 */
 	public synchronized int getReceiverSeq(byte[] recipient_id) {

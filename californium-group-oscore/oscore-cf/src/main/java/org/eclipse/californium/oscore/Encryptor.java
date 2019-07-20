@@ -198,6 +198,10 @@ public abstract class Encryptor {
 				//Append countersignature to ciphertext
 				byte[] ciphertext = enc.getEncryptedContent();
 
+				if(DETAILED_DEBUG) {
+					System.out.println("Encrypt: " + messageType + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
+				}
+				
 				ByteArrayOutputStream os = new ByteArrayOutputStream( );
 				try {
 					os.write(ciphertext);
@@ -206,7 +210,7 @@ public abstract class Encryptor {
 					// TODO Auto-generated catch block
 					e.printStackTrace();
 				}
-
+				
 				byte[] full_payload = os.toByteArray();
 
 				/* ------ End add the countersignature	------ */
