@@ -223,7 +223,7 @@ public class GroupOSCOREInteropReceiver {
 		//Added for handling GET
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			handlePOST(exchange);
+			exchange.respond(SERVER_RESPONSE);
 		}
 		
 		@Override

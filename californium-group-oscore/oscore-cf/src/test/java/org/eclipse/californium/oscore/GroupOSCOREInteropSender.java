@@ -80,9 +80,11 @@ public class GroupOSCOREInteropSender {
 	/**
 	 * URI to perform request against.
 	 */
-	static final String requestResource  = "/oscore/hello/1";
-	static final String requestIP = "31.133.136.216"; //Jim server #1
+	//static final String requestResource  = "/oscore/hello/1";
+	static final String requestResource  = "/.well-known/core";
+	//static final String requestIP = "31.133.136.216"; //Jim server #1
 	//static final String requestIP = "31.133.155.197"; //Jim server #2
+	static final String requestIP = "31.133.156.244"; //Peter server #1
 	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress(); //Multicast
 	static final String requestURI = "coap://" + requestIP + ":" + COAP_PORT + requestResource;
 	

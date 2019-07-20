@@ -179,7 +179,11 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				return;
 			}
 		}
-		super.sendResponse(exchange, response);
+		try {
+			super.sendResponse(exchange, response);
+		} catch (Exception e) {
+			LOGGER.trace("Problem with sending response (check). " + e.getMessage());
+		}
 	}
 
 	@Override
