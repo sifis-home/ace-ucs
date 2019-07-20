@@ -80,7 +80,7 @@ public class GroupOSCOREInteropReceiver {
 	private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
 	private static OneKey sid_private_key;
 	
-	private final static byte[] rid1 = new byte[] { 0x25 };
+	private final static byte[] rid1 = new byte[0];
 	private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
 	private static OneKey rid1_public_key;
 	
@@ -141,12 +141,25 @@ public class GroupOSCOREInteropReceiver {
 		CoapServer server = new CoapServer(config);
 		server.addEndpoint(endpoint);
 		
-		//Creating resource hierarchy //FIXME
-		server.add(new HelloWorldResource());
+		//Creating resource hierarchy
+		
+		//Base resource for OSCORE interop test resources
+		OSCoreResource oscore = new OSCoreResource("oscore", true);
+		
+		//Second level base resource for OSCORE interop test resources
+		OSCoreResource oscore_hello = new OSCoreResource("hello", true);
+		
+		//CoAP resource for OSCORE interop tests
+		CoapResource oscore_hello_coap = new OSCoreHelloCoAP("coap", true);
+		
+		//1 resource for OSCORE interop tests
+		OSCoreResource oscore_hello_1 = new OSCoreHello1("1", true);
+		
 		oscore_hello.add(oscore_hello_coap);				
 		oscore_hello.add(oscore_hello_1);
 		oscore.add(oscore_hello);
 		server.add(oscore);
+		server.add(new HelloWorldResource());
 		
 		//Information about the receiver
 		System.out.println("==================");
@@ -157,11 +170,17 @@ public class GroupOSCOREInteropReceiver {
 		System.out.println("Unicast IP: " + endpoint.getAddress().getHostString());
 		System.out.println("Incoming port: " + endpoint.getAddress().getPort());
 		System.out.print("CoAP resources: ");
-		for(Resource res : server.getRoot().getChildren()) { //FIXME
-			System.out.print(res.getURI() + " ");
+		for(Resource resDepth1 : server.getRoot().getChildren()) {
+			System.out.print(resDepth1.getURI() + " ");
+			for(Resource resDepth2 : resDepth1.getChildren()) {
+				System.out.print(resDepth2.getURI() + " ");
+				for(Resource resDepth3 : resDepth2.getChildren()) {
+					System.out.print(resDepth3.getURI() + " ");
+				}
+			}
 		}
 		System.out.println("");	
-		System.out.println("==================");
+		System.out.println("==================");		
 		
 		server.start();
 	}
@@ -248,14 +267,12 @@ public class GroupOSCOREInteropReceiver {
 	
 	/** --- Resources for interop tests follow --- **/
 	
-	//Base resource for OSCORE interop test resources
-	static OSCoreResource oscore = new OSCoreResource("oscore", true);
-	
-	//Second level base resource for OSCORE interop test resources
-	static OSCoreResource oscore_hello = new OSCoreResource("hello", true);
-	
 	//CoAP resource for OSCORE interop tests
-	static CoapResource oscore_hello_coap = new CoapResource("coap", true) {
+	static class OSCoreHelloCoAP extends CoapResource {
+
+		public OSCoreHelloCoAP(String name, boolean isProtected) {
+			super(name, isProtected);
+		}
 
 		@Override
 		public void handleGET(CoapExchange exchange) {
@@ -268,7 +285,11 @@ public class GroupOSCOREInteropReceiver {
 	};
 	
 	//1 resource for OSCORE interop tests
-	static OSCoreResource oscore_hello_1 = new OSCoreResource("1", true) {
+	static class OSCoreHello1 extends OSCoreResource {
+		public OSCoreHello1(String name, boolean isProtected) {
+			super(name, isProtected);
+		}
+
 		@Override
 		public void handleGET(CoapExchange exchange) {
 			Response r = new Response(ResponseCode.CONTENT);
