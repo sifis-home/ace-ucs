@@ -93,7 +93,7 @@ public class OSSerializer {
 			if(((GroupOSCoreCtx)ctx).getParCountersign() != null) {
 				CBORObject parCountersignCBOR = CBORObject.FromObject(((GroupOSCoreCtx)ctx).getParCountersign());
 				algorithms.Add(parCountersignCBOR);
-				//algorithms.Add(CBORObject.FromObject(new byte[] {} )); //FIXME
+				algorithms.Add(CBORObject.FromObject(new byte[] {(byte) 0x82, 0x01, 0x06} )); //FIXME
 			}
 		}
 	}

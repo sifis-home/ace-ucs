@@ -80,7 +80,9 @@ public class GroupOSCOREInteropSender {
 	 * URI to perform request against.
 	 */
 	static final String requestResource  = "/helloWorld";
-	static final String requestURI = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + COAP_PORT + requestResource;
+	static final String requestIP = "31.133.136.216";
+	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress();
+	static final String requestURI = "coap://" + requestIP + ":" + COAP_PORT + requestResource;
 	
 	/**
 	 * Payload in request sent (POST)
@@ -129,6 +131,8 @@ public class GroupOSCOREInteropSender {
 			db.addContext(uri, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
+			
+			//OneKey test = new OneKey(Contexts.Entity_1.signing_key_cbor);
 			
 			System.out.println("Current Group OSCORE Context:");
 			Utility.printContextInfo(ctx);

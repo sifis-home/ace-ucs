@@ -167,7 +167,7 @@ public abstract class Encryptor {
 				} else if (mess instanceof Response) {
 					newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, recipientId, CoAP.VERSION, ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId), ctx, mess.getOptions(), newPartialIV);
 				}
-				System.out.println("Encrypting: New   external   AAD:\t" + Utility.arrayToString(newExternalAAD));
+				System.out.println("Encrypting: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
 				//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
 				//End testing new external AAD for signing
 				

@@ -214,7 +214,7 @@ public abstract class Decryptor {
 			} else if (message instanceof Response) {
 				newExternalAAD = OSSerializer.serializeSigningAAD(true, message, ctx.getSenderId(), CoAP.VERSION, seq, ctx, message.getOptions(), false);
 			}
-			System.out.println("Decryption: New   external   AAD:\t" + Utility.arrayToString(newExternalAAD));
+			System.out.println("Decryption: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
 			//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
 			//End testing new external AAD for signing
 

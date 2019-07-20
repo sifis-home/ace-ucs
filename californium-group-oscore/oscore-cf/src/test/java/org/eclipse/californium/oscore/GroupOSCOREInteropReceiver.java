@@ -80,7 +80,7 @@ public class GroupOSCOREInteropReceiver {
 	private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
 	private static OneKey sid_private_key;
 	
-	private final static byte[] rid1 = new byte[0];
+	private final static byte[] rid1 = new byte[] { (byte) 0xA2 };
 	private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
 	private static OneKey rid1_public_key;
 	
