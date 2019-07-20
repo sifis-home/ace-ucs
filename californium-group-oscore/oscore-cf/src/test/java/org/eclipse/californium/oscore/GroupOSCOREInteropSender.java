@@ -19,21 +19,16 @@ package org.eclipse.californium.oscore;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import javax.xml.bind.DatatypeConverter;
-
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.cose.OneKey;
-
-import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 
@@ -77,9 +72,15 @@ public class GroupOSCOREInteropSender {
 	static final boolean useOSCORE = true;
 
 	/**
+	 * Whether to use POST to send some data.
+	 * Otherwise GET will be used.
+	 */
+	static final boolean usePOST = false;
+	
+	/**
 	 * URI to perform request against.
 	 */
-	static final String requestResource  = "/helloWorld";
+	static final String requestResource  = "/oscore/hello/1";
 	static final String requestIP = "31.133.136.216"; //Jim server #1
 	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress(); //Multicast
 	static final String requestURI = "coap://" + requestIP + ":" + COAP_PORT + requestResource;
@@ -92,8 +93,6 @@ public class GroupOSCOREInteropSender {
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uri = requestURI;
 	
-	private final static byte[] rid0 = new byte[] { (byte) 0xCC }; //Does not exist (testing)
-	
 	public static void main(String args[]) throws Exception {
 		//Install cryptographic providers //TODO: Move
 		InstallCryptoProviders.installProvider();
@@ -101,11 +100,7 @@ public class GroupOSCOREInteropSender {
 		
 		//Add private & public keys for sender & receiver(s)
 		OneKey sid_private_key = new OneKey(Contexts.Client.signing_key_cbor);
-		OneKey rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(
-				DatatypeConverter.parseBase64Binary(Contexts.Server_1.rid1_public_key_string)));
-		OneKey rid2_public_key = new OneKey(CBORObject.DecodeFromBytes(
-				DatatypeConverter.parseBase64Binary(Contexts.Server_2.rid2_public_key_string)));
-		
+
 		//If OSCORE is being used set the context information
 		if(useOSCORE) {
 			
@@ -124,9 +119,15 @@ public class GroupOSCOREInteropSender {
 					sid_private_key);
 			
 			//Add the pre-configured recipient contexts
-			ctx.addRecipientContext(rid0);
-			ctx.addRecipientContext(Contexts.Server_1.sid, rid1_public_key);
-			ctx.addRecipientContext(Contexts.Server_2.sid, rid2_public_key);
+
+			//Add contexts for Jim's servers
+			ctx.addRecipientContext(Contexts.Jim.rid1, new OneKey(Contexts.Jim.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Jim.rid2, new OneKey(Contexts.Jim.public_key_cbor));
+			
+			//Add contexts for Peter's servers
+			ctx.addRecipientContext(Contexts.Peter.rid1, new OneKey(Contexts.Peter.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Peter.rid2, new OneKey(Contexts.Peter.public_key_cbor));
+			
 			db.addContext(uri, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
@@ -145,8 +146,16 @@ public class GroupOSCOREInteropSender {
 		client.setEndpoint(endpoint);
 		
 		client.setURI(requestURI);
-		Request multicastRequest = Request.newPost();
-		multicastRequest.setPayload(requestPayload);
+		
+		Request multicastRequest;
+		if(usePOST)
+		{
+			multicastRequest = Request.newPost();
+			multicastRequest.setPayload(requestPayload);
+		} else {
+			multicastRequest = Request.newGet();
+		}
+		
 		multicastRequest.setType(Type.NON);
 		if(useOSCORE) {
 			multicastRequest.getOptions().setOscore(new byte[0]); //Set the OSCORE option

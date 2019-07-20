@@ -19,7 +19,6 @@ package org.eclipse.californium.oscore;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
-import javax.xml.bind.DatatypeConverter;
 import java.util.Random;
 
 import org.eclipse.californium.core.CoapResource;
@@ -38,10 +37,6 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
-
-import com.upokecenter.cbor.CBORObject;
-
-import ch.qos.logback.core.Context;
 
 /**
  * Group OSCORE interop test receiver application.
@@ -79,12 +74,7 @@ public class GroupOSCOREInteropReceiver {
 	private final static String uriLocal = "coap://localhost";
 	
 	private static byte[] sid = Contexts.Server_1.sid;
-	private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
 	private static OneKey sid_private_key;
-	
-	private final static byte[] rid1 = Contexts.Client.sid;
-	private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
-	private static OneKey rid1_public_key;
 	
 	private static Random random;
 	
@@ -93,16 +83,13 @@ public class GroupOSCOREInteropReceiver {
 		InstallCryptoProviders.installProvider();
 		
 		//Set sender & receiver keys for countersignatures
-		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
-		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(rid1_public_key_string)));
-		
-		//TODO: Re-enable
+		sid_private_key = new OneKey(Contexts.Server_1.signing_key_cbor);
+
 		//Check command line arguments (flag to use different sid and sid key)
 		if(args.length != 0) {
 			sid = Contexts.Server_2.sid;
 			System.out.println("Starting with alternative sid 0x" + Utility.arrayToString(sid));
-			sid_private_key_string = "pQMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bouI1gge/Yvdn7Rz0xgkR/En9/Mub1HzH6fr0HLZjadXIUIsjk=";
-			sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
+			sid_private_key = new OneKey(Contexts.Server_2.signing_key_cbor);
 		} else {
 			System.out.println("Starting with sid 0x" + Utility.arrayToString(sid));
 		}
@@ -125,7 +112,14 @@ public class GroupOSCOREInteropReceiver {
 					sid_private_key);
 			
 			//Add the pre-configured recipient contexts
-			ctx.addRecipientContext(rid1, rid1_public_key);
+			
+			//Add contexts for Jim's servers
+			ctx.addRecipientContext(Contexts.Jim.rid1, new OneKey(Contexts.Jim.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Jim.rid2, new OneKey(Contexts.Jim.public_key_cbor));
+			
+			//Add contexts for Peter's servers
+			ctx.addRecipientContext(Contexts.Peter.rid1, new OneKey(Contexts.Peter.public_key_cbor));
+			ctx.addRecipientContext(Contexts.Peter.rid2, new OneKey(Contexts.Peter.public_key_cbor));
 			
 			db.addContext(uriLocal, ctx);
 
