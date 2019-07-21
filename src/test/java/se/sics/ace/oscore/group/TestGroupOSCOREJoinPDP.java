@@ -179,10 +179,10 @@ public class TestGroupOSCOREJoinPDP {
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_listener");
-        scopes.add("feedca570000_purelistener");
-        scopes.add("feedca570000_requester_listener");
-        scopes.add("feedca570000_requester_purelistener");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs4");
         keyTypes.clear();
@@ -274,7 +274,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x04};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_listener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_responder"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -283,7 +283,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x05};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_purelistener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_monitor"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -292,7 +292,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x06};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_listener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_responder"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -301,7 +301,7 @@ public class TestGroupOSCOREJoinPDP {
         cti = new byte[]{0x07};
         ctiStr = Base64.getEncoder().encodeToString(cti);
         claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_purelistener"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_monitor"));
         claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
@@ -368,13 +368,13 @@ public class TestGroupOSCOREJoinPDP {
        
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // This client is allowed to be requester and/or pure listener, but not listener.
+       // This client is allowed to be requester and/or monitor, but not responder.
        pdp.addAccess("clientG", "rs2", "r_light");
-       pdp.addAccess("clientG", "rs4", "feedca570000_requester_purelistener");
+       pdp.addAccess("clientG", "rs4", "feedca570000_requester_monitor");
        
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // This client is allowed to be requester and/or pure listener, but not listener.
+       // This client is allowed to be requester.
        pdp.addAccess("clientH", "rs4", "feedca570000_requester");
        
        // M.T.
@@ -444,8 +444,8 @@ public class TestGroupOSCOREJoinPDP {
     	String gid = new String("feedca570000");
     	String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	// Tests for joining with a single role
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm

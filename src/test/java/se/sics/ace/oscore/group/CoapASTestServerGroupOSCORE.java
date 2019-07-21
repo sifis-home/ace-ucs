@@ -126,10 +126,10 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_listener");
-        scopes.add("feedca570000_purelistener");
-        scopes.add("feedca570000_requester_listener");
-        scopes.add("feedca570000_requester_purelistener");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs2");
         keyTypes.clear();
@@ -155,10 +155,10 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_listener");
-        scopes.add("feedca570000_purelistener");
-        scopes.add("feedca570000_requester_listener");
-        scopes.add("feedca570000_requester_purelistener");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs3");
         keyTypes.clear();
@@ -242,7 +242,7 @@ public class CoapASTestServerGroupOSCORE
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
-    	role1 = new String("listener");
+    	role1 = new String("responder");
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -261,7 +261,7 @@ public class CoapASTestServerGroupOSCORE
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
-    	role1 = new String("purelistener");
+    	role1 = new String("monitor");
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -281,7 +281,7 @@ public class CoapASTestServerGroupOSCORE
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
     	role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
@@ -304,7 +304,7 @@ public class CoapASTestServerGroupOSCORE
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
     	role1 = new String("requester");
-    	role2 = new String("purelistener");
+    	role2 = new String("monitor");
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
@@ -380,13 +380,13 @@ public class CoapASTestServerGroupOSCORE
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
-        // This client is allowed to be requester and/or pure listener, but not listener.
-        pdp.addAccess("clientF", "rs2", "feedca570000_requester_purelistener");
-        pdp.addAccess("clientF", "rs3", "feedca570000_requester_purelistener");
+        // This client is allowed to be requester and/or monitor, but not responder.
+        pdp.addAccess("clientF", "rs2", "feedca570000_requester_monitor");
+        pdp.addAccess("clientF", "rs3", "feedca570000_requester_monitor");
         
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-        // This client is allowed to be only listener.
+        // This client is allowed to be only requester.
         pdp.addAccess("clientG", "rs2", "feedca570000_requester");
         pdp.addAccess("clientG", "rs3", "feedca570000_requester");
         

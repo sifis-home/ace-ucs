@@ -135,10 +135,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("feedca570000", actions3);
         myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_listener", myResource3);
-        myScopes.put("feedca570000_purelistener", myResource3);
-        myScopes.put("feedca570000_requester_listener", myResource3);
-        myScopes.put("feedca570000_requester_purelistener", myResource3);
+        myScopes.put("feedca570000_responder", myResource3);
+        myScopes.put("feedca570000_monitor", myResource3);
+        myScopes.put("feedca570000_requester_responder", myResource3);
+        myScopes.put("feedca570000_requester_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -226,7 +226,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with multiple roles
         Map<Short, CBORObject> params3 = new HashMap<>();
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
