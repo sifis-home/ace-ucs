@@ -16,7 +16,9 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -74,6 +76,21 @@ public class TestOSCoreRSGroupOSCORE {
 
 	 //Public key (EDDSA)
 	 private static String publicKeyStr = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+	 
+	 //Additions for creating a fixed context
+	 private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	 private final static String uriLocal = "coap://localhost";
+	 private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	 private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+		
+	 private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
+	 private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
+			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	 //private final static byte[] context_id = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58 };
+	 private final static byte[] rid = new byte[] { 'C', '1' };
+	 private final static byte[] sid = new byte[] { 'G', 'M' };
+	//End Additions for creating a fixed context
 	 
     /**
      * Definition of the Hello-World Resource
@@ -171,6 +188,10 @@ public class TestOSCoreRSGroupOSCORE {
     		System.err.println("Failed to install cryptography providers.");
     		e.printStackTrace();
     	}
+    	
+    	//Add fixed OSCORE Context
+    	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
+		db.addContext(uriLocal, ctxOSCore);
     	
     	OneKey privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(publicKeyStr)));
     	OneKey publicKey = privateKey.PublicKey();
@@ -312,6 +333,8 @@ public class TestOSCoreRSGroupOSCORE {
       
 
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+      //Add special allowance for Token and message from this OSCORE Sender ID
+	  dpd.allowForSubject(rid);
 
       rs.setMessageDeliverer(dpd);
       rs.start();

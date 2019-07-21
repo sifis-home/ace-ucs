@@ -81,7 +81,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  * Post a Token to the GM followed by the group join procedure.
  * 
  * This should be run with TestOSCoreRSGroupOSCORE as server.
- * 
+ * TODO: Re-enable token post
  * @author Ludwig Seitz, Marco Tiloca & Rikard Höglund
  *
  */
@@ -90,24 +90,23 @@ public class AltOSCoreClientGroupOSCORE {
 	//Sets the port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
-	private final static String GM_ADDRESS = "localhost";
+	private final static String GM_ADDRESS = "31.133.156.244";
 	
-	//Set some OSCORE related parameters
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	 //Additions for creating a fixed context
 	private final static String uriGM = "coap://" + GM_ADDRESS;
+	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static String uriLocal = "coap://localhost";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
-
+	
 	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-			0x0C, 0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, 0x14, 0x15, 0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
-			0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23 };
+		0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
 	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
-			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
-	private final static byte[] context_id = {0x42, 0x04, 0x23, 0x13, 0x72, 0x79, (byte) 0x98,
-			0x27, 0x19, (byte) 0x98, (byte) 0x90, 0x05, 0x67, (byte) 0x89 };
+		(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	//private final static byte[] context_id = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58 };
 	private final static byte[] sid = new byte[] { 'C', '1' };
 	private final static byte[] rid = new byte[] { 'G', 'M' };
-	//End OSCORE parameters
+	//End Additions for creating a fixed context
 	
     private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -133,14 +132,15 @@ public class AltOSCoreClientGroupOSCORE {
     	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
         
     	//Set OSCORE Context information
-    	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, context_id);
+    	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriGM, ctxOSCore);
 		OSCoreCoapStackFactory.useAsDefault();
 		
     	//Setup some needed parameters
         rsAddrC = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/authz-info";
 
-        zeroEpochGroupID = "feedca570000";
+        //zeroEpochGroupID = "feedca570000";
+        zeroEpochGroupID = "/join/GRP00"; 
         if(useDTLS) {
         rsGroupRes = "coaps://" + GM_ADDRESS + ":" + (GM_PORT + 1 ) + "/" + zeroEpochGroupID;
         } else {
@@ -185,7 +185,7 @@ public class AltOSCoreClientGroupOSCORE {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
                
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String gid = new String(zeroEpochGroupID);
     	String role1 = new String("requester");
     	String role2 = new String("listener");
     	boolean askForPubKeys = true;
@@ -219,11 +219,11 @@ public class AltOSCoreClientGroupOSCORE {
         //@SuppressWarnings("unused")
 		//CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         System.out.println("Sent Token to GM: " + payload.toString());
-        @SuppressWarnings("unused")
-        CoapResponse r = tokenPoster.post(payload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
+        ///@SuppressWarnings("unused")
+        ///CoapResponse r = tokenPoster.post(payload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
         
-        CBORObject tokenPostResponse = CBORObject.DecodeFromBytes(r.getPayload());
-        System.out.println("Received Token post response from GM: " + tokenPostResponse.toString());
+        ///CBORObject tokenPostResponse = CBORObject.DecodeFromBytes(r.getPayload());
+        ///System.out.println("Received Token post response from GM: " + tokenPostResponse.toString());
         
         //Below is section for performing Join request
         CoapClient c;

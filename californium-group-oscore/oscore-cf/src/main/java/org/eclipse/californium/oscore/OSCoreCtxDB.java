@@ -31,6 +31,8 @@ public interface OSCoreCtxDB {
 	 * @return the OSCore context
 	 */
 	public OSCoreCtx getContext(byte[] cid);
+	
+	public OSCoreCtx getByContextId(byte[] contextID);
 
 	/**
 	 * @param token the token of the request

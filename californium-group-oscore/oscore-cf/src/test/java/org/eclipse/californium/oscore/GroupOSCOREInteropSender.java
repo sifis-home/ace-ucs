@@ -138,6 +138,11 @@ public class GroupOSCOREInteropSender {
 			ctx.addRecipientContext(Contexts.Peter.server_1_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			ctx.addRecipientContext(Contexts.Peter.server_2_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			
+			//Add contexts for my servers
+			ctx.addRecipientContext(Contexts.Server_1.sid, new OneKey(Contexts.Client.signing_key_cbor));
+			ctx.addRecipientContext(Contexts.Server_2.sid, new OneKey(Contexts.Client.signing_key_cbor));
+			
+			
 			//ctx.setSenderKey(new byte[16]); //Set a bad sender key
 			//ctx.setRecipientKey(Contexts.Jim.server_1_rid, new byte[16]); //Set a bad recipient key
 			

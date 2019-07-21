@@ -461,6 +461,15 @@ public abstract class Decryptor {
 			}
 			System.out.println("");
 			
+			if (contextID != null) { //FIXME, header key
+				try {
+					enc.addAttribute(HeaderKeys.CriticalHeaders, CBORObject.FromObject(contextID), Attribute.UNPROTECTED);
+				} catch (CoseException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
 			if (s > 0) {
 				//Rikard:
 				//LOGGER.error("Kidcontext is included, but it is not supported. We ignore it and continue processing.");

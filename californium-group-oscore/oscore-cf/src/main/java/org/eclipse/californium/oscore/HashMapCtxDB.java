@@ -25,6 +25,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -85,6 +86,15 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 			}
 		}
 		return singleton;
+	}
+	
+	public synchronized OSCoreCtx getByContextId(byte[] contextID) {
+		for(OSCoreCtx aCtx : uriMap.values()) {
+			if(Arrays.equals(aCtx.getIdContext(), contextID)) {
+				return aCtx;
+			}
+		}
+		return null;
 	}
 
 	@Override

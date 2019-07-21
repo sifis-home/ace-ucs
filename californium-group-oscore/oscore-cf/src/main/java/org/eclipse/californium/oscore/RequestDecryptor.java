@@ -81,6 +81,14 @@ public class RequestDecryptor extends Decryptor {
 			LOGGER.error(ErrorDescriptions.MISSING_KID);
 			throw new CoapOSException(ErrorDescriptions.FAILED_TO_DECODE_COSE, ResponseCode.BAD_OPTION);
 		}
+		
+		CBORObject context_id = enc.findAttribute(HeaderKeys.CriticalHeaders); //FIXME, header key
+		byte[] context_id_byte = null;
+		if (context_id != null) {
+			context_id_byte = context_id.GetByteString();
+			System.out.println("Got context ID: " + Utility.arrayToString(context_id_byte));
+		}
+		
 		byte[] rid = kid.GetByteString();
 
 		OSCoreCtx ctx = db.getContext(rid);
@@ -89,19 +97,18 @@ public class RequestDecryptor extends Decryptor {
 		if(true) {
 			//If using Group OSCORE take recipient ID from message instead of context
 			if(db.getContext(rid) == null) {
+				
 				System.out.println("--> Received Group OSCORE response but no matching recipient context found!");
 	
 				if(true) {
 					System.out.println("--> Dynamically generating recipient context for KID: " + Utility.arrayToString(rid));
 					try {
 						OSCoreCtx ctxx = null;
-						try {
-							ctxx = db.getContext(request.getURI());
-						} catch (OSException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
+						ctxx = db.getByContextId(context_id_byte);
+
+						if(ctxx instanceof GroupOSCoreCtx) {
+							((GroupOSCoreCtx)ctxx).addRecipientContext(rid, Contexts.getKeyForRecipient(rid));
 						}
-						((GroupOSCoreCtx)ctxx).addRecipientContext(rid, Contexts.getKeyForRecipient(rid));
 					} catch (CoseException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
