@@ -82,6 +82,10 @@ public class GroupOSCOREInteropReceiver {
 		//Install cryptographic providers
 		InstallCryptoProviders.installProvider();
 		
+		//Fill list with information about receivers and associated public keys
+		//Can be used when getting messages and a recipient context should be generated
+		Contexts.fillRecipientInfo();
+		
 		//Set sender & receiver keys for countersignatures
 		sid_private_key = new OneKey(Contexts.Server_1.signing_key_cbor);
 

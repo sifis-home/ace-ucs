@@ -101,7 +101,11 @@ public class GroupOSCOREInteropSender {
 		InstallCryptoProviders.installProvider();
 		//InstallCryptoProviders.generateCounterSignKey(); //For generating keys
 		
-		//Add private & public keys for sender & receiver(s)
+		//Fill list with information about receivers and associated public keys (can be used when getting messages)
+		//Can be used when getting messages and a recipient context should be generated
+		Contexts.fillRecipientInfo();
+		
+		//Add private & public keys for sender & pre-configured receiver(s)
 		OneKey sid_private_key = new OneKey(Contexts.Client.signing_key_cbor);
 
 		//If OSCORE is being used set the context information

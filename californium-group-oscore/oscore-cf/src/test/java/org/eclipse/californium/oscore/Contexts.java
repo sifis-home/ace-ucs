@@ -1,7 +1,12 @@
 package org.eclipse.californium.oscore;
 
+import java.util.HashMap;
+
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
+import org.eclipse.californium.cose.OneKey;
+
 import com.upokecenter.cbor.CBORObject;
 
 public class Contexts { //FIXME: Add cs key params
@@ -73,5 +78,26 @@ public class Contexts { //FIXME: Add cs key params
 		public static byte[] data = new byte[] { (byte) 0xA3, (byte) 0x01, (byte) 0x01, (byte) 0x20, (byte) 0x06, (byte) 0x21, (byte) 0x58, (byte) 0x20, (byte) 0x50, (byte) 0x8A, (byte) 0xFC, (byte) 0x1C, (byte) 0x29, (byte) 0x03, (byte) 0x7E, (byte) 0xF3, (byte) 0x61, (byte) 0x4D, (byte) 0x63, (byte) 0xAF, (byte) 0x87, (byte) 0xE1, (byte) 0xEA, (byte) 0x31, (byte) 0xD8, (byte) 0x91, (byte) 0xD7, (byte) 0x6B, (byte) 0x1F, (byte) 0x90, (byte) 0x60, (byte) 0x98, (byte) 0xAF, (byte) 0x8F, (byte) 0xA3, (byte) 0x9B, (byte) 0xBE, (byte) 0x87, (byte) 0x40, (byte) 0x19 };
 		public static CBORObject public_key_cbor = CBORObject.DecodeFromBytes(data);
 	}
+
+
+	/* Methods dealing with stored information about recipient IDs and associated keys */
+	public static OneKey getKeyForRecipient(byte[] recipientID) throws CoseException {
+		return new OneKey(recipientInfo.get(new ByteId(recipientID)));
+	}
 	
+	//List of recipient ID:s accessible with associated public keys
+	private static HashMap<ByteId, CBORObject> recipientInfo = new HashMap<ByteId, CBORObject>();
+	
+	//Method to fill the list of recipients and associated keys
+	public static void fillRecipientInfo() {
+		recipientInfo.put(new ByteId(Jim.client_rid), Jim.public_key_cbor);
+		recipientInfo.put(new ByteId(Jim.server_1_rid), Jim.public_key_cbor);
+		recipientInfo.put(new ByteId(Jim.server_2_rid), Jim.public_key_cbor);
+		
+		recipientInfo.put(new ByteId(Peter.client_rid), Peter.public_key_cbor);
+		recipientInfo.put(new ByteId(Peter.server_1_rid), Peter.public_key_cbor);
+		recipientInfo.put(new ByteId(Peter.server_2_rid), Peter.public_key_cbor);
+	}
+	/* End Methods dealing with stored information about recipient IDs and associated keys */
+
 }
