@@ -683,9 +683,7 @@ public class TestDtlspRSGroupOSCORE {
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), 
-             null,
-             valid, tokenFile, valid, ctx);
+        	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
       
         // M.T.
         // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single

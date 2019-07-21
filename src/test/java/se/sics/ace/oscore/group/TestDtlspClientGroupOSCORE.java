@@ -249,6 +249,10 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
+        if (cti == null)
+        	System.out.println("xxx");
+        else
+        	System.out.println("yyy");
         Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), 
                 cti.GetByteString());
     }

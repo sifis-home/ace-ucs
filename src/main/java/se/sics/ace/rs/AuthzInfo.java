@@ -295,7 +295,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //7. Check if any part of the scope is meaningful to us
 	    boolean meaningful = false;
 	    try {
-	        meaningful = TokenRepository.getInstance().checkScope(scope);
+	    	// M.T. The version of checkScope() with two arguments is invoked
+	        meaningful = TokenRepository.getInstance().checkScope(scope, auds);
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "
                     + "message processing aborted: " + e.getMessage());

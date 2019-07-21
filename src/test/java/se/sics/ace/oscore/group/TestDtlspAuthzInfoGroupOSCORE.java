@@ -166,9 +166,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, tokenFile, valid, ctx);
+                new KissTime(), null, valid, ctx, tokenFile, valid, false);
         
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfoGroupOSCORE(ai);
@@ -177,9 +175,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                null,
-                valid, tokenFile, valid, ctx);
+                new KissTime(), null, valid, ctx, tokenFile, valid, false);
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",

@@ -186,18 +186,16 @@ public class TestAuthzInfoGroupOSCORE {
         // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, tokenFile, valid, ctx);
+                new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
+                valid, ctx, tokenFile, valid, false);
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), 
-                new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
-                valid, tokenFile, valid, ctx);
+                new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
+                valid, ctx, tokenFile, valid, false);
         
     }
     
@@ -786,8 +784,8 @@ public class TestAuthzInfoGroupOSCORE {
               
         // Note the usage of the dedicated authz-info endpoint for this audience "rs2"
         LocalMessage response = (LocalMessage)ai2.processMessage(request);
-        System.out.println(response.toString());
-        assert(response.getMessageCode() == Message.CREATED);        
+        System.out.println(response.toString());        
+        assert(response.getMessageCode() == Message.CREATED);   
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), 
