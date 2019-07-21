@@ -75,6 +75,7 @@ public class GroupInfo {
 	private AlgorithmID csAlg;
 	private CBORObject csParams;
 	private CBORObject csKeyParams;
+	private CBORObject csKeyEnc;
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -90,7 +91,8 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF used in the OSCORE group.
 	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
 	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyParams         the parameters of the key for countersignature algorithm used in the OSCORE group.
+	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
+	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
 	 */
     public GroupInfo(final byte[] masterSecret,
     				 final byte[] masterSalt,
@@ -103,7 +105,8 @@ public class GroupInfo {
     		         final AlgorithmID hkdf,
     		         final AlgorithmID csAlg,
     		         final CBORObject csParams,
-    		         final CBORObject csKeyParams) {
+    		         final CBORObject csKeyParams,
+    		         final CBORObject csKeyEnc) {
     	
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
@@ -117,6 +120,7 @@ public class GroupInfo {
     	setCsAlg(csAlg);
     	setCsParams(csParams);
     	setCsKeyParams(csKeyParams);
+    	setCsKeyEnc(csKeyEnc);
     	
     	if (senderIdSize < 1)
     		this.senderIdSize = 1;
@@ -426,6 +430,31 @@ public class GroupInfo {
     	
     }
     
+    /**
+     * @return encoding of the key of the countersignature algorithm 
+     *      used in the group
+     */
+    synchronized public final CBORObject getCsKeyEnc() {
+    	
+    	return this.csKeyEnc;
+    	
+    }
+    
+    /**
+     *  Set the encoding of the key of the countersignature algorithm used
+     *   in the group
+     * @param csKeyEnc  the encoding
+     * @return  true if the encoding was successfully set, false otherwise
+     */
+    synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
+    	
+    	if (csKeyEnc.getType() != CBORType.Number)
+    		return false;
+    	
+    	this.csKeyEnc = csKeyEnc;
+    	return true;
+    	
+    }
 
     /**
      * Find the first available Sender ID value and allocate it.

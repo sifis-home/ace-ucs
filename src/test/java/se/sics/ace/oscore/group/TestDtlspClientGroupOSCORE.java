@@ -249,10 +249,6 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        if (cti == null)
-        	System.out.println("xxx");
-        else
-        	System.out.println("yyy");
         Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), 
                 cti.GetByteString());
     }
@@ -367,6 +363,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -620,6 +621,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -912,6 +918,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
     	}
         
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
                                       (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
@@ -1166,6 +1177,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -1490,6 +1506,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
         
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
                                       (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
@@ -1741,6 +1762,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -2240,6 +2266,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
         
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
                                       (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
@@ -2503,6 +2534,11 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
         	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        // Check the presence, type and value of the signature key encoding
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+        Assert.assertEquals(CBORType.Number, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)).getType());        
+        Assert.assertEquals(Constants.CS_KEY_ENC_COSE_KEY, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         
     	final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                                       (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,

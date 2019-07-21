@@ -391,7 +391,8 @@ public class TestDtlspRSGroupOSCORE {
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
         	if (myGroup.getCsKeyParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
-        	
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
+        	        	
         	joinResponse.Add("key", myMap);
         	
         	// If backward security has to be preserved:
@@ -571,6 +572,7 @@ public class TestDtlspRSGroupOSCORE {
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
+        final CBORObject csKeyEnc = Constants.CS_KEY_ENC_COSE_KEY;
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -590,7 +592,8 @@ public class TestDtlspRSGroupOSCORE {
     			                          hkdf,
     			                          csAlg,
     			                          csParams,
-    			                          csKeyParams);
+    			                          csKeyParams,
+    			                          csKeyEnc);
         
     	byte[] mySid;
     	OneKey myKey;
