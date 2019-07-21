@@ -97,6 +97,11 @@ public class Contexts { //FIXME: Add cs key params
 		recipientInfo.put(new ByteId(Peter.client_rid), Peter.public_key_cbor);
 		recipientInfo.put(new ByteId(Peter.server_1_rid), Peter.public_key_cbor);
 		recipientInfo.put(new ByteId(Peter.server_2_rid), Peter.public_key_cbor);
+		
+		//Add my own keys
+		recipientInfo.put(new ByteId(Client.sid), Client.signing_key_cbor);
+		recipientInfo.put(new ByteId(Server_1.sid), Client.signing_key_cbor);
+		recipientInfo.put(new ByteId(Server_2.sid), Client.signing_key_cbor);
 	}
 	/* End Methods dealing with stored information about recipient IDs and associated keys */
 

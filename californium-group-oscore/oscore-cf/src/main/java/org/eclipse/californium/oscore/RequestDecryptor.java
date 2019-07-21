@@ -84,9 +84,36 @@ public class RequestDecryptor extends Decryptor {
 		byte[] rid = kid.GetByteString();
 
 		OSCoreCtx ctx = db.getContext(rid);
+		
+		//Generate recipient context if non-existent here //FIXME, don't duplicate. FIXME: Move somewhere
+		if(true) {
+			//If using Group OSCORE take recipient ID from message instead of context
+			if(db.getContext(rid) == null) {
+				System.out.println("--> Received Group OSCORE response but no matching recipient context found!");
+	
+				if(true) {
+					System.out.println("--> Dynamically generating recipient context for KID: " + Utility.arrayToString(rid));
+					try {
+						OSCoreCtx ctxx = null;
+						try {
+							ctxx = db.getContext(request.getURI());
+						} catch (OSException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						((GroupOSCoreCtx)ctxx).addRecipientContext(rid, Contexts.getKeyForRecipient(rid));
+					} catch (CoseException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+		ctx = db.getContext(rid);
 
 		if (ctx == null) {
 			LOGGER.error(ErrorDescriptions.CONTEXT_NOT_FOUND);
+			System.err.println("Error: Received request with KID " + Utility.arrayToString(rid) + " but no matching context was found");
 			throw new CoapOSException(ErrorDescriptions.CONTEXT_NOT_FOUND, ResponseCode.UNAUTHORIZED);
 		}
 

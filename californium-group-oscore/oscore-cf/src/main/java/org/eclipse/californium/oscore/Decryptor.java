@@ -87,6 +87,22 @@ public abstract class Decryptor {
 		
 		//Flag to indicate if recipient contexts should be dynamically generated at reception of messages
 		boolean GenerateContextsOnReceive = true;
+		
+		//Generate recipient context if non-existent here
+		if(ctx instanceof GroupOSCoreCtx && GenerateContextsOnReceive) {
+			HashMapCtxDB db = HashMapCtxDB.getInstance();
+			//If using Group OSCORE take recipient ID from message instead of context
+			recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
+			
+			if(db.getContext(recipientId) == null) {
+				System.out.println("Received Group OSCORE response but no matching recipient context found!");
+	
+				if(GenerateContextsOnReceive == true) {
+					System.out.println("Dynamically generating recipient context for KID: " + Utility.arrayToString(recipientId));
+					((GroupOSCoreCtx)ctx).addRecipientContext(recipientId, Contexts.getKeyForRecipient(recipientId));
+				}
+			}
+		}
 
 		if (isRequest) {
 
@@ -95,17 +111,6 @@ public abstract class Decryptor {
 			//Rikard: Take recipient ID from message instead of context
 			recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
 			
-			//Generate recipient context if non-existent here
-			HashMapCtxDB db = HashMapCtxDB.getInstance();
-			if(ctx instanceof GroupOSCoreCtx && db.getContext(recipientId) == null) {
-				System.out.println("Received Group OSCORE response but no matching recipient context found!");
-
-				if(GenerateContextsOnReceive == true) {
-					System.out.println("Dynamically generating recipient context for:" + Utility.arrayToString(recipientId));
-					((GroupOSCoreCtx)ctx).addRecipientContext(recipientId, Contexts.getKeyForRecipient(recipientId));
-				}
-			}
-
 			if (tmp == null) {
 				LOGGER.error("Decryption failed: no partialIV in request");
 				throw new OSException(ErrorDescriptions.DECRYPTION_FAILED);
@@ -302,6 +307,10 @@ public abstract class Decryptor {
 
 				if(countersign_valid == false) {
 					System.err.println("Error: Countersignature verification failed!");
+					
+					//LOGGER.error("Countersignature verification failed");
+					//throw new OSException("Countersignature verification failed");
+					//FIXME: Actually not reply to requests if signature fails
 				}
 
 				if(DETAILED_DEBUG) {

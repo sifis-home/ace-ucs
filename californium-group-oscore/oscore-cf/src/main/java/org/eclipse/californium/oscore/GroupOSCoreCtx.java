@@ -305,8 +305,11 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	//Get the public key of a recipient for a certain recipient ID
 	public OneKey getRecipientPublicKey(byte[] recipient_id) {
 		String index = Base64.encodeBytes(recipient_id);
-		
-		return hmap.get(index).recipient_public_key;
+		if(hmap.get(index) != null) {
+			return hmap.get(index).recipient_public_key;
+		} else {
+			return null;
+		}
 	}
 
 	//Return all recipient contexts from this Group context

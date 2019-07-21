@@ -118,8 +118,14 @@ public class GroupOSCOREInteropReceiver {
 			//Add the pre-configured recipient contexts
 			
 			//Add contexts for clients from Jim and Peter
-			ctx.addRecipientContext(Contexts.Jim.client_rid, new OneKey(Contexts.Jim.public_key_cbor));
+			//ctx.addRecipientContext(Contexts.Jim.client_rid, new OneKey(Contexts.Jim.public_key_cbor));
 			ctx.addRecipientContext(Contexts.Peter.client_rid, new OneKey(Contexts.Peter.public_key_cbor));
+			
+			//Add recipient context for my own client
+			//ctx.addRecipientContext(Contexts.Client.sid, new OneKey(Contexts.Client.signing_key_cbor));
+			
+			//ctx.setSenderKey(new byte[16]); //Set a bad sender key
+			//ctx.setRecipientKey(Contexts.Jim.client_rid, new byte[16]); //Set a bad recipient key
 			
 			db.addContext(uriLocal, ctx);
 

@@ -65,7 +65,7 @@ public class GroupOSCOREInteropSender {
 	/**
 	 * Time to wait for replies to the multicast request
 	 */
-	private static final int HANDLER_TIMEOUT = 2000;
+	private static final int HANDLER_TIMEOUT = 2000000;
 	
 	/**
 	 * Whether to use OSCORE or not.
@@ -83,9 +83,11 @@ public class GroupOSCOREInteropSender {
 	 */
 	static final String requestResource  = "/oscore/hello/1";
 	//static final String requestResource  = "/.well-known/core";
-	static final String requestIP = "31.133.136.216"; //Jim server #1
+	//static final String requestIP = "31.133.136.216"; //Jim server #1
 	//static final String requestIP = "31.133.155.197"; //Jim server #2
 	//static final String requestIP = "31.133.156.244"; //Peter server #1
+	//static final String requestIP = "[ff02::fd]"; //Jim multicast
+	static final String requestIP = "31.133.136.213"; //My server
 	//static final String requestIP = CoAP.MULTICAST_IPV4.getHostAddress(); //Multicast
 	static final String requestURI = "coap://" + requestIP + ":" + COAP_PORT + requestResource;
 	
@@ -136,6 +138,9 @@ public class GroupOSCOREInteropSender {
 			ctx.addRecipientContext(Contexts.Peter.server_1_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			ctx.addRecipientContext(Contexts.Peter.server_2_rid, new OneKey(Contexts.Peter.public_key_cbor));
 			
+			//ctx.setSenderKey(new byte[16]); //Set a bad sender key
+			//ctx.setRecipientKey(Contexts.Jim.server_1_rid, new byte[16]); //Set a bad recipient key
+			
 			db.addContext(uri, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
@@ -145,6 +150,9 @@ public class GroupOSCOREInteropSender {
 		}
 		
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		
+		//Wait longer for multicast
+		config.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 4000000);
 
 		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
 		CoapClient client = new CoapClient();
