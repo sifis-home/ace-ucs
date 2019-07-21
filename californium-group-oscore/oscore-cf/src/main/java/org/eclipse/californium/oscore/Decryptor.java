@@ -85,6 +85,9 @@ public abstract class Decryptor {
 		byte[] partialIV = null;
 		byte[] recipientId = null;
 		
+		//Flag to indicate if recipient contexts should be dynamically generated at reception of messages
+		boolean GenerateContextsOnReceive = true;
+
 		if (isRequest) {
 
 			CBORObject tmp = enc.findAttribute(HeaderKeys.PARTIAL_IV);
@@ -92,10 +95,15 @@ public abstract class Decryptor {
 			//Rikard: Take recipient ID from message instead of context
 			recipientId = enc.findAttribute(HeaderKeys.KID).GetByteString();
 			
-			//FIXME: Generate recipient context if non-existent here?
+			//Generate recipient context if non-existent here
 			HashMapCtxDB db = HashMapCtxDB.getInstance();
 			if(ctx instanceof GroupOSCoreCtx && db.getContext(recipientId) == null) {
 				System.out.println("Received Group OSCORE response but no matching recipient context found!");
+
+				if(GenerateContextsOnReceive == true) {
+					System.out.println("Dynamically generating recipient context for:" + Utility.arrayToString(recipientId));
+					((GroupOSCoreCtx)ctx).addRecipientContext(recipientId, Contexts.getKeyForRecipient(recipientId));
+				}
 			}
 
 			if (tmp == null) {

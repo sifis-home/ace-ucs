@@ -34,6 +34,7 @@ import org.eclipse.californium.core.coap.Option;
 import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
+import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 import com.upokecenter.cbor.CBORObject;
@@ -96,9 +97,16 @@ public class OSSerializer {
 				CBORObject parCountersignCBOR = CBORObject.FromObject(((GroupOSCoreCtx)ctx).getParCountersign());
 				algorithms.Add(parCountersignCBOR);
 				
+				//TODO: Extract to context.
 				CBORObject cs_key_params = CBORObject.NewArray();
-				cs_key_params.Add(CBORObject.FromObject((int)1)); //When using EDDSA. TODO: Extract to context.
-				cs_key_params.Add(CBORObject.FromObject((int)6)); //When using EDDSA
+				if(((GroupOSCoreCtx)ctx).getAlgCountersign() == AlgorithmID.EDDSA) { //When using EDDSA.
+					cs_key_params.Add(CBORObject.FromObject((int)1)); 
+					cs_key_params.Add(CBORObject.FromObject((int)6)); //When using ECDSA_256
+				} else if(((GroupOSCoreCtx)ctx).getAlgCountersign() == AlgorithmID.ECDSA_256) {
+					cs_key_params.Add(CBORObject.FromObject((int)26));
+					cs_key_params.Add(CBORObject.FromObject((int)1));
+				}
+
 				algorithms.Add(CBORObject.FromObject(cs_key_params));
 			}
 		}
