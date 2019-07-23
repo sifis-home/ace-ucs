@@ -154,7 +154,7 @@ public class DtlsAsRsClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs4"));
         
 		CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -245,7 +245,7 @@ public class DtlsAsRsClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs4"));
         
 		CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -290,15 +290,18 @@ public class DtlsAsRsClientGroupOSCORE {
     	
     	//First parse the response from the AS
     	CBORObject tokenToPost = null;
+    	CBORObject tokenToPost2 = null;
     	OneKey cnfKey = null;
+    	CBORObject cnfFromAS = null;
     	if(asResponse != null) {
     		Map<Short, CBORObject> map = Constants.getParams(asResponse);
     		
-    		tokenToPost = map.get(Constants.ACCESS_TOKEN);
+    		//tokenToPost = map.get(Constants.ACCESS_TOKEN);
+    		tokenToPost = CBORObject.DecodeFromBytes(map.get(Constants.ACCESS_TOKEN).GetByteString());
+
+    		cnfFromAS = map.get(Constants.CNF);
     		
-    		CBORObject cnf = map.get(Constants.CNF);
-    		
-    		Map<Short, CBORObject> cnfMap = Constants.getParams(cnf);
+    		Map<Short, CBORObject> cnfMap = Constants.getParams(cnfFromAS);
     	
     		cnfKey = new OneKey(cnfMap.get(Constants.COSE_KEY));
     	}
@@ -378,6 +381,11 @@ public class DtlsAsRsClientGroupOSCORE {
         	System.out.println("cnfKey is null!");
         }
 
+        //System.out.println("Key string: " + cnfKey.toString());
+        System.out.println("Key ID bytes: " + Utility.arrayToString(cnfKey.get(KeyKeys.KeyId).GetByteString()));
+        System.out.println("Octet bytes: " + Utility.arrayToString(cnfKey.get(KeyKeys.Octet_K).GetByteString()));
+        System.out.println("CNF: " + cnfFromAS.ToJSONString());
+        
         System.out.println("Posting Token to GM at " + rsAddrC);
         System.out.println("Using Token: " + payload.ToJSONString());
         

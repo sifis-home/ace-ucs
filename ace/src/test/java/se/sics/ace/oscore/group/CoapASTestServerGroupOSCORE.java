@@ -78,6 +78,10 @@ public class CoapASTestServerGroupOSCORE
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
     
+    //Shared symmetric key between AS and RS (for RS4 only)
+    static byte[] AsRsKey 
+        = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    
     private static CoapDBConnector db = null;
     private static DtlsAS as = null;
     private static GroupOSCOREJoinPDP pdp = null;
@@ -100,6 +104,12 @@ public class CoapASTestServerGroupOSCORE
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
+        
+        CBORObject keyDataRS4 = CBORObject.NewMap();
+        keyDataRS4.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyDataRS4.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(AsRsKey));
+        OneKey tokenPskRS4 = new OneKey(keyDataRS4);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -185,6 +195,37 @@ public class CoapASTestServerGroupOSCORE
         // M.T.
         // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
+        
+        // M.T.
+        // Add a further resource server "rs4" acting as OSCORE Group Manager
+        // This resource server uses only CWT Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_listener");
+        scopes.add("feedca570000_purelistener");
+        scopes.add("feedca570000_requester_listener");
+        scopes.add("feedca570000_requester_purelistener");
+        auds.clear();
+        auds.add("rs4");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        //coseP = new COSEparams(MessageTag.Sign1, 
+        //        AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, authPsk, tokenPskRS4, akey);
+        
+        // M.T.
+        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs4", auds);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -350,6 +391,7 @@ public class CoapASTestServerGroupOSCORE
         pdp.addIntrospectAccess("rs1");
         pdp.addIntrospectAccess("rs2");
         pdp.addIntrospectAccess("rs3");
+        pdp.addIntrospectAccess("rs4");
         pdp.addIntrospectAccess("rs5");
         pdp.addIntrospectAccess("rs6");
         pdp.addIntrospectAccess("rs7");
@@ -375,11 +417,17 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientB", "rs3", "failTokenType");
         pdp.addAccess("clientB", "rs3", "failProfile");
         pdp.addAccess("clientB", "rs4", "failProfile");
+        pdp.addAccess("clientB", "rs4", "rw_valve");
+        pdp.addAccess("clientB", "rs4", "r_pressure");
+        pdp.addAccess("clientB", "rs4", "failTokenType");
+        pdp.addAccess("clientB", "rs4", "failProfile");
         pdp.addAccess("clientB", "rs6", "co2");
         pdp.addAccess("clientB", "rs7", "co2");
         
         pdp.addAccess("clientC", "rs3", "r_valve");
+        pdp.addAccess("clientC", "rs4", "r_valve");
         pdp.addAccess("clientC", "rs3", "r_pressure");
+        pdp.addAccess("clientC", "rs4", "r_pressure");
         pdp.addAccess("clientC", "rs6", "r_valve");
 
         pdp.addAccess("clientD", "rs1", "r_temp");
@@ -393,16 +441,22 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
+        pdp.addAccess("clientE", "rs4", "rw_valve");
+        pdp.addAccess("clientE", "rs4", "r_pressure");
+        pdp.addAccess("clientE", "rs4", "failTokenType");
+        pdp.addAccess("clientE", "rs4", "failProfile");
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
         // This client is allowed to be requester and/or pure listener, but not listener.
         pdp.addAccess("clientF", "rs2", "feedca570000_requester_purelistener");
         pdp.addAccess("clientF", "rs3", "feedca570000_requester_purelistener");
+        pdp.addAccess("clientF", "rs4", "feedca570000_requester_purelistener");
         
         //Rikard: Adding clientF when connecting with RPK
         pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs2", "feedca570000_requester_purelistener");
         pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs3", "feedca570000_requester_purelistener");
+        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs4", "feedca570000_requester_purelistener");
         //Rikard: Name that clientF will have getSenderId() in Token when using RPK:
         // ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w
 
@@ -411,6 +465,7 @@ public class CoapASTestServerGroupOSCORE
         // This client is allowed to be only listener.
         pdp.addAccess("clientG", "rs2", "feedca570000_requester");
         pdp.addAccess("clientG", "rs3", "feedca570000_requester");
+        pdp.addAccess("clientG", "rs4", "feedca570000_requester");
         
         // M.T.
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
@@ -419,6 +474,10 @@ public class CoapASTestServerGroupOSCORE
         // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs3 = Collections.singleton("rs3");
         pdp.addOSCOREGroupManagers("rs3", rs3);
+        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        Set<String> rs4 = Collections.singleton("rs4");
+        pdp.addOSCOREGroupManagers("rs4", rs4);
+        
         
         //as = new DtlsAS("AS", db, pdp, time, asymmKey);
         as = new DtlsAS("AS", db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);

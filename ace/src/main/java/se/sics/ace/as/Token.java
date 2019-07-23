@@ -48,6 +48,7 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.Utility;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -826,6 +827,12 @@ public class Token implements Endpoint, AutoCloseable {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
 
+		CWT cwtX = (CWT)token;
+		System.out.println("AS: Token CNF: " + cwtX.getClaim(Constants.CNF).ToJSONString());
+		System.out.println("AS: Token full: " + cwtX.toString());
+		//System.out.println("AS: COSE Key: " + cwtX.getClaim(Constants.COSE_KEY).ToJSONString());
+        //System.out.println("CNF: " + cnfFromAS.ToJSONString());
+		
 		if (token instanceof CWT) {
 
 		    CwtCryptoCtx ctx = null;

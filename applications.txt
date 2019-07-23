@@ -60,6 +60,7 @@ Code for testing with Peter van der Stok during Hackathon.
 OSCORE Client->GM and GM applications. The client generates its own Token followed
 by posting it and performing the Join process.
 
+TODO: Add note about changes from Hackathon
 TODO: Make a copy of this as a JUnit.
 
 Name: TestOSCoreRSGroupOSCORE
@@ -88,6 +89,8 @@ Run with: OSCoreClientGroupOSCORE
 *GM Application (OSCORE) (old):
 
 Older code starting from DTLS-base. Works but only when using bypass method.
+
+TODO: Add note about changes from Hackathon
 
 Name: AltOSCoreClientGroupOSCORE
 Security protocol: OSCORE

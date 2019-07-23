@@ -93,6 +93,10 @@ import se.sics.ace.rs.TokenRepository;
  *
  */
 public class TestDtlspRSGroupOSCORE {
+	
+	//Shared symmetric key between AS and RS
+    static byte[] AsRsKey 
+        = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
 	//Sets the secure and unsecure port to use
 	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
@@ -640,10 +644,7 @@ public class TestDtlspRSGroupOSCORE {
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
     	new File(tokenFile).delete();
-    	
-        byte[] key128a 
-            = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      
+    	      
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
                 Base64.getDecoder().decode(rpk)));
         
@@ -651,7 +652,7 @@ public class TestDtlspRSGroupOSCORE {
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+            = CwtCryptoCtx.encrypt0(AsRsKey, coseP.getAlg().AsCBOR());
 
         
         //Set up the inner Authz-Info library

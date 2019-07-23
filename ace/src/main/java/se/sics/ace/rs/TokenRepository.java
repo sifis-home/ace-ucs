@@ -47,6 +47,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.Utility;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -322,6 +323,11 @@ public class TokenRepository implements AutoCloseable {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {
               OneKey key = new OneKey(ckey);
+              
+              System.out.println("Key ID bytes: " + Utility.arrayToString(key.get(KeyKeys.KeyId).GetByteString()));
+              System.out.println("Octet bytes: " + Utility.arrayToString(key.get(KeyKeys.Octet_K).GetByteString()));
+              System.out.println("CNF: " + cnf.ToJSONString());
+              
               processKey(key, sid, cti);
             } catch (CoseException e) {
                 LOGGER.severe("Error while parsing cnf element: " 
@@ -337,6 +343,7 @@ public class TokenRepository implements AutoCloseable {
               msg.decrypt(ctx.getKey());
               CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
               OneKey key = new OneKey(keyData);
+
               processKey(key, sid, cti);
           } catch (CoseException e) {
               LOGGER.severe("Error while decrypting a cnf claim: "
