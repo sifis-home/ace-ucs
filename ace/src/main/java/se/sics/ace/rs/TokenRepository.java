@@ -324,7 +324,7 @@ public class TokenRepository implements AutoCloseable {
             try {
               OneKey key = new OneKey(ckey);
               
-              if(key.get(KeyKeys.KeyId) != null && key.get(KeyKeys.Octet_K) != null && cnf != null) {
+              if(key != null && key.get(KeyKeys.Octet_K).getType() == CBORType.ByteString && key.get(KeyKeys.KeyId) != null && key.get(KeyKeys.Octet_K) != null && cnf != null) {
             	  System.out.println("Key ID bytes: " + Utility.arrayToString(key.get(KeyKeys.KeyId).GetByteString()));
             	  System.out.println("Octet bytes: " + Utility.arrayToString(key.get(KeyKeys.Octet_K).GetByteString()));
             	  System.out.println("CNF: " + cnf.ToJSONString());

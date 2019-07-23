@@ -831,7 +831,12 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 
 		if(token != null && token instanceof CWT) {
-			CWT cwtX = (CWT)token;
+			CWT cwtX = null;
+			try {
+				cwtX = (CWT)token;
+			} catch (Exception e) {
+				System.out.println("Failed to cast Token to CWT (just for debug statements).");
+			}
 			if(cwtX != null && cwtX.getClaim(Constants.CNF) != null) {
 				System.out.println("AS: Token CNF: " + cwtX.getClaim(Constants.CNF).ToJSONString());
 				System.out.println("AS: Token full: " + cwtX.toString());

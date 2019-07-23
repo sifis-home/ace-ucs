@@ -8,7 +8,7 @@ And their corresponding servers.
 Name: DtlspClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK
-CWT protection: PSK
+CWT protection: PSK(?)
 Run with: TestDtlspRSGroupOSCORE
 
 *GM Application:
@@ -26,7 +26,7 @@ CWT protection: PSK / RPK(?)
 Name: CoAPClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK & RPK
-CWT protection: PSK
+CWT protection: PSK(?)
 Run with: CoapASTestServerGroupOSCORE
 
 *AS Application:
@@ -34,19 +34,16 @@ Run with: CoapASTestServerGroupOSCORE
 Name: CoapASTestServerGroupOSCORE
 Security protocol: DTLS
 Security type: PSK / RPK
-CWT protection: PSK / RPK(?)
+CWT protection: PSK / RPK (supports both depending on config)
 
 
 #Pair 3
 
 *Client->AS & Client->GM Application:
 
-Work in progress. Seems to work now after some
-modifications regarding Token encryption/signing,
-setting the audience and configuring the GM.
-
-Note that 9 JUnit tests broke and are not working
-after work on this.
+Seems to work now after some modifications
+regarding Token encryption/signing, setting
+the audience and configuring the GM.
 
 Name: DtlsAsRsClientGroupOSCORE
 Security protocol: DTLS
@@ -60,7 +57,7 @@ Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
 
 *Client->GM Application (OSCORE):
 
-Code for testing with Peter van der Stok during Hackathon.
+Code used for testing with Peter van der Stok during the Hackathon.
 OSCORE Client->GM and GM applications. The client generates its own Token followed
 by posting it and performing the Join process.
 
@@ -69,14 +66,14 @@ TODO: Make a copy of this as a JUnit.
 
 Name: TestOSCoreRSGroupOSCORE
 Security protocol: OSCORE
-CWT protection: PSK
+CWT protection: PSK(?)
 Run with: OSCoreClientGroupOSCORE
 
 *GM Application (OSCORE):
 
 Name: OSCoreClientGroupOSCORE
 Security protocol: OSCORE
-CWT protection: PSK
+CWT protection: RPK
 
 
 #Pair 5
@@ -93,6 +90,8 @@ Run with: OSCoreClientGroupOSCORE
 *GM Application (OSCORE) (old):
 
 Older code starting from DTLS-base. Works but only when using bypass method.
+Used as client with Peter during Hackathon. This was used because it does not use
+the actual OSCORE profile but OSCORE with hard-coded context values.
 
 TODO: Add note about changes from Hackathon
 

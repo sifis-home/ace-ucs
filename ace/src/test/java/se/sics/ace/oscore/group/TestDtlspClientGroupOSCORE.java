@@ -211,7 +211,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws IllegalStateException 
      */
     @Test
-    @Ignore
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -251,7 +250,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostAuthzInfoGroupOSCORESingleRole() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
@@ -485,7 +483,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostAuthzInfoGroupOSCOREMultipleRoles() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
@@ -1269,7 +1266,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostRPK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1313,7 +1309,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1546,7 +1541,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -2843,6 +2837,8 @@ public class TestDtlspClientGroupOSCORE {
 			e.printStackTrace();
 		}
 		
+		Assert.assertNotNull(ctx);
+		
 		//Finally add the recipient contexts from the coseKeySetArray
 		for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
 			
@@ -2858,6 +2854,7 @@ public class TestDtlspClientGroupOSCORE {
 			
 			ctx.addRecipientContext(rid, recipient_key);
 		}
+		Assert.assertEquals(ctx.getRecipientContexts().size(), 2);
 		System.out.println("Generated Group OSCORE Context:");
 		Utility.printContextInfo(ctx);
 }
@@ -2868,7 +2865,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Ignore
-    @Test
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);

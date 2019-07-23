@@ -177,7 +177,6 @@ public class TestDtlspClient2RS {
      * @throws IllegalStateException 
      */
     @Test
-    @Ignore
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -290,7 +289,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
+    //@Ignore
     public void testPostRPK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException,
             IOException {
