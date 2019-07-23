@@ -73,6 +73,12 @@ public class OscoreSecurityContext {
      */
     private byte[] clientId;
     
+    
+    /**
+     * The context id, can be null
+     */
+    private byte[] contextId;
+    
     /**
      * The key derivation function, can be null for default: AES_CCM_16_64_128
      */
@@ -129,14 +135,18 @@ public class OscoreSecurityContext {
                 throw new AceException(
                         "Malformed client Id in OSCORE security context");
             }
-            this.clientId= clientIdC.GetByteString(); 
+            this.clientId = clientIdC.GetByteString(); 
         }
                
         CBORObject ctxIdC = osc.get(Constants.OS_CONTEXTID);
         if (ctxIdC != null) {
-            LOGGER.info("Invalid parameter: contextID must be null");
-            throw new AceException( 
-                    "contextId must be null in OSCORE security context");
+            if (!ctxIdC.getType().equals(CBORType.ByteString)) {
+                LOGGER.info("Invalid parameter: 'contextID',"
+                        + "must be byte-array");
+                throw new AceException( 
+                        "Malformed context Id in OSCORE security context");
+            }
+            this.contextId = ctxIdC.GetByteString();
         }
 
         CBORObject kdfC = osc.get(Constants.OS_HKDF);
@@ -199,12 +209,24 @@ public class OscoreSecurityContext {
      * @return  an OSCORE context based on this object 
      * @throws OSException 
      */
-    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) throws OSException {
+    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) 
+            throws OSException {
         byte[] senderId;
         byte[] recipientId;
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
+
+        byte[] finalSalt;
+        if (this.salt != null) {
+            finalSalt = new byte[this.salt.length + n1.length + n2.length];
+            System.arraycopy(this.salt, 0, finalSalt, 0, this.salt.length);
+            System.arraycopy(n1, 0, finalSalt, this.salt.length, n1.length);
+            System.arraycopy(n2, 0, finalSalt, 
+                    this.salt.length + n1.length, n2.length);
+        } else {
+            finalSalt = new byte[n1.length + n2.length];
+            System.arraycopy(n1, 0, finalSalt, 0, n1.length);
+            System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
+        }
+        
         if (isClient) {
             senderId = this.clientId;
             recipientId = this.serverId;
@@ -213,7 +235,8 @@ public class OscoreSecurityContext {
             recipientId = this.clientId;
         }
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
-                recipientId, this.hkdf, this.replaySize, this.salt, contextId);
+                recipientId, this.hkdf, this.replaySize, finalSalt, 
+                this.contextId);
     }
     
     /**

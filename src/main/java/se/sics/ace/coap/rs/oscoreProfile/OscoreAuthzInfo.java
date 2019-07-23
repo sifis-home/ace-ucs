@@ -140,7 +140,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return reply;
         }
         
-        if (this.cnf == null) {//Should never happen, caught in TokenRepository.
+        if (this.cnf == null) {//Should never happen, caught in TokenRepository
             LOGGER.info("Missing required parameter 'cnf'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
