@@ -63,6 +63,7 @@ import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
+import org.eclipse.californium.oscore.Utility;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -2857,7 +2858,8 @@ public class TestDtlspClientGroupOSCORE {
 			
 			ctx.addRecipientContext(rid, recipient_key);
 		}
-		
+		System.out.println("Generated Group OSCORE Context:");
+		Utility.printContextInfo(ctx);
 }
     
     /**
