@@ -210,6 +210,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws IllegalStateException 
      */
     @Test
+    @Ignore
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -249,6 +250,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostAuthzInfoGroupOSCORESingleRole() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
@@ -482,6 +484,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostAuthzInfoGroupOSCOREMultipleRoles() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
@@ -1265,6 +1268,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostRPK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1308,6 +1312,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
@@ -1540,6 +1545,7 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);

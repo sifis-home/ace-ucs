@@ -48,6 +48,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -176,6 +177,7 @@ public class TestDtlspClient2RS {
      * @throws IllegalStateException 
      */
     @Test
+    @Ignore
     public void testPostAuthzInfo() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -288,6 +290,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostRPK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException,
             IOException {

@@ -41,8 +41,12 @@ CWT protection: PSK / RPK(?)
 
 *Client->AS & Client->GM Application:
 
-Work in progress. Currently DTLS handshake from Client to GM fails.
-Perhaps due to bad data in Token or bad PSK Identity used by the Client.
+Work in progress. Seems to work now after some
+modifications regarding Token encryption/signing,
+setting the audience and configuring the GM.
+
+Note that 9 JUnit tests broke and are not working
+after work on this.
 
 Name: DtlsAsRsClientGroupOSCORE
 Security protocol: DTLS

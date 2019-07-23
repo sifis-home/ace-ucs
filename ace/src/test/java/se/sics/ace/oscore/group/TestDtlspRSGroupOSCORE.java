@@ -94,6 +94,9 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspRSGroupOSCORE {
 	
+	//Name of the AS (this RS will accept token from this issuer)
+	private static String AS_NAME = "AS";
+
 	//Shared symmetric key between AS and RS
     static byte[] AsRsKey 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -478,6 +481,11 @@ public class TestDtlspRSGroupOSCORE {
     public static void main(String[] args) throws Exception {
         //Install needed cryptography providers
         org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+        
+        //Set another name for the AS if the main method was launched from a JUnit test
+        if(args == null) {
+        	AS_NAME = "TestAS";
+        }
 
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
@@ -520,15 +528,46 @@ public class TestDtlspRSGroupOSCORE {
         myScopes.put("fBBBca570000_requester_listener", myResource4);
         myScopes.put("fBBBca570000_requester_purelistener", myResource4);
         
+        // M.T. (for rs4)
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        Set<Short> actions5 = new HashSet<>();
+        actions5.add(Constants.POST);
+        Map<String, Set<Short>> myResource5 = new HashMap<>();
+        myResource5.put("feedca570000", actions5);
+        myScopes.put("feedca570000_requester", myResource5);
+        myScopes.put("feedca570000_listener", myResource5);
+        myScopes.put("feedca570000_purelistener", myResource5);
+        myScopes.put("feedca570000_requester_listener", myResource5);
+        myScopes.put("feedca570000_requester_purelistener", myResource5);
+        
+        // M.T. (for rs4)
+        // Adding another join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
+        // There will NOT be a token enabling the access to this resource.
+        Set<Short> actions6 = new HashSet<>();
+        actions6.add(Constants.POST);
+        Map<String, Set<Short>> myResource6 = new HashMap<>();
+        myResource6.put("fBBBca570000", actions6);
+        myScopes.put("fBBBca570000_requester", myResource6);
+        myScopes.put("fBBBca570000_listener", myResource6);
+        myScopes.put("fBBBca570000_purelistener", myResource6);
+        myScopes.put("fBBBca570000_requester_listener", myResource6);
+        myScopes.put("fBBBca570000_requester_purelistener", myResource6);
+        
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        auds.add("rs4"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-        valid.setGMAudiences(Collections.singleton("rs2"));
+        Set<String> GMs = new HashSet<>();
+        GMs.add("rs2");
+        GMs.add("rs4");
+        valid.setGMAudiences(GMs);
         
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
@@ -656,7 +695,7 @@ public class TestDtlspRSGroupOSCORE {
 
         
         //Set up the inner Authz-Info library
-        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList(AS_NAME), 
         	 new KissTime(), 
              null,
              valid, tokenFile, valid, ctx);
@@ -676,7 +715,7 @@ public class TestDtlspRSGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
                    "token1".getBytes(Constants.charset)));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject(AS_NAME));
 
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -708,7 +747,7 @@ public class TestDtlspRSGroupOSCORE {
   	  	params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
   	  	params2.put(Constants.CTI, CBORObject.FromObject(
                     "token2".getBytes(Constants.charset)));
-  	  	params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+  	  	params2.put(Constants.ISS, CBORObject.FromObject(AS_NAME));
 
   	  	OneKey key2 = new OneKey();
   	  	key2.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -742,7 +781,7 @@ public class TestDtlspRSGroupOSCORE {
   	    params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
   	    params3.put(Constants.CTI, CBORObject.FromObject(
                     "token3".getBytes(Constants.charset)));
-  	    params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+  	    params3.put(Constants.ISS, CBORObject.FromObject(AS_NAME));
 
   	    OneKey key3 = new OneKey();
   	    key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);

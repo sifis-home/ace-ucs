@@ -505,6 +505,9 @@ public class Token implements Endpoint, AutoCloseable {
 		Map<Short, CBORObject> claims = new HashMap<>();
 		
 		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE EXI
+		if(this.asId != null) {
+			System.out.println("AS: Setting ISS: " + this.asId);
+		}
         for (Short c : this.claims) {
 		    switch (c) {
 		    case Constants.ISS:
@@ -827,12 +830,15 @@ public class Token implements Endpoint, AutoCloseable {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
 
-		CWT cwtX = (CWT)token;
-		System.out.println("AS: Token CNF: " + cwtX.getClaim(Constants.CNF).ToJSONString());
-		System.out.println("AS: Token full: " + cwtX.toString());
-		//System.out.println("AS: COSE Key: " + cwtX.getClaim(Constants.COSE_KEY).ToJSONString());
-        //System.out.println("CNF: " + cnfFromAS.ToJSONString());
-		
+		if(token != null && token instanceof CWT) {
+			CWT cwtX = (CWT)token;
+			if(cwtX != null && cwtX.getClaim(Constants.CNF) != null) {
+				System.out.println("AS: Token CNF: " + cwtX.getClaim(Constants.CNF).ToJSONString());
+				System.out.println("AS: Token full: " + cwtX.toString());
+				//System.out.println("AS: COSE Key: " + cwtX.getClaim(Constants.COSE_KEY).ToJSONString());
+        		//System.out.println("CNF: " + cnfFromAS.ToJSONString());
+			}
+		}
 		if (token instanceof CWT) {
 
 		    CwtCryptoCtx ctx = null;

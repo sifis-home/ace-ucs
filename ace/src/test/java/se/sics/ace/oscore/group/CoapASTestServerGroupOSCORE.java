@@ -70,9 +70,11 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  */
 public class CoapASTestServerGroupOSCORE
 {
+	//Name of the AS (the AS will use this as the issuer of a Token)
+	private static final String AS_NAME = "AS";
 
 	//Sets the secure port to use
-	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
+	private static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
 
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
@@ -93,6 +95,11 @@ public class CoapASTestServerGroupOSCORE
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+    	//If the input argument is null use the default secure port
+    	//This will allow the JUnit tests to work since they call main with null
+    	if(args == null) {
+    		SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+    	}
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
@@ -480,7 +487,7 @@ public class CoapASTestServerGroupOSCORE
         
         
         //as = new DtlsAS("AS", db, pdp, time, asymmKey);
-        as = new DtlsAS("AS", db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);
+        as = new DtlsAS(AS_NAME, db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);
         as.start();
         System.out.println("AS Server starting on port " + SECURE_PORT  + " (DTLS)");
     }
