@@ -382,22 +382,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	    	csAlg = AlgorithmID.ECDSA_256;
-	        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-	        csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+	        csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+	        csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -640,22 +640,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
 	    	csAlg = AlgorithmID.EDDSA;
-	        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-	        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-	        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+	        csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+	        csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+	        csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -936,22 +936,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
 		}
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -1196,22 +1196,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
 	    	csAlg = AlgorithmID.EDDSA;
-	        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-	        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-	        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+	        csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+	        csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+	        csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -1524,22 +1524,22 @@ public class TestDtlspClientGroupOSCORE {
 
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -1781,22 +1781,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -2284,22 +2284,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
 
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
@@ -2553,22 +2553,22 @@ public class TestDtlspClientGroupOSCORE {
     	
     	AlgorithmID csAlg = null;
     	
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
     	
     	// ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
         
     	// EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
     	
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);

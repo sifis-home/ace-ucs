@@ -332,7 +332,7 @@ public class TestDtlspRSGroupOSCORE {
         		    myGroup.getCsAlg().equals(COSE.AlgorithmID.ECDSA_512)) {
         			
         			if (!publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2) ||
-        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.EC2_Curve)))) {
+        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.EC2_Curve.AsCBOR())))) {
         				
                 			myGroup.deallocateSenderId(senderId);
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
@@ -343,9 +343,9 @@ public class TestDtlspRSGroupOSCORE {
         		
         		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve))) ||
-            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType))) ||
-        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve)))) {
+        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve.AsCBOR()))) ||
+            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType.AsCBOR()))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve.AsCBOR())))) {
         				
                 			myGroup.deallocateSenderId(senderId);
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
@@ -546,8 +546,8 @@ public class TestDtlspRSGroupOSCORE {
 
         // Group OSCORE specific values for the countersignature
         AlgorithmID csAlg = null;
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
         
         // Uncomment to set ECDSA with curve P256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -558,16 +558,16 @@ public class TestDtlspRSGroupOSCORE {
         // ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         }
         
         // EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
         }
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
