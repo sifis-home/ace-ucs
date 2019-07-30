@@ -73,7 +73,6 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
-//public class AuthzInfoGroupOSCORE implements Endpoint, AutoCloseable {
 public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	
     /**
@@ -81,31 +80,6 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
      */
     private static final Logger LOGGER 
         = Logger.getLogger(AuthzInfo.class.getName());
-
-//	/**
-//	 * The acceptable issuers
-//	 */
-//	private List<String> issuers;
-	
-//	/**
-//	 * Provides system time
-//	 */
-//	private TimeProvider time;
-	
-// /**
-//	 * Handles introspection of tokens
-//	 */
-//	private IntrospectionHandler intro;
-	
-//	/**
-//	 * Handles audience validation
-//	 */
-//	private AudienceValidator audience;
-	
-//	/**
-//	 * The crypto context to use with the AS
-//	 */
-//	private CwtCryptoCtx ctx;
 	
     /**
      * Temporary storage for the CNF claim
@@ -134,59 +108,54 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 		super(issuers, time, intro, audience, ctx, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
-		// TODO REMOVE
-		/*
-	    if (TokenRepository.getInstance()==null) {	   
-	        TokenRepository.create(scopeValidator, tokenFile, ctx, time);
-	    }
-		this.issuers = new ArrayList<>();
-		this.issuers.addAll(issuers);
-		this.time = time;
-		this.intro = intro;
-		this.audience = audience;
-		this.ctx = ctx;
-		*/
 	}
 
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    CBORObject token = null;
+	    CBORObject cbor = null;
+	    
 	    try {
-	    	
-	    	// The payload of the Token POST message is a map. Retrieve the Token from it.
-	    	// This is a possible case when the joining node asks the Group Manager for
-	    	// information on the signature algorithm and parameters used in the OSCORE group.
-	    	if (CBORObject.DecodeFromBytes(msg.getRawPayload()).getType().equals(CBORType.Map)) {
-	    		
-	    		CBORObject tokenPOSTMap = CBORObject.NewMap();
-	    		tokenPOSTMap = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    		
-	            // Sanity check
-	    		//if (tokenPOSTMap.ContainsKey(CBORObject.FromObject(Constants.ACCESS_TOKEN))) {
-	    		//	token = CBORObject.DecodeFromBytes(tokenPOSTMap.get(Constants.ACCESS_TOKEN));
-	    		//}
-	    		
-	    		// Constants.ACCESS_TOKEN
-	    		
-	    	}
-	    	// The payload of the Token POST message consists of the Access Token only.
-	    	// This is the expected usual case.
-	    	else {
-	    		
-	    		token = CBORObject.DecodeFromBytes(msg.getRawPayload());
-	    		
-	    	}
-	        
-	    } catch (Exception e) {
-	        LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
-	        CBORObject map = CBORObject.NewMap();
+	    	cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    }
+	    catch (Exception e) {
+            LOGGER.info("Invalid payload at authz-info: " + e.getMessage());
+            CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+            map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+	    	
+	    // The payload of the Token POST message is a map. Retrieve the Token from it.
+	    // This is a possible case when the joining node asks the Group Manager for
+	    // information on the signature algorithm and parameters used in the OSCORE group.
+	    if (cbor.getType().equals(CBORType.Map)) {
+	    		
+	        // Sanity check
+	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.ACCESS_TOKEN))) {
+	    		token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
+	    	}
+	    		
+	    }
+	    // The payload of the Token POST message consists of the Access Token only.
+	    // This is the expected usual case, when the client does not include additional parameters.
+	    else {
+	    		
+	    	token = cbor;
+	    		
 	    }
 	    
-	    Message reply = super.processToken(token, msg);
+        if (token == null) {
+            LOGGER.info("Missing manadory paramter 'access_token'");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Missing mandatory parameter 'access_token'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
 	    
+	    Message reply = super.processToken(token, msg);
         if (reply.getMessageCode() != Message.CREATED) {
             return reply;
         }
