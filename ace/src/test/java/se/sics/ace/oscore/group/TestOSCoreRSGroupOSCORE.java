@@ -231,10 +231,10 @@ public class TestOSCoreRSGroupOSCORE {
         Map<String, Set<Short>> myResource4 = new HashMap<>();
         myResource4.put("feedca570000", actions4);
         myScopes.put("feedca570000_requester", myResource4);
-        myScopes.put("feedca570000_listener", myResource4);
-        myScopes.put("feedca570000_purelistener", myResource4);
-        myScopes.put("feedca570000_requester_listener", myResource4);
-        myScopes.put("feedca570000_requester_purelistener", myResource4);
+        myScopes.put("feedca570000_responder", myResource4);
+        myScopes.put("feedca570000_monitor", myResource4);
+        myScopes.put("feedca570000_requester_responder", myResource4);
+        myScopes.put("feedca570000_requester_monitor", myResource4);
         
         //Create the OSCORE Group(s)
         OSCOREGroupCreation();

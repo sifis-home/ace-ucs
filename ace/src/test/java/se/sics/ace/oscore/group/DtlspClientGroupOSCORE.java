@@ -152,7 +152,7 @@ public class DtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	

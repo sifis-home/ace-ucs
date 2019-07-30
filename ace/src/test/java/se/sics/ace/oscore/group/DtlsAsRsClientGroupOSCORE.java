@@ -121,7 +121,7 @@ public class DtlsAsRsClientGroupOSCORE {
     	
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
+    	String role2 = new String("monitor");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -204,7 +204,7 @@ public class DtlsAsRsClientGroupOSCORE {
     	
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
+    	String role2 = new String("monitor");
     	
     	//RPK connecting code from TestDtlsClient2
     	OneKey key = new OneKey(
@@ -340,7 +340,7 @@ public class DtlsAsRsClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	

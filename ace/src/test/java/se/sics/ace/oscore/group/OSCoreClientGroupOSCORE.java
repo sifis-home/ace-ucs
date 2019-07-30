@@ -134,7 +134,7 @@ public class OSCoreClientGroupOSCORE {
     	//Create a byte string scope for use later
     	String gid = new String("feedca570000");
      	String role1 = new String("requester");
-     	String role2 = new String("listener");
+     	String role2 = new String("responder");
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);

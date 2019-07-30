@@ -148,10 +148,10 @@ public class TestAuthzInfoGroupOSCORE {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("feedca570000", actions2);
         myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_listener", myResource3);
-        myScopes.put("feedca570000_purelistener", myResource3);
-        myScopes.put("feedca570000_requester_listener", myResource3);
-        myScopes.put("feedca570000_requester_purelistener", myResource3);
+        myScopes.put("feedca570000_responder", myResource3);
+        myScopes.put("feedca570000_monitor", myResource3);
+        myScopes.put("feedca570000_requester_responder", myResource3);
+        myScopes.put("feedca570000_requester_monitor", myResource3);
         
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
@@ -741,7 +741,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
+    	String role2 = new String("monitor");
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();

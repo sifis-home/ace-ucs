@@ -255,10 +255,10 @@ public class TestTokenGroupOSCORE {
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_listener");
-        scopes.add("feedca570000_purelistener");
-        scopes.add("feedca570000_requester_listener");
-        scopes.add("feedca570000_requester_purelistener");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs8");
         keyTypes.clear();
@@ -284,10 +284,10 @@ public class TestTokenGroupOSCORE {
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_listener");
-        scopes.add("feedca570000_purelistener");
-        scopes.add("feedca570000_requester_listener");
-        scopes.add("feedca570000_requester_purelistener");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs9");
         keyTypes.clear();
@@ -421,7 +421,7 @@ public class TestTokenGroupOSCORE {
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
-    	role1 = new String("listener");
+    	role1 = new String("responder");
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -439,7 +439,7 @@ public class TestTokenGroupOSCORE {
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
-    	role1 = new String("purelistener");
+    	role1 = new String("monitor");
     	cborArrayScope.Add(gid);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -459,7 +459,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
     	role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
@@ -482,7 +482,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         gid = new String("feedca570000");
     	role1 = new String("requester");
-    	role2 = new String("purelistener");
+    	role2 = new String("monitor");
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
@@ -549,14 +549,14 @@ public class TestTokenGroupOSCORE {
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
-        // This client is allowed to be requester and/or pure listener, but not listener.
+        // This client is allowed to be requester and/or monitor, but not responder.
         pdp.addAccess("clientF", "rs2", "r_light");
-        pdp.addAccess("clientF", "rs8", "feedca570000_requester_purelistener");
-        pdp.addAccess("clientF", "rs9", "feedca570000_requester_purelistener");
+        pdp.addAccess("clientF", "rs8", "feedca570000_requester_monitor");
+        pdp.addAccess("clientF", "rs9", "feedca570000_requester_monitor");
         
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-        // This client is allowed to be only listener.
+        // This client is allowed to be only requester.
         pdp.addAccess("clientG", "rs8", "feedca570000_requester");
         pdp.addAccess("clientG", "rs9", "feedca570000_requester");
         
@@ -973,8 +973,8 @@ public class TestTokenGroupOSCORE {
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1048,7 +1048,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(cborArrayScope.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1186,8 +1186,8 @@ public class TestTokenGroupOSCORE {
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1261,7 +1261,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(cborArrayScope.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1399,8 +1399,8 @@ public class TestTokenGroupOSCORE {
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1440,8 +1440,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("purelistener")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("purelistener") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("monitor")) ||
+        	   (cborArrayScope.get(1).get(0).AsString().equals("monitor") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1545,7 +1545,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(cborArrayScope.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1626,8 +1626,8 @@ public class TestTokenGroupOSCORE {
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1667,8 +1667,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("purelistener")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("purelistener") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("monitor")) ||
+        	   (cborArrayScope.get(1).get(0).AsString().equals("monitor") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1772,7 +1772,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("purelistener"));
+        assert(cborArrayScope.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         

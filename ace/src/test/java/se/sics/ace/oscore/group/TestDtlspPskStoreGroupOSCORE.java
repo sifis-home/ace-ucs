@@ -108,10 +108,10 @@ public class TestDtlspPskStoreGroupOSCORE {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("feedca570000", actions2);
         myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_listener", myResource3);
-        myScopes.put("feedca570000_purelistener", myResource3);
-        myScopes.put("feedca570000_requester_listener", myResource3);
-        myScopes.put("feedca570000_requester_purelistener", myResource3);
+        myScopes.put("feedca570000_responder", myResource3);
+        myScopes.put("feedca570000_monitor", myResource3);
+        myScopes.put("feedca570000_requester_responder", myResource3);
+        myScopes.put("feedca570000_requester_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -341,7 +341,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
@@ -438,7 +438,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         
         String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("listener");
+    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);

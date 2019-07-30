@@ -109,7 +109,7 @@ public class CoAPClientGroupOSCORE {
     	
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
+    	String role2 = new String("monitor");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -184,7 +184,7 @@ public class CoAPClientGroupOSCORE {
     	
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
+    	String role2 = new String("monitor");
     	
     	//RPK connecting code from TestDtlsClient2
     	OneKey key = new OneKey(

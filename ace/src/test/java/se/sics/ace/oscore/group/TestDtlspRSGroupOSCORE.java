@@ -509,10 +509,10 @@ public class TestDtlspRSGroupOSCORE {
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put("feedca570000", actions3);
         myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_listener", myResource3);
-        myScopes.put("feedca570000_purelistener", myResource3);
-        myScopes.put("feedca570000_requester_listener", myResource3);
-        myScopes.put("feedca570000_requester_purelistener", myResource3);
+        myScopes.put("feedca570000_responder", myResource3);
+        myScopes.put("feedca570000_monitor", myResource3);
+        myScopes.put("feedca570000_requester_responder", myResource3);
+        myScopes.put("feedca570000_requester_monitor", myResource3);
         
         // M.T.
         // Adding another join resource, as one scope for each different combinations of
@@ -523,10 +523,10 @@ public class TestDtlspRSGroupOSCORE {
         Map<String, Set<Short>> myResource4 = new HashMap<>();
         myResource4.put("fBBBca570000", actions4);
         myScopes.put("fBBBca570000_requester", myResource4);
-        myScopes.put("fBBBca570000_listener", myResource4);
-        myScopes.put("fBBBca570000_purelistener", myResource4);
-        myScopes.put("fBBBca570000_requester_listener", myResource4);
-        myScopes.put("fBBBca570000_requester_purelistener", myResource4);
+        myScopes.put("fBBBca570000_responder", myResource4);
+        myScopes.put("fBBBca570000_monitor", myResource4);
+        myScopes.put("fBBBca570000_requester_responder", myResource4);
+        myScopes.put("fBBBca570000_requester_monitor", myResource4);
         
         // M.T. (for rs4)
         // Adding the join resource, as one scope for each different combinations of
@@ -536,10 +536,10 @@ public class TestDtlspRSGroupOSCORE {
         Map<String, Set<Short>> myResource5 = new HashMap<>();
         myResource5.put("feedca570000", actions5);
         myScopes.put("feedca570000_requester", myResource5);
-        myScopes.put("feedca570000_listener", myResource5);
-        myScopes.put("feedca570000_purelistener", myResource5);
-        myScopes.put("feedca570000_requester_listener", myResource5);
-        myScopes.put("feedca570000_requester_purelistener", myResource5);
+        myScopes.put("feedca570000_responder", myResource5);
+        myScopes.put("feedca570000_monitor", myResource5);
+        myScopes.put("feedca570000_requester_responder", myResource5);
+        myScopes.put("feedca570000_requester_monitor", myResource5);
         
         // M.T. (for rs4)
         // Adding another join resource, as one scope for each different combinations of
@@ -550,10 +550,10 @@ public class TestDtlspRSGroupOSCORE {
         Map<String, Set<Short>> myResource6 = new HashMap<>();
         myResource6.put("fBBBca570000", actions6);
         myScopes.put("fBBBca570000_requester", myResource6);
-        myScopes.put("fBBBca570000_listener", myResource6);
-        myScopes.put("fBBBca570000_purelistener", myResource6);
-        myScopes.put("fBBBca570000_requester_listener", myResource6);
-        myScopes.put("fBBBca570000_requester_purelistener", myResource6);
+        myScopes.put("fBBBca570000_responder", myResource6);
+        myScopes.put("fBBBca570000_monitor", myResource6);
+        myScopes.put("fBBBca570000_requester_responder", myResource6);
+        myScopes.put("fBBBca570000_requester_monitor", myResource6);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -768,7 +768,7 @@ public class TestDtlspRSGroupOSCORE {
   	    // Add a token to enable access to a join resource,
   	    // for joining an OSCORE group with multiple roles
   	    Map<Short, CBORObject> params3 = new HashMap<>();
-  	    String role2 = new String("listener");
+  	    String role2 = new String("responder");
       
   	    cborArrayScope = CBORObject.NewArray();
   	    cborArrayScope.Add(gid);

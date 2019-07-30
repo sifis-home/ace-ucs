@@ -222,8 +222,8 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -389,8 +389,8 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -556,8 +556,8 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -737,8 +737,8 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -918,8 +918,8 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -1024,8 +1024,8 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
     	String role1 = new String("requester");
-    	String role2 = new String("purelistener");
-    	String role3 = new String("listener");
+    	String role2 = new String("monitor");
+    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
