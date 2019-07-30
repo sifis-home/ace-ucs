@@ -328,7 +328,7 @@ public class OSCoreClientGroupOSCORE {
         Integer par_countersign = null;
         CBORObject par_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_params);
         if(par_countersign_param.getType() == CBORType.Map) {
-        	par_countersign = par_countersign_param.get(KeyKeys.OKP_Curve.name()).AsInt32();
+        	par_countersign = par_countersign_param.get(KeyKeys.OKP_Curve.AsCBOR()).AsInt32();
         } else {
         	System.err.println("Unknown par_countersign value!");
         }

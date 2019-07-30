@@ -546,7 +546,7 @@ public class TestOSCoreRSGroupOSCORE {
         		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
         			
         			if (!publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve)))) {
+        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve.AsCBOR())))) {
         				
                 			myGroup.deallocateSenderId(senderId);
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
@@ -557,9 +557,9 @@ public class TestOSCoreRSGroupOSCORE {
         		
         		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))) ||
-           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType))) ||
-        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve)))) {
+        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR()))) ||
+           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR())))) {
 
                 			myGroup.deallocateSenderId(senderId);
 
@@ -716,19 +716,19 @@ public class TestOSCoreRSGroupOSCORE {
 
         // Group OSCORE specific values for the countersignature
         AlgorithmID csAlg;
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
         
         // ECDSA_256
         //csAlg = AlgorithmID.ECDSA_256;
-        //csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        //csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        //csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        //csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         
         // EDDSA (Ed25519)
         csAlg = AlgorithmID.EDDSA;
-        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
