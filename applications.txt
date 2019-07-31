@@ -104,5 +104,5 @@ TODO:
 RPK handshake for DTLS full procedure
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
 Create some JUnit tests based on the OSCORE profile examples
-Check if "join" parameter is implemented in join request
+Check if "type" parameter is implemented in join request
 Change values in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.)
