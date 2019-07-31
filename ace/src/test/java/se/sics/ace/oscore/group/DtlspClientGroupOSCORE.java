@@ -167,7 +167,7 @@ public class DtlspClientGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostPSKGOMR".getBytes(Constants.charset)));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        params.put(Constants.ISS, CBORObject.FromObject("AS"));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());

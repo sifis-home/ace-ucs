@@ -308,8 +308,8 @@ public class TestOSCoreRSGroupOSCORE {
       params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
       CBORObject payload = CBORObject.NewMap();
-      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting
-      //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign));
+      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting Token
+      //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign)); //Signing Token
       byte[] n1 = new byte[8];
       new SecureRandom().nextBytes(n1); 
       payload.Add(Constants.CNONCE, n1);

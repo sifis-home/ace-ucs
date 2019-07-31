@@ -58,6 +58,22 @@ public class OSCoreClientGroupOSCORE {
 	//Set the hostname/IP of the RS (GM)
 	private final static String GM_ADDRESS = "localhost";
 	
+	 //Additions for creating a fixed context
+	private final static String uriGM = "coap://" + GM_ADDRESS;
+	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static String uriLocal = "coap://localhost";
+	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+	
+	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+		0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
+	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
+		(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	//private final static byte[] context_id = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58 };
+	private final static byte[] sid = new byte[] { 'C', '1' };
+	private final static byte[] rid = new byte[] { 'G', 'M' };
+	//End Additions for creating a fixed context
+	
 	private static String GM_HOST;
 	//private static String REQUESTED_RESOURCE = "helloWorld";
 	private static String REQUESTED_RESOURCE = "feedca570000";
@@ -98,6 +114,11 @@ public class OSCoreClientGroupOSCORE {
     		System.err.println("Failed to install cryptography providers.");
     		e.printStackTrace();
     	}
+    	
+    	//Set OSCORE Context information
+    	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, true, alg, sid, rid, kdf, 32, master_salt, null);
+		db.addContext(uriGM, ctxOSCore);
+		OSCoreCoapStackFactory.useAsDefault();
     	
     	OSCoreCoapStackFactory.useAsDefault();
     	
