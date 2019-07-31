@@ -99,3 +99,8 @@ Name: AltOSCoreClientGroupOSCORE
 Security protocol: OSCORE
 CWT protection: PSK
 
+
+TODO:
+RPK handshake for DTLS full procedure
+Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
+Create some JUnit tests based on the OSCORE profile examples
