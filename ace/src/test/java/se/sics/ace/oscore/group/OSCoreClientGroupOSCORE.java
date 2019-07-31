@@ -146,13 +146,17 @@ public class OSCoreClientGroupOSCORE {
     	
     	
         //Generate a token and simulated response from As
+    	//Encrypted Token
 //        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
 //                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.EDDSA, AlgorithmID.Direct);
+
 //        CwtCryptoCtx ctx 
 //            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
-        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
+    	
+    	//Signed Token
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.EDDSA, AlgorithmID.Direct);
+    	CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
         		privateKey, coseP.getAlg().AsCBOR());
         
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -256,7 +260,7 @@ public class OSCoreClientGroupOSCORE {
         
         byte[] responsePayload = r2.getPayload();
 
-        //System.out.println("Received response to Join req from GM: " + r2.getResponseText());
+        System.out.println("Received response to Join req from GM: " + r2.getResponseText());
         
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 

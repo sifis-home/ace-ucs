@@ -266,10 +266,12 @@ public class TestOSCoreRSGroupOSCORE {
 //        CwtCryptoCtx ctx 
 //            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
+        //Use signed tokens
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.EDDSA, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.sign1Verify(
                 publicKey, coseP.getAlg().AsCBOR());
+        
         
         CwtCryptoCtx ctx_sign = CwtCryptoCtx.sign1Create(
                 privateKey, coseP.getAlg().AsCBOR());

@@ -63,6 +63,11 @@ public class OscoreSecurityContext {
     private Integer replaySize;
     
     /**
+     * The context id, can be null
+     */
+    private byte[] contextId;
+    
+    /**
      * Constructor.
      * 
      * @param cnf  the confirmation CBORObject containing 
@@ -171,9 +176,20 @@ public class OscoreSecurityContext {
     public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) throws OSException {
         byte[] senderId;
         byte[] recipientId;
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
+        
+        byte[] finalSalt;
+        if (this.salt != null) {
+            finalSalt = new byte[this.salt.length + n1.length + n2.length];
+            System.arraycopy(this.salt, 0, finalSalt, 0, this.salt.length);
+            System.arraycopy(n1, 0, finalSalt, this.salt.length, n1.length);
+            System.arraycopy(n2, 0, finalSalt, 
+                    this.salt.length + n1.length, n2.length);
+        } else {
+            finalSalt = new byte[n1.length + n2.length];
+            System.arraycopy(n1, 0, finalSalt, 0, n1.length);
+            System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
+        }
+        
         if (isClient) {
             senderId = this.clientId;
             recipientId = this.serverId;
@@ -182,7 +198,7 @@ public class OscoreSecurityContext {
             recipientId = this.clientId;
         }
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
-                recipientId, this.hkdf, this.replaySize, this.salt, contextId);
+                recipientId, this.hkdf, this.replaySize, finalSalt, this.contextId);
     }
     
     /**

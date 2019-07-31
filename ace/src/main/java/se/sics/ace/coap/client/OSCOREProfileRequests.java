@@ -56,6 +56,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
 /**
@@ -212,109 +213,124 @@ public class OSCOREProfileRequests {
         System.arraycopy(n2, 0, contextId, n1.length, n2.length);
         
         
-        //Make the OSCORE context
-        CBORObject algC = osc.get(Constants.OS_ALG);
-        AlgorithmID alg = null;
-        if (algC != null) {
-            try {
-                alg = AlgorithmID.FromCBOR(algC);
-            } catch (CoseException e) {
-                LOGGER.info("Invalid algorithmId: " + e.getMessage());
-               throw new AceException(
-                       "Malformed algorithm Id in OSCORE security context");
-            }
-        }
+//        //Make the OSCORE context
+//        CBORObject algC = osc.get(Constants.OS_ALG);
+//        AlgorithmID alg = null;
+//        if (algC != null) {
+//            try {
+//                alg = AlgorithmID.FromCBOR(algC);
+//            } catch (CoseException e) {
+//                LOGGER.info("Invalid algorithmId: " + e.getMessage());
+//               throw new AceException(
+//                       "Malformed algorithm Id in OSCORE security context");
+//            }
+//        }
+//        
+//        CBORObject clientId = osc.get(Constants.OS_CLIENTID);
+//        byte[] sender_id = null;
+//        if (clientId != null) {
+//            if (!clientId.getType().equals(CBORType.ByteString)) {
+//                LOGGER.info("Invalid parameter: 'clientId',"
+//                        + " must be byte-array");
+//               throw new AceException(
+//                        "Malformed client Id in OSCORE security context");
+//            }
+//            sender_id = clientId.GetByteString(); 
+//        }
+//               
+//        CBORObject ctxtId = osc.get(Constants.OS_CONTEXTID);
+//        if (ctxtId != null) {
+//            LOGGER.info("Invalid parameter: contextID must be null");
+//           throw new AceException(
+//                    "contextId must be null in OSCORE security context");
+//        }
+//                
+//        CBORObject kdfC = osc.get(Constants.OS_HKDF);
+//        AlgorithmID kdf = null;
+//        if (kdfC != null) {
+//            try {
+//                kdf = AlgorithmID.FromCBOR(kdfC);
+//            } catch (CoseException e) {
+//                LOGGER.info("Invalid kdf: " + e.getMessage());
+//                throw new AceException(
+//                        "Malformed KDF in OSCORE security context");
+//            }
+//        }
+//        
+//        CBORObject ms = osc.get(Constants.OS_MS);
+//        if (ms == null || !ms.getType().equals(CBORType.ByteString)) {
+//            LOGGER.info("Missing or invalid parameter: 'master secret',"
+//                    + " must be byte-array");
+//            throw new AceException( 
+//                    "malformed or missing master secret"
+//                    + " in OSCORE security context");
+//        }
+//        byte[] master_secret = ms.GetByteString();
+//        
+//        CBORObject rpl = osc.get(Constants.OS_RPL);
+//        Integer replay_size = null;
+//        if (rpl != null) {
+//            if (!rpl.CanFitInInt32()) {
+//                LOGGER.info("Invalid parameter: 'replay window size',"
+//                        + " must be 32-bit integer");
+//                throw new AceException(
+//                        "malformed replay window size"
+//                        + " in OSCORE security context");
+//            }
+//            replay_size = rpl.AsInt32();
+//        }
+//
+//        CBORObject salt = osc.get(Constants.OS_SALT);
+//        byte[] master_salt = null;
+//        if (salt != null) {
+//            if (!salt.getType().equals(CBORType.ByteString)) {
+//                LOGGER.info("Invalid parameter: 'master salt',"
+//                        + " must be byte-array");
+//                throw new AceException(
+//                        "malformed master salt"
+//                        + " in OSCORE security context");
+//            }
+//            master_salt = salt.GetByteString();
+//        }
+//
+//        CBORObject serverId = osc.get(Constants.OS_SERVERID);
+//        if (serverId == null 
+//                || !serverId.getType().equals(CBORType.ByteString)) {
+//            LOGGER.info("Missing or invalid parameter: 'serverId',"
+//                    + " must be byte-array");
+//           throw new AceException(
+//                    "malformed or missing server id"
+//                    + " in OSCORE security context");
+//        }
+//        byte[] recipient_id = serverId.GetByteString();
+//        
+//        try {
+//            OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sender_id, 
+//                    recipient_id, kdf, replay_size, master_salt, contextId);
+//            HashMapCtxDB db = HashMapCtxDB.getInstance();
+//            db.addContext(ctx);
+//            db.addContext(rsAddr, ctx);
+//           
+//        } catch (OSException e) {
+//            LOGGER.info("Error while creating OSCORE context: " 
+//                    + e.getMessage());
+//           throw new AceException(e.getMessage());
+//        }
         
-        CBORObject clientId = osc.get(Constants.OS_CLIENTID);
-        byte[] sender_id = null;
-        if (clientId != null) {
-            if (!clientId.getType().equals(CBORType.ByteString)) {
-                LOGGER.info("Invalid parameter: 'clientId',"
-                        + " must be byte-array");
-               throw new AceException(
-                        "Malformed client Id in OSCORE security context");
-            }
-            sender_id = clientId.GetByteString(); 
-        }
-               
-        CBORObject ctxtId = osc.get(Constants.OS_CONTEXTID);
-        if (ctxtId != null) {
-            LOGGER.info("Invalid parameter: contextID must be null");
-           throw new AceException(
-                    "contextId must be null in OSCORE security context");
-        }
-                
-        CBORObject kdfC = osc.get(Constants.OS_HKDF);
-        AlgorithmID kdf = null;
-        if (kdfC != null) {
-            try {
-                kdf = AlgorithmID.FromCBOR(kdfC);
-            } catch (CoseException e) {
-                LOGGER.info("Invalid kdf: " + e.getMessage());
-                throw new AceException(
-                        "Malformed KDF in OSCORE security context");
-            }
-        }
         
-        CBORObject ms = osc.get(Constants.OS_MS);
-        if (ms == null || !ms.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter: 'master secret',"
-                    + " must be byte-array");
-            throw new AceException( 
-                    "malformed or missing master secret"
-                    + " in OSCORE security context");
-        }
-        byte[] master_secret = ms.GetByteString();
+       OscoreSecurityContext osc_ = new OscoreSecurityContext(cnf);
         
-        CBORObject rpl = osc.get(Constants.OS_RPL);
-        Integer replay_size = null;
-        if (rpl != null) {
-            if (!rpl.CanFitInInt32()) {
-                LOGGER.info("Invalid parameter: 'replay window size',"
-                        + " must be 32-bit integer");
-                throw new AceException(
-                        "malformed replay window size"
-                        + " in OSCORE security context");
-            }
-            replay_size = rpl.AsInt32();
-        }
-
-        CBORObject salt = osc.get(Constants.OS_SALT);
-        byte[] master_salt = null;
-        if (salt != null) {
-            if (!salt.getType().equals(CBORType.ByteString)) {
-                LOGGER.info("Invalid parameter: 'master salt',"
-                        + " must be byte-array");
-                throw new AceException(
-                        "malformed master salt"
-                        + " in OSCORE security context");
-            }
-            master_salt = salt.GetByteString();
-        }
-
-        CBORObject serverId = osc.get(Constants.OS_SERVERID);
-        if (serverId == null 
-                || !serverId.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter: 'serverId',"
-                    + " must be byte-array");
-           throw new AceException(
-                    "malformed or missing server id"
-                    + " in OSCORE security context");
-        }
-        byte[] recipient_id = serverId.GetByteString();
-        
-        try {
-            OSCoreCtx ctx = new OSCoreCtx(master_secret, false, alg, sender_id, 
-                    recipient_id, kdf, replay_size, master_salt, contextId);
-            HashMapCtxDB db = HashMapCtxDB.getInstance();
-            db.addContext(ctx);
-            db.addContext(rsAddr, ctx);
-           
-        } catch (OSException e) {
-            LOGGER.info("Error while creating OSCORE context: " 
-                    + e.getMessage());
-           throw new AceException(e.getMessage());
-        }
+       OSCoreCtx ctx;
+	try {
+		ctx = osc_.getContext(true, n1, n2);
+		OSCoreCtxDB db = HashMapCtxDB.getInstance();
+        db.addContext(ctx);
+        db.addContext(rsAddr, ctx);
+	} catch (OSException e) {
+		// TODO Auto-generated catch block
+		e.printStackTrace();
+	}
+       
         
         return r;
     }
