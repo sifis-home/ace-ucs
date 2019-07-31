@@ -262,7 +262,7 @@ public class OSCoreClientGroupOSCORE {
 
         CBORObject myMap = joinResponse.get("key");
         
-        if(myMap.size() != 9) {
+        if(myMap.size() != 10) {
         	System.out.println("Received bad response from GM: " + r2.getResponseText());
         } else {
         	System.out.println("Received Join response from GM: " + joinResponse.toString());

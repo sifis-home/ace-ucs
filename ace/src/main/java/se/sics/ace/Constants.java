@@ -830,6 +830,15 @@ public class Constants {
      */
     public static final short iPATCH = 7;
     
-    
+	/**
+	 * Group OSCORE abbreviations =================================
+	 */  
+	
+	/**
+	 * Value of 'COSE_Key' as encoding of countersignature keys in the group
+	 * Source: "ACE Public Key Encoding", entry registered in ace-key-groupcomm-oscore
+	 */
+	public static final CBORObject CS_KEY_ENC_COSE_KEY = CBORObject.FromObject(1);
+        
     
 }
