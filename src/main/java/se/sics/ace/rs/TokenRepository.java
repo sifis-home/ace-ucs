@@ -748,9 +748,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @return  the claims of the token
 	 */
     public Map<Short, CBORObject> getClaims(String cti) {
-    	Map<Short, CBORObject> claims = new HashMap<>();
-    	claims = this.cti2claims.get(cti);
-    	return claims;
+    	return this.cti2claims.get(cti);
     }
 }
 

@@ -33,6 +33,7 @@ package se.sics.ace.oscore.rs;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -205,25 +206,58 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
 	    rep.Add(Constants.CTI, cti);
         
-	    if (provideSignInfo) {
-	    	
-	    }
 	    
-	    if (providePubKeyEnc) {
-	    	/*
-	    	String scopeStr;
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	scopeStr = scopeElement.AsString();
+	    //if (provideSignInfo || providePubKeyEnc) {
+	    if (true) {
 	    	
-	    	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
-        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+		    String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
+		    Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(ctiStr);
+	    	
+	    	if (claims == null) {
+	    		System.out.println("is null");
+	    	}
+	    	else {
+	    		System.out.println("not null");
+	    	}
+	    	
+	    	CBORObject scope = claims.get(Constants.SCOPE);
+	    	if (scope.getType().equals(CBORType.ByteString)) {
+	    	
+	    		// TODO Check that audience and scope are consistent with the access to a join resource
+	    		
+	    		byte[] rawScope = scope.GetByteString();
+	    		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
+	    		String scopeStr = cborScope.get(0).AsString();
+	    		
+	    	}
         	
-        	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
-	    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
-	    	*/
+	    
+		    if (provideSignInfo) {
+		    	
+		    	// TODO add this content in the response to the client
+		    	
+		    }
+	    
+		    if (providePubKeyEnc) {
+		    	
+		    	// TODO Move hexStringToByteArray() as a static utility method
+		    	
+	      	  	//CBORObject scopeElement = cborScope.get(0);
+	      	  	//scopeStr = scopeElement.AsString();
+		    	
+	      	  	/*
+		    	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
+	        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
+	        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+	        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+	        	
+	        	// Retrieve the entry for the target group, using the Group ID Prefix
+	        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+		    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
+		    	*/
+		    	
+		    }
+	    
 	    }
 	    
 	    LOGGER.info("Successfully processed DTLS token");
