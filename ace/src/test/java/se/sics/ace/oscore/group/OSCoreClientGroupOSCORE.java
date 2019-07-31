@@ -147,17 +147,16 @@ public class OSCoreClientGroupOSCORE {
     	
         //Generate a token and simulated response from As
     	//Encrypted Token
-//        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-//                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-
-//        CwtCryptoCtx ctx 
-//            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx 
+            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
     	
     	//Signed Token
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.EDDSA, AlgorithmID.Direct);
-    	CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
-        		privateKey, coseP.getAlg().AsCBOR());
+//        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+//                AlgorithmID.EDDSA, AlgorithmID.Direct);
+//    	CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
+//        		privateKey, coseP.getAlg().AsCBOR());
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         if(!scopeIsBytestring) {

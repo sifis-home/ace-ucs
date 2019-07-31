@@ -261,16 +261,16 @@ public class TestOSCoreRSGroupOSCORE {
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
                    
         //Set up COSE parameters (enable for encrypting Tokens)
-//        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-//                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-//        CwtCryptoCtx ctx 
-//            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx 
+            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
         //Use signed tokens
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.EDDSA, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Verify(
-                publicKey, coseP.getAlg().AsCBOR());
+//        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+//                AlgorithmID.EDDSA, AlgorithmID.Direct);
+//        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Verify(
+//                publicKey, coseP.getAlg().AsCBOR());
         
         
         CwtCryptoCtx ctx_sign = CwtCryptoCtx.sign1Create(
@@ -308,8 +308,8 @@ public class TestOSCoreRSGroupOSCORE {
       params.put(Constants.CNF, cnf);
       CWT token = new CWT(params);
       CBORObject payload = CBORObject.NewMap();
-      //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting
-      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign));
+      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting
+      //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign));
       byte[] n1 = new byte[8];
       new SecureRandom().nextBytes(n1); 
       payload.Add(Constants.CNONCE, n1);
