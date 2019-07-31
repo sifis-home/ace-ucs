@@ -61,13 +61,13 @@ package se.sics.ace.oscore;
 		/**
 		 *  'cs_key_enc' - Group OSCORE Countersignature Key Encoding Value
 		 */
-		// Assume that "cs_key_params" is registered with label 12 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		// Assume that "cs_key_enc" is registered with label 12 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
 		public static final short cs_key_enc = 12; // Major type 0 (unsigned integer) or 1 (negative integer)
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
 	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf",
-	    		"alg", "salt", "contextId", "rpl", "cs_alg", "cs_params"};
+	    		"alg", "salt", "contextId", "rpl", "cs_alg", "cs_params", "cs_key_enc"};
 	 
  }

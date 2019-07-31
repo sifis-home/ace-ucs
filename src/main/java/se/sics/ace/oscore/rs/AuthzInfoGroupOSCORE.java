@@ -54,6 +54,7 @@ import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
+import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
@@ -85,6 +86,12 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
      * Temporary storage for the CNF claim
      */
     private CBORObject cnf;
+    
+    /**
+     * OSCORE groups active under the Group Manager
+     */
+	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
+	private Map<Integer, GroupInfo> activeGroups;
 	
 	/**
 	 * Constructor.
@@ -97,6 +104,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
+	 * @param activeGroups   OSCORE groups active under the Group Manager
 	 * @throws AceException  if the token repository is not initialized
 	 * @throws IOException 
 	 */
@@ -105,6 +113,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile, 
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
+		
 		super(issuers, time, intro, audience, ctx, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
@@ -115,6 +124,9 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    CBORObject token = null;
 	    CBORObject cbor = null;
+	    boolean provideSignInfo = false;
+	    boolean providePubKeyEnc = false;
+	    boolean invalid = false;
 	    
 	    try {
 	    	cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
@@ -132,11 +144,22 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    // information on the signature algorithm and parameters used in the OSCORE group.
 	    if (cbor.getType().equals(CBORType.Map)) {
 	    		
-	        // Sanity check
-	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.ACCESS_TOKEN))) {
-	    		token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
-	    	}
+	    	token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
 	    		
+	    	if (cbor.ContainsKey("sign_info")) {
+	    		if (cbor.get("sign_info").equals(CBORObject.Null)) {
+	    			provideSignInfo = true;
+	    		}
+	    		else invalid = true;
+	    	}
+	    	
+	    	if (cbor.ContainsKey("pub_key_enc")) {
+	    		if (cbor.get("pub_key_enc").equals(CBORObject.Null)) {
+	    			providePubKeyEnc = true;
+	    		}
+	    		else invalid = true;
+	    	}
+	    	
 	    }
 	    // The payload of the Token POST message consists of the Access Token only.
 	    // This is the expected usual case, when the client does not include additional parameters.
@@ -147,11 +170,20 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    }
 	    
         if (token == null) {
-            LOGGER.info("Missing manadory paramter 'access_token'");
+            LOGGER.info("Missing manadory parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
                     "Missing mandatory parameter 'access_token'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+        
+        if (invalid) {
+            LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Invalid format for 'sign_info' and 'pub_key_enc'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 	    
@@ -173,10 +205,35 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
 	    rep.Add(Constants.CTI, cti);
         
+	    if (provideSignInfo) {
+	    	
+	    }
+	    
+	    if (providePubKeyEnc) {
+	    	/*
+	    	String scopeStr;
+      	  	CBORObject scopeElement = cborScope.get(0);
+      	  	scopeStr = scopeElement.AsString();
+	    	
+	    	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
+        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
+        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+        	
+        	// Retrieve the entry for the target group, using the Group ID Prefix
+        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+	    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
+	    	*/
+	    }
+	    
 	    LOGGER.info("Successfully processed DTLS token");
         return msg.successReply(reply.getMessageCode(), rep);
 	}
     
+	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
+		this.activeGroups = activeGroups;
+	}
+	
 	@Override
 	protected synchronized void processOther(Map<Short, CBORObject> claims) {
 	    this.cnf = claims.get(Constants.CNF);

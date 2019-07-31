@@ -739,5 +739,18 @@ public class TokenRepository implements AutoCloseable {
     public boolean checkScope(CBORObject scope, ArrayList<String> aud) throws AceException {
         return this.scopeValidator.isScopeMeaningful(scope, aud);
     }
+    
+	/**
+	 * Get the claims of a token identified by its 'cti'.
+	 * 
+	 * @param cti  the cti of the token Base64 encoded
+	 * 
+	 * @return  the claims of the token
+	 */
+    public Map<Short, CBORObject> getClaims(String cti) {
+    	Map<Short, CBORObject> claims = new HashMap<>();
+    	claims = this.cti2claims.get(cti);
+    	return claims;
+    }
 }
 
