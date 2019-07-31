@@ -137,9 +137,14 @@ public class TestDtlspPskStoreGroupOSCORE {
         //Delete lingering old token files
         new File(tokenFile).delete();
         
+//        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+//                new KissTime(), null, 
+//                valid, tokenFile, valid, ctx);
+        
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, 
-                valid, tokenFile, valid, ctx);
+                new KissTime(), null, valid, ctx,
+                tokenFile, valid, false);
+        
         store = new DtlspPskStoreGroupOSCORE(ai);
     }
     

@@ -298,6 +298,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	if(scope.getType().equals(CBORType.TextString)) {
 	    		meaningful = TokenRepository.getInstance().checkScope(scope);
 	    	} else {
+	    		//Added support for checking scope with audience
 	    		meaningful = TokenRepository.getInstance().checkScope(scope, auds);
 	    	}
 	    } catch (AceException e) {
