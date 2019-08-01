@@ -183,6 +183,18 @@ public class TestDtlspRSGroupOSCORE {
         	
         	if (!joinRequest.getType().equals(CBORType.Map))
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        	
+        	// Retrieve request type
+        	CBORObject type = joinRequest.get("type");
+        	
+        	if (type == null) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing request type");
+        		return;
+        	}
+        	if (!type.equals(Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION)) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Request must be of type \"Key Distribution\" (1) for joining OSCORE groups");
+        		return;
+            }
         		
         	// More steps follow:
         	//

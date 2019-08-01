@@ -208,8 +208,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    rep.Add(Constants.CTI, cti);
         
 	    
-	    //if (provideSignInfo || providePubKeyEnc) {
-	    if (true) {
+	    if (provideSignInfo || providePubKeyEnc) {
 	    	
 	    	boolean error = true;
 	    	
