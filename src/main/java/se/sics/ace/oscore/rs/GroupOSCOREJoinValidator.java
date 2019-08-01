@@ -111,6 +111,19 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	
 	// M.T.
 	/**
+	 * Get the list of audiences acting as OSCORE Group Managers.
+	 * 
+	 * @return the audiences that this validator considers as OSCORE Group Managers
+	 */
+	public synchronized Set<String> getAllGMAudiences() {
+		if (this.myGMAudiences != null)
+			return this.myGMAudiences;
+		else
+			return Collections.emptySet();
+	}
+	
+	// M.T.
+	/**
 	 * Set the list of audiences acting as OSCORE Group Managers.
 	 * Check that each of those audiences are in the main set "myAudiences".
 	 * 
@@ -118,7 +131,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @throws AceException  if the group manager is not an accepted audience
 	 */
-	public void setGMAudiences(Set<String> myGMAudiences) throws AceException {
+	public synchronized void setGMAudiences(Set<String> myGMAudiences) throws AceException {
 		if (myGMAudiences != null) {
 			for (String foo : myGMAudiences) {
 				if (!this.myAudiences.contains(foo)) {
@@ -140,7 +153,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @return true if the specified audience was included and has been removed, false otherwise.
 	 */
-	public boolean removeGMAudience(String GMAudience){
+	public synchronized boolean removeGMAudience(String GMAudience){
 		if (GMAudience != null)
 			return this.myGMAudiences.remove(GMAudience);
 		return false;
@@ -152,8 +165,22 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * This method does not remove the audiences from the main set "myAudiences".
 	 * 
 	 */
-	public void removeAllGMAudiences(){
+	public synchronized void removeAllGMAudiences(){
 		this.myGMAudiences.clear();
+	}
+	
+	// M.T.
+	/**
+	 * Get the list of join resources to access an OSCORE group.
+	 * The name of the join resource is the zeroed-epoch Group ID of the OSCORE group.
+	 * 
+	 * @return the resources that this validator considers as join resources to access an OSCORE group
+	 */
+	public synchronized Set<String> getAllJoinResources() {
+		if (this.myJoinResources != null)
+			return this.myJoinResources;
+		else
+		    return Collections.emptySet();
 	}
 	
 	// M.T.
@@ -165,7 +192,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * .
 	 * @throws AceException FIXME: when thrown?
 	 */
-	public void setJoinResources(Set<String> myJoinResources) throws AceException {
+	public synchronized void setJoinResources(Set<String> myJoinResources) throws AceException {
 		if (myJoinResources != null) {
 			for (String foo : myJoinResources)
 				this.myJoinResources.add(foo);
@@ -182,7 +209,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @return true if the specified resource was included and has been removed, false otherwise.
 	 */
-	public boolean removeJoinResource(String joinResource){
+	public synchronized boolean removeJoinResource(String joinResource){
 		if (joinResource != null)
 			return this.myJoinResources.remove(joinResource);
 		return false;
@@ -193,7 +220,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Remove all the join resources to access an OSCORE group from "myJoinResources".
 	 * 
 	 */
-	public void removeAllJoinResources(){
+	public synchronized void removeAllJoinResources(){
 		this.myJoinResources.clear();
 	}
 	

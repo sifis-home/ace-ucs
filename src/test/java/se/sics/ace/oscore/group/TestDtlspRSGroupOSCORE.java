@@ -83,6 +83,7 @@ import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.oscore.rs.Util;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
@@ -278,7 +279,7 @@ public class TestDtlspRSGroupOSCORE {
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
         	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
         	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
         	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
@@ -688,6 +689,9 @@ public class TestDtlspRSGroupOSCORE {
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
         	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
         
+        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
+        ai.setGroupIdPrefixSize(groupIdPrefixSize);
+        
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
       
@@ -827,37 +831,6 @@ public class TestDtlspRSGroupOSCORE {
   	    rs.setMessageDeliverer(dpd);
   	    rs.start();
   	    System.out.println("Server starting");
-    }
-    
-    /**
-     * @param str  the hex string
-     * @return  the byte array
-     * @str   the hexadecimal string to be converted into a byte array
-     * 
-     * Return the byte array representation of the original string
-     */
-    public static byte[] hexStringToByteArray(final String str) {
-        int len = str.length();
-        byte[] data = new byte[len / 2];
-        
-    	// Big-endian
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(i), 16) << 4) +
-                                   Character.digit(str.charAt(i+1), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        
-    	// Little-endian
-        /*
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(len - 2 - i), 16) << 4) +
-                                   Character.digit(str.charAt(len - 1 - i), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        */
-        
-        return data;
-        
     }
 
     /**

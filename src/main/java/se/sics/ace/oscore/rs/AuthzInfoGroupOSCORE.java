@@ -34,32 +34,24 @@ package se.sics.ace.oscore.rs;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import COSE.CoseException;
-
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
-import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.ScopeValidator;
 import se.sics.ace.rs.TokenRepository;
@@ -89,6 +81,13 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     private CBORObject cnf;
     
     /**
+	 * Handles audience validation
+	 */
+	private GroupOSCOREJoinValidator audience;
+    
+	private int groupIdPrefixSize; // Same for all the OSCORE Group of the Group Manager
+	
+    /**
      * OSCORE groups active under the Group Manager
      */
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
@@ -117,6 +116,8 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 		
 		super(issuers, time, intro, audience, ctx, tokenFile, 
 		        scopeValidator, checkCnonce);
+		
+		this.audience = (GroupOSCOREJoinValidator) audience;
 		
 	}
 
@@ -210,53 +211,95 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    //if (provideSignInfo || providePubKeyEnc) {
 	    if (true) {
 	    	
+	    	boolean error = true;
+	    	
 		    String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
 		    Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(ctiStr);
 	    	
-	    	if (claims == null) {
-	    		System.out.println("is null");
-	    	}
-	    	else {
-	    		System.out.println("not null");
-	    	}
-	    	
+	    	// Check that audience and scope are consistent with the access to a join resource.
+		    // Consistency checks have been already performed when processing the Token upon posting
+		    
 	    	CBORObject scope = claims.get(Constants.SCOPE);
+	    	
 	    	if (scope.getType().equals(CBORType.ByteString)) {
 	    	
-	    		// TODO Check that audience and scope are consistent with the access to a join resource
+	    		CBORObject aud = claims.get(Constants.AUD);
+	    		
+	    		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
+	    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+	    		
+	    		ArrayList<String> auds = new ArrayList<>();
+	    	    if (aud.getType().equals(CBORType.Array)) {
+	    	        for (int i=0; i<aud.size(); i++) {
+	    	            if (aud.get(i).getType().equals(CBORType.TextString)) {
+	    	                auds.add(aud.get(i).AsString());
+	    	            } //XXX: silently skip aud entries that are not text strings
+	    	        }
+	    	    } else if (aud.getType().equals(CBORType.TextString)) {
+	    	        auds.add(aud.AsString());
+	    	    }
 	    		
 	    		byte[] rawScope = scope.GetByteString();
 	    		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
 	    		String scopeStr = cborScope.get(0).AsString();
+
+	    		// Check that the audience is in fact a Group Manager
+	    		for (String foo : auds) {
+	    			if (myGMAudiences.contains(foo)) {
+	    				error = false;
+	    	    		break;
+	    	    	}
+	    	    }
 	    		
-	    	}
-        	
-	    
-		    if (provideSignInfo) {
-		    	
-		    	// TODO add this content in the response to the client
-		    	
-		    }
-	    
-		    if (providePubKeyEnc) {
-		    	
-		    	// TODO Move hexStringToByteArray() as a static utility method
-		    	
-	      	  	//CBORObject scopeElement = cborScope.get(0);
-	      	  	//scopeStr = scopeElement.AsString();
-		    	
-	      	  	/*
-		    	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
-	        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-	        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-	        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+	    		// Check that the scope refers to join resource
+	    		if (error == false) {
+	    			if (myJoinResources.contains(scopeStr) == false)
+	    				error = true;
+	    		}
+	    		
+	    		if (error == true) {
+	                LOGGER.info("'provideSignInfo' and 'providePubKeyEnc' are relevant only for join resources");
+	                CBORObject map = CBORObject.NewMap();
+	                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	            }
+	    		
+	    		// GroupInfo myGroup = activeGroups.get(key);
+	    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+	        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
 	        	
 	        	// Retrieve the entry for the target group, using the Group ID Prefix
 	        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
-		    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
-		    	*/
-		    	
-		    }
+	    		
+			    if (provideSignInfo) {
+			    	
+			    	CBORObject signInfo = CBORObject.NewArray();
+			    	
+			    	signInfo.Add(myGroup.getCsAlg().AsCBOR());
+			    	
+			    	CBORObject arrayElem = myGroup.getCsParams();
+			    	if (arrayElem == null)
+			    		signInfo.Add(CBORObject.Null);
+			    	else
+			    		signInfo.Add(arrayElem);
+			    	
+			    	arrayElem = myGroup.getCsKeyParams();
+			    	if (arrayElem == null)
+			    		signInfo.Add(CBORObject.Null);
+			    	else
+			    		signInfo.Add(arrayElem);
+			    	
+			    	rep.Add("sign_info", signInfo);
+			    	
+			    }
+		    
+			    if (providePubKeyEnc) {
+			    	
+			    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
+			    	
+			    }
+	    		
+	    	}
 	    
 	    }
 	    
@@ -266,6 +309,10 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     
 	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
+	}
+	
+	public synchronized void setGroupIdPrefixSize (int groupIdPrefixSize) {
+		this.groupIdPrefixSize = groupIdPrefixSize;
 	}
 	
 	@Override

@@ -70,12 +70,12 @@ public class GroupInfo {
 	private int maxGroupIdEpochValue;
 	private int groupIdEpoch;
 	
-	private AlgorithmID alg;
-	private AlgorithmID hkdf;
-	private AlgorithmID csAlg;
-	private CBORObject csParams;
-	private CBORObject csKeyParams;
-	private CBORObject csKeyEnc;
+	private AlgorithmID alg = null;
+	private AlgorithmID hkdf = null;
+	private AlgorithmID csAlg = null;
+	private CBORObject csParams = null;
+	private CBORObject csKeyParams = null;
+	private CBORObject csKeyEnc = null;
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.

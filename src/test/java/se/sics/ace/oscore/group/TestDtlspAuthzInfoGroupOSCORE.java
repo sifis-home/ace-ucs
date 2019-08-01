@@ -73,6 +73,7 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
@@ -97,6 +98,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     private static CBORObject payload;
     private static CBORObject payload2; // M.T.
     private static CBORObject payload3; // M.T.
+    
+    private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+    
+    private static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
     
     /**
      * Set up the necessary objects.
@@ -155,6 +160,75 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         valid.setJoinResources(Collections.singleton("feedca570000"));
         
+        
+        // Create the OSCORE group
+        final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+                					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
+                					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
+                					  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+
+        final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
+                					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
+
+        // Group OSCORE specific values for the AEAD algorithm and HKDF
+        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+
+        // Group OSCORE specific values for the countersignature
+        AlgorithmID csAlg = null;
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
+        
+        // Uncomment to set ECDSA with curve P256 for countersignatures
+        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        
+        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlg = AlgorithmID.ECDSA_256;
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlg = AlgorithmID.EDDSA;
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
+        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
+        final CBORObject csKeyEnc = Constants.CS_KEY_ENC_COSE_KEY;
+        
+        final int senderIdSize = 1; // Up to 4 bytes
+
+        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+        // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
+    	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
+    	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
+    	
+    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    			                          masterSalt,
+    			                          groupIdPrefixSize,
+    			                          groupIdPrefix,
+    			                          groupIdEpoch.length,
+    			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          senderIdSize,
+    			                          alg,
+    			                          hkdf,
+    			                          csAlg,
+    			                          csParams,
+    			                          csKeyParams,
+    			                          csKeyEnc);
+        
+    	// Add this OSCORE group to the set of active groups
+    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
+    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+        
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -168,6 +242,12 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx, tokenFile, valid, false);
         
+        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
+        ai.setGroupIdPrefixSize(groupIdPrefixSize);
+        
+        // Provide the authz-info endpoint with the set of active OSCORE groups
+        ai.setActiveGroups(activeGroups);
+        
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfoGroupOSCORE(ai);
         
@@ -176,6 +256,12 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx, tokenFile, valid, false);
+        
+        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
+        ai2.setGroupIdPrefixSize(groupIdPrefixSize);
+        
+        // Provide the authz-info endpoint with the set of active OSCORE groups
+        ai2.setActiveGroups(activeGroups);
         
         // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
