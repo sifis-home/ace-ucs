@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 
@@ -70,6 +71,8 @@ public class CoapOSExceptionHandler {
 					error.getOptions().setMaxAge(0);
 					//Set MID of error response to match request
 					error.setMID(request.getMID());
+					//Set content format for error messages
+					error.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 					
 					return error;
 				} else {
