@@ -57,7 +57,7 @@ public final class ErrorDescriptions {
 	public static final String ILLEGAL_PAYLOAD_MARKED = "Payload marker found with zero-length payload";
 	public static final String STRING_NULL = "String is null";
 	public static final String CONTEXT_NULL = "Context is null";
-	public static final String COUNTERSIGNATURE_CHECK_FAILED = "Failure during Countersignature check";
+	public static final String COUNTERSIGNATURE_CHECK_FAILED = "Countersignature verification failed";
 
 	public static final String CANNOT_CREATE_ERROR_MESS = ("Cannot create error message for this error");
 

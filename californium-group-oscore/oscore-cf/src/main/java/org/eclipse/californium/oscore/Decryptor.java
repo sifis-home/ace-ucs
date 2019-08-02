@@ -299,6 +299,12 @@ public abstract class Decryptor {
 			enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg().AsCBOR(), Attribute.DO_NOT_SEND);
 			enc.addAttribute(HeaderKeys.IV, CBORObject.FromObject(nonce), Attribute.DO_NOT_SEND);
 			plaintext = enc.decrypt(key);
+			
+
+		} catch (CoseException e) {
+			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
+			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
+		}
 
 			//Rikard: Now finally check the countersignature (seems it must be done after decryption)
 			if(ctx instanceof GroupOSCoreCtx) {
@@ -308,9 +314,9 @@ public abstract class Decryptor {
 				if(countersign_valid == false) {
 					System.err.println("Error: Countersignature verification failed!");
 					
-					//LOGGER.error("Countersignature verification failed");
-					//throw new OSException("Countersignature verification failed");
-					//FIXME: Actually not reply to requests if signature fails
+					//Throw exception if countersignature verification fails
+					LOGGER.error(ErrorDescriptions.COUNTERSIGNATURE_CHECK_FAILED);
+					throw new CoseException(ErrorDescriptions.COUNTERSIGNATURE_CHECK_FAILED);
 				}
 
 				if(DETAILED_DEBUG) {
@@ -318,10 +324,6 @@ public abstract class Decryptor {
 				}
 			}
 
-		} catch (CoseException e) {
-			LOGGER.error(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
-			throw new OSException(ErrorDescriptions.DECRYPTION_FAILED + " " + e.getMessage());
-		}
 
 		return plaintext;
 	}

@@ -41,7 +41,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	
 	/**
 	 * Enable or disable use of countersignatures.
-	 * (Disabled will have counterisignature length 0)
+	 * (Disabled will have countersignature length 0)
 	 */
 	private final static boolean WITH_COUNTERSIGN = true;
 	
@@ -189,7 +189,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		} else if(alg_countersign == AlgorithmID.ECDSA_256) {
 			countersign_length = 64;
 		} else {
-			System.err.println("Error: Unknown countersignature length!");
+			System.err.println("Error: Unknown countersignature!");
 		}
 		
 		
