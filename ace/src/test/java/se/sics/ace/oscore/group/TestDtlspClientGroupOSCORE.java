@@ -400,9 +400,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -637,9 +637,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
 
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -912,9 +912,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1151,9 +1151,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1458,9 +1458,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1694,9 +1694,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -2176,9 +2176,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -2424,9 +2424,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -2674,9 +2674,9 @@ public class TestDtlspClientGroupOSCORE {
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
         Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());

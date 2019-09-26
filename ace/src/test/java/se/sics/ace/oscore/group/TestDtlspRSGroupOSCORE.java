@@ -419,7 +419,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
-        	joinResponse.Add("exp", CBORObject.FromObject(1000000));
+        	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
         	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
