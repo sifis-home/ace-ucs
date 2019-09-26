@@ -101,6 +101,7 @@ CWT protection: PSK
 
 
 TODO:
+Update GM code to support messages from Peter's client
 RPK handshake for DTLS full procedure
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
 Create some JUnit tests based on the OSCORE profile examples
