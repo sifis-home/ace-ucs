@@ -113,6 +113,7 @@ Check usage of csKeyEnc parameter in Junit tests
  For the clients
  Check the incoming csKeyEnc in the client code
 
+Make pub_keys label into integer instead of string
 
 Lower priority:
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)

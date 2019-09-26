@@ -392,11 +392,11 @@ public class TestDtlspRSGroupOSCORE {
         	// Fill the 'key' parameter
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
         	if (myGroup.getCsKeyParams().size() != 0)
