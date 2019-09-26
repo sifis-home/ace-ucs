@@ -289,7 +289,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -526,7 +526,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -801,7 +801,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1040,7 +1040,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
 
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1347,7 +1347,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1583,7 +1583,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2065,7 +2065,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2313,7 +2313,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2563,7 +2563,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
