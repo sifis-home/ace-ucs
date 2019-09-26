@@ -189,7 +189,7 @@ public class DtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	

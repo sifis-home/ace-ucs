@@ -61,7 +61,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  * @author Rikard Höglund
  */
 public class DtlsAsRsClientGroupOSCORE {
-	
+
 	//Sets the AS secure port to use
 	private final static int AS_SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
 	//Set the hostname/IP of the AS
@@ -73,7 +73,7 @@ public class DtlsAsRsClientGroupOSCORE {
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
 	private final static String GM_ADDRESS = "localhost";
-		
+
 	/**
 	 * Main method that executes the Token request and Token post.
 	 * 
@@ -403,7 +403,7 @@ public class DtlsAsRsClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	

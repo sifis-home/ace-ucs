@@ -117,7 +117,7 @@ public class AltTestOSCoreRSGroupOSCORE {
 	//End OSCORE parameters
 	
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
-	
+
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
 	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
 	
@@ -205,8 +205,9 @@ public class AltTestOSCoreRSGroupOSCORE {
      * Definition of the Group OSCORE Join Resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-        
-        /**
+
+
+		/**
          * Constructor
          * @param resId  the resource identifier
          */
@@ -244,7 +245,7 @@ public class AltTestOSCoreRSGroupOSCORE {
         	// of the GroupOSCOREJoinValidator used as Scope/Audience Validator.
         	
         	// Retrieve scope
-        	CBORObject scope = joinRequest.get("scope");
+        	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
         	
         	if (scope == null) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");

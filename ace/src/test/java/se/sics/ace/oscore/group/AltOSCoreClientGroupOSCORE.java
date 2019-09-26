@@ -86,7 +86,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  *
  */
 public class AltOSCoreClientGroupOSCORE {
-
+	
 	//Sets the port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
@@ -113,7 +113,7 @@ public class AltOSCoreClientGroupOSCORE {
 
     private static byte[] key128a 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    
+
     // Private and public key to be used in the OSCORE group (EDDSA)
     private static String groupKeyPair = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 
@@ -242,7 +242,7 @@ public class AltOSCoreClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+		requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	

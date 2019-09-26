@@ -101,9 +101,17 @@ CWT protection: PSK
 
 
 TODO:
+Add parameters to Token post & response
+ Depending on if scope is a byte string or not
+
+Change values & labels in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.)
+
 Update GM code to support messages from Peter's client
-RPK handshake for DTLS full procedure
+  Create the group he is trying to join ("GRP")
+
+Lower priority:
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
 Create some JUnit tests based on the OSCORE profile examples
 Check if "type" parameter is implemented in join request
-Change values in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.)
+RPK handshake for DTLS full procedure
+

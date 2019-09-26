@@ -82,7 +82,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  */
 public class TestDtlspClientGroupOSCORE {
 
-    private static byte[] key128
+	private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     private static byte[] key128a 
@@ -109,7 +109,7 @@ public class TestDtlspClientGroupOSCORE {
     
     // Public key to be received for the group member with Sender ID 0x77 (EDDSA)
     private static String strPublicKeyPeer2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
-    
+
     private static String rsAddrC;
     private static String rsAddrCS;
     
@@ -289,7 +289,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -526,7 +526,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -801,7 +801,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1040,7 +1040,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
 
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1347,7 +1347,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -1583,7 +1583,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2065,7 +2065,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2313,7 +2313,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
@@ -2563,7 +2563,7 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	

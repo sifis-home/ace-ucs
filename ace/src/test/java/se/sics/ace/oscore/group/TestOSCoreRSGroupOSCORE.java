@@ -91,7 +91,7 @@ public class TestOSCoreRSGroupOSCORE {
 	 private final static byte[] rid = new byte[] { 'C', '1' };
 	 private final static byte[] sid = new byte[] { 'G', 'M' };
 	//End Additions for creating a fixed context
-	 
+
     /**
      * Definition of the Hello-World Resource
      */
@@ -364,8 +364,8 @@ public class TestOSCoreRSGroupOSCORE {
      * Definition of the Group OSCORE Join Resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-        
-        /**
+
+		/**
          * Constructor
          * @param resId  the resource identifier
          */
@@ -411,7 +411,7 @@ public class TestOSCoreRSGroupOSCORE {
         	// of the GroupOSCOREJoinValidator used as Scope/Audience Validator.
         	
         	// Retrieve scope
-        	CBORObject scope = joinRequest.get("scope");
+        	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
         	
         	if (scope == null) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");

@@ -73,7 +73,7 @@ public class OSCoreClientGroupOSCORE {
 	private final static byte[] sid = new byte[] { 'C', '1' };
 	private final static byte[] rid = new byte[] { 'G', 'M' };
 	//End Additions for creating a fixed context
-	
+
 	private static String GM_HOST;
 	//private static String REQUESTED_RESOURCE = "helloWorld";
 	private static String REQUESTED_RESOURCE = "feedca570000";
@@ -247,7 +247,7 @@ public class OSCoreClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
+        requestPayload.Add(CBORObject.FromObject(Constants.SCOPE), CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
         	
