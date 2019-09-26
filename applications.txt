@@ -109,6 +109,11 @@ Change values & labels in Join response to use integers instead of strings (like
 Update GM code to support messages from Peter's client
   Create the group he is trying to join ("GRP")
 
+Check usage of csKeyEnc parameter in Junit tests
+ For the clients
+ Check the incoming csKeyEnc in the client code
+
+
 Lower priority:
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
 Create some JUnit tests based on the OSCORE profile examples

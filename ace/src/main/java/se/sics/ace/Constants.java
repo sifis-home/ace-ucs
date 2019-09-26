@@ -867,12 +867,18 @@ public class Constants {
 //    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
     
     /*
-     * Value for client_cred label 
+     * Value for the label get_pub_keys in the join request message
      */
-    public static final CBORObject CLIENT_CRED = CBORObject.FromObject(11);
+    public static final short GET_PUB_KEYS = 101;
+    
+    /*
+     * Value for the label client_cred in the join request message
+     */
+    public static final short CLIENT_CRED = 102;
 
     /*
-     * Value for get_pub_keys label 
+     * Value for the label client_cred_verify in the join request message
      */
-    public static final CBORObject GET_PUB_KEYS = CBORObject.FromObject(12);
+    public static final short CLIENT_CRED_VERIFY = 103;
+    
 }

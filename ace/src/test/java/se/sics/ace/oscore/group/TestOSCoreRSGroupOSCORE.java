@@ -479,7 +479,7 @@ public class TestOSCoreRSGroupOSCORE {
         	
         	// Retrieve 'get_pub_keys'
         	// If present, this parameter must be an empty CBOR array
-        	CBORObject getPubKeys = joinRequest.get(Constants.GET_PUB_KEYS);
+        	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
         	if (getPubKeys != null) {
         		
         		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0) {
@@ -505,7 +505,7 @@ public class TestOSCoreRSGroupOSCORE {
         	myGroup.allocateSenderId(senderId);        	
         	
         	// Retrieve 'client_cred'
-        	CBORObject clientCred = joinRequest.get(Constants.CLIENT_CRED);
+        	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
         	if (clientCred == null) {
         	
