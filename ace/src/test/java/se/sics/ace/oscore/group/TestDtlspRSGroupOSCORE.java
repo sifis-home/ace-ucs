@@ -403,7 +403,7 @@ public class TestDtlspRSGroupOSCORE {
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
         	
-        	joinResponse.Add("key", myMap);
+        	joinResponse.Add(Constants.KEY, myMap);
         	
         	// If backward security has to be preserved:
         	//
@@ -415,7 +415,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("profile", CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.

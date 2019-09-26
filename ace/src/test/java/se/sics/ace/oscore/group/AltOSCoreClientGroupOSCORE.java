@@ -276,7 +276,7 @@ public class AltOSCoreClientGroupOSCORE {
         
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         if(myMap.size() != 9) {
         	System.out.println("Received bad response from GM: " + r2.getResponseText());

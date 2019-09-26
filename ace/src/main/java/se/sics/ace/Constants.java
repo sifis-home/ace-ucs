@@ -882,8 +882,13 @@ public class Constants {
     public static final short CLIENT_CRED_VERIFY = 103;
     
     /*
-     * Value for the label kty in the join request message
+     * Value for the label kty in the join response message
      */
     public static final short KTY = 1;
+    
+    /*
+     * Value for the label key in the join response message
+     */
+    public static final short KEY = 2;
     
 }

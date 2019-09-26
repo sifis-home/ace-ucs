@@ -211,7 +211,7 @@ public class DtlspClientGroupOSCORE {
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
