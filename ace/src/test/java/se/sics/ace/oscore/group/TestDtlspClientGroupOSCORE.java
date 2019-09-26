@@ -315,10 +315,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -552,10 +552,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -827,10 +827,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -1066,10 +1066,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
 
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -1373,10 +1373,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -1609,10 +1609,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -2091,10 +2091,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -2339,10 +2339,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
@@ -2589,10 +2589,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey("key"));
         Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());

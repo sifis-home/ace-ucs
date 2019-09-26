@@ -425,7 +425,7 @@ public class AltTestOSCoreRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("kty", CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
