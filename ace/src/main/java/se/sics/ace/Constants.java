@@ -871,5 +871,13 @@ public class Constants {
 //	 */
 //    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
     
-    
+    /*
+     * Value for client_cred label 
+     */
+    public static final CBORObject CLIENT_CRED = CBORObject.FromObject(11);
+
+    /*
+     * Value for get_pub_keys label 
+     */
+    public static final CBORObject GET_PUB_KEYS = CBORObject.FromObject(12);
 }

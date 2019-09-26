@@ -247,7 +247,7 @@ public class AltOSCoreClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -255,7 +255,7 @@ public class AltOSCoreClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
