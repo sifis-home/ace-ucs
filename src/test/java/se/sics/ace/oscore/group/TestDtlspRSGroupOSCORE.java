@@ -196,12 +196,13 @@ public class TestDtlspRSGroupOSCORE {
         	// of the GroupOSCOREJoinValidator used as Scope/Audience Validator.
         	
         	// Retrieve scope
-        	CBORObject scope = joinRequest.get("scope");
+        	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
         	
         	if (scope == null) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
         		return;
         	}
+
         	if (!scope.getType().equals(CBORType.ByteString)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
         		return;
@@ -573,7 +574,7 @@ public class TestDtlspRSGroupOSCORE {
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
-        final CBORObject csKeyEnc = Constants.CS_KEY_ENC_COSE_KEY;
+        final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
 

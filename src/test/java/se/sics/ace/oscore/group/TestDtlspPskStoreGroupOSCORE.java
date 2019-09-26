@@ -177,7 +177,7 @@ public class TestDtlspPskStoreGroupOSCORE {
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
-        final CBORObject csKeyEnc = Constants.CS_KEY_ENC_COSE_KEY;
+        final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
 

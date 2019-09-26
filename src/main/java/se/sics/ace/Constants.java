@@ -833,14 +833,7 @@ public class Constants {
     
     /**
 	 * Group OSCORE abbreviations =================================
-	 */  
-
-	/**
-	 * Value of 'COSE_Key' as encoding of countersignature keys in the group
-	 * Source: "ACE Public Key Encoding", entry registered in ace-key-groupcomm-oscore
 	 */
-    public static final CBORObject CS_KEY_ENC_COSE_KEY = CBORObject.FromObject(1);
-
     
     // TODO: Remove when the latest RESTification of the Group Manager is completed.
 //    /**
