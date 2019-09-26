@@ -310,7 +310,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -319,7 +319,7 @@ public class TestDtlspClientGroupOSCORE {
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -332,15 +332,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -406,11 +406,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -425,14 +425,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore_app" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -445,12 +445,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -503,7 +503,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -569,7 +569,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -577,7 +577,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -590,15 +590,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -664,11 +664,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
 
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -683,14 +683,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams);
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
 
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -703,12 +703,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -761,7 +761,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -865,7 +865,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -873,7 +873,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -886,15 +886,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -960,11 +960,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -979,14 +979,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams);
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -999,12 +999,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1057,7 +1057,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
 
     }
@@ -1125,7 +1125,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -1133,7 +1133,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1146,15 +1146,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
 
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -1220,11 +1220,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1239,14 +1239,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams);
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1259,12 +1259,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1317,7 +1317,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
 
     }
@@ -1453,7 +1453,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -1461,7 +1461,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1474,15 +1474,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -1548,11 +1548,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1567,14 +1567,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1587,12 +1587,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1645,7 +1645,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -1710,7 +1710,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -1718,7 +1718,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -1731,15 +1731,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -1805,11 +1805,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -1824,14 +1824,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -1844,12 +1844,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1902,7 +1902,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -2213,7 +2213,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -2221,7 +2221,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -2234,15 +2234,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -2308,11 +2308,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -2327,14 +2327,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -2347,12 +2347,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -2405,7 +2405,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -2482,7 +2482,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
-        	requestPayload.Add("get_pub_keys", getPubKeys);
+        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -2490,7 +2490,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
-        	requestPayload.Add("client_cred", publicKey.AsCBOR().EncodeToBytes());
+        	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
         	
         }
         
@@ -2503,15 +2503,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("kty"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("kty").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KTY)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.KTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("kty").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.KTY)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("key"));
-        Assert.assertEquals(CBORType.Map, joinResponse.get("key").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+        Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        CBORObject myMap = joinResponse.get("key");
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
@@ -2577,11 +2577,11 @@ public class TestDtlspClientGroupOSCORE {
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)).GetByteString());
     	
-        Assert.assertEquals(CBORObject.FromObject(hkdf), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-        Assert.assertEquals(CBORObject.FromObject(alg), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)).GetByteString());
-        Assert.assertEquals(CBORObject.FromObject(csAlg), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+        Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -2596,14 +2596,14 @@ public class TestDtlspClientGroupOSCORE {
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("profile"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("profile").getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PROFILE)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get("profile").AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.PROFILE)).AsInt32());
         
-        Assert.assertEquals(true, joinResponse.ContainsKey("exp"));
-        Assert.assertEquals(CBORType.Number, joinResponse.get("exp").getType());
-        Assert.assertEquals(1000000, joinResponse.get("exp").AsInt32());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+        Assert.assertEquals(CBORType.Number, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+        Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params))) {
         	Assert.assertEquals(CBORType.Map, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)).getType());
@@ -2616,12 +2616,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -2674,7 +2674,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
 }   

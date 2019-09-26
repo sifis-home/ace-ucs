@@ -265,7 +265,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// Retrieve 'get_pub_keys'
         	// If present, this parameter must be an empty CBOR array
-        	CBORObject getPubKeys = joinRequest.get("get_pub_keys");
+        	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject(Constants.GET_PUB_KEYS));
         	if (getPubKeys != null) {
         		
         		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0) {
@@ -291,7 +291,7 @@ public class TestDtlspRSGroupOSCORE {
         	myGroup.allocateSenderId(senderId);        	
         	
         	// Retrieve 'client_cred'
-        	CBORObject clientCred = joinRequest.get("client_cred");
+        	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
         	if (clientCred == null) {
         	
@@ -376,7 +376,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("kty", CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -384,18 +384,18 @@ public class TestDtlspRSGroupOSCORE {
         	// Fill the 'key' parameter
         	myMap.Add(OSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
         	myMap.Add(OSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf());
-        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg());
+        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(OSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
         	if (myGroup.getCsKeyParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
         	        	
-        	joinResponse.Add("key", myMap);
+        	joinResponse.Add(Constants.KEY, myMap);
         	
         	// If backward security has to be preserved:
         	//
@@ -407,11 +407,11 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add("profile", CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
-        	joinResponse.Add("exp", CBORObject.FromObject(1000000));
+        	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
         	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
@@ -432,7 +432,7 @@ public class TestDtlspRSGroupOSCORE {
         		if (coseKeySet.size() > 0) {
         			
         			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        			joinResponse.Add("pub_keys", CBORObject.FromObject(coseKeySetByte));
+        			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
         			
         		}
         		

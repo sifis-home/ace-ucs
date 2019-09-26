@@ -866,5 +866,33 @@ public class Constants {
 //	 */
 //    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
     
-    
+     /*
+      * Value for the label "get_pub_keys" in the Join Request message
+      */
+     public static final short GET_PUB_KEYS = 101;
+     
+     /*
+      * Value for the label "client_cred" in the Join Request message
+      */
+     public static final short CLIENT_CRED = 102;
+     
+     /*
+      * Value for the label "client_cred_verify" in the Join Request message
+      */
+     public static final short CLIENT_CRED_VERIFY = 103;
+     
+     /*
+      * Value for the label "kty" in the Join Response message
+      */
+     public static final short KTY = 1;
+     
+     /*
+      * Value for the label "key" in the Join Response message
+      */
+     public static final short KEY = 2;
+     
+     /*
+      * Value for the label "pub_keys" in the Join Response message
+      */
+     public static final short PUB_KEYS = 3;
 }
