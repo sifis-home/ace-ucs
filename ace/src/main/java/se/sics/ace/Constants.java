@@ -43,7 +43,7 @@ import org.eclipse.californium.cose.AlgorithmID;
 /**
  * Constants for use with the ACE framework.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class Constants {
@@ -830,15 +830,46 @@ public class Constants {
      */
     public static final short iPATCH = 7;
     
-	/**
+    
+    /**
 	 * Group OSCORE abbreviations =================================
 	 */  
-	
+
 	/**
 	 * Value of 'COSE_Key' as encoding of countersignature keys in the group
 	 * Source: "ACE Public Key Encoding", entry registered in ace-key-groupcomm-oscore
 	 */
-	public static final CBORObject CS_KEY_ENC_COSE_KEY = CBORObject.FromObject(1);
-        
+    public static final CBORObject CS_KEY_ENC_COSE_KEY = CBORObject.FromObject(1);
+//
+//    /**
+//	 * ACE Groupcomm Request Type "Key Distribution" (1)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Leave" (2)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Update Key" (3)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "New" (4)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Pub Keys" (5)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
+    
     
 }
