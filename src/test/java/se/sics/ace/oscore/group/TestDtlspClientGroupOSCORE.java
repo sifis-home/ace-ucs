@@ -304,9 +304,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
-        
+              
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -565,8 +563,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
         
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
@@ -864,8 +860,6 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
-        
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1125,8 +1119,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
         
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
@@ -1455,9 +1447,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
-        
+
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1714,8 +1704,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
         
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
@@ -2219,9 +2207,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
-        
+
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -2490,9 +2476,7 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/feedca570000");
         
         CBORObject requestPayload = CBORObject.NewMap();
-        
-        requestPayload.Add("type", Constants.GROUPCOMM_REQ_KEY_DISTRIBUTION);
-        
+
         requestPayload.Add("scope", CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {

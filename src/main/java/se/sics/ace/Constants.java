@@ -841,35 +841,37 @@ public class Constants {
 	 */
     public static final CBORObject CS_KEY_ENC_COSE_KEY = CBORObject.FromObject(1);
 
-    /**
-	 * ACE Groupcomm Request Type "Key Distribution" (1)
-	 * Source: ace-key-groupcomm
-	 */
-    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
     
-    /**
-	 * ACE Groupcomm Request Type "Leave" (2)
-	 * Source: ace-key-groupcomm
-	 */
-    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
-    
-    /**
-	 * ACE Groupcomm Request Type "Update Key" (3)
-	 * Source: ace-key-groupcomm
-	 */
-    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
-    
-    /**
-	 * ACE Groupcomm Request Type "New" (4)
-	 * Source: ace-key-groupcomm
-	 */
-    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
-    
-    /**
-	 * ACE Groupcomm Request Type "Pub Keys" (5)
-	 * Source: ace-key-groupcomm
-	 */
-    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
+    // TODO: Remove when the latest RESTification of the Group Manager is completed.
+//    /**
+//	 * ACE Groupcomm Request Type "Key Distribution" (1)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Leave" (2)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Update Key" (3)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "New" (4)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
+//    
+//    /**
+//	 * ACE Groupcomm Request Type "Pub Keys" (5)
+//	 * Source: ace-key-groupcomm
+//	 */
+//    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
     
     
 }
