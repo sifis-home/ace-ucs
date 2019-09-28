@@ -246,7 +246,7 @@ public class DtlspClientGroupOSCORE {
         CBORObject alg_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg);
         if(alg_param.getType() == CBORType.TextString) {
         	algo = AlgorithmID.valueOf(alg_param.AsString());
-        } else if(alg_param.getType() == CBORType.SimpleValue) {
+        } else if(alg_param.getType() == CBORType.Number) {
         	algo = AlgorithmID.FromCBOR(alg_param);
         }
         
@@ -255,7 +255,7 @@ public class DtlspClientGroupOSCORE {
         CBORObject kdf_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.hkdf);
         if(kdf_param.getType() == CBORType.TextString) {
         	kdf = AlgorithmID.valueOf(kdf_param.AsString());
-        } else if(kdf_param.getType() == CBORType.SimpleValue) {
+        } else if(kdf_param.getType() == CBORType.Number) {
         	kdf = AlgorithmID.FromCBOR(kdf_param);
         }
         
@@ -264,7 +264,7 @@ public class DtlspClientGroupOSCORE {
         CBORObject alg_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_alg);
         if(alg_countersign_param.getType() == CBORType.TextString) {
         	alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
-        } else if(alg_countersign_param.getType() == CBORType.SimpleValue) {
+        } else if(alg_countersign_param.getType() == CBORType.Number) {
         	alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
         }
         
@@ -308,7 +308,7 @@ public class DtlspClientGroupOSCORE {
     	//RPL (replay window information)
     	CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
     	int rpl = 32; //Default value
-    	if(rpl_param != null && rpl_param.getType() == CBORType.SimpleValue) {
+    	if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
     		rpl = rpl_param.AsInt32();
     	}
     	
