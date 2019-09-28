@@ -440,7 +440,7 @@ public class TestDtlspRSGroupOSCORE {
         		if (coseKeySet.size() > 0) {
         			
         			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        			joinResponse.Add("pub_keys", CBORObject.FromObject(coseKeySetByte));
+        			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
         			
         		}
         		

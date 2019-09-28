@@ -891,4 +891,9 @@ public class Constants {
      */
     public static final short KEY = 2;
     
+    /*
+     * Value for the label "pub_keys" in the join response message
+     */
+    public static final short PUB_KEYS = 3;
+    
 }

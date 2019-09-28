@@ -415,12 +415,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -465,7 +465,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -652,12 +652,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -702,7 +702,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -927,12 +927,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -977,7 +977,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
 
     }
@@ -1166,12 +1166,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1216,7 +1216,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
 
     }
@@ -1473,12 +1473,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1523,7 +1523,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -1709,12 +1709,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -1759,7 +1759,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -2191,12 +2191,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -2241,7 +2241,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
     }
@@ -2439,12 +2439,12 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -2489,7 +2489,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
 }   
@@ -2690,12 +2690,12 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject coseKeySetArray = null;
         if (askForPubKeys) {
-        	Assert.assertEquals(true, joinResponse.ContainsKey("pub_keys"));
-        	Assert.assertEquals(CBORType.ByteString, joinResponse.get("pub_keys").getType());
+        	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+        	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         	
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         	Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
         	Assert.assertEquals(2, coseKeySetArray.size());
@@ -2740,7 +2740,7 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         else {
-        	Assert.assertEquals(false, joinResponse.ContainsKey("pub_keys"));
+        	Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
         
         /* Context derivation below */

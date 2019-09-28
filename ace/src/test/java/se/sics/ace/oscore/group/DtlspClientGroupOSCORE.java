@@ -230,7 +230,7 @@ public class DtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	// The content of the byte string should be a COSE_KeySet, to be processed accordingly
         	
-        	byte[] coseKeySetByte = joinResponse.get("pub_keys").GetByteString();
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         	coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte); 	
         }
         else {
