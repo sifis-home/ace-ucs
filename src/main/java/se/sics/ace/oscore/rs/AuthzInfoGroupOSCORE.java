@@ -207,105 +207,101 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
 	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
 	    rep.Add(Constants.CTI, cti);
-        
+	    	
+    	boolean error = true;
+    	
+	    String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
+	    Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(ctiStr);
+    	
+    	// Check that audience and scope are consistent with the access to a join resource.
+	    // Consistency checks have been already performed when processing the Token upon posting
 	    
-	    if (provideSignInfo || providePubKeyEnc) {
-	    	
-	    	boolean error = true;
-	    	
-		    String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
-		    Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(ctiStr);
-	    	
-	    	// Check that audience and scope are consistent with the access to a join resource.
-		    // Consistency checks have been already performed when processing the Token upon posting
-		    
-	    	CBORObject scope = claims.get(Constants.SCOPE);
-	    	
-	    	if (scope.getType().equals(CBORType.ByteString)) {
-	    	
-	    		CBORObject aud = claims.get(Constants.AUD);
-	    		
-	    		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
-	    		Set<String> myJoinResources = this.audience.getAllJoinResources();
-	    		
-	    		ArrayList<String> auds = new ArrayList<>();
-	    	    if (aud.getType().equals(CBORType.Array)) {
-	    	        for (int i=0; i<aud.size(); i++) {
-	    	            if (aud.get(i).getType().equals(CBORType.TextString)) {
-	    	                auds.add(aud.get(i).AsString());
-	    	            } //XXX: silently skip aud entries that are not text strings
-	    	        }
-	    	    } else if (aud.getType().equals(CBORType.TextString)) {
-	    	        auds.add(aud.AsString());
-	    	    }
-	    		
-	    		byte[] rawScope = scope.GetByteString();
-	    		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
-	    		String scopeStr = cborScope.get(0).AsString();
+    	CBORObject scope = claims.get(Constants.SCOPE);
+    	
+    	if (scope.getType().equals(CBORType.ByteString)) {
+    	
+    		CBORObject aud = claims.get(Constants.AUD);
+    		
+    		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
+    		Set<String> myJoinResources = this.audience.getAllJoinResources();
+    		
+    		ArrayList<String> auds = new ArrayList<>();
+    	    if (aud.getType().equals(CBORType.Array)) {
+    	        for (int i=0; i<aud.size(); i++) {
+    	            if (aud.get(i).getType().equals(CBORType.TextString)) {
+    	                auds.add(aud.get(i).AsString());
+    	            } //XXX: silently skip aud entries that are not text strings
+    	        }
+    	    } else if (aud.getType().equals(CBORType.TextString)) {
+    	        auds.add(aud.AsString());
+    	    }
+    		
+    		byte[] rawScope = scope.GetByteString();
+    		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
+    		String scopeStr = cborScope.get(0).AsString();
 
-	    		// Check that the audience is in fact a Group Manager
-	    		for (String foo : auds) {
-	    			if (myGMAudiences.contains(foo)) {
-	    				error = false;
-	    	    		break;
-	    	    	}
-	    	    }
-	    		
-	    		// Check that the scope refers to a join resource
-	    		if (error == false) {
-	    			if (myJoinResources.contains(scopeStr) == false)
-	    				error = true;
-	    		}
-	    		
-	    		if (error == true) {
-	                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for join resources at a Group Manager");
-	                CBORObject map = CBORObject.NewMap();
-	                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-	                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-	            }
-	    		
-	    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-	        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
-	        	
-	        	// Retrieve the entry for the target group, using the Group ID Prefix
-	        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
-	    		
-	        	// Add the nonce for PoP of the Client's private key in the Join Response
-	            byte[] rsnonce = new byte[8];
-	            new SecureRandom().nextBytes(rsnonce);
-	            rep.Add(Constants.RSNONCE, rsnonce);
-	        	
-			    if (provideSignInfo) {
-			    	
-			    	CBORObject signInfo = CBORObject.NewArray();
-			    	
-			    	signInfo.Add(myGroup.getCsAlg().AsCBOR());
-			    	
-			    	CBORObject arrayElem = myGroup.getCsParams();
-			    	if (arrayElem == null)
-			    		signInfo.Add(CBORObject.Null);
-			    	else
-			    		signInfo.Add(arrayElem);
-			    	
-			    	arrayElem = myGroup.getCsKeyParams();
-			    	if (arrayElem == null)
-			    		signInfo.Add(CBORObject.Null);
-			    	else
-			    		signInfo.Add(arrayElem);
-			    	
-			    	rep.Add(Constants.SIGN_INFO, signInfo);
-			    	
-			    }
-		    
-			    if (providePubKeyEnc) {
-			    	
-			    	rep.Add(Constants.PUB_KEY_ENC, myGroup.getCsKeyEnc());
-			    	
-			    }
-	    		
-	    	}
+    		// Check that the audience is in fact a Group Manager
+    		for (String foo : auds) {
+    			if (myGMAudiences.contains(foo)) {
+    				error = false;
+    	    		break;
+    	    	}
+    	    }
+    		
+    		// Check that the scope refers to a join resource
+    		if (error == false) {
+    			if (myJoinResources.contains(scopeStr) == false)
+    				error = true;
+    		}
+    		
+    		if (error == true) {
+                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for join resources at a Group Manager");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+            }
+    		
+    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
+        	
+        	// Retrieve the entry for the target group, using the Group ID Prefix
+        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+    		
+        	// Add the nonce for PoP of the Client's private key in the Join Response
+            byte[] rsnonce = new byte[8];
+            new SecureRandom().nextBytes(rsnonce);
+            rep.Add(Constants.RSNONCE, rsnonce);
+        	
+		    if (provideSignInfo) {
+		    	
+		    	CBORObject signInfo = CBORObject.NewArray();
+		    	
+		    	signInfo.Add(myGroup.getCsAlg().AsCBOR());
+		    	
+		    	CBORObject arrayElem = myGroup.getCsParams();
+		    	if (arrayElem == null)
+		    		signInfo.Add(CBORObject.Null);
+		    	else
+		    		signInfo.Add(arrayElem);
+		    	
+		    	arrayElem = myGroup.getCsKeyParams();
+		    	if (arrayElem == null)
+		    		signInfo.Add(CBORObject.Null);
+		    	else
+		    		signInfo.Add(arrayElem);
+		    	
+		    	rep.Add(Constants.SIGN_INFO, signInfo);
+		    	
+		    }
 	    
-	    }
+		    if (providePubKeyEnc) {
+		    	
+		    	rep.Add(Constants.PUB_KEY_ENC, myGroup.getCsKeyEnc());
+		    	
+		    }
+    		
+    	}
+	    
 	    
 	    LOGGER.info("Successfully processed DTLS token");
         return msg.successReply(reply.getMessageCode(), rep);
