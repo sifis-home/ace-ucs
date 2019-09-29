@@ -418,7 +418,8 @@ public class TokenRepository implements AutoCloseable {
         this.kid2key.put(kid, key);
         if (sid != null) {
             this.sid2kid.put(sid, kid);
-        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2)) {
+        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
+        		   key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
             //Scandium needs a special mapping for raw public keys
             RawPublicKeyIdentity rpk 
                 = new RawPublicKeyIdentity(key.AsPublicKey());
@@ -686,6 +687,32 @@ public class TokenRepository implements AutoCloseable {
 	        return this.sid2kid.get(sid);
 	    }
 	    LOGGER.finest("Key-Id for Subject-Id: " + sid + " not found");
+	    return null;
+	}
+
+	/**
+	 * Get the subject id by the kid.
+	 * 
+	 * @param   the kid this subject uses
+	 * 
+	 * @return  sid  the subject id
+	 */
+	public String getSid(String kid) {
+	    if (kid != null) {
+	    	for (String foo : this.sid2kid.keySet()) {
+    			if (this.sid2kid.get(foo).equals(kid)) {
+    				// TODO: REMOVE DEBUG PRINT
+    				// System.out.println("getSid() foo " + foo);
+    				return foo;
+    			}
+    		}
+	    }
+	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
+	    System.out.println("getSid() kid " + kid);
+	    for (String foo : this.sid2kid.keySet()) {
+	    	// TODO: REMOVE DEBUG PRINT
+			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
+		}
 	    return null;
 	}
 	

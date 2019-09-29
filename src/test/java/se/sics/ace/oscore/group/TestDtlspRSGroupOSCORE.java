@@ -49,6 +49,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -85,6 +86,7 @@ import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.Util;
 import se.sics.ace.rs.AsRequestCreationHints;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * Server for testing the DTLSProfileDeliverer class. 
@@ -173,14 +175,31 @@ public class TestDtlspRSGroupOSCORE {
 
         @Override
         public void handlePOST(CoapExchange exchange) {
-            
+        	
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
+        	String subject;
+        	Request request = exchange.advanced().getCurrentRequest();
+            if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
+                //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+                if (exchange.advanced().getCryptographicContextID()!= null) {                
+                    subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);    
+                } else {
+                	// At this point, this should not really happen, due to the earlier check at the Token Repository
+                	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+	  				return;
+                }
+            } else  {
+                subject = request.getSourceContext().getPeerIdentity().getName();
+            }
+            // TODO: REMOVE DEBUG PRINT
+            // System.out.println("xxx @GM sid " + subject);
+            // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));
+        	
         	byte[] requestPayload = exchange.getRequestPayload();
-        	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
-        	
+            
         	if (!joinRequest.getType().equals(CBORType.Map))
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
         		

@@ -271,6 +271,20 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
             rep.Add(Constants.RSNONCE, rsnonce);
+            
+    	    CBORObject sid = responseMap.get(CBORObject.FromObject(Constants.SUB));
+    	    
+    	    if (sid == null) { // This should never happen, as handled in TokenRepository.
+                LOGGER.info("Missing Sender ID after valid Access Token Posting");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+            }
+    	    
+    	    // TODO: REMOVE DEBUG PRINT
+    	    // System.out.println("AuthzInfoGroupOSCORE " + sid);
+    	    
+    	    // TODO: Add to the Token Repository an entry (sid, rsnonce) in a new map accessible from here
         	
 		    if (provideSignInfo) {
 		    	

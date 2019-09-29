@@ -33,6 +33,7 @@ package se.sics.ace.rs;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -40,17 +41,20 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -62,7 +66,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class AuthzInfo implements Endpoint, AutoCloseable {
@@ -357,6 +361,69 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
+	    
+	    // M.T.
+	    // The following enables this class to return to the specific AuthzInfo instance also the
+	    // Sender Identifier associated to this Access Token, as 'SUB' parameter of the response.
+	    String assignedKid = null;
+	    String assignedSid;
+	    try {
+	    	String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
+	    	
+	    	CBORObject cnf = claims.get(Constants.CNF);
+	    	
+	    	// This should really not happen for a previously validated and stored Access Token
+	    	if (cnf == null) {
+	            LOGGER.severe("Token has not cnf");
+	            throw new AceException("Token has no cnf");
+	        }
+	    	// This should really not happen for a previously validated and stored Access Token
+	    	if (!cnf.getType().equals(CBORType.Map)) {
+	            LOGGER.severe("Malformed cnf in token");
+	            throw new AceException("cnf claim malformed in token");
+	        }
+	    	
+	    	if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
+	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
+	    		assignedKid = new String(osc.getClientId(), Constants.charset);
+	    	}
+	    	else {
+		    	OneKey popKey = TokenRepository.getInstance().getPoP(ctiStr);
+		    	
+		    	if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
+		    		assignedKid = new String(popKey.get(KeyKeys.KeyId).GetByteString(), Constants.charset);
+		    	}
+		    	else if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
+		    			popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
+		    		RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(popKey.AsPublicKey());
+		    		assignedKid = new String(rpk.getName());
+		    	}
+		    	
+	    	}
+	    	
+	    	// This should really not happen for a previously validated and stored Access Token
+	    	if (assignedKid == null) {
+	            LOGGER.severe("kid not found");
+	            throw new AceException("kid not found");
+	        }
+	    	
+	    	assignedSid = TokenRepository.getInstance().getSid(assignedKid);
+	    	
+	    	// TODO: REMOVE DEBUG PRINT
+	    	// System.out.println("AuthzInfo assignedKid " + assignedKid);
+	    	// System.out.println("AuthzInfo assignedSid " + assignedSid);
+	    }
+	    catch (Exception e) {
+	    	LOGGER.info("Unable to retrieve kid after token addition: " + e.getMessage());
+	        CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
+
+	    if (assignedSid != null)
+	    	rep.Add(Constants.SUB, assignedSid);
+
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}
