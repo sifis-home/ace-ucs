@@ -234,7 +234,7 @@ public class TestDtlspRSGroupOSCORE {
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
       	  		scopeStr = scopeElement.AsString();
 
-      	  		if (!scopeStr.equals(exchange.getRequestOptions().getUriPathString())) {
+      	  		if (!scopeStr.equals(this.getName())) {
 	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
 	  				return;
 	  			}      	  		
