@@ -895,4 +895,20 @@ public class Constants {
       * Value for the label "pub_keys" in the Join Response message
       */
      public static final short PUB_KEYS = 3;
+     
+     /*
+      * Value for the label "sign_info" in the Token POST request and in the Join Response message
+      */
+     public static final short SIGN_INFO = 201;
+     
+     /*
+      * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
+      */
+     public static final short PUB_KEY_ENC = 202;
+     
+     /*
+      * Value for the label "sign_nonce" in the Token POST request and in the Join Response message
+      */
+     public static final short RSNONCE = 203;
+     
 }

@@ -32,6 +32,7 @@
 package se.sics.ace.oscore.rs;
 
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -148,15 +149,15 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    		
 	    	token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
 	    		
-	    	if (cbor.ContainsKey("sign_info")) {
-	    		if (cbor.get("sign_info").equals(CBORObject.Null)) {
+	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO))) {
+	    		if (cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).equals(CBORObject.Null)) {
 	    			provideSignInfo = true;
 	    		}
 	    		else invalid = true;
 	    	}
 	    	
-	    	if (cbor.ContainsKey("pub_key_enc")) {
-	    		if (cbor.get("pub_key_enc").equals(CBORObject.Null)) {
+	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC))) {
+	    		if (cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).equals(CBORObject.Null)) {
 	    			providePubKeyEnc = true;
 	    		}
 	    		else invalid = true;
@@ -250,26 +251,30 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    	    	}
 	    	    }
 	    		
-	    		// Check that the scope refers to join resource
+	    		// Check that the scope refers to a join resource
 	    		if (error == false) {
 	    			if (myJoinResources.contains(scopeStr) == false)
 	    				error = true;
 	    		}
 	    		
 	    		if (error == true) {
-	                LOGGER.info("'provideSignInfo' and 'providePubKeyEnc' are relevant only for join resources");
+	                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for join resources at a Group Manager");
 	                CBORObject map = CBORObject.NewMap();
 	                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 	                return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
 	            }
 	    		
-	    		// GroupInfo myGroup = activeGroups.get(key);
 	    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
 	        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
 	        	
 	        	// Retrieve the entry for the target group, using the Group ID Prefix
 	        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
 	    		
+	        	// Add the nonce for PoP of the Client's private key in the Join Response
+	            byte[] rsnonce = new byte[8];
+	            new SecureRandom().nextBytes(rsnonce);
+	            rep.Add(Constants.RSNONCE, rsnonce);
+	        	
 			    if (provideSignInfo) {
 			    	
 			    	CBORObject signInfo = CBORObject.NewArray();
@@ -288,13 +293,13 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 			    	else
 			    		signInfo.Add(arrayElem);
 			    	
-			    	rep.Add("sign_info", signInfo);
+			    	rep.Add(Constants.SIGN_INFO, signInfo);
 			    	
 			    }
 		    
 			    if (providePubKeyEnc) {
 			    	
-			    	rep.Add("pub_key_enc", myGroup.getCsKeyEnc());
+			    	rep.Add(Constants.PUB_KEY_ENC, myGroup.getCsKeyEnc());
 			    	
 			    }
 	    		
