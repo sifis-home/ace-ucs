@@ -90,22 +90,22 @@ public class AltOSCoreClientGroupOSCORE {
 	//Sets the port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT;
 	//Set the hostname/IP of the RS (GM)
-	private final static String GM_ADDRESS = "31.133.156.244";
+	private final static String GM_ADDRESS = "127.0.0.1";
 	
-	 //Additions for creating a fixed context
-	private final static String uriGM = "coap://" + GM_ADDRESS;
+   	private final static String uriGM = "coap://" + GM_ADDRESS;
+	//Additions for creating a fixed context (from Peter's mail 23/9 -19)
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uriLocal = "coap://localhost";
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	
-	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-		0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
-	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
-		(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	private final static byte[] master_secret = { 0x12, 0x22, 0x32, 0x42, 0x52, 0x62, 0x72, (byte) 0x82, (byte) 0x92, (byte) 0xa2,
+			 (byte) 0xb2, (byte) 0xc2, (byte) 0xd2, (byte) 0xe2, (byte) 0xf2, 0x22 };
+	private final static byte[] master_salt = { (byte) 0x9e, 0x7c, (byte) 0xa9, 0x22, 0x23, 0x78, 0x63, 0x40, (byte) 0x95, 0x7c,
+			 (byte) 0x94, 0x46, 0x78, (byte) 0xdb, (byte) 0xf5, 0x6d, 0x3c, 0x3e, 0x2a, 0x76, 0x47, 0x1c, (byte) 0xd7, 0x16 };
 	//private final static byte[] context_id = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58 };
-	private final static byte[] sid = new byte[] { 'C', '1' };
-	private final static byte[] rid = new byte[] { 'G', 'M' };
+	private final static byte[] sid = new byte[] { 0x43, 0x31 };
+	private final static byte[] rid = new byte[] { 0x47, 0x4d };
 	//End Additions for creating a fixed context
 	
     private static byte[] key128
@@ -120,6 +120,7 @@ public class AltOSCoreClientGroupOSCORE {
     private static String rsAddrC;
     private static String rsGroupRes;
     private static String zeroEpochGroupID;
+    private static String joinResourcePath;
     
     private static CwtCryptoCtx ctx;
     
@@ -140,11 +141,12 @@ public class AltOSCoreClientGroupOSCORE {
         rsAddrC = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/authz-info";
 
         //zeroEpochGroupID = "feedca570000";
-        zeroEpochGroupID = "/join/GRP00"; 
+        zeroEpochGroupID = "GRP";
+        joinResourcePath = "join/" + zeroEpochGroupID; 
         if(useDTLS) {
-        rsGroupRes = "coaps://" + GM_ADDRESS + ":" + (GM_PORT + 1 ) + "/" + zeroEpochGroupID;
+        rsGroupRes = "coaps://" + GM_ADDRESS + ":" + (GM_PORT + 1 ) + "/" + joinResourcePath;
         } else {
-        	rsGroupRes = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/" + zeroEpochGroupID;
+        	rsGroupRes = "coap://" + GM_ADDRESS + ":" + GM_PORT + "/" + joinResourcePath;
         }
         
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -160,11 +162,8 @@ public class AltOSCoreClientGroupOSCORE {
    
     // M.T. & Rikard
     /** 
-     * Post Token to authz-info with PSK then request
-     * for joining an OSCORE Group with multiple roles.
-     * This will then be followed by derivation of a
-     * Group OSCORE context based on the information
-     * received from the GM.
+     * Goes straight for join request without posting a Token.
+     * Using a hardcoded OSCORE context. 
      * 
      * @throws CoseException if COSE key generation fails
      * @throws AceException if ACE processing fails
@@ -212,13 +211,13 @@ public class AltOSCoreClientGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);
-        System.out.println("Posting Token to GM at " + rsAddrC);
+        //System.out.println("Posting Token to GM at " + rsAddrC);
         
-        CoapClient tokenPoster = new CoapClient(rsAddrC);
+        //CoapClient tokenPoster = new CoapClient(rsAddrC);
         
         //@SuppressWarnings("unused")
 		//CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
-        System.out.println("Sent Token to GM: " + payload.toString());
+        //System.out.println("Sent Token to GM: " + payload.toString());
         ///@SuppressWarnings("unused")
         ///CoapResponse r = tokenPoster.post(payload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
         
@@ -268,21 +267,23 @@ public class AltOSCoreClientGroupOSCORE {
         
         //CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), MediaTypeRegistry.APPLICATION_CBOR);
         System.out.println("Sent Join request to GM: " + requestPayload.toString());
+        System.out.println("Sent Join request to GM: " + requestPayload.ToJSONString());
         CoapResponse r2 = c.advanced(joinReq);
         
         byte[] responsePayload = r2.getPayload();
 
-        //System.out.println("Received response to Join req from GM: " + r2.getResponseText());
+        System.out.println("Received response to Join req from GM: " + r2.getResponseText());
         
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+        System.out.println("Received response to Join req from GM: " + joinResponse.ToJSONString());
 
         CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
-        if(myMap.size() != 9) {
-        	System.out.println("Received bad response from GM: " + r2.getResponseText());
-        } else {
-        	System.out.println("Received Join response from GM: " + joinResponse.toString());
-        }
+//        if(myMap.size() != 9) {
+//        	System.out.println("Received bad response from GM: " + r2.getResponseText());
+//        } else {
+//        	System.out.println("Received Join response from GM: " + joinResponse.toString());
+//        }
 
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.hkdf)) == false)
@@ -343,7 +344,8 @@ public class AltOSCoreClientGroupOSCORE {
         Integer par_countersign = null;
         CBORObject par_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_params);
         if(par_countersign_param.getType() == CBORType.Map) {
-        	par_countersign = par_countersign_param.get(KeyKeys.OKP_Curve.name()).AsInt32();
+        	par_countersign = par_countersign_param.get(KeyKeys.OKP_Curve.AsCBOR()).AsInt32();
+        	//TODO: Change like this in other places too?
         } else {
         	System.err.println("Unknown par_countersign value!");
         }

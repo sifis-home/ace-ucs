@@ -93,7 +93,9 @@ Older code starting from DTLS-base. Works but only when using bypass method.
 Used as client with Peter during Hackathon. This was used because it does not use
 the actual OSCORE profile but OSCORE with hard-coded context values.
 
-TODO: Add note about changes from Hackathon
+Note: Very good to use for testing with the TestOSCoreRSGroupOSCORE,
+it can do connections using a hard-coded OSCORE context without posting a Token.
+They should also be configured with the same context and just work.
 
 Name: AltOSCoreClientGroupOSCORE
 Security protocol: OSCORE
@@ -104,16 +106,17 @@ TODO:
 Add parameters to Token post & response
  Depending on if scope is a byte string or not
 
-Change values & labels in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.)
+Change values & labels in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.) X
+ Done X
 
 Update GM code to support messages from Peter's client
-  Create the group he is trying to join ("GRP")
+  Create the group he is trying to join ("GRP") X
 
 Check usage of csKeyEnc parameter in Junit tests
  For the clients
  Check the incoming csKeyEnc in the client code
 
-Make pub_keys label into integer instead of string
+Make pub_keys label into integer instead of string X
 
 Lower priority:
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)

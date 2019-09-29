@@ -77,19 +77,19 @@ public class TestOSCoreRSGroupOSCORE {
 	 //Public key (EDDSA)
 	 private static String publicKeyStr = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 	 
-	 //Additions for creating a fixed context
+	 //Additions for creating a fixed context (from Peter's mail 23/9 -19)
 	 private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	 private final static String uriLocal = "coap://localhost";
 	 private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	 private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 		
-	 private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
-			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
-	 private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
-			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	 private final static byte[] master_secret = { 0x12, 0x22, 0x32, 0x42, 0x52, 0x62, 0x72, (byte) 0x82, (byte) 0x92, (byte) 0xa2,
+			 (byte) 0xb2, (byte) 0xc2, (byte) 0xd2, (byte) 0xe2, (byte) 0xf2, 0x22 };
+	 private final static byte[] master_salt = { (byte) 0x9e, 0x7c, (byte) 0xa9, 0x22, 0x23, 0x78, 0x63, 0x40, (byte) 0x95, 0x7c,
+			 (byte) 0x94, 0x46, 0x78, (byte) 0xdb, (byte) 0xf5, 0x6d, 0x3c, 0x3e, 0x2a, 0x76, 0x47, 0x1c, (byte) 0xd7, 0x16 };
 	 //private final static byte[] context_id = { 0x51, 0x52, 0x53, 0x54, 0x55, 0x56, 0x57, 0x58 };
-	 private final static byte[] rid = new byte[] { 'C', '1' };
-	 private final static byte[] sid = new byte[] { 'G', 'M' };
+	 private final static byte[] rid = new byte[] { 0x43, 0x31 };
+	 private final static byte[] sid = new byte[] { 0x47, 0x4d };
 	//End Additions for creating a fixed context
 
     /**
@@ -136,6 +136,13 @@ public class TestOSCoreRSGroupOSCORE {
 
         @Override
         public void handleGET(CoapExchange exchange) {
+            
+            // respond to the request
+            exchange.respond("This is the /manage resource.");
+        }
+        
+        @Override
+        public void handlePOST(CoapExchange exchange) {
             
             // respond to the request
             exchange.respond("This is the /manage resource.");
@@ -236,6 +243,47 @@ public class TestOSCoreRSGroupOSCORE {
         myScopes.put("feedca570000_requester_responder", myResource4);
         myScopes.put("feedca570000_requester_monitor", myResource4);
         
+        
+        /* Set up tokens for the /join/GRP resource */
+        
+        Set<Short> actions5 = new HashSet<>();
+        actions5.add(Constants.GET);
+        actions5.add(Constants.POST);
+        Map<String, Set<Short>> myResource5 = new HashMap<>();
+        myResource5.put("GRP", actions5);
+        myScopes.put("r_GRP", myResource5);
+        
+        Set<Short> actions6 = new HashSet<>();
+        actions6.add(Constants.GET);
+        actions6.add(Constants.POST);
+        Map<String, Set<Short>> myResource6 = new HashMap<>();
+        myResource6.put("join/GRP", actions6);
+        myScopes.put("r_join/GRP", myResource6);
+        
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with Group Name "GRP"
+        Set<Short> actions7 = new HashSet<>();
+        actions7.add(Constants.POST);
+        Map<String, Set<Short>> myResource7 = new HashMap<>();
+        myResource7.put("GRP", actions7);
+        myScopes.put("GRP_requester", myResource7);
+        myScopes.put("GRP_responder", myResource7);
+        myScopes.put("GRP_monitor", myResource7);
+        myScopes.put("GRP_requester_responder", myResource7);
+        myScopes.put("GRP_requester_monitor", myResource7);
+        
+        // Adding the join resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with Group Name "GRP"
+        Set<Short> actions8 = new HashSet<>();
+        actions8.add(Constants.POST);
+        Map<String, Set<Short>> myResource8 = new HashMap<>();
+        myResource8.put("join/GRP", actions8);
+        myScopes.put("join/GRP_requester", myResource8);
+        myScopes.put("join/GRP_responder", myResource8);
+        myScopes.put("join/GRP_monitor", myResource8);
+        myScopes.put("join/GRP_requester_responder", myResource8);
+        myScopes.put("join/GRP_requester_monitor", myResource8);
+        
         //Create the OSCORE Group(s)
         OSCOREGroupCreation();
         
@@ -256,6 +304,9 @@ public class TestOSCoreRSGroupOSCORE {
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         valid.setJoinResources(Collections.singleton("feedca570000"));
+        //Add GRP as join resource
+        valid.setJoinResources(Collections.singleton("GRP"));
+        valid.setJoinResources(Collections.singleton("join/GRP"));
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -323,7 +374,10 @@ public class TestOSCoreRSGroupOSCORE {
       Resource temp = new TempResource();
       Resource authzInfo = new CoapAuthzInfo(ai);
       Resource manage = new ManageResource();
-      Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
+      Resource join = new GroupOSCOREJoinResource("feedca570000", false); // M.T.
+      
+      Resource join_path = new CoapResource("join"); //For having a /join/ path
+      Resource grp_join = new GroupOSCOREJoinResource("GRP", true); // Group join path for testing with Peter
       
       OSCoreCoapStackFactory.useAsDefault();
       rs = new CoapServer(PORT);
@@ -332,6 +386,10 @@ public class TestOSCoreRSGroupOSCORE {
       rs.add(manage);
       rs.add(join);
       rs.add(authzInfo);
+      
+      //Adding "/join/GRP" path for testing with Peter
+      join_path.add(grp_join);
+      rs.add(join_path);
       
 
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
@@ -365,17 +423,22 @@ public class TestOSCoreRSGroupOSCORE {
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
 
+    	boolean testGroupNames = false;
+    	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCOREJoinResource(String resId) {
+        public GroupOSCOREJoinResource(String resId, boolean testGroupNames) {
             
             // set resource identifier
             super(resId);
             
             // set display name
             getAttributes().setTitle("Group OSCORE Join Resource " + resId);
+            
+            // testing with the new group names parameter
+            this.testGroupNames = testGroupNames;
         }
 
         @Override
@@ -414,7 +477,7 @@ public class TestOSCoreRSGroupOSCORE {
         	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
         	
         	if (scope == null) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups. Scope has label value " + Constants.SCOPE);
         		return;
         	}
         	if (!scope.getType().equals(CBORType.ByteString)) {
@@ -493,7 +556,12 @@ public class TestOSCoreRSGroupOSCORE {
         	
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
         	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	String prefixStr = "";
+        	if(testGroupNames) { //Even though we have a group name, take the group info considering "feedca570000" (since it has been configured)
+        		prefixStr = "feedca570000".substring(0, 2 * groupIdPrefixSize);	
+        	} else { //Normal functionality as with Group IDs
+        		prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+        	}
         	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
