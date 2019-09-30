@@ -196,7 +196,14 @@ public class TestDtlspRSGroupOSCORE {
             // TODO: REMOVE DEBUG PRINT
             // System.out.println("xxx @GM sid " + subject);
             // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));
-        	
+            
+            String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
+            
+            // TODO: REMOVE DEBUG PRINT
+            System.out.println("xxx @GM rsnonce " + rsNonceString);
+                        
+            byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
+            
         	byte[] requestPayload = exchange.getRequestPayload();
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
             

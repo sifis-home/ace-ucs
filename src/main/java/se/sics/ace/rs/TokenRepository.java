@@ -144,6 +144,13 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private Map<String, String>sid2kid;
 	
+	// M.T.
+	/**
+	 * Map a subject identity to the rsnonce possibly provided upon Token posting
+	 * This is relevant when joining an OSCORE Group, with the RS acting as Group Manager
+	 */
+	private Map<String, String> sid2rsnonce;
+	
 	/**
 	 * The scope validator
 	 */
@@ -225,6 +232,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
+	    this.sid2rsnonce = new HashMap<>(); // M.T.
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
 
@@ -713,6 +721,20 @@ public class TokenRepository implements AutoCloseable {
 	    	// TODO: REMOVE DEBUG PRINT
 			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
 		}
+	    return null;
+	}
+	
+	public synchronized void setRsnonce(String sid, String rsNonce) {
+		if (sid != null && rsNonce != null) {
+	        this.sid2rsnonce.put(sid, rsNonce);
+	    }
+	}
+	
+	public synchronized String getRsnonce(String sid) {
+		if (sid != null) {
+	        return this.sid2rsnonce.get(sid);
+	    }
+	    LOGGER.finest("rsnonce for Subject-Id: " + sid + " not found");
 	    return null;
 	}
 	
