@@ -393,10 +393,23 @@ public class TestOSCoreRSGroupOSCORE {
       Resource join_path_2 = new CoapResource("xxxx");
       Resource grp_join_4 = new GroupOSCOREJoinResource("GRP", true);
       
+      //Add GM/group-oscore/GRP resource
+      //Resource GM_path_2 = new CoapResource("GM");
+      Resource group_oscore_path = new CoapResource("group-oscore");
+      Resource grp_join_5 = new GroupOSCOREJoinResource("GRP", true);
+      
+      //Add group-oscore/GRP resource
+      //Resource GM_path_2 = new CoapResource("GM");
+      Resource group_oscore_path_2 = new CoapResource("group-oscore");
+      Resource grp_join_6 = new GroupOSCOREJoinResource("GRP", true);
+      
       //Add GM/join/GRP resource
       //Resource GM_path_joiner = new CoapResource("GM");
       Resource joiner = new CoapResource("join");
       Resource grp_joiner = new GroupOSCOREJoinResource("GRP", true);
+      
+      //Add GM/manage resource
+      Resource manager = new ManageResource();
       
       OSCoreCoapStackFactory.useAsDefault();
       rs = new CoapServer(PORT);
@@ -417,6 +430,17 @@ public class TestOSCoreRSGroupOSCORE {
       //Adding "/GM/join/GRP" path for testing with Peter
       GM_path_2.add(joiner);
       joiner.add(grp_joiner);
+      
+      //Add "/GM/manage" resource
+      GM_path_2.add(manager);
+      
+      //Adding "/GM/group-oscore/GRP" path for testing with Peter
+      GM_path_2.add(group_oscore_path);
+      group_oscore_path.add(grp_join_5);
+      
+      //Adding "group-oscore/GRP" path for testing with Peter
+      group_oscore_path_2.add(grp_join_6);
+      rs.add(group_oscore_path_2);
       
       //Adding "/GM/xxxx/GRP" path for testing with Peter
       GM_path_2.add(join_path_2);

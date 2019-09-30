@@ -142,7 +142,7 @@ public class AltOSCoreClientGroupOSCORE {
 
         //zeroEpochGroupID = "feedca570000";
         zeroEpochGroupID = "GRP";
-        joinResourcePath = "xxxx/" + zeroEpochGroupID; 
+        joinResourcePath = "GM/group-oscore/" + zeroEpochGroupID; 
         if(useDTLS) {
         rsGroupRes = "coaps://" + GM_ADDRESS + ":" + (GM_PORT + 1 ) + "/" + joinResourcePath;
         } else {
