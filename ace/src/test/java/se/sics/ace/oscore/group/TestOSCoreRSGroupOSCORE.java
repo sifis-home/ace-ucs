@@ -258,7 +258,7 @@ public class TestOSCoreRSGroupOSCORE {
         actions6.add(Constants.POST);
         Map<String, Set<Short>> myResource6 = new HashMap<>();
         myResource6.put("join/GRP", actions6);
-        myScopes.put("r_join/GRP", myResource6);
+        myScopes.put("r_GRP", myResource6);
         
         // Adding the join resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with Group Name "GRP"
@@ -278,11 +278,11 @@ public class TestOSCoreRSGroupOSCORE {
         actions8.add(Constants.POST);
         Map<String, Set<Short>> myResource8 = new HashMap<>();
         myResource8.put("join/GRP", actions8);
-        myScopes.put("join/GRP_requester", myResource8);
-        myScopes.put("join/GRP_responder", myResource8);
-        myScopes.put("join/GRP_monitor", myResource8);
-        myScopes.put("join/GRP_requester_responder", myResource8);
-        myScopes.put("join/GRP_requester_monitor", myResource8);
+        myScopes.put("GRP_requester", myResource8);
+        myScopes.put("GRP_responder", myResource8);
+        myScopes.put("GRP_monitor", myResource8);
+        myScopes.put("GRP_requester_responder", myResource8);
+        myScopes.put("GRP_requester_monitor", myResource8);
         
         //Create the OSCORE Group(s)
         OSCOREGroupCreation();
@@ -307,6 +307,10 @@ public class TestOSCoreRSGroupOSCORE {
         //Add GRP as join resource
         valid.setJoinResources(Collections.singleton("GRP"));
         valid.setJoinResources(Collections.singleton("join/GRP"));
+        //Add more resources according to what Peter may use
+        valid.setJoinResources(Collections.singleton("xxx/GRP"));
+        valid.setJoinResources(Collections.singleton("GM/xxx/GRP"));
+        valid.setJoinResources(Collections.singleton("GM/join/GRP"));
         
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -376,8 +380,23 @@ public class TestOSCoreRSGroupOSCORE {
       Resource manage = new ManageResource();
       Resource join = new GroupOSCOREJoinResource("feedca570000", false); // M.T.
       
+      //Add join/GRP resource
       Resource join_path = new CoapResource("join"); //For having a /join/ path
       Resource grp_join = new GroupOSCOREJoinResource("GRP", true); // Group join path for testing with Peter
+      
+      //Add xxxx/GRP resource
+      Resource xxxx_path = new CoapResource("xxxx");
+      Resource grp_join_2 = new GroupOSCOREJoinResource("GRP", true);
+      
+      //Add GM/xxxx/GRP resource
+      Resource GM_path_2 = new CoapResource("GM");
+      Resource join_path_2 = new CoapResource("xxxx");
+      Resource grp_join_4 = new GroupOSCOREJoinResource("GRP", true);
+      
+      //Add GM/join/GRP resource
+      //Resource GM_path_joiner = new CoapResource("GM");
+      Resource joiner = new CoapResource("join");
+      Resource grp_joiner = new GroupOSCOREJoinResource("GRP", true);
       
       OSCoreCoapStackFactory.useAsDefault();
       rs = new CoapServer(PORT);
@@ -391,7 +410,19 @@ public class TestOSCoreRSGroupOSCORE {
       join_path.add(grp_join);
       rs.add(join_path);
       
+      //Adding "/xxxx/GRP" path for testing with Peter
+      xxxx_path.add(grp_join_2);
+      rs.add(xxxx_path);
 
+      //Adding "/GM/join/GRP" path for testing with Peter
+      GM_path_2.add(joiner);
+      joiner.add(grp_joiner);
+      
+      //Adding "/GM/xxxx/GRP" path for testing with Peter
+      GM_path_2.add(join_path_2);
+      join_path_2.add(grp_join_4);
+      rs.add(GM_path_2);
+      
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
       //Add special allowance for Token and message from this OSCORE Sender ID
 	  dpd.allowForSubject(rid);
