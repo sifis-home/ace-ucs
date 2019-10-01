@@ -34,9 +34,15 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -354,6 +360,26 @@ public class TestDtlspClientGroupOSCORE {
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+            byte[] cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+           Signature mySignature = null;
+           
+       	   PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	   byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	   System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	   System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	   
+       	   byte[] clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
         	
         }
         
@@ -2491,4 +2517,59 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
     }
+    
+    /**
+     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
+     * 
+     * @param privKey  private key used to sign
+     * @param dataToSign  content to sign
+     
+     */
+    public byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {
+
+        Signature mySignature = null;
+        byte[] clientSignature = null;
+
+        try {
+     	   if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+   	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
+     	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+      			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+            
+        }
+        catch (NoSuchAlgorithmException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Unsupported signature algorithm");
+        }
+        catch (NoSuchProviderException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Unsopported security provider for signature computing");
+        }
+        
+        try {
+            if (mySignature != null)
+                mySignature.initSign(privKey);
+            else
+                Assert.fail("Signature algorithm has not been initialized");
+        }
+        catch (InvalidKeyException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Invalid key excpetion - Invalid private key");
+        }
+        
+        try {
+            mySignature.update(dataToSign);
+            clientSignature = mySignature.sign();
+        } catch (SignatureException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Failed signature computation");
+        }
+        
+        return clientSignature;
+        
+    }
+
+    
 }
+
+

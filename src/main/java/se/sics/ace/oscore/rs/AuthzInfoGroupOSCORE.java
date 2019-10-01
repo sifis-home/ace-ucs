@@ -267,7 +267,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
         	// Retrieve the entry for the target group, using the Group ID Prefix
         	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
     		
-        	// Add the nonce for PoP of the Client's private key in the Join Response
+        	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
             rep.Add(Constants.RSNONCE, rsnonce);
@@ -285,8 +285,8 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    // System.out.println("AuthzInfoGroupOSCORE " + sid);
     	    
     	    // TODO: REMOVE DEBUG PRINT
-    	    System.out.println("AuthzInfoGroupOSCORE " + sid.AsString());
-    	    System.out.println("AuthzInfoGroupOSCORE " + Base64.getEncoder().encodeToString(rsnonce));
+    	    // System.out.println("AuthzInfoGroupOSCORE " + sid.AsString());
+    	    // System.out.println("AuthzInfoGroupOSCORE " + Base64.getEncoder().encodeToString(rsnonce));
     	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));

@@ -200,7 +200,7 @@ public class TestDtlspRSGroupOSCORE {
             String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
             
             // TODO: REMOVE DEBUG PRINT
-            System.out.println("xxx @GM rsnonce " + rsNonceString);
+            // System.out.println("xxx @GM rsnonce " + rsNonceString);
                         
             byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
             
