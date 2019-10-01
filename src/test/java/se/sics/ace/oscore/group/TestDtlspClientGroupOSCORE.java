@@ -367,14 +367,12 @@ public class TestDtlspClientGroupOSCORE {
             requestPayload.Add(Constants.CNONCE, cnonce);
             
             // Add the signature computed over (rsnonce | cnonce), using the Client's private key
-           Signature mySignature = null;
-           
-       	   PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
-       	   byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
-       	   System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
-       	   System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
        	   
-       	   byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -670,7 +668,26 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+        	byte[] cnonce = new byte[8];
+        	new SecureRandom().nextBytes(cnonce);
+        	requestPayload.Add(Constants.CNONCE, cnonce);
+
+        	// Add the signature computed over (rsnonce | cnonce), using the Client's private key
+        	PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+        	byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+        	System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+        	System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+
+        	byte[] clientSignature = computeSignature(privKey, dataToSign);
+
+        	if (clientSignature != null)
+        	    requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        	    Assert.fail("Computed signature is empty");
         	
         }
         
@@ -1073,7 +1090,26 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+            byte[] cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	   
+       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
         	
         }
         
@@ -1366,7 +1402,26 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+            byte[] cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	   
+       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
         	
         }
         
@@ -1905,7 +1960,26 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+            byte[] cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	   
+       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
         	
         }
         
@@ -2210,7 +2284,26 @@ public class TestDtlspClientGroupOSCORE {
         	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	
         	requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        	
+        	// Add the nonce for PoP of the Client's private key
+            byte[] cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
+       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	   
+       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
         	
         }
         
