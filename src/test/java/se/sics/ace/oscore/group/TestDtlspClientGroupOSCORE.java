@@ -98,7 +98,7 @@ public class TestDtlspClientGroupOSCORE {
 
     private static OneKey rsRPK;
     
-    // Uncomment to set ECDSA with curve P256 for countersignatures
+    // Uncomment to set ECDSA with curve P-256 for countersignatures
     // private static int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
     
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
@@ -2628,6 +2628,10 @@ public class TestDtlspClientGroupOSCORE {
    	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
      	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
       			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+     	   else {
+     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+     		  Assert.fail("Unsupported signature algorithm");
+     	   }
             
         }
         catch (NoSuchAlgorithmException e) {
@@ -2651,8 +2655,10 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         try {
-            mySignature.update(dataToSign);
-            clientSignature = mySignature.sign();
+        	if (mySignature != null) {
+	            mySignature.update(dataToSign);
+	            clientSignature = mySignature.sign();
+        	}
         } catch (SignatureException e) {
             System.out.println(e.getMessage());
             Assert.fail("Failed signature computation");

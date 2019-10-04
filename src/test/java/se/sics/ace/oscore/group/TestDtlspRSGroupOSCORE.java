@@ -34,8 +34,15 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.Security;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,6 +65,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -321,6 +329,8 @@ public class TestDtlspRSGroupOSCORE {
         	
         	if (clientCred == null) {
         	
+        		// TODO: check if the client if joining the group only with the "Monitor" role.
+        		
         		// TODO: check if the Group Manager already owns this client's public key, otherwise reply with 4.00
         		
         	}
@@ -371,8 +381,8 @@ public class TestDtlspRSGroupOSCORE {
         		
         		if (myGroup.getCsAlg().equals(COSE.AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve.AsCBOR()))) ||
-            			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType.AsCBOR()))) ||
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.KeyType.AsCBOR()))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve.AsCBOR()))) ||
         				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(COSE.KeyKeys.OKP_Curve.AsCBOR())))) {
         				
                 			myGroup.deallocateSenderId(senderId);
@@ -382,7 +392,73 @@ public class TestDtlspRSGroupOSCORE {
         			}
         				
         		}
-        				
+        		
+        		// Retrieve the proof-of-possession nonce and signature from the Client
+        		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
+            	
+            	if (cnonce == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client nonce must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client nonce must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawCnonce = cnonce.GetByteString();
+        		
+        		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
+            	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+            	
+            	if (clientSignature == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client signature must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client signature must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawClientSignature = clientSignature.GetByteString();
+        		
+            	PublicKey pubKey = null;
+                try {
+					pubKey = publicKey.AsPublicKey();
+				} catch (CoseException e) {
+					System.out.println(e.getMessage());
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+				}
+                if (pubKey == null) {
+                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+                }
+                
+            	byte[] dataToSign = new byte [rsnonce.length + rawCnonce.length];
+           	    System.arraycopy(rsnonce, 0, dataToSign, 0, rsnonce.length);
+           	    System.arraycopy(rawCnonce, 0, dataToSign, rsnonce.length, rawCnonce.length);
+           	    
+           	    int countersignKeyCurve = 0;
+           	    
+           	    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+					countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+           	    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+					countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+           	    
+           	    // This should never happen, due to the previous sanity checks
+           	    if (countersignKeyCurve == 0) {
+           	    	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+            		return;
+           	    }
+           	    
+           	    if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid Client's PoP signature");
+            		return;
+           	    }
+            	
+            	
             	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
@@ -577,7 +653,7 @@ public class TestDtlspRSGroupOSCORE {
         Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
         Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
         
-        // Uncomment to set ECDSA with curve P256 for countersignatures
+        // Uncomment to set ECDSA with curve P-256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
         
         // Uncomment to set EDDSA with curve Ed25519 for countersignatures
@@ -872,5 +948,61 @@ public class TestDtlspRSGroupOSCORE {
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
+    
+    public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
+
+    	Signature mySignature = null;
+    	boolean success = false;
+    	
+        try {
+      	   if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
+      	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+       			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+     	   else {
+     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+     		  Assert.fail("Unsupported signature algorithm");
+     	   }
+             
+         }
+         catch (NoSuchAlgorithmException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsupported signature algorithm");
+         }
+         catch (NoSuchProviderException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsopported security provider for signature computing");
+         }
+         
+         try {
+             if (mySignature != null)
+                 mySignature.initVerify(pubKey);
+             else
+                 Assert.fail("Signature algorithm has not been initialized");
+         }
+         catch (InvalidKeyException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Invalid key excpetion - Invalid public key");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success after: " + success);
+         
+         try {
+        	 if (mySignature != null) {
+	             mySignature.update(signedData);
+	             success = mySignature.verify(expectedSignature);
+        	 }
+         } catch (SignatureException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Failed signature verification");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success before: " + success);
+         
+         return success;
+
+    }
 
 }
