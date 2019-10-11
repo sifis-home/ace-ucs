@@ -47,7 +47,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.oscore.Utility;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -145,6 +144,13 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private Map<String, String>sid2kid;
 	
+	// M.T.
+	/**
+	 * Map a subject identity to the rsnonce possibly provided upon Token posting
+	 * This is relevant when joining an OSCORE Group, with the RS acting as Group Manager
+	 */
+	private Map<String, String> sid2rsnonce;
+	
 	/**
 	 * The scope validator
 	 */
@@ -226,6 +232,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
+	    this.sid2rsnonce = new HashMap<>(); // M.T.
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
 
@@ -323,13 +330,6 @@ public class TokenRepository implements AutoCloseable {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {
               OneKey key = new OneKey(ckey);
-              
-              if(key != null && key.get(KeyKeys.Octet_K).getType() == CBORType.ByteString && key.get(KeyKeys.KeyId) != null && key.get(KeyKeys.Octet_K) != null && cnf != null) {
-            	  System.out.println("Key ID bytes: " + Utility.arrayToString(key.get(KeyKeys.KeyId).GetByteString()));
-            	  System.out.println("Octet bytes: " + Utility.arrayToString(key.get(KeyKeys.Octet_K).GetByteString()));
-            	  System.out.println("CNF: " + cnf.ToJSONString());
-              }
-              
               processKey(key, sid, cti);
             } catch (CoseException e) {
                 LOGGER.severe("Error while parsing cnf element: " 
@@ -345,7 +345,6 @@ public class TokenRepository implements AutoCloseable {
               msg.decrypt(ctx.getKey());
               CBORObject keyData = CBORObject.DecodeFromBytes(msg.GetContent());
               OneKey key = new OneKey(keyData);
-
               processKey(key, sid, cti);
           } catch (CoseException e) {
               LOGGER.severe("Error while decrypting a cnf claim: "
@@ -427,7 +426,8 @@ public class TokenRepository implements AutoCloseable {
         this.kid2key.put(kid, key);
         if (sid != null) {
             this.sid2kid.put(sid, kid);
-        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2)) {
+        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
+        		   key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
             //Scandium needs a special mapping for raw public keys
             RawPublicKeyIdentity rpk 
                 = new RawPublicKeyIdentity(key.AsPublicKey());
@@ -697,6 +697,46 @@ public class TokenRepository implements AutoCloseable {
 	    LOGGER.finest("Key-Id for Subject-Id: " + sid + " not found");
 	    return null;
 	}
+
+	/**
+	 * Get the subject id by the kid.
+	 * 
+	 * @param   the kid this subject uses
+	 * 
+	 * @return  sid  the subject id
+	 */
+	public String getSid(String kid) {
+	    if (kid != null) {
+	    	for (String foo : this.sid2kid.keySet()) {
+    			if (this.sid2kid.get(foo).equals(kid)) {
+    				// TODO: REMOVE DEBUG PRINT
+    				// System.out.println("getSid() foo " + foo);
+    				return foo;
+    			}
+    		}
+	    }
+	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
+	    System.out.println("getSid() kid " + kid);
+	    for (String foo : this.sid2kid.keySet()) {
+	    	// TODO: REMOVE DEBUG PRINT
+			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
+		}
+	    return null;
+	}
+	
+	public synchronized void setRsnonce(String sid, String rsNonce) {
+		if (sid != null && rsNonce != null) {
+	        this.sid2rsnonce.put(sid, rsNonce);
+	    }
+	}
+	
+	public synchronized String getRsnonce(String sid) {
+		if (sid != null) {
+	        return this.sid2rsnonce.get(sid);
+	    }
+	    LOGGER.finest("rsnonce for Subject-Id: " + sid + " not found");
+	    return null;
+	}
 	
     @Override
     public synchronized void close() throws AceException {
@@ -748,19 +788,16 @@ public class TokenRepository implements AutoCloseable {
     public boolean checkScope(CBORObject scope, ArrayList<String> aud) throws AceException {
         return this.scopeValidator.isScopeMeaningful(scope, aud);
     }
-
+    
 	/**
 	 * Get the claims of a token identified by its 'cti'.
 	 * 
 	 * @param cti  the cti of the token Base64 encoded
 	 * 
 	 * @return  the claims of the token
-	 *  Add a comment to this line
 	 */
     public Map<Short, CBORObject> getClaims(String cti) {
-    	Map<Short, CBORObject> claims = new HashMap<>();
-    	claims = this.cti2claims.get(cti);
-    	return claims;
+    	return this.cti2claims.get(cti);
     }
 }
 
