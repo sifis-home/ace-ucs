@@ -43,9 +43,8 @@ import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.oscore.HashMapCtxDB;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -59,6 +58,7 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -68,6 +68,7 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissPDP;
@@ -104,9 +105,6 @@ public class TestOscoreAuthzInfo {
     public static void setUp() 
             throws SQLException, AceException, IOException, CoseException {
 
-    	//Rikard: Added this here to fix issue with setting default coap stack factory
-    	OSCoreCoapStackFactory.useAsDefault(); 
-    	
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
@@ -584,60 +582,6 @@ public class TestOscoreAuthzInfo {
     }
     
     /**
-     * Test contextId  != null
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailContextIdNotNull() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x07}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_CONTEXTID, "blah");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x07}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
-
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
-
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "contextId must be null in OSCORE security context");
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
-    }
-    
-    /**
      * Test kdf  != AlgorithmID
      * 
      * @throws IllegalStateException 
@@ -1078,7 +1022,7 @@ public class TestOscoreAuthzInfo {
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
-        HashMapCtxDB db = HashMapCtxDB.getInstance();
+        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         OSCoreCtx osctx = db.getContext(clientId);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
                 false, null, serverId, clientId, null, null, null, null);

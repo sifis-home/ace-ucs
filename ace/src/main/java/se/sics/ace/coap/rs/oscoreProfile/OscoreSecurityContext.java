@@ -1,3 +1,34 @@
+/*******************************************************************************
+ * Copyright (c) 2019, RISE AB
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without 
+ * modification, are permitted provided that the following conditions 
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright notice, 
+ *    this list of conditions and the following disclaimer.
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright notice, 
+ *    this list of conditions and the following disclaimer in the documentation 
+ *    and/or other materials provided with the distribution.
+ *
+ * 3. Neither the name of the copyright holder nor the names of its
+ *    contributors may be used to endorse or promote products derived from
+ *    this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS 
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT 
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR 
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT 
+ * HOLDER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, 
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT 
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, 
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY 
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT 
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE 
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ *******************************************************************************/
 package se.sics.ace.coap.rs.oscoreProfile;
 
 import java.util.logging.Logger;
@@ -42,6 +73,12 @@ public class OscoreSecurityContext {
      */
     private byte[] clientId;
     
+    
+    /**
+     * The context id, can be null
+     */
+    private byte[] contextId;
+    
     /**
      * The key derivation function, can be null for default: AES_CCM_16_64_128
      */
@@ -61,11 +98,6 @@ public class OscoreSecurityContext {
      * The replay window size
      */
     private Integer replaySize;
-    
-    /**
-     * The context id, can be null
-     */
-    private byte[] contextId;
     
     /**
      * Constructor.
@@ -103,14 +135,18 @@ public class OscoreSecurityContext {
                 throw new AceException(
                         "Malformed client Id in OSCORE security context");
             }
-            this.clientId= clientIdC.GetByteString(); 
+            this.clientId = clientIdC.GetByteString(); 
         }
                
         CBORObject ctxIdC = osc.get(Constants.OS_CONTEXTID);
         if (ctxIdC != null) {
-            LOGGER.info("Invalid parameter: contextID must be null");
-            throw new AceException( 
-                    "contextId must be null in OSCORE security context");
+            if (!ctxIdC.getType().equals(CBORType.ByteString)) {
+                LOGGER.info("Invalid parameter: 'contextID',"
+                        + "must be byte-array");
+                throw new AceException( 
+                        "Malformed context Id in OSCORE security context");
+            }
+            this.contextId = ctxIdC.GetByteString();
         }
 
         CBORObject kdfC = osc.get(Constants.OS_HKDF);
@@ -173,10 +209,11 @@ public class OscoreSecurityContext {
      * @return  an OSCORE context based on this object 
      * @throws OSException 
      */
-    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) throws OSException {
+    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) 
+            throws OSException {
         byte[] senderId;
         byte[] recipientId;
-        
+
         byte[] finalSalt;
         if (this.salt != null) {
             finalSalt = new byte[this.salt.length + n1.length + n2.length];
@@ -198,7 +235,8 @@ public class OscoreSecurityContext {
             recipientId = this.clientId;
         }
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
-                recipientId, this.hkdf, this.replaySize, finalSalt, this.contextId);
+                recipientId, this.hkdf, this.replaySize, finalSalt, 
+                this.contextId);
     }
     
     /**

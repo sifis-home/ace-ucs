@@ -53,7 +53,7 @@ public class OscoreCtxDbSingleton {
      */
     public static OSCoreCtxDB getInstance() {
         if (singleton == null) {
-            singleton = HashMapCtxDB.getInstance(); //Update to "new HashMapCtxDB()" later
+            singleton = HashMapCtxDB.getInstance();
         }
         return singleton;
     }

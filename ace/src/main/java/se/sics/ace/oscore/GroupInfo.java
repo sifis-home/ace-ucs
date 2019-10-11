@@ -70,13 +70,12 @@ public class GroupInfo {
 	private int maxGroupIdEpochValue;
 	private int groupIdEpoch;
 	
-	private AlgorithmID alg;
-	private AlgorithmID hkdf;
-	private AlgorithmID csAlg;
-	private CBORObject csParams;
-	private CBORObject csKeyParams;
-	private CBORObject csKeyEnc;
-	
+	private AlgorithmID alg = null;
+	private AlgorithmID hkdf = null;
+	private AlgorithmID csAlg = null;
+	private CBORObject csParams = null;
+	private CBORObject csKeyParams = null;
+	private CBORObject csKeyEnc = null;
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -92,7 +91,7 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF used in the OSCORE group.
 	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
 	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyParams         the parameters of the key for countersignature algorithm used in the OSCORE group.
+	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
 	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
 	 */
     public GroupInfo(final byte[] masterSecret,
@@ -431,31 +430,31 @@ public class GroupInfo {
     	
     }
     
-	/**
-	 * @return encoding of the key of the countersignature algorithm 
-	 *      used in the group
-	 */
-	synchronized public final CBORObject getCsKeyEnc() {
-		
-		return this.csKeyEnc;
-		
-	}
-	
-	/**
-	 *  Set the encoding of the key of the countersignature algorithm used
-	 *   in the group
-	 * @param csKeyEnc  the encoding
-	 * @return  true if the encoding was successfully set, false otherwise
-	 */
-	synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
-		
-		if (csKeyEnc.getType() != CBORType.Number)
-			return false;
-		
-		this.csKeyEnc = csKeyEnc;
-		return true;
-		
-	}
+    /**
+     * @return encoding of the key of the countersignature algorithm 
+     *      used in the group
+     */
+    synchronized public final CBORObject getCsKeyEnc() {
+    	
+    	return this.csKeyEnc;
+    	
+    }
+    
+    /**
+     *  Set the encoding of the key of the countersignature algorithm used
+     *   in the group
+     * @param csKeyEnc  the encoding
+     * @return  true if the encoding was successfully set, false otherwise
+     */
+    synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
+    	
+    	if (csKeyEnc.getType() != CBORType.Number)
+    		return false;
+    	
+    	this.csKeyEnc = csKeyEnc;
+    	return true;
+    	
+    }
 
     /**
      * Find the first available Sender ID value and allocate it.

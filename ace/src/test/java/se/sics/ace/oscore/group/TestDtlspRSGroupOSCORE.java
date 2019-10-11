@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright (c) 2018, RISE SICS AB
+ * Copyright (c) 2019, RISE AB
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without 
@@ -34,7 +34,12 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.AlgorithmParameterGeneratorSpi;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PublicKey;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -47,6 +52,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -55,6 +61,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -62,7 +69,6 @@ import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.KeySet;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.AceException;
@@ -76,10 +82,12 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.oscore.rs.Util;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
 
@@ -96,17 +104,13 @@ public class TestDtlspRSGroupOSCORE {
 	
 	//Name of the AS (this RS will accept token from this issuer)
 	private static String AS_NAME = "AS";
-
-	//Shared symmetric key between AS and RS
-    static byte[] AsRsKey 
-        = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
+		
 	//Sets the secure and unsecure port to use
 	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT;
 
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
-
+	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
 	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
 	
@@ -165,8 +169,8 @@ public class TestDtlspRSGroupOSCORE {
      * Definition of the Group OSCORE Join Resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-
-		/**
+        
+        /**
          * Constructor
          * @param resId  the resource identifier
          */
@@ -181,14 +185,38 @@ public class TestDtlspRSGroupOSCORE {
 
         @Override
         public void handlePOST(CoapExchange exchange) {
-            
+        	
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
+        	String subject;
+        	Request request = exchange.advanced().getCurrentRequest();
+            if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
+                //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+                if (exchange.advanced().getCryptographicContextID()!= null) {                
+                    subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);    
+                } else {
+                	// At this point, this should not really happen, due to the earlier check at the Token Repository
+                	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+	  				return;
+                }
+            } else  {
+                subject = request.getSourceContext().getPeerIdentity().getName();
+            }
+            // TODO: REMOVE DEBUG PRINT
+            // System.out.println("xxx @GM sid " + subject);
+            // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));
+            
+            String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
+            
+            // TODO: REMOVE DEBUG PRINT
+            // System.out.println("xxx @GM rsnonce " + rsNonceString);
+                        
+            byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
+            
         	byte[] requestPayload = exchange.getRequestPayload();
-        	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
-        	
+            
         	if (!joinRequest.getType().equals(CBORType.Map))
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
         		
@@ -210,6 +238,7 @@ public class TestDtlspRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
         		return;
         	}
+
         	if (!scope.getType().equals(CBORType.ByteString)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
         		return;
@@ -234,7 +263,7 @@ public class TestDtlspRSGroupOSCORE {
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
       	  		scopeStr = scopeElement.AsString();
 
-      	  		if (!scopeStr.equals(this.getName())) {
+          	  	if (!scopeStr.equals(this.getName())) {
 	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
 	  				return;
 	  			}      	  		
@@ -287,7 +316,7 @@ public class TestDtlspRSGroupOSCORE {
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
         	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
         	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
+        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
         	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
@@ -302,6 +331,8 @@ public class TestDtlspRSGroupOSCORE {
         	
         	if (clientCred == null) {
         	
+        		// TODO: check if the client if joining the group only with the "Monitor" role.
+        		
         		// TODO: check if the Group Manager already owns this client's public key, otherwise reply with 4.00
         		
         	}
@@ -327,7 +358,7 @@ public class TestDtlspRSGroupOSCORE {
         		try {
         			publicKey = new OneKey(coseKey);
 				} catch (CoseException e) {
-					System.err.println(e.getMessage());
+				    System.err.println(e.getMessage());
 					myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
             		return;
@@ -341,7 +372,7 @@ public class TestDtlspRSGroupOSCORE {
         		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
         			
         			if (!publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve)))) {
+        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve.AsCBOR())))) {
         				
                 			myGroup.deallocateSenderId(senderId);
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
@@ -352,19 +383,84 @@ public class TestDtlspRSGroupOSCORE {
         		
         		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve))) ||
-           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType))) ||
-        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve)))) {
-
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR()))) ||
+        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR())))) {
+        				
                 			myGroup.deallocateSenderId(senderId);
-
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
                 			return;
                 		
         			}
         				
         		}
-        				
+        		
+        		// Retrieve the proof-of-possession nonce and signature from the Client
+        		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
+            	
+            	if (cnonce == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client nonce must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client nonce must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawCnonce = cnonce.GetByteString();
+        		
+        		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
+            	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+            	
+            	if (clientSignature == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client signature must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client signature must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawClientSignature = clientSignature.GetByteString();
+        		
+            	PublicKey pubKey = null;
+                try {
+					pubKey = publicKey.AsPublicKey();
+				} catch (CoseException e) {
+					System.out.println(e.getMessage());
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+				}
+                if (pubKey == null) {
+                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+                }
+                
+            	byte[] dataToSign = new byte [rsnonce.length + rawCnonce.length];
+           	    System.arraycopy(rsnonce, 0, dataToSign, 0, rsnonce.length);
+           	    System.arraycopy(rawCnonce, 0, dataToSign, rsnonce.length, rawCnonce.length);
+           	    
+           	    int countersignKeyCurve = 0;
+           	    
+           	    if (publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2))
+					countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+           	    else if (publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP))
+					countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+           	    
+           	    // This should never happen, due to the previous sanity checks
+           	    if (countersignKeyCurve == 0) {
+           	    	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+            		return;
+           	    }
+           	    
+           	    if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid Client's PoP signature");
+            		return;
+           	    }
+            	
+            	
             	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
@@ -390,19 +486,19 @@ public class TestDtlspRSGroupOSCORE {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
+        	myMap.Add(OSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
+        	myMap.Add(OSCORESecurityContextObjectParameters.clientId, senderId);
+        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
+        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
         	if (myGroup.getCsKeyParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
-        	
+        	        	
         	joinResponse.Add(Constants.KEY, myMap);
         	
         	// If backward security has to be preserved:
@@ -413,7 +509,7 @@ public class TestDtlspRSGroupOSCORE {
         	// 2) The OSCORE group should be rekeyed
 
         	
-        	// CBOR Value assigned to the coap_group_oscore profile.
+        	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
         	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
         	
@@ -480,14 +576,14 @@ public class TestDtlspRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        //Install needed cryptography providers
+        // install needed cryptography providers
         org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
-        
+    	
         //Set another name for the AS if the main method was launched from a JUnit test
         if(args == null) {
         	AS_NAME = "TestAS";
         }
-
+    	
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -589,20 +685,30 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg;
-        Map<KeyKeys, CBORObject> csParamsMap = new HashMap<>();
-        Map<KeyKeys, CBORObject> csKeyParamsMap = new HashMap<>();
+        AlgorithmID csAlg = null;
+        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
+        
+        // Uncomment to set ECDSA with curve P-256 for countersignatures
+        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        
+        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
         
         // ECDSA_256
-        //csAlg = AlgorithmID.ECDSA_256;
-        //csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_EC2);        
-        //csKeyParamsMap.put(KeyKeys.EC2_Curve, KeyKeys.EC2_P256);
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlg = AlgorithmID.ECDSA_256;
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
         
         // EDDSA (Ed25519)
-        csAlg = AlgorithmID.EDDSA;
-        csParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
-        csKeyParamsMap.put(KeyKeys.KeyType, KeyKeys.KeyType_OKP);
-        csKeyParamsMap.put(KeyKeys.OKP_Curve, KeyKeys.OKP_Ed25519);
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlg = AlgorithmID.EDDSA;
+        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
 
         final CBORObject csParams = CBORObject.FromObject(csParamsMap);
         final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
@@ -632,10 +738,17 @@ public class TestDtlspRSGroupOSCORE {
     	byte[] mySid;
     	OneKey myKey;
     	
-    	/*
-    	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)
     	
-    	OneKey testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	/*
+    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
+        
+        OneKey testKey = null;
+ 		
+ 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
         
     	byte[] testKeyBytes = testKey.EncodeToBytes();
     	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
@@ -647,15 +760,21 @@ public class TestDtlspRSGroupOSCORE {
     	System.out.println(testPublicKeyBytesBase64);
     	*/
     	
+    	
     	// Add a group member with Sender ID 0x52
     	mySid = new byte[] { (byte) 0x52 };
     	myGroup.allocateSenderId(mySid);	
     	
+    	String rpkStr1 = "";
+    	
     	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
-    	//String rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
-    	  	
-    	// Store the public key of the group member with Sender ID 0x52 (EDDSA)
-    	String rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
@@ -667,11 +786,16 @@ public class TestDtlspRSGroupOSCORE {
     	mySid = new byte[] { (byte) 0x77 };
     	myGroup.allocateSenderId(mySid);
     	
-    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
-    	//String rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	String rpkStr2 = "";
     	
-    	// Store the public key of the group member with Sender ID 0x77 (EDDSA)
-    	String rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
+    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+    	
+    	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
+    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
@@ -682,11 +806,14 @@ public class TestDtlspRSGroupOSCORE {
     	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
     	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
-
+    	
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
     	new File(tokenFile).delete();
-    	      
+              
+        byte[] key128a 
+            = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+      
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
                 Base64.getDecoder().decode(rpk)));
         
@@ -694,17 +821,18 @@ public class TestDtlspRSGroupOSCORE {
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(AsRsKey, coseP.getAlg().AsCBOR());
+            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
         
-        //Set up the inner Authz-Info library
-//        ai = new AuthzInfoGroupOSCORE(Collections.singletonList(AS_NAME), 
-//        	 new KissTime(), 
-//             null,
-//             valid, tokenFile, valid, ctx);
-        
+        // Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList(AS_NAME), 
-           	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
+        	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
+        
+        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
+        ai.setGroupIdPrefixSize(groupIdPrefixSize);
+        
+        // Provide the authz-info endpoint with the set of active OSCORE groups
+        ai.setActiveGroups(activeGroups);
       
         // M.T.
         // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
@@ -842,40 +970,9 @@ public class TestDtlspRSGroupOSCORE {
   	    rs.setMessageDeliverer(dpd);
   	    rs.start();
   	    System.out.println("Resource Server (GM) starting on port " + aiep.getAddress().getPort() +
-  	    	    " and " + cep.getAddress().getPort() + " (DTLS)");
+                " and " + cep.getAddress().getPort() + " (DTLS)");
     }
-    
-    /**
-     * @param str  the hex string
-     * @return  the byte array
-     * @str   the hexadecimal string to be converted into a byte array
-     * 
-     * Return the byte array representation of the original string
-     */
-    public static byte[] hexStringToByteArray(final String str) {
-        int len = str.length();
-        byte[] data = new byte[len / 2];
-        
-    	// Big-endian
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(i), 16) << 4) +
-                                   Character.digit(str.charAt(i+1), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        
-    	// Little-endian
-        /*
-        for (int i = 0; i < len; i += 2) {
-            data[i / 2] = (byte) ((Character.digit(str.charAt(len - 2 - i), 16) << 4) +
-                                   Character.digit(str.charAt(len - 1 - i), 16));
-            data[i / 2] = (byte) (data[i / 2] & 0xFF);
-        }
-        */
-        
-        return data;
-        
-    }
-    
+
     /**
      * Stops the server
      * 
@@ -888,5 +985,61 @@ public class TestDtlspRSGroupOSCORE {
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
+    
+    public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
+
+    	Signature mySignature = null;
+    	boolean success = false;
+    	
+        try {
+      	   if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
+      	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+       			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+     	   else {
+     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+     		  Assert.fail("Unsupported signature algorithm");
+     	   }
+             
+         }
+         catch (NoSuchAlgorithmException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsupported signature algorithm");
+         }
+         catch (NoSuchProviderException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsopported security provider for signature computing");
+         }
+         
+         try {
+             if (mySignature != null)
+                 mySignature.initVerify(pubKey);
+             else
+                 Assert.fail("Signature algorithm has not been initialized");
+         }
+         catch (InvalidKeyException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Invalid key excpetion - Invalid public key");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success after: " + success);
+         
+         try {
+        	 if (mySignature != null) {
+	             mySignature.update(signedData);
+	             success = mySignature.verify(expectedSignature);
+        	 }
+         } catch (SignatureException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Failed signature verification");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success before: " + success);
+         
+         return success;
+
+    }
 
 }

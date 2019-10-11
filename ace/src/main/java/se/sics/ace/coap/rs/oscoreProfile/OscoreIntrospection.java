@@ -41,15 +41,17 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.CoseException;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.rs.IntrospectionException;
@@ -90,11 +92,14 @@ public class OscoreIntrospection implements IntrospectionHandler {
      */
     public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress) 
             throws CoseException, IOException, OSException {
-        OSCoreCoapStackFactory.useAsDefault();
-        HashMapCtxDB db = HashMapCtxDB.getInstance();
+    	
+        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         db.addContext(ctx);
         db.addContext(introspectAddress, ctx);
         this.client = new CoapClient(introspectAddress);
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
+        ceb.setCoapStackFactory(new OSCoreCoapStackFactory());
+        this.client.setEndpoint(ceb.build());
     }
       
     @Override

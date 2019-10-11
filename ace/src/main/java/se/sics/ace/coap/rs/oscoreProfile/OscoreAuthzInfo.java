@@ -38,7 +38,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 
@@ -141,7 +140,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return reply;
         }
         
-        if (this.cnf == null) {//Should never happen, caught in TokenRepository.
+        if (this.cnf == null) {//Should never happen, caught in TokenRepository
             LOGGER.info("Missing required parameter 'cnf'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -161,10 +160,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         byte[] n1 = nonce.GetByteString();
         byte[] n2 = new byte[8];
         new SecureRandom().nextBytes(n2);
-        //Generation of nonce n2
-//        byte[] newNonce = new byte[] { 0x11, 0x22, 0x33, 0x44, 0x55, 0x66 };
-//        n2 = newNonce;
-        
+   
         OscoreSecurityContext osc;
         try {
             osc = new OscoreSecurityContext(this.cnf);
@@ -178,8 +174,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         OSCoreCtx ctx;
         try {
             ctx = osc.getContext(false, n1, n2);
-            HashMapCtxDB db = HashMapCtxDB.getInstance();
-            db.addContext(ctx);
+            OscoreCtxDbSingleton.getInstance().addContext(ctx);
         } catch (OSException e) {
             LOGGER.info("Error while creating OSCORE context: " 
                     + e.getMessage());

@@ -57,7 +57,7 @@ import se.sics.ace.rs.TokenRepository;
  * A store for Pre-Shared-Keys (PSK) at the RS.
  * 
  * Implements the retrieval of the access token as defined in section 4.1. of 
- * draft-gerdes-ace-dtls-authorize.
+ * draft-ietf-ace-dtls-authorize.
  * 
  * @author Ludwig Seitz and Marco Tiloca
  *

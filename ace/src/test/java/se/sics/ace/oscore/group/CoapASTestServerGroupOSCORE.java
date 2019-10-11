@@ -42,18 +42,14 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 
-import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
-import se.sics.ace.TimeProvider;
 import se.sics.ace.as.AccessTokenFactory;
-import se.sics.ace.as.PDP;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.DtlsAS;
 import se.sics.ace.examples.KissTime;
@@ -70,12 +66,12 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  */
 public class CoapASTestServerGroupOSCORE
 {
-	//Name of the AS (the AS will use this as the issuer of a Token)
-	private static final String AS_NAME = "AS";
+    //Name of the AS (the AS will use this as the issuer of a Token)
+    private static final String AS_NAME = "AS";
 
-	//Sets the secure port to use
-	private static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
-
+    //Sets the secure port to use
+    private static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
+	
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
@@ -95,11 +91,11 @@ public class CoapASTestServerGroupOSCORE
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-    	//If the input argument is null use the default secure port
-    	//This will allow the JUnit tests to work since they call main with null
+        //If the input argument is null use the default secure port
+        //This will allow the JUnit tests to work since they call main with null
     	if(args == null) {
-    		SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
-    	}
+                SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
+        }
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
@@ -299,8 +295,8 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-
-
+        
+        
         cti = Base64.getEncoder().encodeToString(new byte[]{0x02});
         claims = new HashMap<>();
         
@@ -318,7 +314,7 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-
+        
         
         cti = Base64.getEncoder().encodeToString(new byte[]{0x03});
         claims = new HashMap<>();
@@ -383,7 +379,8 @@ public class CoapASTestServerGroupOSCORE
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti, claims);
         db.addCti2Client(cti, "clientF");
-
+        
+        
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new GroupOSCOREJoinPDP(db);
         
@@ -427,7 +424,6 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientB", "rs4", "rw_valve");
         pdp.addAccess("clientB", "rs4", "r_pressure");
         pdp.addAccess("clientB", "rs4", "failTokenType");
-        pdp.addAccess("clientB", "rs4", "failProfile");
         pdp.addAccess("clientB", "rs6", "co2");
         pdp.addAccess("clientB", "rs7", "co2");
         
@@ -448,10 +444,6 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
-        pdp.addAccess("clientE", "rs4", "rw_valve");
-        pdp.addAccess("clientE", "rs4", "r_pressure");
-        pdp.addAccess("clientE", "rs4", "failTokenType");
-        pdp.addAccess("clientE", "rs4", "failProfile");
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
@@ -466,7 +458,7 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs4", "feedca570000_requester_monitor");
         //Rikard: Name that clientF will have getSenderId() in Token when using RPK:
         // ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w
-
+        
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
         // This client is allowed to be only requester.
@@ -485,8 +477,7 @@ public class CoapASTestServerGroupOSCORE
         Set<String> rs4 = Collections.singleton("rs4");
         pdp.addOSCOREGroupManagers("rs4", rs4);
         
-        
-        //as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        //as = new DtlsAS(AS_NAME, db, pdp, time, asymmKey);
         as = new DtlsAS(AS_NAME, db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);
         as.start();
         System.out.println("AS Server starting on port " + SECURE_PORT  + " (DTLS)");

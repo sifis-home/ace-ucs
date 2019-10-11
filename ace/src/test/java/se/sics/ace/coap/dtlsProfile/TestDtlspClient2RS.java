@@ -289,7 +289,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    //@Ignore
     public void testPostRPK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException,
             IOException {
@@ -433,6 +432,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);

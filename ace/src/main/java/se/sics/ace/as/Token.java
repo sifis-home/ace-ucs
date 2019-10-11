@@ -48,7 +48,6 @@ import javax.crypto.SecretKey;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.oscore.Utility;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -505,9 +504,6 @@ public class Token implements Endpoint, AutoCloseable {
 		Map<Short, CBORObject> claims = new HashMap<>();
 		
 		//ISS SUB AUD EXP NBF IAT CTI SCOPE CNF RS_CNF PROFILE EXI
-		if(this.asId != null) {
-			System.out.println("AS: Setting ISS: " + this.asId);
-		}
         for (Short c : this.claims) {
 		    switch (c) {
 		    case Constants.ISS:
@@ -628,7 +624,6 @@ public class Token implements Endpoint, AutoCloseable {
                             CBORObject coseKey = CBORObject.NewMap();
                             coseKey.Add(Constants.COSE_KEY, psk.AsCBOR());
                             claims.put(Constants.CNF, coseKey);
-                            System.out.println("COSE Key " + coseKey.ToJSONString());
                         }
                     } catch (NoSuchAlgorithmException | CoseException e) {
                         this.cti--; //roll-back
@@ -830,20 +825,6 @@ public class Token implements Endpoint, AutoCloseable {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
 		}
 
-		if(token != null && token instanceof CWT) {
-			CWT cwtX = null;
-			try {
-				cwtX = (CWT)token;
-			} catch (Exception e) {
-				System.out.println("Failed to cast Token to CWT (just for debug statements).");
-			}
-			if(cwtX != null && cwtX.getClaim(Constants.CNF) != null) {
-				System.out.println("AS: Token CNF: " + cwtX.getClaim(Constants.CNF).ToJSONString());
-				System.out.println("AS: Token full: " + cwtX.toString());
-				//System.out.println("AS: COSE Key: " + cwtX.getClaim(Constants.COSE_KEY).ToJSONString());
-        		//System.out.println("CNF: " + cnfFromAS.ToJSONString());
-			}
-		}
 		if (token instanceof CWT) {
 
 		    CwtCryptoCtx ctx = null;
