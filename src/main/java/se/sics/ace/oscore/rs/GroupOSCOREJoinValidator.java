@@ -240,6 +240,8 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
         boolean isJoinResource = false;
     	boolean scopeMustBeBinary = false;
+    	
+    	System.out.println(resourceId);
     	if (this.myJoinResources.contains(resourceId))
     		isJoinResource = true;
     	
