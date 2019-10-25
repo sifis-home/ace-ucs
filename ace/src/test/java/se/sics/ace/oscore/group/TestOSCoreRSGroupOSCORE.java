@@ -1,7 +1,13 @@
 package se.sics.ace.oscore.group;
 
 import java.io.File;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +25,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -42,6 +49,7 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
 
 /**
@@ -173,7 +181,9 @@ public class TestOSCoreRSGroupOSCORE {
         }
     }
     
-    private static OscoreAuthzInfo ai = null;
+    //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCRE
+    //private static OscoreAuthzInfo ai = null;
+    private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
     
@@ -198,12 +208,12 @@ public class TestOSCoreRSGroupOSCORE {
     	OSCoreCtx ctxOSCore = new OSCoreCtx(master_secret, false, alg, sid, rid, kdf, 32, master_salt, null);
 		db.addContext(uriLocal, ctxOSCore);
     	
-    	OneKey privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(publicKeyStr)));
-    	OneKey publicKey = privateKey.PublicKey();
+    	//OneKey privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(publicKeyStr)));
+    	//OneKey publicKey = privateKey.PublicKey();
     	
     	  	
     	OSCoreCoapStackFactory.useAsDefault();
-
+ 
     	
       //Set up token repository
         Set<Short> actions = new HashSet<>();
@@ -324,17 +334,24 @@ public class TestOSCoreRSGroupOSCORE {
 //                publicKey, coseP.getAlg().AsCBOR());
         
         
-        CwtCryptoCtx ctx_sign = CwtCryptoCtx.sign1Create(
-                privateKey, coseP.getAlg().AsCBOR());
+//        CwtCryptoCtx ctx_sign = CwtCryptoCtx.sign1Create(
+//                privateKey, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
         new File(tokenFile).delete();
         
       //Set up the inner Authz-Info library
-      ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
+      //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCORE
+      ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx,
                 tokenFile, valid, false);
+      
+      // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
+      ai.setGroupIdPrefixSize(groupIdPrefixSize);
+      
+      // Provide the authz-info endpoint with the set of active OSCORE groups
+      ai.setActiveGroups(activeGroups);
       
       //Add a test token to authz-info
       byte[] key128
@@ -466,7 +483,6 @@ public class TestOSCoreRSGroupOSCORE {
         ai.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
-    
 
     // M.T.
     /**
@@ -933,5 +949,59 @@ public class TestOSCoreRSGroupOSCORE {
     	
     }
 
+    public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
+        Signature mySignature = null;
+        boolean success = false;
+        
+        try {
+           if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+                    mySignature = Signature.getInstance("SHA256withECDSA");
+           else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+                mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+           else {
+               // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+              Assert.fail("Unsupported signature algorithm");
+           }
+             
+         }
+         catch (NoSuchAlgorithmException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsupported signature algorithm");
+         }
+         catch (NoSuchProviderException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Unsopported security provider for signature computing");
+         }
+         
+         try {
+             if (mySignature != null)
+                 mySignature.initVerify(pubKey);
+             else
+                 Assert.fail("Signature algorithm has not been initialized");
+         }
+         catch (InvalidKeyException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Invalid key excpetion - Invalid public key");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success after: " + success);
+         
+         try {
+             if (mySignature != null) {
+                 mySignature.update(signedData);
+                 success = mySignature.verify(expectedSignature);
+             }
+         } catch (SignatureException e) {
+             System.out.println(e.getMessage());
+             Assert.fail("Failed signature verification");
+         }
+         
+         // TODO: REMOVE DEBUG PRINT
+         // System.out.println("success before: " + success);
+         
+         return success;
+
+    }
 }

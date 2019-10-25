@@ -176,7 +176,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		}
     		else invalid = true;
     	}
-    	invalid = false; //FIXME
+
     	if (invalid) {
             LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
             CBORObject map = CBORObject.NewMap();
