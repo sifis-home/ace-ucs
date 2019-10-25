@@ -328,7 +328,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
-        	
+    	    
 		    if (provideSignInfo) {
 		    	
 		    	CBORObject signInfo = CBORObject.NewArray();

@@ -165,8 +165,6 @@ public class TestOscorepRSGroupOSCORE {
         }
     }
     
-    //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCRE
-    //private static OscoreAuthzInfo ai = null;
     private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
