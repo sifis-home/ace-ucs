@@ -38,11 +38,9 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
-import se.sics.ace.oscore.group.AltTestOSCoreRSGroupOSCORE.GroupOSCOREJoinResource;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.rs.AsRequestCreationHints;
 
@@ -205,9 +203,7 @@ public class TestOSCoreRSGroupOSCORE {
     	
     	  	
     	OSCoreCoapStackFactory.useAsDefault();
-    	
-    	//Install needed cryptography providers
-        org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+
     	
       //Set up token repository
         Set<Short> actions = new HashSet<>();
