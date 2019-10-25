@@ -318,8 +318,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPAIGOSR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -327,17 +327,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+        // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -628,8 +668,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPAIGOMR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -637,17 +677,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+     // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1050,8 +1130,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPostRPKGOSR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -1059,17 +1139,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+     // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1362,8 +1482,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPostRPKGOMR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -1371,17 +1491,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+     // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1916,8 +2076,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPostPSKGOSR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -1925,17 +2085,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+     // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(
@@ -2240,8 +2440,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertArrayEquals("tokenPostPSKGOMR".getBytes(Constants.charset), 
                 cti.GetByteString());
         
-        CBORObject signInfo;
-        CBORObject pubKeyEnc;
+        CBORObject signInfo = null;
+        CBORObject pubKeyEnc = null;
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
@@ -2249,17 +2449,57 @@ public class TestDtlspClientGroupOSCORE {
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
         byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
         
+     // Group OSCORE specific values for the countersignature
+        CBORObject csAlgExpected = null;
+        Map<CBORObject, CBORObject> csParamsMapExpected = new HashMap<>();
+        Map<CBORObject, CBORObject> csKeyParamsMapExpected = new HashMap<>();
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
+        	csKeyParamsMapExpected.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	csParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	csKeyParamsMapExpected.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+        	csKeyParamsMapExpected.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        }
+
+        final CBORObject csParamsExpected = CBORObject.FromObject(csParamsMapExpected);
+        final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
+        final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
         if (askForSignInfo) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
         	signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoRes = CBORObject.NewArray();
+	    	if (csAlgExpected == null)
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csAlgExpected);
+	    	if (csParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	else
+	    		signInfoRes.Add(csParamsExpected);
+	    	if (csKeyParamsMapExpected.isEmpty())
+	    		signInfoRes.Add(CBORObject.Null);
+	    	signInfoRes.Add(csKeyParamsExpected);
+
+        	Assert.assertEquals(signInfo, signInfoRes);
         }
         
         if (askForPubKeyEnc) {
             Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
             Assert.assertEquals(CBORType.Number, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
         	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
+        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(
