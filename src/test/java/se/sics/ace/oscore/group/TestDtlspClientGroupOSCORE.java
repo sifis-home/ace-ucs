@@ -2907,8 +2907,5 @@ public class TestDtlspClientGroupOSCORE {
         return clientSignature;
         
     }
-
     
 }
-
-

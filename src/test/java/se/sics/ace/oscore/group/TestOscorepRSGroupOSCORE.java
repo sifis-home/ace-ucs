@@ -22,6 +22,7 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -56,6 +57,7 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * A RS for testing the OSCORE profile of ACE (https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile)
@@ -381,6 +383,31 @@ public class TestOscorepRSGroupOSCORE {
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
+        	String subject;
+        	Request request = exchange.advanced().getCurrentRequest();
+            if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
+                //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+                if (exchange.advanced().getCryptographicContextID()!= null) {                
+                    subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);    
+                } else {
+                	// At this point, this should not really happen, due to the earlier check at the Token Repository
+                	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+	  				return;
+                }
+            } else  {
+                subject = request.getSourceContext().getPeerIdentity().getName();
+            }
+            // TODO: REMOVE DEBUG PRINT
+            // System.out.println("xxx @GM sid " + subject);
+            // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));
+            
+            String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
+            
+            // TODO: REMOVE DEBUG PRINT
+            // System.out.println("xxx @GM rsnonce " + rsNonceString);
+                        
+            byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
+        	
         	byte[] requestPayload = exchange.getRequestPayload();
         	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
@@ -565,7 +592,72 @@ public class TestOscorepRSGroupOSCORE {
         			}
         				
         		}
-        				
+        		
+        		// Retrieve the proof-of-possession nonce and signature from the Client
+        		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
+            	
+            	if (cnonce == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client nonce must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client nonce must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawCnonce = cnonce.GetByteString();
+        		
+        		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
+            	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+            	
+            	if (clientSignature == null) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client signature must be included for proof-of-possession for joining OSCORE groups");
+            		return;
+            	}
+
+            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client signature must be wrapped in a binary string for joining OSCORE groups");
+            		return;
+                }
+            	
+            	byte[] rawClientSignature = clientSignature.GetByteString();
+        		
+            	PublicKey pubKey = null;
+                try {
+					pubKey = publicKey.AsPublicKey();
+				} catch (CoseException e) {
+					System.out.println(e.getMessage());
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+				}
+                if (pubKey == null) {
+                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+            		return;
+                }
+                
+            	byte[] dataToSign = new byte [rsnonce.length + rawCnonce.length];
+           	    System.arraycopy(rsnonce, 0, dataToSign, 0, rsnonce.length);
+           	    System.arraycopy(rawCnonce, 0, dataToSign, rsnonce.length, rawCnonce.length);
+           	    
+           	    int countersignKeyCurve = 0;
+           	    
+           	    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+					countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+           	    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+					countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+           	    
+           	    // This should never happen, due to the previous sanity checks
+           	    if (countersignKeyCurve == 0) {
+           	    	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+            		return;
+           	    }
+           	    
+           	    if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid Client's PoP signature");
+            		return;
+           	    }
+        		
             	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
