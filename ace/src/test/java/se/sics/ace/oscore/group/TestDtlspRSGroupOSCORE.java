@@ -865,7 +865,6 @@ public class TestDtlspRSGroupOSCORE {
         CWT token = new CWT(params);
         ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
-      
         // M.T.
         // Add a token to enable access to a join resource,
         // for joining an OSCORE group with a single role
@@ -896,10 +895,10 @@ public class TestDtlspRSGroupOSCORE {
   	    params2.put(Constants.CNF, cnf2);
   	    CWT token2 = new CWT(params2);
   	    ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
-      
-      
+
+  	    /*
   	    // M.T.
-  	    // Add a token to enable access to a join resource,
+  	    // Testing addition of tokens to enable access to a join resource,
   	    // for joining an OSCORE group with multiple roles
   	    Map<Short, CBORObject> params3 = new HashMap<>();
   	    String role2 = new String("responder");
@@ -930,7 +929,7 @@ public class TestDtlspRSGroupOSCORE {
   	    params3.put(Constants.CNF, cnf3);
   	    CWT token3 = new CWT(params3);
   	    ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
-      
+        */
       
   	    AsRequestCreationHints asi 
   	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);

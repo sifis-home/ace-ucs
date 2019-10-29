@@ -55,8 +55,6 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
-import se.sics.ace.oscore.rs.Util;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -71,7 +69,7 @@ import se.sics.ace.rs.TokenRepository;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
@@ -91,7 +89,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * Handles audience validation
 	 */
 	private GroupOSCOREJoinValidator audience;
-	
+    
 	private int groupIdPrefixSize; // Same for all the OSCORE Group of the Group Manager
 
     /**
@@ -124,11 +122,13 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;
+		
 	}
 
 	@Override
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
+	    CBORObject token = null;
 	    CBORObject cbor = null;
 	    boolean provideSignInfo = false;
 	    boolean providePubKeyEnc = false;
@@ -152,8 +152,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
-        CBORObject token = cbor.get(
-                CBORObject.FromObject(Constants.ACCESS_TOKEN));
+        token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
             LOGGER.info("Missing manadory paramter 'access_token'");
             CBORObject map = CBORObject.NewMap();
@@ -176,8 +175,8 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		}
     		else invalid = true;
     	}
-
-    	if (invalid) {
+    	
+        if (invalid) {
             LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -239,6 +238,8 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.CNONCE, n2);
+        
+        
         
         //Return the cti or the local identifier assigned to the token
 	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
@@ -327,7 +328,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
-        	
+    	    
 		    if (provideSignInfo) {
 		    	
 		    	CBORObject signInfo = CBORObject.NewArray();
@@ -358,14 +359,10 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		
     	}
         
-        // Adding new things for OSCORE profile
-        
-        
-        
         LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);
 	}
-	
+
 	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
 	}
@@ -373,7 +370,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	public synchronized void setGroupIdPrefixSize (int groupIdPrefixSize) {
 		this.groupIdPrefixSize = groupIdPrefixSize;
 	}
-
+	
 	@Override
 	protected synchronized void processOther(Map<Short, CBORObject> claims) {
 	    this.cnf = claims.get(Constants.CNF);

@@ -76,35 +76,11 @@ Security protocol: OSCORE
 CWT protection: RPK
 
 
-#Pair 5
-
-*Client->GM Application (OSCORE) (old):
-
-Older code starting from DTLS-base. Works but only when using bypass method.
-
-Name: AltTestOSCoreRSGroupOSCORE
-Security protocol: OSCORE
-CWT protection: PSK
-Run with: OSCoreClientGroupOSCORE
-
-*GM Application (OSCORE) (old):
-
-Older code starting from DTLS-base. Works but only when using bypass method.
-Used as client with Peter during Hackathon. This was used because it does not use
-the actual OSCORE profile but OSCORE with hard-coded context values.
-
-Note: Very good to use for testing with the TestOSCoreRSGroupOSCORE,
-it can do connections using a hard-coded OSCORE context without posting a Token.
-They should also be configured with the same context and just work.
-
-Name: AltOSCoreClientGroupOSCORE
-Security protocol: OSCORE
-CWT protection: PSK
-
-
 TODO:
-Add parameters to Token post & response
- Depending on if scope is a byte string or not
+Update this file after all the recent changes
+
+Add parameters to Token post & response X
+ Depending on if scope is a byte string or not X
 
 Change values & labels in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.) X
  Done X
@@ -120,7 +96,7 @@ Make pub_keys label into integer instead of string X
 
 Lower priority:
 Full procedure using OSCORE profile (OSCORE from Client AS and Client RS)
-Create some JUnit tests based on the OSCORE profile examples
+Create some JUnit tests based on the OSCORE profile examples X
 Check if "type" parameter is implemented in join request
 RPK handshake for DTLS full procedure
 
