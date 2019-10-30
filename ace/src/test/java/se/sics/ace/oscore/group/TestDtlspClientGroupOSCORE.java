@@ -3188,16 +3188,16 @@ public class TestDtlspClientGroupOSCORE {
 
         //Now derive the actual context
 
-        GroupOSCoreCtx ctx = null;
+        GroupOSCoreCtx groupOscoreCtx = null;
         try {
-            ctx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, rpl, 
+            groupOscoreCtx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, rpl, 
                     master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
         } catch (OSException e) {
             System.err.println("Failed to derive Group OSCORE Context!");
             e.printStackTrace();
         }
 
-        Assert.assertNotNull(ctx);
+        Assert.assertNotNull(groupOscoreCtx);
 
         //Finally add the recipient contexts from the coseKeySetArray
         for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
@@ -3212,11 +3212,11 @@ public class TestDtlspClientGroupOSCORE {
 
             OneKey recipient_key = new OneKey(key_param);
 
-            ctx.addRecipientContext(rid, recipient_key);
+            groupOscoreCtx.addRecipientContext(rid, recipient_key);
         }
-        Assert.assertEquals(ctx.getRecipientContexts().size(), 2);
+        Assert.assertEquals(groupOscoreCtx.getRecipientContexts().size(), 2);
         System.out.println("Generated Group OSCORE Context:");
-        Utility.printContextInfo(ctx);
+        Utility.printContextInfo(groupOscoreCtx);
 
     }
     

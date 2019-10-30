@@ -76,6 +76,26 @@ Security protocol: OSCORE
 CWT protection: RPK
 
 
+#Pair 5
+
+Standalone client and GM for joining with the OSCORE ACE profile joining.
+Includes the new parameters and pop signature.
+
+*Client->GM Application (OSCORE)
+
+Name: OscorepClient2RSGroupOSCORE
+Security Protocol: OSCORE
+CWT protection: PSK
+Run with: TestOscorepRSGroupOSCORE
+
+*GM Application (OSCORE)
+
+Name: TestOscorepRSGroupOSCORE
+Security protocol: OSCORE
+CWT protection: PSK
+
+
+
 TODO:
 Update this file after all the recent changes
 
