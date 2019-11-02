@@ -705,6 +705,8 @@ public class TestOscorepRSGroupOSCORE {
         	//
         	// 2) The OSCORE group should be rekeyed
 
+        	// The current version of the symmetric keying material
+        	joinResponse.Add(Constants.NUM, CBORObject.FromObject(myGroup.getVersion()));
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.

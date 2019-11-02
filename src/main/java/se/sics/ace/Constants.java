@@ -907,8 +907,13 @@ public class Constants {
      public static final short PUB_KEY_ENC = 202;
      
      /*
-      * Value for the label "sign_nonce" in the Token POST request and in the Join Response message
+      * Value for the label "rs_nonce" in the Token POST response
       */
      public static final short RSNONCE = 203;
+     
+     /*
+      * Value for the label "num" in the Join Response message
+      */
+     public static final short NUM = 204;
      
 }
