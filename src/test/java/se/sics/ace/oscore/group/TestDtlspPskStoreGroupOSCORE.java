@@ -248,7 +248,8 @@ public class TestDtlspPskStoreGroupOSCORE {
      */
     @Test
     public void testInvalidPskId() throws Exception {
-        byte[] key = store.getKey(new PskPublicInformation("blah"));
+        byte[] key = store.getKey(
+                new PskPublicInformation("blah")).getEncoded();
         Assert.assertNull(key);
     }
     
@@ -288,7 +289,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenAsBytes.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertNull(psk);
     }
 
@@ -327,7 +329,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
      
@@ -361,7 +364,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -410,7 +414,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -463,7 +468,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
 
@@ -507,7 +513,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -555,7 +562,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-        byte[] psk = store.getKey(new PskPublicInformation(psk_identity));
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     

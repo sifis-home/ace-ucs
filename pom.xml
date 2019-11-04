@@ -6,8 +6,8 @@
   <name>ACE library</name>
   <description>A java library for the ACE IETF WG</description>
   <organization>
-  	<name>SICS Swedish ICT AB</name>
-  	<url>https://www.sics.se</url>
+  	<url>https://www.ri.se</url>
+  	<name>RISE Research Institutes of Sweden AB</name>
   </organization>
   <repositories>
   	<repository>

@@ -196,7 +196,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         ids.addAll(db.getClients());
         
         for (String id : ids) {
-            byte[] key = db.getKey(new PskPublicInformation(id));
+            byte[] key = db.getKey(new PskPublicInformation(id)).getEncoded();
             OSCoreCtx ctx = new OSCoreCtx(key, false, null, asId.getBytes(Constants.charset), 
                     id.getBytes(Constants.charset), null, null, null, null);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);

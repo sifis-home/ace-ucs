@@ -35,6 +35,9 @@ import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -88,7 +91,7 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
 
 
     @Override
-    public byte[] getKey(PskPublicInformation identity) {
+    public SecretKey getKey(PskPublicInformation identity) {
         return getKey(identity.getPublicInfoAsString());
     }
     
@@ -98,7 +101,7 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
      * @param identity  the String identity of the key
      * @return  the bytes of the key
      */
-    private byte[] getKey(String identity) {
+    private SecretKey getKey(String identity) {
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
             return null;
@@ -108,7 +111,8 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         try {
             key = TokenRepository.getInstance().getKey(identity);
             if (key != null) {
-                return key.get(KeyKeys.Octet_K).GetByteString();
+                return new SecretKeySpec(
+                        key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             }
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
@@ -143,7 +147,8 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
                     cti.GetByteString());
             try {
                  key = TokenRepository.getInstance().getPoP(ctiStr);
-                 return key.get(KeyKeys.Octet_K).GetByteString();
+                 return new SecretKeySpec(
+                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;
@@ -160,7 +165,7 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
     }
 
     @Override
-    public byte[] getKey(ServerNames serverNames, PskPublicInformation identity) {
+    public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
         //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }
