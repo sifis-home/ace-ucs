@@ -19,7 +19,7 @@ package org.eclipse.californium.oscore;
 import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
@@ -137,9 +137,9 @@ public class GroupOSCORESender {
 		//InstallCryptoProviders.generateCounterSignKey(); //For generating keys
 		
 		//Add private & public keys for sender & receiver(s)
-		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
-		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(rid1_public_key_string)));
-		rid2_public_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(rid2_public_key_string)));
+		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
+		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid1_public_key_string)));
+		rid2_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid2_public_key_string)));
 		
 		//If OSCORE is being used set the context information
 		if(useOSCORE) {

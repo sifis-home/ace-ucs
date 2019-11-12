@@ -23,7 +23,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Random;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -182,7 +182,7 @@ public abstract class Encryptor {
 					System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
 
 					byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
-					String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+					String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
 					System.out.println("Encrypt " + messageType + "Sender Private Key:\t" + base64_encoded);
 				}
 

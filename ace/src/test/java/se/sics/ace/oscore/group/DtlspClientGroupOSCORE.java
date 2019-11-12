@@ -38,7 +38,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
@@ -315,7 +315,7 @@ public class DtlspClientGroupOSCORE {
     	//Set up private & public keys for sender (not from response but set by client)
     	String sid_private_key_string = groupKeyPair;
     	OneKey sid_private_key;
-       	sid_private_key = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(sid_private_key_string)));
+       	sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 
     	//Now derive the actual context
     	

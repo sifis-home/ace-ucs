@@ -1,6 +1,6 @@
 List of keys used for countersignatures. These are base64-encoded versions of OneKey.
 Decode with:
-OneKey myKey = new OneKey(CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(base64String)));
+OneKey myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(base64String)));
 
 # Group OSCORE Sender (SID 0x25) #
 Public & Private: pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=

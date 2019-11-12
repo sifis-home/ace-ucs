@@ -16,11 +16,13 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.oscore.GroupOSCoreCtx.RecipientCtx;
+
+import net.i2p.crypto.eddsa.Utils;
 
 /**
  * 
@@ -51,7 +53,7 @@ public class Utility {
 			return s.toString();
 		}
 
-		s.append(DatatypeConverter.printHexBinary(array));
+		s.append(Utils.bytesToHex(array).toUpperCase());
 		s.append(" (" + array.length + " bytes)");
 		
 		return s.toString();
@@ -119,7 +121,7 @@ public class Utility {
 		System.out.print("\tSender Private Key: ");
 		if(sender_private_key != null) {
 			byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
-			String sender_private_key_base64 = DatatypeConverter.printBase64Binary(keyObjectBytes);
+			String sender_private_key_base64 = Base64.getEncoder().encodeToString(keyObjectBytes);
 			System.out.println(sender_private_key_base64);
 		} else {
 			System.out.println("Null");
@@ -240,7 +242,7 @@ public class Utility {
 		System.out.print("\tRecipient Public Key: ");
 		if(recipient_public_key != null) {
 			byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
-			String recipient_public_key_base64 = DatatypeConverter.printBase64Binary(keyObjectBytes);
+			String recipient_public_key_base64 = Base64.getEncoder().encodeToString(keyObjectBytes);
 			System.out.println(recipient_public_key_base64);
 		} else {
 			System.out.println("Null");

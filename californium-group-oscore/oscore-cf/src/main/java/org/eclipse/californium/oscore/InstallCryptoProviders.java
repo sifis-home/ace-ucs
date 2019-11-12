@@ -2,7 +2,7 @@ package org.eclipse.californium.oscore;
 
 import java.security.Provider;
 import java.security.Security;
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -34,12 +34,12 @@ public abstract class InstallCryptoProviders {
     	
     	//Print base64 encoded version with both public & private keys
     	byte[] keyObjectBytes = myKey.AsCBOR().EncodeToBytes();
-    	String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+    	String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
     	System.out.println("Public & Private: " + base64_encoded);
     	
     	//Print base64 encoded version with only public keys
     	keyObjectBytes = myKey.PublicKey().AsCBOR().EncodeToBytes();
-    	base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+    	base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
     	System.out.println("Public only: " + base64_encoded);
 
     }

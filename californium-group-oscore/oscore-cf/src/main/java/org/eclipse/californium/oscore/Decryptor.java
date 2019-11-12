@@ -25,7 +25,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Random;
 
-import javax.xml.bind.DatatypeConverter;
+import java.util.Base64;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -243,7 +243,7 @@ public abstract class Decryptor {
 
 			if(Utility.DETAILED_DEBUG) {
 				byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
-				String base64_encoded = DatatypeConverter.printBase64Binary(keyObjectBytes);
+				String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
 				System.out.println("Decrypt " + "Recipient Public Key:\t" + base64_encoded);
 			}
 
