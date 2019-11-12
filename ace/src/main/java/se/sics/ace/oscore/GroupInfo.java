@@ -77,6 +77,8 @@ public class GroupInfo {
 	private CBORObject csKeyParams = null;
 	private CBORObject csKeyEnc = null;
 	
+	private int version; // Version of the current symmetric keying material
+
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
 	 * 
@@ -108,6 +110,8 @@ public class GroupInfo {
     		         final CBORObject csKeyParams,
     		         final CBORObject csKeyEnc) {
     	
+        this.version = 0;
+
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
     	
@@ -615,6 +619,27 @@ public class GroupInfo {
     	
     	return true;
     	
+    }
+    
+    /**
+     *  Return the current version of the symmetric keying material
+     *
+     *  @return  an integer indicating the current version of the symmetric keying material
+     */
+    synchronized public int getVersion() {
+        
+        return this.version;
+        
+    }
+    
+    /**
+     *  Increment the version of the symmetric keying material 
+     *
+     */
+    synchronized public void incrementVersion() {
+        
+        this.version++;
+        
     }
     
     /**

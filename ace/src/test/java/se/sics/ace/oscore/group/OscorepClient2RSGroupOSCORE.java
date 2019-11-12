@@ -321,6 +321,9 @@ public class OscorepClient2RSGroupOSCORE {
         System.out.print("PUB_KEYS: ");
         System.out.println(joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)));
 
+        System.out.print("NUM: ");
+        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.NUM)));
+
         //Parse the KEY parameter
 
         System.out.println();
