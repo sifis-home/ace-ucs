@@ -38,3 +38,6 @@ If some of the JUnit tests fail due to "invalid key size" you may need to update
 In such case follow these instructons:
 https://www.andreafortuna.org/2016/06/08/java-tips-how-to-fix-the-invalidkeyexception-illegal-key-size-or-default-parameters-runtime/
 
+*Support for Base64
+
+Note that at least Java 8 must be used to have support for java.util.Base64

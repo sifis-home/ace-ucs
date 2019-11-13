@@ -103,7 +103,7 @@ import se.sics.ace.rs.TokenRepository;
 public class TestDtlspRSGroupOSCORE {
 	
 	//Name of the AS (this RS will accept token from this issuer)
-	private static String AS_NAME = "AS";
+	private static String AS_NAME = "TestAS";
 		
 	//Sets the secure and unsecure port to use
 	private final static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
@@ -580,12 +580,7 @@ public class TestDtlspRSGroupOSCORE {
     public static void main(String[] args) throws Exception {
         // install needed cryptography providers
         org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
-    	
-        //Set another name for the AS if the main method was launched from a JUnit test
-        if(args == null) {
-        	AS_NAME = "TestAS";
-        }
-    	
+
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);

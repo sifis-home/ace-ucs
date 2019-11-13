@@ -1,14 +1,14 @@
 A short overview of the newly implemented standalone applications.
 And their corresponding servers.
 
-#Pair 1
+#Pair 1 (GM Client and GM Server for Group OSCORE Joining with DTLS profile)
 
-*Client->GM Application:
+*Client->GM Application (DTLS):
 
 Name: DtlspClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK
-CWT protection: PSK(?)
+CWT protection: PSK
 Run with: TestDtlspRSGroupOSCORE
 
 *GM Application:
@@ -19,14 +19,14 @@ Security type: PSK / RPK(?)
 CWT protection: PSK / RPK(?)
 
 
-#Pair 2
+#Pair 2 (AS Client and AS Server for requesting Token to perform Group OSCORE Joining)
+Need updates to take into account new parameters in Token request.
 
 *Client->AS Application:
 
 Name: CoAPClientGroupOSCORE
 Security protocol: DTLS
 Security type: PSK & RPK
-CWT protection: PSK(?)
 Run with: CoapASTestServerGroupOSCORE
 
 *AS Application:
@@ -37,13 +37,11 @@ Security type: PSK / RPK
 CWT protection: PSK / RPK (supports both depending on config)
 
 
-#Pair 3
+#Pair 3 (AS/GM Client, AS server and GM server for full procedure with DTLS profile)
 
 *Client->AS & Client->GM Application:
-
-Seems to work now after some modifications
-regarding Token encryption/signing, setting
-the audience and configuring the GM.
+Need updates to take into account new parameters in Token request.
+Need updates to take into account new parameters in Join request/response.
 
 Name: DtlsAsRsClientGroupOSCORE
 Security protocol: DTLS
@@ -53,51 +51,27 @@ Run with: CoapASTestServerGroupOSCORE & TestDtlspRSGroupOSCORE
 (Be careful to set the AS & RS ports so they do not overlap)
 
 
-#Pair 4
+#Pair 4 (GM Client and GM Server for Group OSCORE Joining with OSCORE profile)
 
 *Client->GM Application (OSCORE):
 
-Code used for testing with Peter van der Stok during the Hackathon.
-OSCORE Client->GM and GM applications. The client generates its own Token followed
-by posting it and performing the Join process.
+Similar to code used for testing with Peter van der Stok during the Hackathon.
+Includes the new parameters and pop signature.
 
-TODO: Add note about changes from Hackathon
-TODO: Make a copy of this as a JUnit.
-
-Name: TestOSCoreRSGroupOSCORE
+Name: OscorepClient2RSGroupOSCORE
 Security protocol: OSCORE
-CWT protection: PSK(?)
-Run with: OSCoreClientGroupOSCORE
+CWT protection: PSK
+Run with: TestOSCoreRSGroupOSCORE
 
 *GM Application (OSCORE):
 
-Name: OSCoreClientGroupOSCORE
+Name: TestOSCoreRSGroupOSCORE
 Security protocol: OSCORE
 CWT protection: RPK
 
 
-#Pair 5
-
-Standalone client and GM for joining with the OSCORE ACE profile joining.
-Includes the new parameters and pop signature.
-
-*Client->GM Application (OSCORE)
-
-Name: OscorepClient2RSGroupOSCORE
-Security Protocol: OSCORE
-CWT protection: PSK
-Run with: TestOscorepRSGroupOSCORE
-
-*GM Application (OSCORE)
-
-Name: TestOscorepRSGroupOSCORE
-Security protocol: OSCORE
-CWT protection: PSK
-
-
-
 TODO:
-Update this file after all the recent changes
+Update this file after all the recent changes X
 
 Add parameters to Token post & response X
  Depending on if scope is a byte string or not X
@@ -105,12 +79,7 @@ Add parameters to Token post & response X
 Change values & labels in Join response to use integers instead of strings (like "HKDF_HMAC_SHA_256" & "AES_CCM_16_64_128" etc.) X
  Done X
 
-Update GM code to support messages from Peter's client
-  Create the group he is trying to join ("GRP") X
-
-Check usage of csKeyEnc parameter in Junit tests
- For the clients
- Check the incoming csKeyEnc in the client code
+Update GM code to support messages from Peter's client?
 
 Make pub_keys label into integer instead of string X
 

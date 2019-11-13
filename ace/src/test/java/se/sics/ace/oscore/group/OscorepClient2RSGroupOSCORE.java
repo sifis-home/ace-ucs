@@ -44,8 +44,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-import java.util.Base64;
-
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -117,7 +115,7 @@ public class OscorepClient2RSGroupOSCORE {
 
     public static void main(String[] args) {
         try {
-            performJoin();
+            performJoinOSCOREProfile();
         } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
                 | ConnectorException | IOException e) {
             System.err.print("Join procedure failed: ");
@@ -138,7 +136,7 @@ public class OscorepClient2RSGroupOSCORE {
      * @throws IOException 
      * @throws ConnectorException 
      */
-    public static void performJoin() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
+    public static void performJoinOSCOREProfile() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
 
@@ -267,7 +265,7 @@ public class OscorepClient2RSGroupOSCORE {
             System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
             System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
 
-            byte[] clientSignature = computeSignature(privKey, dataToSign);
+            byte[] clientSignature = computeSignature(privKey, dataToSign, countersignKeyCurve);
 
             if (clientSignature != null)
                 requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -301,6 +299,86 @@ public class OscorepClient2RSGroupOSCORE {
 
         /* Parse the Join response in detail */
 
+        printJoinResponse(joinResponse);
+
+        /* Generate a Group OSCORE security context from the Join response */
+
+        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
+        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+
+        GroupOSCoreCtx groupOscoreCtx = generateGroupOSCOREContext(contextObject, coseKeySetArray);
+
+        System.out.println();
+        //System.out.println("Generated Group OSCORE Context:");
+        Utility.printContextInfo(groupOscoreCtx);
+
+    }
+    
+
+    /**
+     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
+     * 
+     * @param privKey  private key used to sign
+     * @param dataToSign  content to sign
+
+     */
+    public static byte[] computeSignature(PrivateKey privKey, byte[] dataToSign, int countersignKeyCurve) {
+
+        Signature mySignature = null;
+        byte[] clientSignature = null;
+
+        try {
+            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+                mySignature = Signature.getInstance("SHA256withECDSA");
+            else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+                mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
+            else {
+                // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+                Assert.fail("Unsupported signature algorithm");
+            }
+
+        }
+        catch (NoSuchAlgorithmException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Unsupported signature algorithm");
+        }
+        catch (NoSuchProviderException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Unsopported security provider for signature computing");
+        }
+
+        try {
+            if (mySignature != null)
+                mySignature.initSign(privKey);
+            else
+                Assert.fail("Signature algorithm has not been initialized");
+        }
+        catch (InvalidKeyException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Invalid key excpetion - Invalid private key");
+        }
+
+        try {
+            if (mySignature != null) {
+                mySignature.update(dataToSign);
+                clientSignature = mySignature.sign();
+            }
+        } catch (SignatureException e) {
+            System.out.println(e.getMessage());
+            Assert.fail("Failed signature computation");
+        }
+
+        return clientSignature;
+
+    }
+    
+    /**
+     * Parse a received Group OSCORE join response and print the information in it.
+     * 
+     * @param joinResponse the join response
+     */
+    public static void printJoinResponse(CBORObject joinResponse) {
+        
         //Parse the join response generally
 
         System.out.println();
@@ -326,6 +404,8 @@ public class OscorepClient2RSGroupOSCORE {
 
         //Parse the KEY parameter
 
+        CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        
         System.out.println();
         System.out.println("KEY map contents: ");
 
@@ -380,72 +460,6 @@ public class OscorepClient2RSGroupOSCORE {
 
             System.out.println("Key " + i + ": " + key_param.toString());
         }
-
-        /* Generate a Group OSCORE security context from the Join response */
-
-        GroupOSCoreCtx groupOscoreCtx = generateGroupOSCOREContext(contextObject, coseKeySetArray);
-
-        System.out.println();
-        //System.out.println("Generated Group OSCORE Context:");
-        Utility.printContextInfo(groupOscoreCtx);
-
-    }
-
-    /**
-     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
-     * 
-     * @param privKey  private key used to sign
-     * @param dataToSign  content to sign
-
-     */
-    public static byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {
-
-        Signature mySignature = null;
-        byte[] clientSignature = null;
-
-        try {
-            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
-                mySignature = Signature.getInstance("SHA256withECDSA");
-            else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-                mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
-            else {
-                // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-                Assert.fail("Unsupported signature algorithm");
-            }
-
-        }
-        catch (NoSuchAlgorithmException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsupported signature algorithm");
-        }
-        catch (NoSuchProviderException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsopported security provider for signature computing");
-        }
-
-        try {
-            if (mySignature != null)
-                mySignature.initSign(privKey);
-            else
-                Assert.fail("Signature algorithm has not been initialized");
-        }
-        catch (InvalidKeyException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Invalid key excpetion - Invalid private key");
-        }
-
-        try {
-            if (mySignature != null) {
-                mySignature.update(dataToSign);
-                clientSignature = mySignature.sign();
-            }
-        } catch (SignatureException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Failed signature computation");
-        }
-
-        return clientSignature;
-
     }
 
     /**

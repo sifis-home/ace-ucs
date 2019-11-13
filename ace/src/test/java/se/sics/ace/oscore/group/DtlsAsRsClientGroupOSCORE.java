@@ -46,6 +46,8 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 
 /**
+ * Note: May be out of date considering recent changes.
+ * 
  * Client application that requests and receives a token from the AS.
  * 
  * This Token is then posted to the RS (Group Manager) followed by sending
