@@ -19,9 +19,12 @@ package org.eclipse.californium.oscore;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 import java.util.Random;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
@@ -31,7 +34,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.cose.AlgorithmID;
@@ -41,6 +43,8 @@ import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 
 import com.upokecenter.cbor.CBORObject;
+
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 /**
  * Test receiver using {@link UdpMulticastConnector}.
@@ -66,6 +70,17 @@ public class GroupOSCOREReceiver {
 	 */
 	static final boolean randomUnicastIP = false;
 	
+	/**
+	 * Multicast address to listen to (use the first line to set a custom one).
+	 */
+	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
+	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
+
+	/**
+	 * Port to listen to.
+	 */
+	static final int listenPort = CoAP.DEFAULT_COAP_PORT;
+
 	/**
 	 * ED25519 curve value.
 	 * https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves
@@ -108,9 +123,12 @@ public class GroupOSCOREReceiver {
 	private static Random random;
 	
 	public static void main(String[] args) throws Exception {
-		//Install cryptographic providers //TODO: Move
-		InstallCryptoProviders.installProvider();
-		
+		//Install cryptographic providers
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
+
 		//Set sender & receiver keys for countersignatures
 		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid1_public_key_string)));
@@ -147,10 +165,10 @@ public class GroupOSCOREReceiver {
 		
 		//Information about the receiver
 		System.out.println("==================");
-		System.out.println("Multicast receiver");
+		System.out.println("*Multicast receiver");
 		System.out.println("Uses OSCORE: " + useOSCORE);
 		System.out.println("Respond to non-confirmable messages: " + replyToNonConfirmable);
-		System.out.println("Multicast IP: " + CoAP.MULTICAST_IPV4);
+		System.out.println("Listening to Multicast IP: " + multicastIP.getHostAddress());
 		System.out.println("Unicast IP: " + endpoint.getAddress().getHostString());
 		System.out.println("Incoming port: " + endpoint.getAddress().getPort());
 		System.out.print("CoAP resources: ");
@@ -164,7 +182,7 @@ public class GroupOSCOREReceiver {
 	}
 
 	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
-		int port = config.getInt(Keys.COAP_PORT);
+		int port = listenPort;
 		
 		InetSocketAddress localAddress;
 		//Set a random loopback address in 127.0.0.0/8
@@ -180,7 +198,7 @@ public class GroupOSCOREReceiver {
 			localAddress = new InetSocketAddress(port);
 		}
 		
-		Connector connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
+		Connector connector = new UdpMulticastConnector(localAddress, multicastIP);
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}
 

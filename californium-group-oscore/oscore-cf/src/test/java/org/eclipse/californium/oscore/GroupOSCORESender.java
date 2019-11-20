@@ -17,10 +17,16 @@
 package org.eclipse.californium.oscore;
 
 import java.io.File;
+import java.net.Inet6Address;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -36,6 +42,8 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 
 import com.upokecenter.cbor.CBORObject;
+
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 
@@ -63,8 +71,6 @@ public class GroupOSCORESender {
 
 	};
 
-	private static final int COAP_PORT = NetworkConfig.getStandard().getInt(NetworkConfig.Keys.COAP_PORT);
-	
 	/**
 	 * Time to wait for replies to the multicast request
 	 */
@@ -76,10 +82,20 @@ public class GroupOSCORESender {
 	static final boolean useOSCORE = true;
 
 	/**
-	 * URI to perform request against.
+	 * Multicast address to send to (use the first line to set a custom one).
+	 */
+	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
+	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
+
+	/**
+	 * Port to send to.
+	 */
+	private static final int destinationPort = CoAP.DEFAULT_COAP_PORT;
+
+	/**
+	 * Resource to perform request against.
 	 */
 	static final String requestResource  = "/helloWorld";
-	static final String requestURI = "coap://" + CoAP.MULTICAST_IPV4.getHostAddress() + ":" + COAP_PORT + requestResource;
 	
 	/**
 	 * Payload in request sent (POST)
@@ -94,7 +110,6 @@ public class GroupOSCORESender {
 	
 	/* --- OSCORE Security Context information (sender) --- */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
-	private final static String uri = requestURI;
 	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	
@@ -132,10 +147,23 @@ public class GroupOSCORESender {
 	/* --- OSCORE Security Context information --- */
 	
 	public static void main(String args[]) throws Exception {
-		//Install cryptographic providers //TODO: Move
-		InstallCryptoProviders.installProvider();
+		/**
+		 * URI to perform request against. Need to check for IPv6 to surround it with []
+		 */
+		String requestURI;
+		if(multicastIP instanceof Inet6Address) {
+			requestURI = "coap://" + "[" + multicastIP.getHostAddress() + "]" + ":" + destinationPort + requestResource;
+		} else {
+			requestURI = "coap://" + multicastIP.getHostAddress() + ":" + destinationPort + requestResource;
+		}
+
+		//Install cryptographic providers
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
 		//InstallCryptoProviders.generateCounterSignKey(); //For generating keys
-		
+
 		//Add private & public keys for sender & receiver(s)
 		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid1_public_key_string)));
@@ -148,7 +176,7 @@ public class GroupOSCORESender {
 			ctx.addRecipientContext(rid0);
 			ctx.addRecipientContext(rid1, rid1_public_key);
 			ctx.addRecipientContext(rid2, rid2_public_key);
-			db.addContext(uri, ctx);
+			db.addContext(requestURI, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
 		}
@@ -170,9 +198,10 @@ public class GroupOSCORESender {
 
 		//Information about the sender
 		System.out.println("==================");
-		System.out.println("Multicast sender");
+		System.out.println("*Multicast sender");
 		System.out.println("Uses OSCORE: " + useOSCORE);
 		System.out.println("Request destination: " + requestURI);
+		System.out.println("Request destination port: " + destinationPort);
 		System.out.println("Request method: " + multicastRequest.getCode());
 		System.out.println("Request payload: " + requestPayload);
 		System.out.println("Outgoing port: " + endpoint.getAddress().getPort());
@@ -222,7 +251,7 @@ public class GroupOSCORESender {
 		public void onLoad(CoapResponse response) {
 			on();
 			
-			System.out.println("Receiving to: "); //TODO
+			//System.out.println("Receiving to: "); //TODO
 			System.out.println("Receiving from: " + response.advanced().getSourceContext().getPeerAddress());
 
 			System.out.println(Utils.prettyPrint(response));
