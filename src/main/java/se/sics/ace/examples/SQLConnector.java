@@ -213,33 +213,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement selectAudiences;
 	
-	// M.T.
-	/**
-     * A prepared INSERT statement to add an audience a 
-     * Resource Server acting as OSCORE Group Manager identifies with
-     * 
-     * Parameter: rs id, audience name
-     */
-	protected PreparedStatement insertOSCOREGroupManager;
-	
-	// M.T.
-    /**
-     * A prepared DELETE statement to remove the audiences
-     * a Resource Server acting as OSCORE Group Manager identifies with
-     * 
-     * Parameter: rs id
-     */
-	protected PreparedStatement deleteOSCOREGroupManagers;
-	
-	// M.T.
-    /**
-     * A prepared SELECT statement to get a set of audiences
-     * an RS acting as OSCORE Group Manager identifies with
-     * 
-     * Parameter: rs id
-     */
-	protected PreparedStatement selectOSCOREGroupManagers;
-    
     /**
      * A prepared INSERT statement to add a token type a 
      * Resource Server supports
@@ -627,26 +600,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + DBConnector.audiencesTable
 		                + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
 		                + DBConnector.audColumn + ";"));
-
-		// M.T.
-		this.insertOSCOREGroupManager = this.conn.prepareStatement(
-		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.oscoreGroupManagersTable
-		                + " VALUES (?,?);"));
-
-		// M.T.
-		this.deleteOSCOREGroupManagers = this.conn.prepareStatement(
-		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
-		                + DBConnector.oscoreGroupManagersTable
-		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
-		
-		// M.T.
-		this.selectOSCOREGroupManagers = this.conn.prepareStatement(
-		        dbAdapter.updateEngineSpecificSQL("SELECT "
-		                + DBConnector.audColumn + " FROM "
-		                + DBConnector.oscoreGroupManagersTable
-		                + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
-		                + DBConnector.audColumn + ";"));		
 		
 		this.insertTokenType = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
@@ -1366,29 +1319,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
         return auds;
     }
-
-    // M.T.
-    @Override
-    public synchronized Set<String> getOSCOREGroupManagers(String rsId) 
-            throws AceException {
-        if (rsId == null) {
-            throw new AceException(
-                    "getOSCOREGroupManagers() requires non-null rsId");
-        }
-        Set<String> auds = new HashSet<>();
-        try {
-            this.selectOSCOREGroupManagers.setString(1, rsId);
-            ResultSet result = this.selectOSCOREGroupManagers.executeQuery();
-            this.selectOSCOREGroupManagers.clearParameters();
-            while (result.next()) {
-                auds.add(result.getString(DBConnector.audColumn));      
-            }
-            result.close();
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
-        return auds;
-    }
     
     @Override
     public synchronized Set<String> getScopes(String rsId) throws AceException
@@ -1658,45 +1588,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
     }
     
-    // M.T.
-    @Override
-    public void addOSCOREGroupManagers(String rsId, Set<String> auds) throws AceException {
-    	if (rsId == null || rsId.isEmpty()) {
-            throw new AceException("RS must have non-null, non-empty identifier");
-        }
-    	
-    	// Prevent adding an rs that has an identifier that is equal to an 
-        // existing audience
-        try {
-        	this.selectOSCOREGroupManagers.setString(1, rsId);
-        	ResultSet result = this.selectOSCOREGroupManagers.executeQuery();
-        	this.selectOSCOREGroupManagers.clearParameters();
-        	if (result.next()) {
-        		result.close();
-        		throw new AceException(
-        				"RsId equal to existing audience id: " + rsId);
-        	}
-        	result.close();
-        	
-        	for (String aud : auds) {
-                this.insertOSCOREGroupManager.setString(1, rsId);
-                this.insertOSCOREGroupManager.setString(2, aud);
-                this.insertOSCOREGroupManager.execute();
-            }
-            this.insertAudience.clearParameters();
-            
-            //The RS always recognizes itself as a singleton audience
-            this.insertOSCOREGroupManager.setString(1, rsId);
-            this.insertOSCOREGroupManager.setString(2, rsId);
-            this.insertOSCOREGroupManager.execute();
-            this.insertOSCOREGroupManager.clearParameters();
-        	
-        } catch (SQLException e) {
-            throw new AceException(e.getMessage());
-        }
-    	
-    }
-
     @Override
     public synchronized void deleteRS(String rsId) throws AceException {
         if (rsId == null) {
@@ -1719,11 +1610,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             this.deleteAudiences.execute();
             this.deleteAudiences.clearParameters();
 
-            // M.T.
-            this.deleteOSCOREGroupManagers.setString(1,  rsId);
-            this.deleteOSCOREGroupManagers.execute();
-            this.deleteOSCOREGroupManagers.clearParameters();
-            
             this.deleteKeyTypes.setString(1, rsId);
             this.deleteKeyTypes.execute();
             this.deleteKeyTypes.clearParameters();

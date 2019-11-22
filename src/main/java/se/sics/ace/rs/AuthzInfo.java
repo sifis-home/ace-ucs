@@ -299,14 +299,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //7. Check if any part of the scope is meaningful to us
 	    boolean meaningful = false;
 	    try {
-	    	if(scope.getType().equals(CBORType.TextString)) {
-	    		meaningful = TokenRepository.getInstance().checkScope(scope);
-	    	}
-	    	else {
-	    		// M.T. The version of checkScope() with two arguments is invoked
-	    		// This is currently expecting a structured scope for joining OSCORE groups
-	    		meaningful = TokenRepository.getInstance().checkScope(scope, auds);
-	    	}
+	        meaningful = TokenRepository.getInstance().checkScope(scope);
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "
                     + "message processing aborted: " + e.getMessage());
@@ -362,68 +355,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
 	    
-	    // M.T.
-	    // The following enables this class to return to the specific AuthzInfo instance also the
-	    // Sender Identifier associated to this Access Token, as 'SUB' parameter of the response.
-	    String assignedKid = null;
-	    String assignedSid;
-	    try {
-	    	String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
-	    	
-	    	CBORObject cnf = claims.get(Constants.CNF);
-	    	
-	    	// This should really not happen for a previously validated and stored Access Token
-	    	if (cnf == null) {
-	            LOGGER.severe("Token has not cnf");
-	            throw new AceException("Token has no cnf");
-	        }
-	    	// This should really not happen for a previously validated and stored Access Token
-	    	if (!cnf.getType().equals(CBORType.Map)) {
-	            LOGGER.severe("Malformed cnf in token");
-	            throw new AceException("cnf claim malformed in token");
-	        }
-	    	
-	    	if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
-	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
-	    		assignedKid = new String(osc.getClientId(), Constants.charset);
-	    	}
-	    	else {
-		    	OneKey popKey = TokenRepository.getInstance().getPoP(ctiStr);
-		    	
-		    	if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
-		    		assignedKid = new String(popKey.get(KeyKeys.KeyId).GetByteString(), Constants.charset);
-		    	}
-		    	else if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-		    			popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
-		    		RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(popKey.AsPublicKey());
-		    		assignedKid = new String(rpk.getName());
-		    	}
-		    	
-	    	}
-	    	
-	    	// This should really not happen for a previously validated and stored Access Token
-	    	if (assignedKid == null) {
-	            LOGGER.severe("kid not found");
-	            throw new AceException("kid not found");
-	        }
-	    	
-	    	assignedSid = TokenRepository.getInstance().getSid(assignedKid);
-	    	
-	    	// TODO: REMOVE DEBUG PRINT
-	    	// System.out.println("AuthzInfo assignedKid " + assignedKid);
-	    	// System.out.println("AuthzInfo assignedSid " + assignedSid);
-	    }
-	    catch (Exception e) {
-	    	LOGGER.info("Unable to retrieve kid after token addition: " + e.getMessage());
-	        CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-	    }
-
-	    if (assignedSid != null)
-	    	rep.Add(Constants.SUB, assignedSid);
-
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}

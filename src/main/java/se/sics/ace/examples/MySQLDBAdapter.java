@@ -175,13 +175,6 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.audiencesTable + "("
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.audColumn + " varchar(255) NOT NULL);";
-
-        // M.T.
-        String createOSCOREGroupManagers = "CREATE TABLE IF NOT EXISTS "
-        		+ this.dbName + "."
-        		+ DBConnector.oscoreGroupManagersTable + "("
-        		+ DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
-                + DBConnector.audColumn + " varchar(255) NOT NULL);";
         
         String createCose =  "CREATE TABLE IF NOT EXISTS "
                 + this.dbName + "."
@@ -247,7 +240,6 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createScopes);
             stmt.execute(createTokenTypes);
             stmt.execute(createAudiences);
-            stmt.execute(createOSCOREGroupManagers); // M.T.
             stmt.execute(createCose);
             stmt.execute(createClaims);
             stmt.execute(createOldTokens);

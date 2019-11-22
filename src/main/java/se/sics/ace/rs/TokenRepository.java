@@ -36,7 +36,6 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -144,13 +143,6 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private Map<String, String>sid2kid;
 	
-	// M.T.
-	/**
-	 * Map a subject identity to the rsnonce possibly provided upon Token posting
-	 * This is relevant when joining an OSCORE Group, with the RS acting as Group Manager
-	 */
-	private Map<String, String> sid2rsnonce;
-	
 	/**
 	 * The scope validator
 	 */
@@ -232,7 +224,6 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
-	    this.sid2rsnonce = new HashMap<>(); // M.T.
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
 
@@ -701,8 +692,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
-	 * @param kid  FIXME
-	 * @param   the kid this subject uses
+	 * @param kid  the kid this subject uses
 	 * 
 	 * @return  sid  the subject id
 	 */
@@ -710,43 +700,11 @@ public class TokenRepository implements AutoCloseable {
 	    if (kid != null) {
 	    	for (String foo : this.sid2kid.keySet()) {
     			if (this.sid2kid.get(foo).equals(kid)) {
-    				// TODO: REMOVE DEBUG PRINT
-    				// System.out.println("getSid() foo " + foo);
     				return foo;
     			}
     		}
 	    }
 	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
-// FIXME: can this be removed?
-//	    System.out.println("getSid() kid " + kid);
-//	    for (String foo : this.sid2kid.keySet()) {
-//	    	// TODO: REMOVE DEBUG PRINT
-//			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
-//		}
-	    return null;
-	}
-	
-	/**
-	 * FIXME 
-	 * @param sid  FIXME
-	 * @param rsNonce  FIXME
-	 */
-	public synchronized void setRsnonce(String sid, String rsNonce) {
-		if (sid != null && rsNonce != null) {
-	        this.sid2rsnonce.put(sid, rsNonce);
-	    }
-	}
-	
-	/**
-	 * FIXME
-	 * @param sid  FIXME
-	 * @return  FIXME
-	 */
-	public synchronized String getRsnonce(String sid) {
-		if (sid != null) {
-	        return this.sid2rsnonce.get(sid);
-	    }
-	    LOGGER.finest("rsnonce for Subject-Id: " + sid + " not found");
 	    return null;
 	}
 	
@@ -787,18 +745,6 @@ public class TokenRepository implements AutoCloseable {
      */
     public CBORObject getScope(String resource, short action) {
         return this.scopeValidator.getScope(resource, action);
-    }
-
-    /**
-     * Checks if a given scope is meaningful for this repository.
-     * 
-     * @param scope  the Scope can be CBOR String or CBOR array
-     * @param aud  the Audiences as an Array of Strings
-     * @return true if the scope is meaningful, false otherwise 
-     * @throws AceException 
-     */
-    public boolean checkScope(CBORObject scope, ArrayList<String> aud) throws AceException {
-        return this.scopeValidator.isScopeMeaningful(scope, aud);
     }
     
 	/**
