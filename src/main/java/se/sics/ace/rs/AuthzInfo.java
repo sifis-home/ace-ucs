@@ -408,10 +408,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        }
 	    	
 	    	assignedSid = TokenRepository.getInstance().getSid(assignedKid);
-	    	
-	    	// TODO: REMOVE DEBUG PRINT
-	    	// System.out.println("AuthzInfo assignedKid " + assignedKid);
-	    	// System.out.println("AuthzInfo assignedSid " + assignedSid);
 	    }
 	    catch (Exception e) {
 	    	LOGGER.info("Unable to retrieve kid after token addition: " + e.getMessage());

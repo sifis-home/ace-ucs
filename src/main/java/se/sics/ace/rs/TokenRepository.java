@@ -701,8 +701,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
-	 * @param kid  FIXME
-	 * @param   the kid this subject uses
+	 * @param kid the kid this subject uses
 	 * 
 	 * @return  sid  the subject id
 	 */
@@ -710,19 +709,10 @@ public class TokenRepository implements AutoCloseable {
 	    if (kid != null) {
 	    	for (String foo : this.sid2kid.keySet()) {
     			if (this.sid2kid.get(foo).equals(kid)) {
-    				// TODO: REMOVE DEBUG PRINT
-    				// System.out.println("getSid() foo " + foo);
     				return foo;
     			}
     		}
 	    }
-	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
-// FIXME: can this be removed?
-//	    System.out.println("getSid() kid " + kid);
-//	    for (String foo : this.sid2kid.keySet()) {
-//	    	// TODO: REMOVE DEBUG PRINT
-//			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
-//		}
 	    return null;
 	}
 	
