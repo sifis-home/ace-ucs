@@ -248,7 +248,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this resource must be a byte string");
+        		return false;
     	
         	String[] scopes = scope.AsString().split(" ");
             for (String subscope : scopes) {
@@ -353,7 +353,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this resource must be a byte string");
+        		return false;
         
         	String[] scopes = scope.AsString().split(" ");
             for (String subscope : scopes) {           
@@ -458,7 +458,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         
         if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this audience must be a byte string");
+        		return false;
         	
         	return this.myScopes.containsKey(scope.AsString());
         	// The audiences are silently ignored
