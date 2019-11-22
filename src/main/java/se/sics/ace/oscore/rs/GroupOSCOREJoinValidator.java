@@ -116,10 +116,10 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * @return the audiences that this validator considers as OSCORE Group Managers
 	 */
 	public synchronized Set<String> getAllGMAudiences() {
-		if (this.myGMAudiences != null)
+		if (this.myGMAudiences != null) {
 			return this.myGMAudiences;
-		else
-			return Collections.emptySet();
+		}
+        return Collections.emptySet();
 	}
 	
 	// M.T.
@@ -177,10 +177,10 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * @return the resources that this validator considers as join resources to access an OSCORE group
 	 */
 	public synchronized Set<String> getAllJoinResources() {
-		if (this.myJoinResources != null)
+		if (this.myJoinResources != null) {
 			return this.myJoinResources;
-		else
-		    return Collections.emptySet();
+		}
+        return Collections.emptySet();
 	}
 	
 	// M.T.

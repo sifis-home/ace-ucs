@@ -452,7 +452,8 @@ public class GroupInfo {
      */
     synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
     	
-    	if (csKeyEnc.getType() != CBORType.Number)
+        //XXX: Is this Integer or SimpleValue?
+    	if (csKeyEnc.getType() != CBORType.Integer)
     		return false;
     	
     	this.csKeyEnc = csKeyEnc;

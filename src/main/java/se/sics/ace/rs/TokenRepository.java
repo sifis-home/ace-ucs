@@ -701,6 +701,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
+	 * @param kid  FIXME
 	 * @param   the kid this subject uses
 	 * 
 	 * @return  sid  the subject id
@@ -716,20 +717,31 @@ public class TokenRepository implements AutoCloseable {
     		}
 	    }
 	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
-	    System.out.println("getSid() kid " + kid);
-	    for (String foo : this.sid2kid.keySet()) {
-	    	// TODO: REMOVE DEBUG PRINT
-			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
-		}
+// FIXME: can this be removed?
+//	    System.out.println("getSid() kid " + kid);
+//	    for (String foo : this.sid2kid.keySet()) {
+//	    	// TODO: REMOVE DEBUG PRINT
+//			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
+//		}
 	    return null;
 	}
 	
+	/**
+	 * FIXME 
+	 * @param sid  FIXME
+	 * @param rsNonce  FIXME
+	 */
 	public synchronized void setRsnonce(String sid, String rsNonce) {
 		if (sid != null && rsNonce != null) {
 	        this.sid2rsnonce.put(sid, rsNonce);
 	    }
 	}
 	
+	/**
+	 * FIXME
+	 * @param sid  FIXME
+	 * @return  FIXME
+	 */
 	public synchronized String getRsnonce(String sid) {
 		if (sid != null) {
 	        return this.sid2rsnonce.get(sid);

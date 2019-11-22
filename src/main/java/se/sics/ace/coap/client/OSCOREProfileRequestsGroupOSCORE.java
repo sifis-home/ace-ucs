@@ -48,7 +48,6 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -127,6 +126,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
      *  (including scheme and hostname, and port if not default)
      * @param asResp  the response from the AS containing the token
      *      and the access information
+     * @param askForSignInfo  FIXME
+     * @param askForPubKeyEnc  FIXME
      * 
      * @return  the response 
      *
@@ -230,7 +231,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (askForPubKeyEnc) {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Number) {
+        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Integer) {
                    	throw new AceException(
                    			"Missing or malformed pub_key_enc in the RS response, although requested");
            	}

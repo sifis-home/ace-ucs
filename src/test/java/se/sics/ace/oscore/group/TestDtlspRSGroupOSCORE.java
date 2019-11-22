@@ -37,7 +37,6 @@ import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.Security;
@@ -952,6 +951,14 @@ public class TestDtlspRSGroupOSCORE {
     }
 
     
+    /**
+     * FIXME
+     * @param countersignKeyCurve FIXME
+     * @param pubKey FIXME
+     * @param signedData FIXME
+     * @param expectedSignature FIXME
+     * @return FIXME
+     */
     public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
     	Signature mySignature = null;

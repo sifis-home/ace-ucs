@@ -110,7 +110,7 @@ import se.sics.ace.AceException;
 	        }
 	        Map<Short, CBORObject> ret = new HashMap<>();
 	        for (CBORObject key : cbor.getKeys()) {
-	            if (!key.getType().equals(CBORType.Number)) {
+	            if (!key.getType().equals(CBORType.Integer)) {
 	                throw new AceException("CBOR key was not a Short: "
 	                        + key.toString());
 	            }

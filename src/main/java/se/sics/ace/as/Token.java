@@ -1068,6 +1068,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public void removeToken(String cti) throws AceException {
 	    this.db.deleteToken(cti);
+	    //FIXME: Add the token to the TRL
 	}
 
     @Override

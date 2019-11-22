@@ -1,8 +1,15 @@
 package se.sics.ace.oscore.rs;
 
+/**
+ * FIXME
+ *
+ */
 public class Util {
 
     /**
+     * FIXME
+     * @param str FIXME
+     * @return FIXME
      * @str   the hexadecimal string to be converted into a byte array
      * 
      * Return the byte array representation of the original string

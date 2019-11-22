@@ -567,7 +567,7 @@ public class Constants {
         }
         Map<Short, CBORObject> ret = new HashMap<>();
         for (CBORObject key : cbor.getKeys()) {
-            if (!key.getType().equals(CBORType.Number)) {
+            if (!key.getType().equals(CBORType.Integer)) {
                 throw new AceException("CBOR key was not a Short: "
                         + key.toString());
             }
@@ -776,10 +776,10 @@ public class Constants {
                 if (keyInt > 0 && keyInt < abbrev.length) {
                    keyStr = abbrev[keyInt];
                     if (keyInt == GRANT_TYPE
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
                     } else if (keyInt == ERROR
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
                     }                   
                 } else {
@@ -866,52 +866,52 @@ public class Constants {
 //	 */
 //    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
     
-     /*
+     /**
       * Value for the label "get_pub_keys" in the Join Request message
       */
      public static final short GET_PUB_KEYS = 101;
      
-     /*
+     /**
       * Value for the label "client_cred" in the Join Request message
       */
      public static final short CLIENT_CRED = 102;
      
-     /*
+     /**
       * Value for the label "client_cred_verify" in the Join Request message
       */
      public static final short CLIENT_CRED_VERIFY = 103;
      
-     /*
+     /**
       * Value for the label "kty" in the Join Response message
       */
      public static final short KTY = 1;
      
-     /*
+     /**
       * Value for the label "key" in the Join Response message
       */
      public static final short KEY = 2;
      
-     /*
+     /**
       * Value for the label "pub_keys" in the Join Response message
       */
      public static final short PUB_KEYS = 3;
      
-     /*
+     /**
       * Value for the label "sign_info" in the Token POST request and in the Join Response message
       */
      public static final short SIGN_INFO = 201;
      
-     /*
+     /**
       * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
       */
      public static final short PUB_KEY_ENC = 202;
      
-     /*
+     /**
       * Value for the label "rs_nonce" in the Token POST response
       */
      public static final short RSNONCE = 203;
      
-     /*
+     /**
       * Value for the label "num" in the Join Response message
       */
      public static final short NUM = 204;

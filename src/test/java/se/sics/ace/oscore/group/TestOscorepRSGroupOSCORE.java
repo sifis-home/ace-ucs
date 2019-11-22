@@ -27,9 +27,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
-import org.eclipse.californium.oscore.OSCoreCtx;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -54,6 +52,7 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
@@ -356,6 +355,7 @@ public class TestOscorepRSGroupOSCORE {
 		/**
          * Constructor
          * @param resId  the resource identifier
+		 * @param testGroupNames FIXME
          */
         public GroupOSCOREJoinResource(String resId, boolean testGroupNames) {
             
@@ -510,7 +510,7 @@ public class TestOscorepRSGroupOSCORE {
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
         	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
         	String prefixStr = "";
-        	if(testGroupNames) { //Even though we have a group name, take the group info considering "feedca570000" (since it has been configured)
+        	if(this.testGroupNames) { //Even though we have a group name, take the group info considering "feedca570000" (since it has been configured)
         		prefixStr = "feedca570000".substring(0, 2 * groupIdPrefixSize);	
         	} else { //Normal functionality as with Group IDs
         		prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
@@ -683,12 +683,12 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
+        	myMap.Add(OSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
+        	myMap.Add(OSCORESecurityContextObjectParameters.clientId, senderId);
+        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
+        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
@@ -916,6 +916,14 @@ public class TestOscorepRSGroupOSCORE {
     	
     }
 
+    /**
+     * FIXME
+     * @param countersignKeyCurve FIXME
+     * @param pubKey FIXME
+     * @param signedData FIXME
+     * @param expectedSignature FIXME
+     * @return FIXME
+     */
     public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
         Signature mySignature = null;

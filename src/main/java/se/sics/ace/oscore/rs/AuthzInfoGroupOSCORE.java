@@ -261,11 +261,11 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
     		
-    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
+    		String prefixStr = scopeStr.substring(0, 2 * this.groupIdPrefixSize);
         	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	GroupInfo myGroup = this.activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
     		
         	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
@@ -326,10 +326,18 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
         return msg.successReply(reply.getMessageCode(), rep);
 	}
     
+	/**
+	 * FIXME
+	 * @param activeGroups
+	 */
 	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
 	}
 	
+	/**
+	 * FIXME
+	 * @param groupIdPrefixSize
+	 */
 	public synchronized void setGroupIdPrefixSize (int groupIdPrefixSize) {
 		this.groupIdPrefixSize = groupIdPrefixSize;
 	}
