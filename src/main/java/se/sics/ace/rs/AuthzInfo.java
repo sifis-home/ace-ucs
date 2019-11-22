@@ -33,7 +33,6 @@ package se.sics.ace.rs;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,20 +40,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-import COSE.KeyKeys;
-import COSE.OneKey;
+
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 

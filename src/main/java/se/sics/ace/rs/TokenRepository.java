@@ -692,7 +692,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
-	 * @param kid  the kid this subject uses
+	 * @param kid the kid this subject uses
 	 * 
 	 * @return  sid  the subject id
 	 */
@@ -707,7 +707,7 @@ public class TokenRepository implements AutoCloseable {
 	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
 	    return null;
 	}
-	
+
     @Override
     public synchronized void close() throws AceException {
         if (!this.closed) {
