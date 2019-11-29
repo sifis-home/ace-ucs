@@ -67,7 +67,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 public class CoapASTestServerGroupOSCORE
 {
     //Name of the AS (the AS will use this as the issuer of a Token)
-    private static final String AS_NAME = "AS";
+    private static final String AS_NAME = "TestAS";
 
     //Sets the secure port to use
     private static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;

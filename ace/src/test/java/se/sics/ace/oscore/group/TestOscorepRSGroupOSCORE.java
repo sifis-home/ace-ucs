@@ -8,6 +8,7 @@ import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -76,6 +77,9 @@ public class TestOscorepRSGroupOSCORE {
 	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
 	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+	
+	//Source of randomness
+	static SecureRandom rand = new SecureRandom();
 
     /**
      * Definition of the Hello-World Resource
@@ -180,7 +184,7 @@ public class TestOscorepRSGroupOSCORE {
             System.err.println("Failed to install cryptography providers.");
             e.printStackTrace();
         }
-    	
+
     	// Uncomment to set ECDSA with curve P-256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
         
@@ -232,9 +236,36 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put("fBBBca570000_requester_responder", myResource4);
         myScopes.put("fBBBca570000_requester_monitor", myResource4);
         
+        // Rikard
+        // Adding the join resource for the first group (Group A) in the Vinnova demo.
+        Set<Short> actions5 = new HashSet<>();
+        actions5.add(Constants.POST);
+        Map<String, Set<Short>> myResource5 = new HashMap<>();
+        myResource5.put("aaaaaa570000", actions5);
+        myScopes.put("aaaaaa570000_requester", myResource5);
+        myScopes.put("aaaaaa570000_responder", myResource5);
+        myScopes.put("aaaaaa570000_monitor", myResource5);
+        myScopes.put("aaaaaa570000_requester_responder", myResource5);
+        myScopes.put("aaaaaa570000_requester_monitor", myResource5);
+        
+        // Rikard
+        // Adding the join resource for the second group (Group B) in the Vinnova demo.
+        Set<Short> actions6 = new HashSet<>();
+        actions6.add(Constants.POST);
+        Map<String, Set<Short>> myResource6 = new HashMap<>();
+        myResource6.put("bbbbbb570000", actions6);
+        myScopes.put("bbbbbb570000_requester", myResource6);
+        myScopes.put("bbbbbb570000_responder", myResource6);
+        myScopes.put("bbbbbb570000_monitor", myResource6);
+        myScopes.put("bbbbbb570000_requester_responder", myResource6);
+        myScopes.put("bbbbbb570000_requester_monitor", myResource6);
+        
         //Create the OSCORE Group(s)
-        OSCOREGroupCreation(countersignKeyCurve);
-
+        //The original feedca570000 group and Group A and B for the Vinnova demo
+        OSCOREGroupCreation(hexStringToByteArray("feedca570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
+        OSCOREGroupCreation(hexStringToByteArray("aaaaaa570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
+        OSCOREGroupCreation(hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
+        
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
@@ -248,7 +279,12 @@ public class TestOscorepRSGroupOSCORE {
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        // Also adds resources for the 2 groups in the Vinnova demo
+        Set<String> joinResources = new HashSet<String>();
+        joinResources.add("feedca570000");
+        joinResources.add("aaaaaa570000");
+        joinResources.add("bbbbbb570000");
+        valid.setJoinResources(joinResources);
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -311,11 +347,15 @@ public class TestOscorepRSGroupOSCORE {
         Resource authzInfo = new CoapAuthzInfo(ai);
         // Resource manage = new ManageResource();
         Resource join = new GroupOSCOREJoinResource("feedca570000", false); // M.T.
-      
+        Resource join2 = new GroupOSCOREJoinResource("aaaaaa570000", false);
+        Resource join3 = new GroupOSCOREJoinResource("bbbbbb570000", false);
+        
         rs = new CoapServer();
         rs.add(hello);
         rs.add(temp);
         rs.add(join);
+        rs.add(join2);
+        rs.add(join3);
         rs.add(authzInfo);
       
         rs.addEndpoint(new CoapEndpoint.Builder()
@@ -521,9 +561,19 @@ public class TestOscorepRSGroupOSCORE {
         	
         	// Assign a new Sender ID to the joining node.
         	// For the sake of testing, a particular Sender ID is used as known to be available.
-            byte[] senderId = new byte[] { (byte) 0x25 };
-        	myGroup.allocateSenderId(senderId);        	
-        	
+            byte[] senderId = new byte[1];
+            senderId[0] =  (byte) 0x25;
+            
+            //But if a client is trying to join the Vinnova demo Group A or Group B take an 1 byte unused value
+            if(Arrays.equals(prefixByteStr, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize))) == true || 
+            		Arrays.equals(prefixByteStr, hexStringToByteArray("aaaaaa570000".substring(0, 2 * groupIdPrefixSize))) == true) {
+            	rand.nextBytes(senderId);
+            	while(myGroup.allocateSenderId(senderId) == false) {
+            		rand.nextBytes(senderId);
+            	}
+            }
+            myGroup.allocateSenderId(senderId);
+            
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
@@ -789,10 +839,10 @@ public class TestOscorepRSGroupOSCORE {
         
     }
     
-    private static void OSCOREGroupCreation(int countersignKeyCurve) throws CoseException
+    private static void OSCOREGroupCreation(byte[] groupIdPrefix, int countersignKeyCurve) throws CoseException
     {
     	// Create the OSCORE group
-        final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+        byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                 					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
                 					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
                 					  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
@@ -800,6 +850,14 @@ public class TestOscorepRSGroupOSCORE {
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
+        //Use a different master secret for Vinnova demo Group B
+        if(Arrays.equals(groupIdPrefix, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize)))) {
+        	masterSecret = new byte[] { (byte) 0xB1, (byte) 0xB2, (byte) 0xB3, (byte) 0xB4,
+					  (byte) 0xB5, (byte) 0xB6, (byte) 0xB7, (byte) 0xB8,
+					  (byte) 0xB9, (byte) 0xBA, (byte) 0xBB, (byte) 0xBC,
+					  (byte) 0xBD, (byte) 0xBE, (byte) 0xBF, (byte) 0xB0 };
+        }
+        
         // Group OSCORE specific values for the AEAD algorithm and HKDF
         final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -831,8 +889,6 @@ public class TestOscorepRSGroupOSCORE {
         final int senderIdSize = 1; // Up to 4 bytes
 
         // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
-        // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
-    	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
     	GroupInfo myGroup = new GroupInfo(masterSecret,

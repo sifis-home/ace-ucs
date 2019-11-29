@@ -579,7 +579,7 @@ public class OscorepClient2RSGroupOSCORE {
 
             groupOscoreCtx.addRecipientContext(rid, recipient_key);
         }
-        Assert.assertEquals(groupOscoreCtx.getRecipientContexts().size(), 2);
+        //Assert.assertEquals(groupOscoreCtx.getRecipientContexts().size(), 2);
         //System.out.println("Generated Group OSCORE Context:");
         //Utility.printContextInfo(groupOscoreCtx);
 
