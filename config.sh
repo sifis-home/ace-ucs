@@ -8,7 +8,7 @@ cd californium-group-oscore
 mvn eclipse:eclipse
 cd ..
 
-cd joint-applications
+cd vinnova-prototype
 mvn eclipse:eclipse
 cd ..
 
@@ -17,6 +17,14 @@ FILE=ace/db.pwd
 if [ ! -f "$FILE" ]; then
  echo
  echo "Warning: File ace/db.pwd is missing!"
+ echo
+fi
+
+#Check that the vinnova-prototype/db.pwd file exists
+FILE=vinnova-prototype/db.pwd
+if [ ! -f "$FILE" ]; then
+ echo
+ echo "Warning: File vinnova-prototype/db.pwd is missing!"
  echo
 fi
 

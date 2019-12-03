@@ -1,4 +1,4 @@
-package se.sics.test;
+package se.sics.prototype.support;
 
 //Rikard: Test class using both ACE and OSCORE
 //Note: Test that updated CBOR version works for ACE

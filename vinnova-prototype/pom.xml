@@ -1,10 +1,10 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
   <groupId>se.sics</groupId>
-  <artifactId>test</artifactId>
+  <artifactId>vinnova</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <name>Vinnova test</name>
-  <description>Test for Vinnova project applications library</description>
+  <name>Vinnova prototype code</name>
+  <description>Vinnova project applications</description>
   <organization>
   	<name>SICS Swedish ICT AB</name>
   	<url>https://www.sics.se</url>

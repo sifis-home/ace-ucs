@@ -1,4 +1,4 @@
-package se.sics.ace.oscore.group;
+package se.sics.prototype.apps;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -25,6 +25,8 @@ import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
 import org.junit.Assert;
@@ -34,6 +36,7 @@ import com.upokecenter.cbor.CBORObject;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
@@ -41,6 +44,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.prototype.support.Util;
 
 /**
  * A stand-alone application for Client->AS followed by Client->GM
@@ -53,20 +57,57 @@ import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
  * @author Rikard Höglund
  *
  */
-public class OscoreAsRsClientGroupOSCORE {
+public class OscoreAsRsClient {
 
+	/* Information:
+	 Clients: Pi1, Pi2, Pi3, Pi4, Pi5, Pi6, Client1, Client2
+	 Groups: GroupA (aaaaaa570000), GroupB (bbbbbb570000)
+	 */
+	
+	//Sets the GM port to use
+	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
+	
 	/**
 	 * Main method
 	 */
 	public static void main(String[] args) {
-        try {
-            postTokenAndJoin();
-        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
-                | ConnectorException | IOException e) {
-            System.err.print("Join procedure failed: ");
-            e.printStackTrace();
-        }
+		
+		try {
+			requestToken();
+		} catch (OSException | AceException e) {
+			System.err.print("Token request procedure failed: ");
+			e.printStackTrace();
+		}
+//		
+//        try {
+//            postTokenAndJoin();
+//        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
+//                | ConnectorException | IOException e) {
+//            System.err.print("Join procedure failed: ");
+//            e.printStackTrace();
+//        }
     }
+	
+	public static void requestToken() throws OSException, AceException {
+		//OSCoreCoapStackFactory.useAsDefault();
+		
+		CBORObject params = GetToken.getClientCredentialsRequest(
+                CBORObject.FromObject("rs2"),
+                CBORObject.FromObject("r_temp rw_config foobar"), null);
+        
+        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        
+        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
+                "clientA".getBytes(Constants.charset),
+                "AS".getBytes(Constants.charset),
+                null, null, null, null);
+        
+        Response response = OSCOREProfileRequests.getToken(
+                "coap://localhost/token", params, ctx);
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        Map<Short, CBORObject> map = Constants.getParams(res);
+        System.out.println(map);
+	}
 	
 	// M.T. & Rikard
     /**
@@ -103,13 +144,13 @@ public class OscoreAsRsClientGroupOSCORE {
         //The AS <-> RS key used in these tests
         byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
-        String groupName = "feedca570000";
+        String groupName = "bbbbbb570000";
         String audience = "rs2";
-        String asName = "TestAS";
-        String clientID = "clientD";
+        String asName = "AS";
+        String clientID = "clientA";
         String cti = "token4JoinMultipleRolesDeriv" + clientID;
 
-        String gmBaseURI = "coap://localhost/";
+        String gmBaseURI = "coap://localhost:" + GM_PORT + "/";
         String authzInfoURI = gmBaseURI + "authz-info";
         String joinResourceURI = gmBaseURI + groupName;
 
@@ -223,7 +264,7 @@ public class OscoreAsRsClientGroupOSCORE {
             System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
             System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
 
-            byte[] clientSignature = OscorepClient2RSGroupOSCORE.computeSignature(privKey, dataToSign, countersignKeyCurve);
+            byte[] clientSignature = Util.computeSignature(privKey, dataToSign, countersignKeyCurve);
 
             if (clientSignature != null)
                 requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -257,14 +298,14 @@ public class OscoreAsRsClientGroupOSCORE {
 
         /* Parse the Join response in detail */
 
-        OscorepClient2RSGroupOSCORE.printJoinResponse(joinResponse);
+        Util.printJoinResponse(joinResponse);
 
         /* Generate a Group OSCORE security context from the Join response */
 
         byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
 
-        GroupOSCoreCtx groupOscoreCtx = OscorepClient2RSGroupOSCORE.generateGroupOSCOREContext(contextObject, coseKeySetArray);
+        GroupOSCoreCtx groupOscoreCtx = Util.generateGroupOSCOREContext(contextObject, coseKeySetArray, groupKeyPair);
 
         System.out.println();
         //System.out.println("Generated Group OSCORE Context:");

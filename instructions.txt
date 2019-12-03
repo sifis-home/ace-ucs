@@ -5,7 +5,7 @@
 2. Start Eclipse, then import the following projects:
 californium-group-oscore
 ace
-joint-applications
+vinnova-prototype
 
 3. To "ace" add the following folders to the build path:
 californium-core
@@ -13,11 +13,12 @@ element-connector
 oscore-cf
 scandium
 
-4. To "test" add the following folders to the build path:
+4. To "vinnova" add the following folders to the build path:
 ace
 californium-core
 element-connector
 oscore-cf
+scandium
 
 To add dependencies:
 Right click project->Properties->Java Build Path->Add...
@@ -29,7 +30,7 @@ Note that mySQL is needed for the ACE parts to run correctly. To install it use:
 apt-get install mysql-server
 
 Then place a file under ace/db.pwd with the database root password.
-
+Also place a file under vinnova-prototype/db.pwd with the database root password.
 
 *Updating the JCE (Java Cryptography Extensions)
 
