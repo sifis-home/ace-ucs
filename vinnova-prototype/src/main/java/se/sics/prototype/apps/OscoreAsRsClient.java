@@ -23,6 +23,7 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
 import org.eclipse.californium.oscore.OSCoreCtx;
@@ -68,39 +69,29 @@ public class OscoreAsRsClient {
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
 	//Sets the GM hostname/IP to use
 	private final static String GM_HOST = "localhost";
-
-	public static void main(String[] args) {
-		try {
-			requestToken("Client1", "aaaaaa570000");
-		} catch (OSException | AceException e) {
-			System.err.print("Token request procedure failed: ");
-			e.printStackTrace();
-		}	
-	}
+	
+	//Sets the AS port to use
+	private final static int AS_PORT = CoAP.DEFAULT_COAP_PORT;
+	//Sets the AS hostname/IP to use
+	private final static String AS_HOST = "localhost";
 	
 	/**
-	 * Main method
+	 * Main method for Token request followed by Group joining
+	 * 
 	 * @throws CoseException 
 	 */
-	public static void main2(String[] args) throws CoseException {
-//		
-//		try {
-//			requestToken();
-//		} catch (OSException | AceException e) {
-//			System.err.print("Token request procedure failed: ");
-//			e.printStackTrace();
-//		}	
+	public static void main(String[] args) throws CoseException {
 		
 		//Set member name from command line argument
 		String memberName;
 		if(args.length > 0) {
 			memberName = args[0];
 		} else {
-			memberName = "Client2";	
+			memberName = "Server5";	
 		}
 		
 		//Set group to join based on the member name
-		String group;
+		String group = "";
 		switch(memberName) {
 		case "Client1":
 		case "Server1":
@@ -115,7 +106,6 @@ public class OscoreAsRsClient {
 			group = "bbbbbb570000";
 			break;
 		default:
-			group = "";
 			System.err.println("Error: Invalid member name specified!");
 			System.exit(1);
 			break;		
@@ -125,26 +115,56 @@ public class OscoreAsRsClient {
 		String publicPrivateKey;
 		publicPrivateKey = KeyStorage.publicPrivateKeys.get(memberName);
 		
+		//Set key (OSCORE master secret) to use towards AS
+		byte[] keyToAS;
+		keyToAS = KeyStorage.memberAsKeys.get(memberName);
+		
 		System.out.println("Configured with parameters:");
+		System.out.println("\tAS: " + AS_HOST + ":" + AS_PORT);
+		System.out.println("\tGM: " + GM_HOST + ":" + GM_PORT);
 		System.out.println("\tMember name: " + memberName);
 		System.out.println("\tGroup: " + group);
-		System.out.println("\tKey: " + publicPrivateKey);
+		System.out.println("\tGroup Key: " + publicPrivateKey);
+		System.out.println("\tKey to AS: " + StringUtil.byteArray2Hex(keyToAS));
+
 		
-        try {
-            postTokenAndJoin(memberName, group, publicPrivateKey);
-        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
-                | ConnectorException | IOException e) {
-            System.err.print("Join procedure failed: ");
-            e.printStackTrace();
-        }
+		//Request Token from AS
+		try {
+			requestToken(memberName, group, keyToAS);
+		} catch (OSException | AceException e) {
+			System.err.print("Token request procedure failed: ");
+			e.printStackTrace();
+		}	
+		
+//		//Post Token to GM and perform Group joining
+//        try {
+//            postTokenAndJoin(memberName, group, publicPrivateKey);
+//        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
+//                | ConnectorException | IOException e) {
+//            System.err.print("Join procedure failed: ");
+//            e.printStackTrace();
+//        }
     }
 	
-	public static void requestToken(String memberName, String group) throws OSException, AceException {
+	/**
+	 * Request a Token from the AS.
+	 * 
+	 * @param memberName
+	 * @param group
+	 * @param keyToAS
+	 * @throws OSException
+	 * @throws AceException
+	 */
+	public static void requestToken(String memberName, String group, byte[] keyToAS) throws OSException, AceException {
+		
+		/* Configure parameters */
 		
 		String clientID = memberName;
 		String groupName = group;		
-        byte[] key128 = KeyStorage.memberAsKeys.get(memberName);// {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        byte[] key128 = keyToAS; //KeyStorage.memberAsKeys.get(memberName);// {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
+        /* Set byte string scope */
+        
 		String gid = new String(groupName);
         String role1 = new String("requester");
         String role2 = new String("responder");
@@ -157,6 +177,8 @@ public class OscoreAsRsClient {
         cborArrayScope.Add(cborArrayRoles);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
 		
+        /* Perform Token request */
+        
 		CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
                 CBORObject.FromObject(byteStringScope), null);
@@ -167,25 +189,30 @@ public class OscoreAsRsClient {
                 null, null, null, null);
         
         Response response = OSCOREProfileRequests.getToken(
-                "coap://localhost/token", params, ctx);
+                "coap://" + AS_HOST + ":" + AS_PORT + "/token", params, ctx);
+        
+        /* Parse and print response */
+        
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
 	}
 	
-	// M.T. & Rikard
-    /**
-     * Post to Authz-Info, then perform join request using multiple roles.
+	/**
+	 * Post to Authz-Info, then perform join request using multiple roles.
      * Uses the ACE OSCORE Profile.
-     * 
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws OSException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
+	 * 
+	 * @param memberName
+	 * @param group
+	 * @param publicPrivateKey
+	 * @throws IllegalStateException
+	 * @throws InvalidCipherTextException
+	 * @throws CoseException
+	 * @throws AceException
+	 * @throws OSException
+	 * @throws ConnectorException
+	 * @throws IOException
+	 */
     public static void postTokenAndJoin(String memberName, String group, String publicPrivateKey) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
