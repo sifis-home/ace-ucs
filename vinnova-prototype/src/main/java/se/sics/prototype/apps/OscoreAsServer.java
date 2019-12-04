@@ -264,6 +264,11 @@ public class OscoreAsServer
         
         /* --- Configure clients and servers for Vinnova prototype --- */
         
+        //Add rs2 as OSCORE Group Manager
+        Set<String> myAud = new HashSet<>();
+        myAud.add("rs2");
+        pdp.addOSCOREGroupManagers("rs2", myAud);
+        
         pdp.addTokenAccess("Client1");
         pdp.addTokenAccess("Client2");
         pdp.addTokenAccess("Server1");

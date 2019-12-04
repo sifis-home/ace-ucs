@@ -71,7 +71,7 @@ public class OscoreAsRsClient {
 
 	public static void main(String[] args) {
 		try {
-			requestToken();
+			requestToken("Server4", "bbbbbb570000");
 		} catch (OSException | AceException e) {
 			System.err.print("Token request procedure failed: ");
 			e.printStackTrace();
@@ -139,15 +139,26 @@ public class OscoreAsRsClient {
         }
     }
 	
-	public static void requestToken() throws OSException, AceException {
-		//OSCoreCoapStackFactory.useAsDefault();
+	public static void requestToken(String memberName, String group) throws OSException, AceException {
 		
-		String clientID = "clientA";
-		//String groupName = "bbbbbb570000";
+		String clientID = memberName;
+		String groupName = group;
+		
+		String gid = new String(groupName);
+        String role1 = new String("requester");
+        String role2 = new String("responder");
+
+        CBORObject cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(gid);
+        CBORObject cborArrayRoles = CBORObject.NewArray();
+        cborArrayRoles.Add(role1);
+        cborArrayRoles.Add(role2);
+        cborArrayScope.Add(cborArrayRoles);
+        byte[] byteStringScope = cborArrayScope.EncodeToBytes();
 		
 		CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
-                CBORObject.FromObject("r_temp rw_config foobar"), null);
+                CBORObject.FromObject(byteStringScope), null);
         
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
