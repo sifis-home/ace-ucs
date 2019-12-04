@@ -32,6 +32,7 @@
 package se.sics.prototype.apps;
 
 import java.util.Base64;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -312,9 +313,8 @@ public class OscoreAsServer
         /* --- Configure clients and servers for Vinnova prototype --- */
         
         //Add rs2 as OSCORE Group Manager
-        Set<String> myAud = new HashSet<>();
-        myAud.add("rs2");
-        pdp.addOSCOREGroupManagers("rs2", myAud);
+        Set<String> rs2 = Collections.singleton("rs2");
+        pdp.addOSCOREGroupManagers("rs2", rs2);
         
         pdp.addTokenAccess("Client1");
         pdp.addTokenAccess("Client2");
