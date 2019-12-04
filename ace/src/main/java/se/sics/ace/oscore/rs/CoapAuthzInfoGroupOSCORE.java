@@ -82,7 +82,7 @@ public class CoapAuthzInfoGroupOSCORE extends CoapResource {
         Request req = new Request(exchange.getRequestCode());
         req.setPayload(exchange.getRequestPayload());
         try {
-            CoapReq msg = CoapReq.getInstance(req);
+            CoapReq msg = CoapReq.getInstance(req, exchange);
             Message reply = this.ai.processMessage(msg);
             //Safe to cast, since CoapReq only ever renders a CoapRes
             CoapRes response = (CoapRes)reply; 

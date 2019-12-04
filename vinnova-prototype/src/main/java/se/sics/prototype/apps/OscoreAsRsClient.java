@@ -68,6 +68,15 @@ public class OscoreAsRsClient {
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
 	//Sets the GM hostname/IP to use
 	private final static String GM_HOST = "localhost";
+
+	public static void main2(String[] args) {
+		try {
+			requestToken();
+		} catch (OSException | AceException e) {
+			System.err.print("Token request procedure failed: ");
+			e.printStackTrace();
+		}	
+	}
 	
 	/**
 	 * Main method

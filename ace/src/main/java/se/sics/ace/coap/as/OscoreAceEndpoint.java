@@ -106,7 +106,7 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
     public void handlePOST(CoapExchange exchange) {
         CoapReq req = null;
         try {
-            req = CoapReq.getInstance(exchange.advanced().getRequest());
+            req = CoapReq.getInstance(exchange.advanced().getRequest(), exchange);
         } catch (AceException e) {//Message didn't have CBOR payload
             LOGGER.info(e.getMessage());
             exchange.respond(ResponseCode.BAD_REQUEST);
