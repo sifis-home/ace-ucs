@@ -69,7 +69,7 @@ public class OscoreAsRsClient {
 	//Sets the GM hostname/IP to use
 	private final static String GM_HOST = "localhost";
 
-	public static void main2(String[] args) {
+	public static void main(String[] args) {
 		try {
 			requestToken();
 		} catch (OSException | AceException e) {
@@ -82,7 +82,7 @@ public class OscoreAsRsClient {
 	 * Main method
 	 * @throws CoseException 
 	 */
-	public static void main(String[] args) throws CoseException {
+	public static void main2(String[] args) throws CoseException {
 //		
 //		try {
 //			requestToken();
@@ -142,6 +142,9 @@ public class OscoreAsRsClient {
 	public static void requestToken() throws OSException, AceException {
 		//OSCoreCoapStackFactory.useAsDefault();
 		
+		String clientID = "clientA";
+		//String groupName = "bbbbbb570000";
+		
 		CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
                 CBORObject.FromObject("r_temp rw_config foobar"), null);
@@ -149,7 +152,7 @@ public class OscoreAsRsClient {
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
         OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
-                "clientA".getBytes(Constants.charset),
+                clientID.getBytes(Constants.charset),
                 "AS".getBytes(Constants.charset),
                 null, null, null, null);
         

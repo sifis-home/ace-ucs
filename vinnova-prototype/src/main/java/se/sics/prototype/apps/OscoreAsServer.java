@@ -100,7 +100,20 @@ public class OscoreAsServer
         scopes.add("rw_valve");
         scopes.add("r_pressure");
         scopes.add("foobar");
+        //Group OSCORE Vinnova prototype scopes
+        scopes.add("aaaaaa570000_requester");
+        scopes.add("aaaaaa570000_responder");
+        scopes.add("aaaaaa570000_monitor");
+        scopes.add("aaaaaa570000_requester_responder");
+        scopes.add("aaaaaa570000_requester_monitor");
+        scopes.add("bbbbbb570000_requester");
+        scopes.add("bbbbbb570000_responder");
+        scopes.add("bbbbbb570000_monitor");
+        scopes.add("bbbbbb570000_requester_responder");
+        scopes.add("bbbbbb570000_requester_monitor");
+        //End Group OSCORE Vinnova prototype scopes
         Set<String> auds = new HashSet<>();
+        auds.add("rs2");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         Set<Short> tokenTypes = new HashSet<>();
@@ -114,12 +127,73 @@ public class OscoreAsServer
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, null);
         
+        //Add rs2 as OSCORE Group Manager
+        db.addOSCOREGroupManagers("rs2", auds);
+        
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
                 keyTypes, authPsk, null);        
+        
+        /* --- Configure clients and servers for Vinnova prototype --- */
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Client1", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Client2", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server1", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server2", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server3", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server4", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server5", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        
+        profiles.clear();
+        profiles.add("coap_oscore");
+        keyTypes.clear();
+        keyTypes.add("PSK");        
+        db.addClient("Server6", profiles, null, null, 
+                keyTypes, authPsk, null); 
+        /* --- End configure clients and servers for Vinnova prototype --- */
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
@@ -187,6 +261,71 @@ public class OscoreAsServer
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
+        
+        /* --- Configure clients and servers for Vinnova prototype --- */
+        
+        pdp.addTokenAccess("Client1");
+        pdp.addTokenAccess("Client2");
+        pdp.addTokenAccess("Server1");
+        pdp.addTokenAccess("Server2");
+        pdp.addTokenAccess("Server3");
+        pdp.addTokenAccess("Server4");
+        pdp.addTokenAccess("Server5");
+        pdp.addTokenAccess("Server6");
+        
+        //Group A
+        
+        pdp.addAccess("Client1", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Client1", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Client2", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Client2", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server1", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server1", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server2", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server2", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server3", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server3", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server4", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server4", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server5", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server5", "rs2", "aaaaaa570000_requester_responder");
+        
+        pdp.addAccess("Server6", "rs2", "aaaaaa570000_requester_monitor");
+        pdp.addAccess("Server6", "rs2", "aaaaaa570000_requester_responder");
+        
+        //Group B
+        
+        pdp.addAccess("Client1", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Client1", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Client2", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Client2", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server1", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server1", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server2", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server2", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server3", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server3", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server4", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server4", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server5", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server5", "rs2", "bbbbbb570000_requester_responder");
+        
+        pdp.addAccess("Server6", "rs2", "bbbbbb570000_requester_monitor");
+        pdp.addAccess("Server6", "rs2", "bbbbbb570000_requester_responder");
+
+        /* --- End configure clients and servers for Vinnova prototype --- */
         
         as = new OscoreAS("AS", db, pdp, time, asymmKey);
         as.start();
