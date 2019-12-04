@@ -66,8 +66,8 @@ import se.sics.prototype.support.KeyStorage;
 public class OscoreAsServer
 {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-    
+    static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
     private static CoapDBConnector db = null;
     private static OscoreAS as = null;
     private static GroupOSCOREJoinPDP pdp = null;
@@ -85,7 +85,7 @@ public class OscoreAsServer
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
+                CBORObject.FromObject(key128a));
         OneKey tokenPsk = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
@@ -120,9 +120,8 @@ public class OscoreAsServer
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        //COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        COSEparams coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        //COSEparams coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
