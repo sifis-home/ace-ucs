@@ -129,21 +129,22 @@ public class OscoreAsRsClient {
 
 		
 		//Request Token from AS
+		Response responseFromAS = null;
 		try {
-			requestToken(memberName, group, keyToAS);
+			responseFromAS = requestToken(memberName, group, keyToAS);
 		} catch (OSException | AceException e) {
 			System.err.print("Token request procedure failed: ");
 			e.printStackTrace();
 		}	
 		
-//		//Post Token to GM and perform Group joining
-//        try {
-//            postTokenAndJoin(memberName, group, publicPrivateKey);
-//        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
-//                | ConnectorException | IOException e) {
-//            System.err.print("Join procedure failed: ");
-//            e.printStackTrace();
-//        }
+		//Post Token to GM and perform Group joining
+        try {
+            postTokenAndJoin(memberName, group, publicPrivateKey, responseFromAS);
+        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
+                | ConnectorException | IOException e) {
+            System.err.print("Join procedure failed: ");
+            e.printStackTrace();
+        }
     }
 	
 	/**
@@ -155,14 +156,15 @@ public class OscoreAsRsClient {
 	 * @throws OSException
 	 * @throws AceException
 	 */
-	public static void requestToken(String memberName, String group, byte[] keyToAS) throws OSException, AceException {
+	public static Response requestToken(String memberName, String group, byte[] keyToAS) throws OSException, AceException {
 		
 		/* Configure parameters */
 		
 		String clientID = memberName;
 		String groupName = group;		
         byte[] key128 = keyToAS; //KeyStorage.memberAsKeys.get(memberName);// {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
+        String tokenURI = "coap://" + AS_HOST + ":" + AS_PORT + "/token";
+        
         /* Set byte string scope */
         
 		String gid = new String(groupName);
@@ -179,6 +181,9 @@ public class OscoreAsRsClient {
 		
         /* Perform Token request */
         
+        System.out.println("Performing Token request to AS.");
+        System.out.println("AS Token resource is at: " + tokenURI);
+        
 		CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
                 CBORObject.FromObject(byteStringScope), null);
@@ -189,13 +194,17 @@ public class OscoreAsRsClient {
                 null, null, null, null);
         
         Response response = OSCOREProfileRequests.getToken(
-                "coap://" + AS_HOST + ":" + AS_PORT + "/token", params, ctx);
+                tokenURI, params, ctx);
         
         /* Parse and print response */
+        
+        System.out.print("Receved response from AS to Token request: ");
         
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
+        
+        return response;
 	}
 	
 	/**
@@ -213,7 +222,7 @@ public class OscoreAsRsClient {
 	 * @throws ConnectorException
 	 * @throws IOException
 	 */
-    public static void postTokenAndJoin(String memberName, String group, String publicPrivateKey) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
+    public static void postTokenAndJoin(String memberName, String group, String publicPrivateKey, Response responseFromAS) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
 
