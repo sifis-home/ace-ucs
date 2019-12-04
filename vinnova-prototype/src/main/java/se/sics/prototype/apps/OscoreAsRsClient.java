@@ -25,7 +25,6 @@ import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
@@ -44,6 +43,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.prototype.support.KeyStorage;
 import se.sics.prototype.support.Util;
 
 /**
@@ -60,32 +60,74 @@ import se.sics.prototype.support.Util;
 public class OscoreAsRsClient {
 
 	/* Information:
-	 Clients: Pi1, Pi2, Pi3, Pi4, Pi5, Pi6, Client1, Client2
+	 Clients: Server1, Server2, Server3, Server4, Server5, Server6, Client1, Client2
 	 Groups: GroupA (aaaaaa570000), GroupB (bbbbbb570000)
 	 */
 	
 	//Sets the GM port to use
 	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
+	//Sets the GM hostname/IP to use
+	private final static String GM_HOST = "localhost";
 	
 	/**
 	 * Main method
+	 * @throws CoseException 
 	 */
-	public static void main(String[] args) {
-		
-		try {
-			requestToken();
-		} catch (OSException | AceException e) {
-			System.err.print("Token request procedure failed: ");
-			e.printStackTrace();
-		}
+	public static void main(String[] args) throws CoseException {
 //		
-//        try {
-//            postTokenAndJoin();
-//        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
-//                | ConnectorException | IOException e) {
-//            System.err.print("Join procedure failed: ");
-//            e.printStackTrace();
-//        }
+//		try {
+//			requestToken();
+//		} catch (OSException | AceException e) {
+//			System.err.print("Token request procedure failed: ");
+//			e.printStackTrace();
+//		}	
+		
+		//Set member name from command line argument
+		String memberName;
+		if(args.length > 0) {
+			memberName = args[0];
+		} else {
+			memberName = "Client2";	
+		}
+		
+		//Set group to join based on the member name
+		String group;
+		switch(memberName) {
+		case "Client1":
+		case "Server1":
+		case "Server2":
+		case "Server3":
+			group = "aaaaaa570000";
+			break;
+		case "Client2":
+		case "Server4":
+		case "Server5":
+		case "Server6":
+			group = "bbbbbb570000";
+			break;
+		default:
+			group = "";
+			System.err.println("Error: Invalid member name specified!");
+			System.exit(1);
+			break;		
+		}
+
+		//Set public/private key to use in the group
+		String publicPrivateKey;
+		publicPrivateKey = KeyStorage.publicPrivateKeys.get(memberName);
+		
+		System.out.println("Configured with parameters:");
+		System.out.println("\tMember name: " + memberName);
+		System.out.println("\tGroup: " + group);
+		System.out.println("\tKey: " + publicPrivateKey);
+		
+        try {
+            postTokenAndJoin(memberName, group, publicPrivateKey);
+        } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
+                | ConnectorException | IOException e) {
+            System.err.print("Join procedure failed: ");
+            e.printStackTrace();
+        }
     }
 	
 	public static void requestToken() throws OSException, AceException {
@@ -122,7 +164,7 @@ public class OscoreAsRsClient {
      * @throws IOException 
      * @throws ConnectorException 
      */
-    public static void postTokenAndJoin() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
+    public static void postTokenAndJoin(String memberName, String group, String publicPrivateKey) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
 
@@ -133,7 +175,7 @@ public class OscoreAsRsClient {
 
         // Generate private and public key to be used in the OSCORE group by the joining client (EDDSA)
         InstallCryptoProviders.installProvider();
-        String groupKeyPair = InstallCryptoProviders.getCounterSignKey(); //"pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+        String groupKeyPair = publicPrivateKey;// = InstallCryptoProviders.getCounterSignKey(); //"pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 
         // Set EDDSA with curve Ed25519 for countersignatures
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
@@ -144,13 +186,13 @@ public class OscoreAsRsClient {
         //The AS <-> RS key used in these tests
         byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
-        String groupName = "bbbbbb570000";
+        String groupName = group; //"bbbbbb570000";
         String audience = "rs2";
         String asName = "AS";
-        String clientID = "clientA";
+        String clientID = memberName; //"clientA";
         String cti = "token4JoinMultipleRolesDeriv" + clientID;
 
-        String gmBaseURI = "coap://localhost:" + GM_PORT + "/";
+        String gmBaseURI = "coap://" + GM_HOST + ":" + GM_PORT + "/";
         String authzInfoURI = gmBaseURI + "authz-info";
         String joinResourceURI = gmBaseURI + groupName;
 
@@ -302,9 +344,12 @@ public class OscoreAsRsClient {
 
         /* Generate a Group OSCORE security context from the Join response */
 
-        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-
+        CBORObject coseKeySetArray = CBORObject.NewArray();
+        if(joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS))) {
+        	byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
+        	coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+        }
+        
         GroupOSCoreCtx groupOscoreCtx = Util.generateGroupOSCOREContext(contextObject, coseKeySetArray, groupKeyPair);
 
         System.out.println();

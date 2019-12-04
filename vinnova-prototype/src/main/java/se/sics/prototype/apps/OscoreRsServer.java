@@ -51,6 +51,7 @@ import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
+import se.sics.prototype.support.KeyStorage;
 import se.sics.prototype.support.TestConfig;
 
 /**
@@ -346,9 +347,9 @@ public class OscoreRsServer {
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
         // Resource manage = new ManageResource();
-        Resource join = new GroupOSCOREJoinResource("feedca570000", false); // M.T.
-        Resource join2 = new GroupOSCOREJoinResource("aaaaaa570000", false);
-        Resource join3 = new GroupOSCOREJoinResource("bbbbbb570000", false);
+        Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
+        Resource join2 = new GroupOSCOREJoinResource("aaaaaa570000");
+        Resource join3 = new GroupOSCOREJoinResource("bbbbbb570000");
         
         rs = new CoapServer();
         rs.add(hello);
@@ -389,23 +390,18 @@ public class OscoreRsServer {
      * Definition of the Group OSCORE Join Resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-
-    	boolean testGroupNames = false;
     	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCOREJoinResource(String resId, boolean testGroupNames) {
+        public GroupOSCOREJoinResource(String resId) {
             
             // set resource identifier
             super(resId);
             
             // set display name
             getAttributes().setTitle("Group OSCORE Join Resource " + resId);
-            
-            // testing with the new group names parameter
-            this.testGroupNames = testGroupNames;
         }
 
         @Override
@@ -548,12 +544,7 @@ public class OscoreRsServer {
         	
         	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
         	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = "";
-        	if(testGroupNames) { //Even though we have a group name, take the group info considering "feedca570000" (since it has been configured)
-        		prefixStr = "feedca570000".substring(0, 2 * groupIdPrefixSize);	
-        	} else { //Normal functionality as with Group IDs
-        		prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	}
+        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
         	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
@@ -564,8 +555,19 @@ public class OscoreRsServer {
             byte[] senderId = new byte[1];
             senderId[0] =  (byte) 0x25;
             
-            //But if a client is trying to join the Vinnova demo Group A or Group B take an 1 byte unused value
-            if(Arrays.equals(prefixByteStr, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize))) == true || 
+            //Retrieve the public key of the joining member in base64 string form
+            CBORObject credentials = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
+            //CBORObject keyCbor = CBORObject.DecodeFromBytes(credentials.GetByteString());
+            //OneKey key = new OneKey(keyCbor);
+            //byte[] keyObjectBytes = key.AsCBOR().EncodeToBytes();
+        	String keyBase64 = Base64.getEncoder().encodeToString(credentials.GetByteString());
+        	
+            //If this is Client1 or Client2 joining (check public key), give them a specific Sender ID
+            if(KeyStorage.clientSenderIDs.get(keyBase64) != null) {
+            	senderId = KeyStorage.clientSenderIDs.get(keyBase64).getBytes();
+            	
+            //Else if a server member is trying to join the Vinnova demo Group A or Group B take a 1 byte unused value
+            } else if(Arrays.equals(prefixByteStr, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize))) == true || 
             		Arrays.equals(prefixByteStr, hexStringToByteArray("aaaaaa570000".substring(0, 2 * groupIdPrefixSize))) == true) {
             	rand.nextBytes(senderId);
             	while(myGroup.allocateSenderId(senderId) == false) {
@@ -923,46 +925,46 @@ public class OscoreRsServer {
     	System.out.println(testPublicKeyBytesBase64);
     	*/
     	
-    	// Add a group member with Sender ID 0x52
-    	mySid = new byte[] { (byte) 0x52 };
-    	myGroup.allocateSenderId(mySid);	
-    	
-    	String rpkStr1 = "";
-    	
-    	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
-    	
-    	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
-    	    	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
-    	
-    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
-    	
-    	
-    	// Add a group member with Sender ID 0x77
-    	mySid = new byte[] { (byte) 0x77 };
-    	myGroup.allocateSenderId(mySid);
-    	
-    	String rpkStr2 = "";
-    	
-    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
-    	
-    	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
-    	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
-    	
-    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
+//    	// Add a group member with Sender ID 0x52
+//    	mySid = new byte[] { (byte) 0x52 };
+//    	myGroup.allocateSenderId(mySid);	
+//    	
+//    	String rpkStr1 = "";
+//    	
+//    	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
+//    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+//    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+//    	
+//    	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
+//    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+//    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+//    	    	
+//    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+//    	
+//    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+//    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+//    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+//    	
+//    	
+//    	// Add a group member with Sender ID 0x77
+//    	mySid = new byte[] { (byte) 0x77 };
+//    	myGroup.allocateSenderId(mySid);
+//    	
+//    	String rpkStr2 = "";
+//    	
+//    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
+//    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+//    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+//    	
+//    	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
+//    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+//    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+//    	
+//    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+//    	
+//    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+//    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+//    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
     	
     	
     	// Add this OSCORE group to the set of active groups

@@ -39,7 +39,6 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
@@ -50,7 +49,6 @@ import se.sics.ace.Constants;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
-import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 import se.sics.prototype.support.DBHelper;

@@ -166,14 +166,16 @@ public class Util {
         System.out.println();
         System.out.println("PUB_KEYS contents: ");
 
-        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-
-        for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
-
-            CBORObject key_param = coseKeySetArray.get(i);
-
-            System.out.println("Key " + i + ": " + key_param.toString());
+        if(joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS))) {
+	        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
+	        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+	
+	        for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
+	
+	            CBORObject key_param = coseKeySetArray.get(i);
+	
+	            System.out.println("Key " + i + ": " + key_param.toString());
+	        }
         }
     }
 
