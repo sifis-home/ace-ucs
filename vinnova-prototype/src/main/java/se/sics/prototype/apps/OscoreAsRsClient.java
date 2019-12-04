@@ -71,7 +71,7 @@ public class OscoreAsRsClient {
 
 	public static void main(String[] args) {
 		try {
-			requestToken("Server4", "bbbbbb570000");
+			requestToken("Client1", "aaaaaa570000");
 		} catch (OSException | AceException e) {
 			System.err.print("Token request procedure failed: ");
 			e.printStackTrace();
@@ -142,8 +142,9 @@ public class OscoreAsRsClient {
 	public static void requestToken(String memberName, String group) throws OSException, AceException {
 		
 		String clientID = memberName;
-		String groupName = group;
-		
+		String groupName = group;		
+        byte[] key128 = KeyStorage.memberAsKeys.get(memberName);// {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+
 		String gid = new String(groupName);
         String role1 = new String("requester");
         String role2 = new String("responder");
@@ -159,8 +160,6 @@ public class OscoreAsRsClient {
 		CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs2"),
                 CBORObject.FromObject(byteStringScope), null);
-        
-        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
         OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
                 clientID.getBytes(Constants.charset),

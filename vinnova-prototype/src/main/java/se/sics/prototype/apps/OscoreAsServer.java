@@ -52,6 +52,7 @@ import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 import se.sics.prototype.support.DBHelper;
+import se.sics.prototype.support.KeyStorage;
 
 /**
  * The server to run the client tests against.
@@ -138,61 +139,108 @@ public class OscoreAsServer
                 keyTypes, authPsk, null);        
         
         /* --- Configure clients and servers for Vinnova prototype --- */
+        
+        CBORObject myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Client1")));
+        OneKey myPsk = new OneKey(myKey);
+        
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Client1", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Client2")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Client2", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server1")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server1", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server2")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server2", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server3")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server3", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server4")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server4", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server5")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server5", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
+        
+        
+        myKey = CBORObject.NewMap();
+        myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server6")));
+        myPsk = new OneKey(myKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("Server6", profiles, null, null, 
-                keyTypes, authPsk, null); 
+                keyTypes, myPsk, null); 
         /* --- End configure clients and servers for Vinnova prototype --- */
         
         KissTime time = new KissTime();
