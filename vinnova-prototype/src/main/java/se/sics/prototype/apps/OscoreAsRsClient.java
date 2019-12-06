@@ -17,10 +17,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
@@ -34,14 +32,11 @@ import org.junit.Assert;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
-import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
-import se.sics.ace.cwt.CWT;
-import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.prototype.support.KeyStorage;
@@ -87,7 +82,7 @@ public class OscoreAsRsClient {
 		if(args.length > 0) {
 			memberName = args[0];
 		} else {
-			memberName = "Server2";	
+			memberName = "Client1";	
 		}
 		
 		//Set group to join based on the member name
@@ -138,11 +133,24 @@ public class OscoreAsRsClient {
 		}	
 		
 		//Post Token to GM and perform Group joining
+		GroupOSCoreCtx derivedCtx = null;
         try {
-            postTokenAndJoin(memberName, group, publicPrivateKey, responseFromAS);
+        	derivedCtx = postTokenAndJoin(memberName, group, publicPrivateKey, responseFromAS);
         } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
                 | ConnectorException | IOException e) {
             System.err.print("Join procedure failed: ");
+            e.printStackTrace();
+        }
+        
+        //Now start the Group OSCORE Client or Server application with the derived context
+        try {
+	        if(memberName.equals("Client1") || memberName.equals("Client2")) {
+	        	GroupOscoreClient.start(derivedCtx);
+	        } else {
+	        	GroupOscoreServer.start(derivedCtx);
+	        }
+        } catch (Exception e) {
+        	System.err.print("Starting Group OSCORE applications: ");
             e.printStackTrace();
         }
     }
@@ -231,7 +239,7 @@ public class OscoreAsRsClient {
 	 * @throws ConnectorException
 	 * @throws IOException
 	 */
-    public static void postTokenAndJoin(String memberName, String group, String publicPrivateKey, Response responseFromAS) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
+    public static GroupOSCoreCtx postTokenAndJoin(String memberName, String group, String publicPrivateKey, Response responseFromAS) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
 
@@ -247,17 +255,17 @@ public class OscoreAsRsClient {
         // Set EDDSA with curve Ed25519 for countersignatures
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
 
-        // The cnf key used in these tests
-        byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-
-        //The AS <-> RS key used in these tests
-        byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+//        // The cnf key used in these tests
+//        byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+//
+//        //The AS <-> RS key used in these tests
+//        byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
         String groupName = group; //"bbbbbb570000";
-        String audience = "rs2";
-        String asName = "AS";
-        String clientID = memberName; //"clientA";
-        String cti = "token4JoinMultipleRolesDeriv" + clientID;
+//        String audience = "rs2";
+//        String asName = "AS";
+//        String clientID = memberName; //"clientA";
+//        String cti = "token4JoinMultipleRolesDeriv" + clientID;
 
         String gmBaseURI = "coap://" + GM_HOST + ":" + GM_PORT + "/";
         String authzInfoURI = gmBaseURI + "authz-info";
@@ -424,5 +432,6 @@ public class OscoreAsRsClient {
         //System.out.println("Generated Group OSCORE Context:");
         Utility.printContextInfo(groupOscoreCtx);
 
+        return groupOscoreCtx;
     }
 }

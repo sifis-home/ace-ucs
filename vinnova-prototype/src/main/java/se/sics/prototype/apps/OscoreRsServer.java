@@ -557,20 +557,24 @@ public class OscoreRsServer {
             
             //Retrieve the public key of the joining member in base64 string form
             CBORObject credentials = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
-            //CBORObject keyCbor = CBORObject.DecodeFromBytes(credentials.GetByteString());
-            //OneKey key = new OneKey(keyCbor);
-            //byte[] keyObjectBytes = key.AsCBOR().EncodeToBytes();
-        	String keyBase64 = Base64.getEncoder().encodeToString(credentials.GetByteString());
+            String keyBase64 = Base64.getEncoder().encodeToString(credentials.GetByteString());
         	
+            //Retrieve the Sender IDs of the 2 clients
+            String keyClient1_base64 = KeyStorage.publicKeys.get("Client1");
+			byte[] sidClient1 = KeyStorage.clientSenderIDs.get(keyClient1_base64).getBytes();
+			String keyClient2_base64 = KeyStorage.publicKeys.get("Client2");
+			byte[] sidClient2 = KeyStorage.clientSenderIDs.get(keyClient2_base64).getBytes();
+            
             //If this is Client1 or Client2 joining (check public key), give them a specific Sender ID
             if(KeyStorage.clientSenderIDs.get(keyBase64) != null) {
             	senderId = KeyStorage.clientSenderIDs.get(keyBase64).getBytes();
             	
             //Else if a server member is trying to join the Vinnova demo Group A or Group B take a 1 byte unused value
+            //But make sure to not use the Sender IDs for the clients
             } else if(Arrays.equals(prefixByteStr, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize))) == true || 
             		Arrays.equals(prefixByteStr, hexStringToByteArray("aaaaaa570000".substring(0, 2 * groupIdPrefixSize))) == true) {
             	rand.nextBytes(senderId);
-            	while(myGroup.allocateSenderId(senderId) == false) {
+            	while(myGroup.allocateSenderId(senderId) == false || Arrays.equals(senderId, sidClient1) || Arrays.equals(senderId, sidClient2)) {
             		rand.nextBytes(senderId);
             	}
             }
@@ -906,10 +910,10 @@ public class OscoreRsServer {
     			                          csParams,
     			                          csKeyParams,
     			                          csKeyEnc);
-        
-    	byte[] mySid;
-    	OneKey myKey;
-    	
+//        
+//    	byte[] mySid;
+//    	OneKey myKey;
+//    	
     	/*
     	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)
     	
