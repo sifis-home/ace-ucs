@@ -132,6 +132,7 @@ public class GroupOscoreServer {
 		CoapServer server = new CoapServer(config);
 		server.addEndpoint(endpoint);
 		server.add(new HelloWorldResource());
+		server.add(new ToggleResource());
 		
 		//Information about the receiver
 		System.out.println("==================");
@@ -173,6 +174,78 @@ public class GroupOscoreServer {
 		
 		Connector connector = new UdpMulticastConnector(localAddress, multicastIP);
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
+	}
+	
+	private static class ToggleResource extends CoapResource {
+
+		private int id;
+		private int count = 0;
+		private boolean stateOn = false;
+
+		private ToggleResource() {
+			// set resource identifier
+			super("toggle"); //Changed
+			
+			// set display name
+			getAttributes().setTitle("Toggle Resource");
+			
+			id = random.nextInt(1000);
+			
+			System.out.println("coap receiver: " + id);
+		}
+		
+		//Added for handling GET
+		@Override
+		public void handleGET(CoapExchange exchange) {
+			handlePOST(exchange);
+		}
+		
+		@Override
+		public void handlePOST(CoapExchange exchange) {
+
+			System.out.println("Receiving request #" + count);
+			count++;
+			
+			System.out.println("Receiving to: " + exchange.advanced().getEndpoint().getAddress());
+			System.out.println("Receiving from: " + exchange.getSourceAddress() + ":" + exchange.getSourcePort());
+			
+			System.out.println(Utils.prettyPrint(exchange.advanced().getRequest()));
+			
+			if(exchange.getRequestText().toLowerCase().equals("off")) {
+				System.out.println("*** Turning OFF LEDs/solenoids ***");
+				stateOn = false;
+			} else if(exchange.getRequestText().toLowerCase().equals("on")) {
+				System.out.println("*** Turning ON LEDs/solenoids ***");
+				stateOn = true;
+			} else {
+				System.out.println("*** Toggling LEDs/solenoids ***");
+				stateOn = !stateOn;
+				System.out.println("They are now turned on :" + stateOn);
+			}
+			
+			boolean isConfirmable = exchange.advanced().getRequest().isConfirmable();
+			
+			// respond to the request if confirmable or replies are set to be sent for non-confirmable
+			// payload is set to request payload changed to uppercase plus the receiver ID
+			if(isConfirmable || replyToNonConfirmable) {
+				Response r = Response.createResponse(exchange.advanced().getRequest(), ResponseCode.CONTENT);
+				r.setPayload(exchange.getRequestText().toUpperCase() + ". ID: " + id);
+				if(isConfirmable) {
+					r.setType(Type.ACK);
+				} else {
+					r.setType(Type.NON);
+				}
+				
+				System.out.println();
+				System.out.println("Sending to: " + r.getDestinationContext().getPeerAddress());
+				System.out.println("Sending from: " + exchange.advanced().getEndpoint().getAddress()); //Taken from exchange
+				System.out.println(Utils.prettyPrint(r));
+				
+				exchange.respond(r);
+			}
+			
+		}
+		
 	}
 
 	private static class HelloWorldResource extends CoapResource {

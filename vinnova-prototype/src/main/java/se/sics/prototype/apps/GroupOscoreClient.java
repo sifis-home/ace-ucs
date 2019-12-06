@@ -87,12 +87,12 @@ public class GroupOscoreClient {
 	/**
 	 * Resource to perform request against.
 	 */
-	static final String requestResource  = "/helloWorld";
+	static final String requestResource  = "/toggle";
 	
 	/**
 	 * Payload in request sent (POST)
 	 */
-	static final String requestPayload = "toggle";
+	static final String requestPayload = "off";
 	
 	/**
 	 * ED25519 curve value.
