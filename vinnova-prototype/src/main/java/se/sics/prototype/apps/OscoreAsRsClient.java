@@ -1,6 +1,7 @@
 package se.sics.prototype.apps;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
@@ -70,6 +71,12 @@ public class OscoreAsRsClient {
 	//Sets the AS hostname/IP to use
 	private final static String AS_HOST = "localhost";
 	
+	//Multicast IP for Group A
+	static final InetAddress groupA_multicastIP = new InetSocketAddress("224.0.1.191", 0).getAddress();
+	
+	//Multicast IP for Group B
+	static final InetAddress groupB_multicastIP = new InetSocketAddress("224.0.1.192", 0).getAddress();
+	
 	/**
 	 * Main method for Token request followed by Group joining
 	 * 
@@ -87,18 +94,21 @@ public class OscoreAsRsClient {
 		
 		//Set group to join based on the member name
 		String group = "";
+		InetAddress multicastIP = null;
 		switch(memberName) {
 		case "Client1":
 		case "Server1":
 		case "Server2":
 		case "Server3":
 			group = "aaaaaa570000";
+			multicastIP = groupA_multicastIP;
 			break;
 		case "Client2":
 		case "Server4":
 		case "Server5":
 		case "Server6":
 			group = "bbbbbb570000";
+			multicastIP = groupB_multicastIP;
 			break;
 		default:
 			System.err.println("Error: Invalid member name specified!");
@@ -145,9 +155,9 @@ public class OscoreAsRsClient {
         //Now start the Group OSCORE Client or Server application with the derived context
         try {
 	        if(memberName.equals("Client1") || memberName.equals("Client2")) {
-	        	GroupOscoreClient.start(derivedCtx);
+	        	GroupOscoreClient.start(derivedCtx, multicastIP);
 	        } else {
-	        	GroupOscoreServer.start(derivedCtx);
+	        	GroupOscoreServer.start(derivedCtx, multicastIP);
 	        }
         } catch (Exception e) {
         	System.err.print("Starting Group OSCORE applications: ");

@@ -35,7 +35,6 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.Utility;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 
@@ -72,12 +71,12 @@ public class GroupOscoreClient {
 	 * Whether to use OSCORE or not.
 	 */
 	static final boolean useOSCORE = true;
-
-	/**
-	 * Multicast address to send to (use the first line to set a custom one).
-	 */
-	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
-	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
+//
+//	/**
+//	 * Multicast address to send to (use the first line to set a custom one).
+//	 */
+//	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
+//	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
 
 	/**
 	 * Port to send to.
@@ -105,7 +104,7 @@ public class GroupOscoreClient {
 	 */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	
-	public static void start(GroupOSCoreCtx derivedCtx) throws Exception {
+	public static void start(GroupOSCoreCtx derivedCtx, InetAddress multicastIP) throws Exception {
 		/**
 		 * URI to perform request against. Need to check for IPv6 to surround it with []
 		 */

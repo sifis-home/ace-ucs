@@ -40,7 +40,6 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.Utility;
 
 import com.upokecenter.cbor.CBORObject;
@@ -72,11 +71,11 @@ public class GroupOscoreServer {
 	 */
 	static final boolean randomUnicastIP = false;
 	
-	/**
-	 * Multicast address to listen to (use the first line to set a custom one).
-	 */
-	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
-	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
+//	/**
+//	 * Multicast address to listen to (use the first line to set a custom one).
+//	 */
+//	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
+//	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
 
 	/**
 	 * Port to listen to.
@@ -98,7 +97,7 @@ public class GroupOscoreServer {
 	
 	private static Random random;
 	
-	public static void start(GroupOSCoreCtx derivedCtx) throws Exception {
+	public static void start(GroupOSCoreCtx derivedCtx, InetAddress multicastIP) throws Exception {
 		//Install cryptographic providers
 		InstallCryptoProviders.installProvider();
 		
@@ -128,7 +127,7 @@ public class GroupOscoreServer {
 		random = new Random();
 		
 		NetworkConfig config = NetworkConfig.getStandard();
-		CoapEndpoint endpoint = createEndpoints(config);
+		CoapEndpoint endpoint = createEndpoints(config, multicastIP);
 		CoapServer server = new CoapServer(config);
 		server.addEndpoint(endpoint);
 		server.add(new HelloWorldResource());
@@ -155,7 +154,7 @@ public class GroupOscoreServer {
 		server.start();
 	}
 
-	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
+	private static CoapEndpoint createEndpoints(NetworkConfig config, InetAddress multicastIP) throws UnknownHostException {
 		int port = listenPort;
 		
 		InetSocketAddress localAddress;
@@ -214,13 +213,16 @@ public class GroupOscoreServer {
 			if(exchange.getRequestText().toLowerCase().equals("off")) {
 				System.out.println("*** Turning OFF LEDs/solenoids ***");
 				stateOn = false;
+				//Run script to turn off
 			} else if(exchange.getRequestText().toLowerCase().equals("on")) {
 				System.out.println("*** Turning ON LEDs/solenoids ***");
 				stateOn = true;
+				//Run script to turn on
 			} else {
 				System.out.println("*** Toggling LEDs/solenoids ***");
 				stateOn = !stateOn;
 				System.out.println("They are now turned on :" + stateOn);
+				//Run script to turn on or off
 			}
 			
 			boolean isConfirmable = exchange.advanced().getRequest().isConfirmable();
