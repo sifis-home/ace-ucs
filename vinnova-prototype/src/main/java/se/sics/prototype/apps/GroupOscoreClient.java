@@ -175,7 +175,7 @@ public class GroupOscoreClient {
 		
 			if(ui) {
 				System.out.println("Enter command:");
-				command = scanner.next();
+				command = scanner.next().toLowerCase();
 			}
 			
 			multicastRequest.setPayload(command);
@@ -195,7 +195,9 @@ public class GroupOscoreClient {
 			client.advanced(handler, multicastRequest);
 			while (handler.waitOn(HANDLER_TIMEOUT));
 	
-		} while(ui && !command.equals("q"));
+			Thread.sleep(1100);
+			
+		} while(ui && !command.equals("q") && !command.equals("quit"));
 		
 		scanner.close();
 		
