@@ -41,8 +41,10 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Base64;
-import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -51,7 +53,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
  * A CoAP request implementing the Message interface for the ACE library.
@@ -108,7 +109,7 @@ public class CoapReq implements Message {
         if (ctx==null) {
             return null;
         }
-        //XXX: kludge since OSCORE doesn't set PeerIdentity
+
         if (ctx instanceof DtlsEndpointContext) {
             Principal p = ctx.getPeerIdentity();
             if (p==null) {
@@ -116,19 +117,27 @@ public class CoapReq implements Message {
             }
             return p.getName();
         } 
-       
-        OSCoreCtx osctx = OscoreCtxDbSingleton.getInstance()
-                .getContextByToken(this.request.getToken());
-        if (osctx == null) {
-            return null;
+        // If OSCORE is used, retrieve the sender ID the client used in the
+        // request by using the information in the endpoint context. Note that
+        // the sender ID the client used in the request is the local recipient ID.
+        else if (ctx instanceof MapBasedEndpointContext) {
+            MapBasedEndpointContext mapCtx = (MapBasedEndpointContext)ctx;
+            
+            byte[] clientSenderId = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
+            byte[] idContext = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+        
+            if (clientSenderId == null) {
+                return null;
+            }
+            String senderId = "";
+            if (idContext != null) {
+                senderId += Base64.encodeBytes(idContext);
+            }
+            senderId += new String(clientSenderId, Constants.charset);    
+            return senderId;
         }
-        String senderId = "";
-        if (osctx.getIdContext() != null) {
-            senderId += Base64.encodeBytes(osctx.getIdContext());
-        }
-        senderId += new String(osctx.getSenderId(), Constants.charset);    
-        return senderId;
-     
+        
+        return null;
     }
 
     @Override
