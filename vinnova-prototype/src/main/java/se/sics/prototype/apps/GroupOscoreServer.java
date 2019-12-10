@@ -151,6 +151,9 @@ public class GroupOscoreServer {
 		Utility.printContextInfo(ctx);
 		System.out.println("==================");
 		
+		System.out.println("");
+		System.out.println("Server has joined the group. Waiting for requests.");
+		
 		server.start();
 	}
 

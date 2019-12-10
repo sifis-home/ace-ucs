@@ -21,6 +21,8 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Scanner;
+
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -100,6 +102,11 @@ public class GroupOscoreClient {
 	static final int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
 	
 	/**
+	 * Indicate if the basic UI for the client should be enabled
+	 */
+	static final boolean ui = true;
+	
+	/**
 	 * OSCORE Security Context database (sender)
 	 */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
@@ -157,21 +164,41 @@ public class GroupOscoreClient {
 		Utility.printContextInfo(ctx);
 		System.out.println("==================");
 		
-		try {
-			String host = new URI(client.getURI()).getHost();
-			int port = new URI(client.getURI()).getPort();
-			System.out.println("Sending to: " + host + ":" + port);
-		} catch (URISyntaxException e) {
-			System.err.println("Failed to parse destination URI");
-			e.printStackTrace();
-		}
-		System.out.println("Sending from: " + client.getEndpoint().getAddress());
-		System.out.println(Utils.prettyPrint(multicastRequest));
-
-		// sends a multicast request
-		client.advanced(handler, multicastRequest);
-		while (handler.waitOn(HANDLER_TIMEOUT));
-
+		System.out.println("");
+		System.out.println("Client has joined the group.");
+		
+		//Implements basic UI for client
+		//If ui is set to false a single request will be made
+		String command = requestPayload;
+		Scanner scanner = new Scanner(System.in);
+		do {
+		
+			if(ui) {
+				System.out.println("Enter command:");
+				command = scanner.next();
+			}
+			
+			multicastRequest.setPayload(command);
+			
+			try {
+				String host = new URI(client.getURI()).getHost();
+				int port = new URI(client.getURI()).getPort();
+				System.out.println("Sending to: " + host + ":" + port);
+			} catch (URISyntaxException e) {
+				System.err.println("Failed to parse destination URI");
+				e.printStackTrace();
+			}
+			System.out.println("Sending from: " + client.getEndpoint().getAddress());
+			System.out.println(Utils.prettyPrint(multicastRequest));
+	
+			// sends a multicast request
+			client.advanced(handler, multicastRequest);
+			while (handler.waitOn(HANDLER_TIMEOUT));
+	
+		} while(ui && !command.equals("q"));
+		
+		scanner.close();
+		
 	}
 
 	private static final MultiCoapHandler handler = new MultiCoapHandler();
