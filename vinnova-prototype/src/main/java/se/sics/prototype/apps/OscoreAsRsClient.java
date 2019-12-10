@@ -3,6 +3,8 @@ package se.sics.prototype.apps;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.util.Base64;
@@ -61,15 +63,15 @@ public class OscoreAsRsClient {
 	 Groups: GroupA (aaaaaa570000), GroupB (bbbbbb570000)
 	 */
 	
-	//Sets the GM port to use
-	private final static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
-	//Sets the GM hostname/IP to use
-	private final static String GM_HOST = "localhost";
+	//Sets the default GM port to use
+	private static int GM_PORT = CoAP.DEFAULT_COAP_PORT + 100;
+	//Sets the default GM hostname/IP to use
+	private static String GM_HOST = "localhost";
 	
-	//Sets the AS port to use
-	private final static int AS_PORT = CoAP.DEFAULT_COAP_PORT;
-	//Sets the AS hostname/IP to use
-	private final static String AS_HOST = "localhost";
+	//Sets the default AS port to use
+	private static int AS_PORT = CoAP.DEFAULT_COAP_PORT;
+	//Sets the default AS hostname/IP to use
+	private static String AS_HOST = "localhost";
 	
 	//Multicast IP for Group A
 	static final InetAddress groupA_multicastIP = new InetSocketAddress("224.0.1.191", 0).getAddress();
@@ -82,14 +84,20 @@ public class OscoreAsRsClient {
 	 * 
 	 * @throws CoseException 
 	 */
-	public static void main(String[] args) throws CoseException {
+	public static void main(String[] args) throws CoseException, URISyntaxException {
 		
-		//Set member name from command line argument
-		String memberName;
-		if(args.length > 0) {
-			memberName = args[0];
-		} else {
-			memberName = "Client1";	
+		//Set member name, AS and GM to use from command line arguments
+		String memberName = "Client1";
+		for(int i = 0 ; i < args.length ; i += 2) {
+			if(args[i].equals("-name")) {
+				memberName = args[i + 1];
+			} else if(args[i].equals("-gm")) {
+				GM_HOST = new URI(args[i + 1]).getHost();
+				GM_PORT = new URI(args[i + 1]).getPort();
+			} else if(args[i].equals("-as")) {
+				AS_HOST = new URI(args[i + 1]).getHost();
+				AS_PORT = new URI(args[i + 1]).getPort();
+			}
 		}
 		
 		//Set group to join based on the member name
