@@ -21,8 +21,6 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Scanner;
-
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -140,15 +138,8 @@ public class GroupOscoreClient {
 		CoapEndpoint endpoint = new CoapEndpoint.Builder().setNetworkConfig(config).build();
 		CoapClient client = new CoapClient();
 
-		client.setEndpoint(endpoint);
-		
+		client.setEndpoint(endpoint);	
 		client.setURI(requestURI);
-		Request multicastRequest = Request.newPost();
-		multicastRequest.setPayload(requestPayload);
-		multicastRequest.setType(Type.NON);
-		if(useOSCORE) {
-			multicastRequest.getOptions().setOscore(new byte[0]); //Set the OSCORE option
-		}
 
 		//Information about the sender
 		System.out.println("==================");
@@ -156,7 +147,7 @@ public class GroupOscoreClient {
 		System.out.println("Uses OSCORE: " + useOSCORE);
 		System.out.println("Request destination: " + requestURI);
 		System.out.println("Request destination port: " + destinationPort);
-		System.out.println("Request method: " + multicastRequest.getCode());
+		//System.out.println("Request method: " + multicastRequest.getCode());
 		System.out.println("Request payload: " + requestPayload);
 		System.out.println("Outgoing port: " + endpoint.getAddress().getPort());
 		
@@ -167,18 +158,18 @@ public class GroupOscoreClient {
 		System.out.println("");
 		System.out.println("Client has joined the group.");
 		
-		//Implements basic UI for client
-		//If ui is set to false a single request will be made
-		String command = requestPayload;
-		Scanner scanner = new Scanner(System.in);
-		do {
+		//Send messages in a loop 10 times with 10 second sleep
+		//Every message will trigger the LEDs/solenoids on/off
+		int count = 10;
+		String payload = requestPayload;
 		
-			if(ui) {
-				System.out.println("Enter command:");
-				command = scanner.next().toLowerCase();
+		while(count > 0) {
+			Request multicastRequest = Request.newPost();
+			multicastRequest.setPayload(payload);
+			multicastRequest.setType(Type.NON);
+			if(useOSCORE) {
+				multicastRequest.getOptions().setOscore(new byte[0]); //Set the OSCORE option
 			}
-			
-			multicastRequest.setPayload(command);
 			
 			try {
 				String host = new URI(client.getURI()).getHost();
@@ -194,12 +185,16 @@ public class GroupOscoreClient {
 			// sends a multicast request
 			client.advanced(handler, multicastRequest);
 			while (handler.waitOn(HANDLER_TIMEOUT));
-	
-			Thread.sleep(1100);
+
+			Thread.sleep(10000);
+			count--;
+			if(payload.equals("on")) {
+				payload = "off";
+			} else {
+				payload = "on";
+			}
 			
-		} while(ui && !command.equals("q") && !command.equals("quit"));
-		
-		scanner.close();
+		}
 		
 	}
 

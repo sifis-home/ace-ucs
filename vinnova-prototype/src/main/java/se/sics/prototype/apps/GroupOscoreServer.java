@@ -220,7 +220,7 @@ public class GroupOscoreServer {
 
 				//Run script to turn off
 				try {
-					String command = "python /c start python LED-off.py";
+					String command = "python LED-off.py";
 					Runtime.getRuntime().exec(command);
 				} catch (IOException e) {
 					System.err.print("Failed to run python script: ");
@@ -232,7 +232,7 @@ public class GroupOscoreServer {
 
 				//Run script to turn on
 				try {
-					String command = "python /c start python LED-on.py";
+					String command = "python LED-on.py";
 					Runtime.getRuntime().exec(command);
 				} catch (IOException e) {
 					System.err.print("Failed to run python script: ");
