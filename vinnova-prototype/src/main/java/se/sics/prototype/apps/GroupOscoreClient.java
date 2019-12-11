@@ -93,7 +93,7 @@ public class GroupOscoreClient {
 	/**
 	 * Payload in request sent (POST)
 	 */
-	static final String requestPayload = "off";
+	static final String requestPayload = "on";
 	
 	/**
 	 * ED25519 curve value.

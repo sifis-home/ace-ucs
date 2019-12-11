@@ -16,6 +16,7 @@
  ******************************************************************************/
 package se.sics.prototype.apps;
 
+import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
@@ -216,11 +217,27 @@ public class GroupOscoreServer {
 			if(exchange.getRequestText().toLowerCase().equals("off")) {
 				System.out.println("*** Turning OFF LEDs/solenoids ***");
 				stateOn = false;
+
 				//Run script to turn off
+				try {
+					String command = "python /c start python LED-off.py";
+					Runtime.getRuntime().exec(command);
+				} catch (IOException e) {
+					System.err.print("Failed to run python script: ");
+					e.printStackTrace();
+				}
 			} else if(exchange.getRequestText().toLowerCase().equals("on")) {
 				System.out.println("*** Turning ON LEDs/solenoids ***");
 				stateOn = true;
+
 				//Run script to turn on
+				try {
+					String command = "python /c start python LED-on.py";
+					Runtime.getRuntime().exec(command);
+				} catch (IOException e) {
+					System.err.print("Failed to run python script: ");
+					e.printStackTrace();
+				}
 			} else {
 				System.out.println("*** Toggling LEDs/solenoids ***");
 				stateOn = !stateOn;
