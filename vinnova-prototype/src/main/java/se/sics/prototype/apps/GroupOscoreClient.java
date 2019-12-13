@@ -21,6 +21,8 @@ import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Scanner;
+
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -163,9 +165,16 @@ public class GroupOscoreClient {
 		int count = 10;
 		String payload = requestPayload;
 		
-		while(count > 0) {
+		Scanner scanner = new Scanner(System.in);
+		String command = "";
+		
+		while(!command.equals("q")) {
+			
+			System.out.println("Enter command: ");
+			command = scanner.next();
+			
 			Request multicastRequest = Request.newPost();
-			multicastRequest.setPayload(payload);
+			multicastRequest.setPayload(command);
 			multicastRequest.setType(Type.NON);
 			if(useOSCORE) {
 				multicastRequest.getOptions().setOscore(new byte[0]); //Set the OSCORE option
@@ -186,7 +195,7 @@ public class GroupOscoreClient {
 			client.advanced(handler, multicastRequest);
 			while (handler.waitOn(HANDLER_TIMEOUT));
 
-			Thread.sleep(10000);
+			Thread.sleep(1000);
 			count--;
 			if(payload.equals("on")) {
 				payload = "off";
