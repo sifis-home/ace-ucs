@@ -92,7 +92,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
-        return DriverManager.getConnection(this.dbUrl, connectionProps);
+        return DriverManager.getConnection(this.dbUrl + "/?useSSL=FALSE&allowPublicKeyRetrieval=true", connectionProps);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         connectionProps.put("user", this.user);
         connectionProps.put("password", this.password);
         return DriverManager.getConnection(this.dbUrl + "/" 
-                + this.dbName, connectionProps);
+                + this.dbName + "?useSSL=FALSE&allowPublicKeyRetrieval=true", connectionProps);
     }
 
     @Override
