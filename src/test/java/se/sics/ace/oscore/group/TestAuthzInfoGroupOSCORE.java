@@ -100,7 +100,7 @@ public class TestAuthzInfoGroupOSCORE {
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
-    private static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+    private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
     /**
      * Set up tests.
@@ -116,9 +116,10 @@ public class TestAuthzInfoGroupOSCORE {
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
+    	final String groupName = "feedca570000";
+        
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
-
         
         OneKey sharedKey = new OneKey();
         sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -147,16 +148,16 @@ public class TestAuthzInfoGroupOSCORE {
         
         // M.T.
         // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        // roles admitted in the OSCORE Group, with group name "feedca570000".
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put("feedca570000", actions2);
-        myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_responder", myResource3);
-        myScopes.put("feedca570000_monitor", myResource3);
-        myScopes.put("feedca570000_requester_responder", myResource3);
-        myScopes.put("feedca570000_requester_monitor", myResource3);
+        myResource3.put(groupName, actions2);
+        myScopes.put(groupName + "_requester", myResource3);
+        myScopes.put(groupName + "_responder", myResource3);
+        myScopes.put(groupName + "_monitor", myResource3);
+        myScopes.put(groupName + "_requester_responder", myResource3);
+        myScopes.put(groupName + "_requester_monitor", myResource3);
         
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
@@ -170,7 +171,7 @@ public class TestAuthzInfoGroupOSCORE {
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        valid.setJoinResources(Collections.singleton(groupName));
         
      // Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -222,7 +223,8 @@ public class TestAuthzInfoGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    	GroupInfo myGroup = new GroupInfo(groupName,
+    									  masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
@@ -237,8 +239,7 @@ public class TestAuthzInfoGroupOSCORE {
     			                          csKeyEnc);
         
     	// Add this OSCORE group to the set of active groups
-    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	activeGroups.put(groupName, myGroup);
        
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -262,9 +263,6 @@ public class TestAuthzInfoGroupOSCORE {
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 valid, ctx, tokenFile, valid, false);
         
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai.setGroupIdPrefixSize(groupIdPrefixSize);
-        
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
@@ -275,9 +273,6 @@ public class TestAuthzInfoGroupOSCORE {
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
                 valid, ctx, tokenFile, valid, false);
-        
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai2.setGroupIdPrefixSize(groupIdPrefixSize);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
@@ -755,10 +750,11 @@ public class TestAuthzInfoGroupOSCORE {
     	
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
+        
     	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -822,11 +818,11 @@ public class TestAuthzInfoGroupOSCORE {
     	
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("monitor");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);

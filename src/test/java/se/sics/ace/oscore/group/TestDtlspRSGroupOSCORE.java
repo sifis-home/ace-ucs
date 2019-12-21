@@ -91,7 +91,6 @@ import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
-import se.sics.ace.oscore.rs.Util;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
 
@@ -108,8 +107,7 @@ public class TestDtlspRSGroupOSCORE {
 
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
-	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 	
     /**
      * Definition of the Hello-World Resource
@@ -255,12 +253,12 @@ public class TestDtlspRSGroupOSCORE {
             }
         	
         	// Retrieve the zeroed-epoch Group ID of the OSCORE group
-        	String scopeStr;
+        	String groupName;
       	  	CBORObject scopeElement = cborScope.get(0);
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
+      	  	groupName = scopeElement.AsString();
 
-          	  	if (!scopeStr.equals(this.getName())) {
+          	  	if (!groupName.equals(this.getName())) {
 	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
 	  				return;
 	  			}      	  		
@@ -310,13 +308,8 @@ public class TestDtlspRSGroupOSCORE {
         		
         	}
         	
-        	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
-        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
-        	
         	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	GroupInfo myGroup = activeGroups.get(groupName);
         	
         	// Assign a new Sender ID to the joining node.
         	// For the sake of testing, a particular Sender ID is used as known to be available.
@@ -580,6 +573,8 @@ public class TestDtlspRSGroupOSCORE {
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
     	
+    	final String groupName = "feedca570000";
+    	
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -596,20 +591,20 @@ public class TestDtlspRSGroupOSCORE {
         
         // M.T.
         // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        // roles admitted in the OSCORE Group, with group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put("feedca570000", actions3);
-        myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_responder", myResource3);
-        myScopes.put("feedca570000_monitor", myResource3);
-        myScopes.put("feedca570000_requester_responder", myResource3);
-        myScopes.put("feedca570000_requester_monitor", myResource3);
+        myResource3.put(groupName, actions3);
+        myScopes.put(groupName + "_requester", myResource3);
+        myScopes.put(groupName + "_responder", myResource3);
+        myScopes.put(groupName + "_monitor", myResource3);
+        myScopes.put(groupName + "_requester_responder", myResource3);
+        myScopes.put(groupName + "_requester_monitor", myResource3);
         
         // M.T.
         // Adding another join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
+        // roles admitted in the OSCORE Group, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Set<Short> actions4 = new HashSet<>();
         actions4.add(Constants.POST);
@@ -633,8 +628,8 @@ public class TestDtlspRSGroupOSCORE {
         
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
-        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        // The resource name is the name of the OSCORE group.
+        valid.setJoinResources(Collections.singleton(groupName));
         
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -686,7 +681,8 @@ public class TestDtlspRSGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    	GroupInfo myGroup = new GroupInfo(groupName,
+    									  masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
@@ -770,7 +766,7 @@ public class TestDtlspRSGroupOSCORE {
     	
     	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	activeGroups.put(groupName, myGroup);
     	
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
@@ -792,9 +788,6 @@ public class TestDtlspRSGroupOSCORE {
         // Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
         	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
-        
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai.setGroupIdPrefixSize(groupIdPrefixSize);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -902,7 +895,7 @@ public class TestDtlspRSGroupOSCORE {
   	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
   	    Resource hello = new HelloWorldResource();
   	    Resource temp = new TempResource();
-  	    Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
+  	    Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
   	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
       
   	    rs = new CoapServer();
@@ -995,9 +988,6 @@ public class TestDtlspRSGroupOSCORE {
              Assert.fail("Invalid key excpetion - Invalid public key");
          }
          
-         // TODO: REMOVE DEBUG PRINT
-         // System.out.println("success after: " + success);
-         
          try {
         	 if (mySignature != null) {
 	             mySignature.update(signedData);
@@ -1007,9 +997,6 @@ public class TestDtlspRSGroupOSCORE {
              System.out.println(e.getMessage());
              Assert.fail("Failed signature verification");
          }
-         
-         // TODO: REMOVE DEBUG PRINT
-         // System.out.println("success before: " + success);
          
          return success;
 

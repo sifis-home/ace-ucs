@@ -254,11 +254,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         //Create a byte string scope for use later
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
         String role1 = new String("requester");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -616,12 +616,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         //Create a byte string scope for use later
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
         String role1 = new String("requester");
         String role2 = new String("responder");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
+        cborArrayScope.Add(groupName);
         CBORObject cborArrayRoles = CBORObject.NewArray();
         cborArrayRoles.Add(role1);
         cborArrayRoles.Add(role2);
