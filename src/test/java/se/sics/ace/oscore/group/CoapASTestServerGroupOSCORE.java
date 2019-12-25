@@ -98,6 +98,8 @@ public class CoapASTestServerGroupOSCORE
                 CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
         
+    	final String groupName = "feedca570000";
+        
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_oscore");
@@ -125,11 +127,11 @@ public class CoapASTestServerGroupOSCORE
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_responder");
-        scopes.add("feedca570000_monitor");
-        scopes.add("feedca570000_requester_responder");
-        scopes.add("feedca570000_requester_monitor");
+        scopes.add(groupName + "_requester");
+        scopes.add(groupName + "_responder");
+        scopes.add(groupName + "_monitor");
+        scopes.add(groupName + "_requester_responder");
+        scopes.add(groupName + "_requester_monitor");
         auds.clear();
         auds.add("rs2");
         keyTypes.clear();
@@ -154,11 +156,11 @@ public class CoapASTestServerGroupOSCORE
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add("feedca570000_requester");
-        scopes.add("feedca570000_responder");
-        scopes.add("feedca570000_monitor");
-        scopes.add("feedca570000_requester_responder");
-        scopes.add("feedca570000_requester_monitor");
+        scopes.add(groupName + "_requester");
+        scopes.add(groupName + "_responder");
+        scopes.add(groupName + "_monitor");
+        scopes.add(groupName + "_requester_responder");
+        scopes.add(groupName + "_requester_monitor");
         auds.clear();
         auds.add("rs3");
         keyTypes.clear();
@@ -215,16 +217,16 @@ public class CoapASTestServerGroupOSCORE
         db.addCti2Client(cti, "clientA");
         
         // M.T.
-        // Setup additional tokens to access a join resource at an OSCORE Group Manager.
+        // Setup additional tokens to access a group-membership resource at an OSCORE Group Manager.
         // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
         cti = Base64.getEncoder().encodeToString(new byte[]{0x01});
         claims = new HashMap<>();
         
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         CBORObject cborArrayScope = CBORObject.NewArray();
-        String gid = new String("feedca570000");
+        String gName = new String(groupName);
     	String role1 = new String("requester");
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(gName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -241,9 +243,9 @@ public class CoapASTestServerGroupOSCORE
         
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
+        gName = new String(groupName);
     	role1 = new String("responder");
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(gName);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -260,9 +262,9 @@ public class CoapASTestServerGroupOSCORE
         
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
+        gName = new String(groupName);
     	role1 = new String("monitor");
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(gName);
     	cborArrayScope.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -279,10 +281,10 @@ public class CoapASTestServerGroupOSCORE
         
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
+        gName = new String(groupName);
     	role1 = new String("requester");
     	String role2 = new String("responder");
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(gName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -302,10 +304,10 @@ public class CoapASTestServerGroupOSCORE
         
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
+        gName = new String(groupName);
     	role1 = new String("requester");
     	role2 = new String("monitor");
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(gName);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -381,14 +383,14 @@ public class CoapASTestServerGroupOSCORE
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
         // This client is allowed to be requester and/or monitor, but not responder.
-        pdp.addAccess("clientF", "rs2", "feedca570000_requester_monitor");
-        pdp.addAccess("clientF", "rs3", "feedca570000_requester_monitor");
+        pdp.addAccess("clientF", "rs2", groupName + "_requester_monitor");
+        pdp.addAccess("clientF", "rs3", groupName + "_requester_monitor");
         
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
         // This client is allowed to be only requester.
-        pdp.addAccess("clientG", "rs2", "feedca570000_requester");
-        pdp.addAccess("clientG", "rs3", "feedca570000_requester");
+        pdp.addAccess("clientG", "rs2", groupName + "_requester");
+        pdp.addAccess("clientG", "rs3", groupName + "_requester");
         
         // M.T.
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP

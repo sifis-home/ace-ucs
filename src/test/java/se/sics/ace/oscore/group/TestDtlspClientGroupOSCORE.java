@@ -88,6 +88,8 @@ import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
  */
 public class TestDtlspClientGroupOSCORE {
 
+	private final String rootGroupMembershipResource = "group-oscore";
+	
     private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
@@ -276,7 +278,7 @@ public class TestDtlspClientGroupOSCORE {
     public void testPostAuthzInfoGroupOSCORESingleRole() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
@@ -284,7 +286,7 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -381,7 +383,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
               
@@ -628,7 +630,7 @@ public class TestDtlspClientGroupOSCORE {
     public void testPostAuthzInfoGroupOSCOREMultipleRoles() throws AceException, IllegalStateException,
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	boolean askForSignInfo = true;
@@ -637,7 +639,7 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -737,7 +739,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
         
@@ -1104,7 +1106,7 @@ public class TestDtlspClientGroupOSCORE {
         key.add(KeyKeys.KeyId, kid);
         
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
@@ -1112,7 +1114,7 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1205,7 +1207,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -1458,7 +1460,7 @@ public class TestDtlspClientGroupOSCORE {
         key.add(KeyKeys.KeyId, kid);
         
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	boolean askForSignInfo = true;
@@ -1467,7 +1469,7 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -1563,7 +1565,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
         
@@ -1875,10 +1877,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1940,11 +1942,11 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -2055,7 +2057,7 @@ public class TestDtlspClientGroupOSCORE {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
                
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
         boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
@@ -2070,7 +2072,7 @@ public class TestDtlspClientGroupOSCORE {
         asymmetric.add(KeyKeys.KeyId, asymmetricKid);
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2167,7 +2169,7 @@ public class TestDtlspClientGroupOSCORE {
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
                 kidStr.getBytes(Constants.charset),
                 key);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -2421,7 +2423,7 @@ public class TestDtlspClientGroupOSCORE {
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
                
         Map<Short, CBORObject> params = new HashMap<>();
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	boolean askForSignInfo = true;
@@ -2437,7 +2439,7 @@ public class TestDtlspClientGroupOSCORE {
         asymmetric.add(KeyKeys.KeyId, asymmetricKid);
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -2537,7 +2539,7 @@ public class TestDtlspClientGroupOSCORE {
                         CoAP.DEFAULT_COAP_SECURE_PORT), 
                 kidStr.getBytes(Constants.charset),
                 key);
-        c.setURI("coaps://localhost/feedca570000");
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -2897,7 +2899,7 @@ public class TestDtlspClientGroupOSCORE {
      * 
      * @param privKey  private key used to sign
      * @param dataToSign  content to sign
-     * @return FIXME
+     * @return The computed signature
      
      */
     public byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {

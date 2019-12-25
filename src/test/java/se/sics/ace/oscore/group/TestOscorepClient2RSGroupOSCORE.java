@@ -85,6 +85,8 @@ import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
  */
 public class TestOscorepClient2RSGroupOSCORE {
 
+	private final String rootGroupMembershipResource = "group-oscore";
+	
     // Private and public key to be used in the OSCORE group (EDDSA)
     private static String groupKeyPair = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
     
@@ -289,7 +291,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(
-                "coap://localhost/feedca570000"));
+                "coap://localhost/" + rootGroupMembershipResource + "/" + groupName));
         
         CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
@@ -350,7 +352,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 
         // Now proceed with the Join request
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://localhost/feedca570000", CoAP.DEFAULT_COAP_PORT));
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
        
         System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
        
@@ -716,7 +718,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Now proceed with the Join request        
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://localhost/feedca570000", CoAP.DEFAULT_COAP_PORT));
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
         
         System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
        
@@ -982,7 +984,7 @@ public class TestOscorepClient2RSGroupOSCORE {
      * 
      * @param privKey  private key used to sign
      * @param dataToSign  content to sign
-     * @return FIXME
+     * @return The computed signature
      
      */
     public byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {
