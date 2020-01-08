@@ -19,9 +19,16 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.util.Collection;
 import java.util.HashMap;
 
+import javax.crypto.KeyAgreement;
+
+import org.bouncycastle.util.Arrays;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
@@ -38,6 +45,14 @@ import com.upokecenter.cbor.CBORObject;
  *
  */
 public class GroupOSCoreCtx extends OSCoreCtx {
+	
+	/**
+	 * Enables or disables the optimized response functionality.
+	 * If it is enabled responses no longer require a separate
+	 * signature but rather use the encryption keys for source
+	 * authentication.
+	 */
+	private final static boolean OPTIMIZED_RESPONSES = true;
 	
 	/**
 	 * Enable or disable use of countersignatures.
@@ -59,6 +74,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	class RecipientCtx {
 		public byte[] recipient_id;
 		public byte[] recipient_key;
+		public byte[] response_recipient_key;
 		public int recipient_seq;
 		private int recipient_replay_window_size;
 		private int recipient_replay_window;
@@ -120,6 +136,63 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				System.err.println(e.getMessage());
 			}
 			
+			//If optimized responses are enabled.
+			if(OPTIMIZED_RESPONSES) {
+				//First derive the response recipient key
+				info = CBORObject.NewArray();
+				info.Add(this.recipient_id);
+				info.Add(this.context_id);
+				info.Add(this.common_alg.AsCBOR());
+				info.Add(CBORObject.FromObject("Key"));
+				info.Add(this.key_length);
+				
+				System.out.println("For recipient ID " + Utils.toHexString(this.recipient_id));
+				
+				//Test adding KeyAgreement code
+				try {
+					//Seems Java 11 is needed for these
+					//https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#keyagreement-algorithms
+					//See also https://openjdk.java.net/jeps/324
+					KeyAgreement keyAgreement1 = KeyAgreement.getInstance("XDH");
+					KeyAgreement keyAgreement2 = KeyAgreement.getInstance("X448");
+					KeyAgreement keyAgreement3 = KeyAgreement.getInstance("X25519");
+				} catch (NoSuchAlgorithmException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+				//FIXME: Generate shared secret correctly. Now it just uses the sender and recipient IDs.
+				byte[] sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();
+				
+				try {
+					this.response_recipient_key = deriveKey(this.recipient_key, sharedSecret, this.key_length, digest,
+							info.EncodeToBytes());
+					System.out.println("response_recipient_key " + Utils.toHexString(this.response_recipient_key));
+				} catch (CoseException e) {
+					System.err.println(e.getMessage());
+				}
+				
+				//Then derive the response sender key (for this recipient) and add it to a list
+				info = CBORObject.NewArray();
+				info.Add(getSenderId());
+				info.Add(this.context_id);
+				info.Add(this.common_alg.AsCBOR());
+				info.Add(CBORObject.FromObject("Key"));
+				info.Add(this.key_length);
+				
+				try {
+					byte[] response_sender_key = deriveKey(getSenderKey(), sharedSecret, this.key_length, digest,
+							info.EncodeToBytes());
+					System.out.println("response_sender_key " + Utils.toHexString(response_sender_key));
+					addResponseSenderKey(this.recipient_id, response_sender_key);
+				} catch (CoseException e) {
+					System.err.println(e.getMessage());
+				}
+			}
+			
 			//System.out.println("Key 2 " + Utils.toHexString(this.recipient_key));
 		}
 	}
@@ -150,6 +223,12 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * TODO: Rename map
 	 */
 	HashMap<String, RecipientCtx> hmap = new HashMap<String, RecipientCtx>();
+	
+	/**
+	 * Map of response_sender_keys for recipients.
+	 * Used for the optimized responses.
+	 */
+	HashMap<String, byte[]> response_sender_keys = new HashMap<String, byte[]>();
 	
 	/**
 	 * Constructor. Generates the context from the base parameters.
@@ -262,6 +341,21 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	}
 	
 	/**
+	 * @return get the response recipient key for a certain recipient ID (for optimized responses)
+	 */
+	public byte[] getResponseRecipientKey(byte[] recipient_id) {
+		String index = Base64.encodeBytes(recipient_id);
+		
+		byte[] result = null; 
+		
+		if(hmap.get(index) != null) {
+			result = (hmap.get(index)).response_recipient_key;
+		}
+		
+		return result;
+	}
+	
+	/**
 	 * Enables setting the recipient key for a certain recipient ID
 	 * 
 	 * @param recipient_id the recipient ID to set the recipient key for
@@ -322,6 +416,36 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 */
 	public int getCountersignLength() {
 		return countersign_length;
+	}
+	
+	/**
+	 * Adds a response sender key associated with a certain recipient to the map.
+	 * Used for the optimized responses.
+	 */
+	public void addResponseSenderKey(byte[] recipientId, byte[] response_sender_key)
+	{
+		String index = Base64.encodeBytes(recipientId);	
+		response_sender_keys.put(index, response_sender_key);
+		
+	}
+	
+	/**
+	 * Get a response sender key associated with a certain recipient.
+	 * Used for the optimized responses.
+	 */
+	public byte[] getResponseSenderKey(byte[] recipientId)
+	{
+		String index = Base64.encodeBytes(recipientId);	
+		return response_sender_keys.get(index);
+	}
+	
+	/**
+	 * Check whether this context uses optimized responses or not.
+	 * 
+	 * @return true/false to indicate if optimized responses are used
+	 */
+	public boolean getOptimizedResponses() {
+		return OPTIMIZED_RESPONSES;
 	}
 	
 	/** ---- Methods below should never be called on a Group OSCORE context ---- **/

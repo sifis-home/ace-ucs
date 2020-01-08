@@ -74,12 +74,20 @@ public abstract class Encryptor {
 	protected static byte[] encryptAndEncode(Encrypt0Message enc, OSCoreCtx ctx, Message mess, boolean newPartialIV, byte[] recipientId)
 			throws OSException {
 		boolean isRequest = mess instanceof Request;
+		//Boolean to indicate whether this is an optimized response
+		boolean isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
 
 		try {
 			byte[] key = ctx.getSenderKey();
 			byte[] partialIV = null;
 			byte[] nonce = null;
 
+			//If optimized responses are used and this is a response,
+			//use the response sender key (for this recipient) instead
+			if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse) {
+				key = ((GroupOSCoreCtx)ctx).getResponseSenderKey(recipientId);
+			}
+			
 			//Rikard: Moved this here to always include the KID
 			enc.addAttribute(HeaderKeys.KID, CBORObject.FromObject(ctx.getSenderId()), Attribute.UNPROTECTED);
 			
@@ -135,11 +143,12 @@ public abstract class Encryptor {
 				System.out.println("Encrypt " + messageType + "Nonce:\t" + Utility.arrayToString(nonce));
 				//System.out.println("Encrypt " + messageType + "Sequence Nr.:\t" + seq);
 				System.out.println("Encrypt " + messageType + "Sender ID:\t" + Utility.arrayToString(ctx.getSenderId()));
-				System.out.println("Encrypt " + messageType + "Sender Key:\t" + Utility.arrayToString(ctx.getSenderKey()));
+				System.out.println("Encrypt " + messageType + "Sender Key:\t" + Utility.arrayToString(key));
 				//System.out.println("Encrypt " + messageType + "Recipient ID:" + Utility.arrayToString(recipientId));
 				System.out.println("Encrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
-				System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
+				//System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
 				System.out.println("Encrypt " + messageType + "External AAD:\t" + Utility.arrayToString(enc.getExternal()));
+				System.out.println("Encrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
 			}
 
 			/* ------ End prints for debugging ------ */
@@ -149,13 +158,15 @@ public abstract class Encryptor {
 
 			/* ------ Rikard: Add the countersignature (if using Group OSCORE) ------ */
 			//TODO: Extract to separate method?
-			if(ctx instanceof GroupOSCoreCtx) {
+			//Skip signatures for responses when using the optimized responses
+			if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
 				OneKey sender_private_key = ((GroupOSCoreCtx)ctx).getSenderPrivateKey();
 				CounterSign1 sign = new CounterSign1(sender_private_key);
 
 				CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
 				sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
 				//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+				
 				enc.setCountersign1(sign);
 				
 				//Testing new external AAD for signing
@@ -216,7 +227,7 @@ public abstract class Encryptor {
 				/* ------ End add the countersignature	------ */
 
 				return full_payload;
-			} else { //If using normal OSCORE
+			} else { //If using normal OSCORE, or optimized responses
 				enc.encrypt(key);
 				return enc.getEncryptedContent();
 			}

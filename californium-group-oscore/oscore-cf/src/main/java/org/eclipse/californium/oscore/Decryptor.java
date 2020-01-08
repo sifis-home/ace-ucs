@@ -88,6 +88,9 @@ public abstract class Decryptor {
 		//Flag to indicate if recipient contexts should be dynamically generated at reception of messages
 		boolean GenerateContextsOnReceive = true;
 		
+		//Boolean to indicate whether this is an optimized response
+		boolean isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
+
 		//Generate recipient context if non-existent here
 		if(ctx instanceof GroupOSCoreCtx && GenerateContextsOnReceive) {
 			HashMapCtxDB db = HashMapCtxDB.getInstance();
@@ -184,6 +187,13 @@ public abstract class Decryptor {
 		if(ctx instanceof GroupOSCoreCtx) {
 			//System.out.println("Recipient ID:" + recipientId[0]);
 			key = ((GroupOSCoreCtx)ctx).getRecipientKey(recipientId);
+			
+			//If optimized responses are used and this is a response,
+			//use the response recipient key instead
+			if(isOptimizedResponse == true) {
+				key = ((GroupOSCoreCtx)ctx).getResponseRecipientKey(recipientId);
+			}
+			
 		} else {
 			key = ctx.getRecipientKey(); //Fixed
 		}
@@ -194,8 +204,9 @@ public abstract class Decryptor {
 		/* ------ Rikard: Prepare check of the countersignature	------ */
 		//TODO: Move to different method?
 		//Rikard: TODO: Clean up, Fail if sig is bad
+		//Skip if this is a response and optimized responses are used
 		CounterSign1 sign = null;
-		if(ctx instanceof GroupOSCoreCtx) {
+		if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
 
 			//First remove the countersignature from the payload (if existing and if using Group OSCORE)
 			byte[] full_payload = null;
@@ -290,6 +301,7 @@ public abstract class Decryptor {
 
 			System.out.println("Decrypt " + messageType + "Recipient Key:" + Utility.arrayToString(key));
 			System.out.println("Decrypt " + messageType + "External AAD:\t" + Utility.arrayToString(aad));
+			System.out.println("Decrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
 		}
 
 		/* ------ End prints for debugging ------ */
@@ -307,7 +319,8 @@ public abstract class Decryptor {
 		}
 
 			//Rikard: Now finally check the countersignature (seems it must be done after decryption)
-			if(ctx instanceof GroupOSCoreCtx) {
+			//Skip signature checking for responses when using optimized responses
+			if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
 				boolean countersign_valid = false;
 				countersign_valid = enc.validate(sign);
 
