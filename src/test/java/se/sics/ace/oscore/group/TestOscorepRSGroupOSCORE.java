@@ -691,7 +691,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(0));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -724,7 +724,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
