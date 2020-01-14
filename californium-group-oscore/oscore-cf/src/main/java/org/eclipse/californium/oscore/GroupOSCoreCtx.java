@@ -67,6 +67,11 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	static final int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
 	
 	/**
+	 * Do replay detection.
+	 */
+	static final boolean REPLAY_CHECK = false;
+	
+	/**
 	 * Class describing a recipient context (one Group OSCORE context will have many)
 	 *
 	 */
@@ -385,11 +390,46 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	//TODO: Implement considering replays and window
 	public synchronized void checkIncomingSeq(int seq, byte[] recipient_id) throws OSException {
 		String index = Base64.encodeBytes(recipient_id);
+		
+		if(hmap.get(index) == null) {
+			return;
+		}
+
+		if(REPLAY_CHECK) {
+			(hmap.get(index)).rollback_recipient_seq = (hmap.get(index)).recipient_seq;
+			(hmap.get(index)).rollback_recipient_replay = (hmap.get(index)).recipient_replay_window;
+			if (seq > (hmap.get(index)).recipient_seq) {
+				// Update the replay window
+				int shift = seq - (hmap.get(index)).recipient_seq;
+				(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window << shift;
+				(hmap.get(index)).recipient_seq = seq;
+			} else if (seq == (hmap.get(index)).recipient_seq) {
+				System.err.println("Sequence number is replay");
+				throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+			} else { // seq < recipient_seq
+				if (seq + recipient_replay_window_size < (hmap.get(index)).recipient_seq) {
+					System.err.println("Message too old");
+					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+				}
+				// seq+replay_window_size > recipient_seq
+				int shift = (hmap.get(index)).recipient_seq - seq;
+				int pattern = 1 << shift;
+				int verifier = (hmap.get(index)).recipient_replay_window & pattern;
+				verifier = verifier >> shift;
+				if (verifier == 1) {
+					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+				}
+				(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window | pattern;
+			}
+		} else {
 			
-		if(hmap.get(index) != null) {
-			(hmap.get(index)).recipient_seq = seq;;
+			if(hmap.get(index) != null) {
+				(hmap.get(index)).recipient_seq = seq;;
+			}
+			
 		}
 	}
+			
 
 	//Get the private key of the sender
 	public OneKey getSenderPrivateKey() {
