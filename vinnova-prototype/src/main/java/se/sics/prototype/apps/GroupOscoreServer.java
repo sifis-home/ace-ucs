@@ -214,7 +214,7 @@ public class GroupOscoreServer {
 			
 			System.out.println(Utils.prettyPrint(exchange.advanced().getRequest()));
 			
-			if(exchange.getRequestText().toLowerCase().equals("off")) {
+			if(exchange.getRequestText().toLowerCase().equals("off") || exchange.getRequestText().toLowerCase().equals("open")) {
 				System.out.println("*** Turning OFF LEDs/solenoids ***");
 				stateOn = false;
 
@@ -226,7 +226,7 @@ public class GroupOscoreServer {
 					System.err.print("Failed to run python script: ");
 					e.printStackTrace();
 				}
-			} else if(exchange.getRequestText().toLowerCase().equals("on")) {
+			} else if(exchange.getRequestText().toLowerCase().equals("on") || exchange.getRequestText().toLowerCase().equals("close")) {
 				System.out.println("*** Turning ON LEDs/solenoids ***");
 				stateOn = true;
 

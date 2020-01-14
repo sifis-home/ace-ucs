@@ -115,9 +115,9 @@ public class Adversary {
 		
 		//Set multicast IP depending on the user input
 		InetAddress multicastIP = null;
-		if(targetGroup.toLowerCase().equals("group1") || targetGroup.toLowerCase().equals("groupa")) {
+		if(targetGroup.toLowerCase().equals("group1") || targetGroup.toLowerCase().equals("groupA".toLowerCase())) {
 			multicastIP = groupA_multicastIP;
-		} else if(targetGroup.toLowerCase().equals("group2") || targetGroup.toLowerCase().equals("groupb")) {
+		} else if(targetGroup.toLowerCase().equals("group2") || targetGroup.toLowerCase().equals("groupB".toLowerCase())) {
 			multicastIP = groupB_multicastIP;
 		} else {
 			System.out.println("Unknown group!");
