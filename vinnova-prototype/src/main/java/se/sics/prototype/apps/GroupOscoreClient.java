@@ -104,7 +104,7 @@ public class GroupOscoreClient {
 	/**
 	 * Indicate if the basic UI for the client should be enabled
 	 */
-	static final boolean ui = true;
+	//static final boolean ui = true;
 	
 	/**
 	 * OSCORE Security Context database (sender)
@@ -160,10 +160,9 @@ public class GroupOscoreClient {
 		System.out.println("");
 		System.out.println("Client has joined the group.");
 		
-		//Send messages in a loop 10 times with 10 second sleep
-		//Every message will trigger the LEDs/solenoids on/off
-		int count = 10;
-		String payload = requestPayload;
+		//Send messages to trigger the LEDs/solenoids on/off
+		//int count = 10;
+		//String payload = requestPayload;
 		
 		Scanner scanner = new Scanner(System.in);
 		String command = "";
@@ -196,14 +195,16 @@ public class GroupOscoreClient {
 			while (handler.waitOn(HANDLER_TIMEOUT));
 
 			Thread.sleep(1000);
-			count--;
-			if(payload.equals("on")) {
-				payload = "off";
-			} else {
-				payload = "on";
-			}
+//			count--;
+//			if(payload.equals("on")) {
+//				payload = "off";
+//			} else {
+//				payload = "on";
+//			}
 			
 		}
+		
+		scanner.close();
 		
 	}
 
