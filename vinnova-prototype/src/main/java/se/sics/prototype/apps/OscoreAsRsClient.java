@@ -89,10 +89,6 @@ public class OscoreAsRsClient {
 	 */
 	public static void main(String[] args) throws CoseException, URISyntaxException {
 		
-		if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
-			OSCoreCoapStackFactory.useAsDefault();
-		}
-		
 		//Set member name, AS and GM to use from command line arguments
 		String memberName = "Client1";
 		for(int i = 0 ; i < args.length ; i += 2) {
@@ -105,6 +101,11 @@ public class OscoreAsRsClient {
 				AS_HOST = new URI(args[i + 1]).getHost();
 				AS_PORT = new URI(args[i + 1]).getPort();
 			}
+		}
+		
+		//Explicitly enable the OSCORE Stack
+		if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
+			OSCoreCoapStackFactory.useAsDefault();
 		}
 		
 		//Set group to join based on the member name
@@ -479,13 +480,10 @@ public class OscoreAsRsClient {
     	System.out.println(message);
     	System.out.println("Press ENTER to continue");
     	System.out.println("===");
-    	//FIXME
-//    	Scanner scanner = new Scanner(System.in);
-//    	
-//    	while(scanner.hasNextLine()) {
-//    		scanner.nextLine();
-//    	}
-//    	
-//    	scanner.close();
+        try {
+            int read = System.in.read(new byte[2]);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 }
