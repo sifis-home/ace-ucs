@@ -52,7 +52,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * signature but rather use the encryption keys for source
 	 * authentication.
 	 */
-	private final static boolean OPTIMIZED_RESPONSES = true;
+	private final static boolean OPTIMIZED_RESPONSES = false;
 	
 	/**
 	 * Enable or disable use of countersignatures.
@@ -69,7 +69,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	/**
 	 * Do replay detection.
 	 */
-	static final boolean REPLAY_CHECK = false;
+	static final boolean REPLAY_CHECK = true;
 	
 	/**
 	 * Class describing a recipient context (one Group OSCORE context will have many)
@@ -154,20 +154,20 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				System.out.println("For recipient ID " + Utils.toHexString(this.recipient_id));
 				
 				//Test adding KeyAgreement code
-				try {
-					//Seems Java 11 is needed for these
-					//https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#keyagreement-algorithms
-					//See also https://openjdk.java.net/jeps/324
-					KeyAgreement keyAgreement1 = KeyAgreement.getInstance("XDH");
-					KeyAgreement keyAgreement2 = KeyAgreement.getInstance("X448");
-					KeyAgreement keyAgreement3 = KeyAgreement.getInstance("X25519");
-				} catch (NoSuchAlgorithmException e1) {
-					// TODO Auto-generated catch block
-					e1.printStackTrace();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
+//				try {
+//					//Seems Java 11 is needed for these
+//					//https://docs.oracle.com/en/java/javase/11/docs/specs/security/standard-names.html#keyagreement-algorithms
+//					//See also https://openjdk.java.net/jeps/324
+//					KeyAgreement keyAgreement1 = KeyAgreement.getInstance("XDH");
+//					KeyAgreement keyAgreement2 = KeyAgreement.getInstance("X448");
+//					KeyAgreement keyAgreement3 = KeyAgreement.getInstance("X25519");
+//				} catch (NoSuchAlgorithmException e1) {
+//					// TODO Auto-generated catch block
+//					e1.printStackTrace();
+//				} catch (Exception e) {
+//					// TODO Auto-generated catch block
+//					e.printStackTrace();
+//				}
 				
 				//FIXME: Generate shared secret correctly. Now it just uses the sender and recipient IDs.
 				byte[] sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();
