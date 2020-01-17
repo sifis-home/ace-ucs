@@ -41,6 +41,7 @@ import org.eclipse.californium.elements.UdpMulticastConnector;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.Utility;
 
 import com.upokecenter.cbor.CBORObject;
@@ -122,7 +123,7 @@ public class GroupOscoreServer {
 			//Add the completed context to the context database
 			db.addContext(uriLocal, ctx);
 
-			//OSCoreCoapStackFactory.useAsDefault();
+			OSCoreCoapStackFactory.useAsDefault();
 		}
 		
 		//Initialize random number generator

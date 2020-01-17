@@ -37,6 +37,7 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.Utility;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 
@@ -133,7 +134,7 @@ public class GroupOscoreClient {
 			ctx.REPLAY_CHECK = true; //Enable replay checks
 			db.addContext(requestURI, ctx);
 
-			//OSCoreCoapStackFactory.useAsDefault();
+			OSCoreCoapStackFactory.useAsDefault();
 		}
 		
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);

@@ -386,8 +386,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		
 		return result;
 	}
-	
-	//TODO: Implement considering replays and window
+
 	public synchronized void checkIncomingSeq(int seq, byte[] recipient_id) throws OSException {
 		String index = Base64.encodeBytes(recipient_id);
 		
