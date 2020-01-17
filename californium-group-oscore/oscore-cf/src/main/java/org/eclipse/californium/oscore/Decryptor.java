@@ -89,8 +89,11 @@ public abstract class Decryptor {
 		boolean GenerateContextsOnReceive = true;
 		
 		//Boolean to indicate whether this is an optimized response
-		boolean isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
-
+		boolean isOptimizedResponse = false;
+		if(ctx instanceof GroupOSCoreCtx) {
+			isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
+		}
+		
 		//Generate recipient context if non-existent here
 		if(ctx instanceof GroupOSCoreCtx && GenerateContextsOnReceive) {
 			HashMapCtxDB db = HashMapCtxDB.getInstance();

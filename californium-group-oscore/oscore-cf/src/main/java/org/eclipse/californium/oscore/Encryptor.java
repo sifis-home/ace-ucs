@@ -75,8 +75,11 @@ public abstract class Encryptor {
 			throws OSException {
 		boolean isRequest = mess instanceof Request;
 		//Boolean to indicate whether this is an optimized response
-		boolean isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
-
+		boolean isOptimizedResponse = false;
+		if(ctx instanceof GroupOSCoreCtx) {
+			isOptimizedResponse = isRequest == false && ((GroupOSCoreCtx)ctx).getOptimizedResponses() == true;
+		}
+		
 		try {
 			byte[] key = ctx.getSenderKey();
 			byte[] partialIV = null;
