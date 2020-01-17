@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
@@ -140,6 +141,7 @@ public class OscoreAsRsClient {
 		System.out.println("\tGroup Key: " + publicPrivateKey);
 		System.out.println("\tKey to AS: " + StringUtil.byteArray2Hex(keyToAS));
 
+		printPause(memberName, "Will now request Token from AS");
 		
 		//Request Token from AS
 		Response responseFromAS = null;
@@ -148,7 +150,9 @@ public class OscoreAsRsClient {
 		} catch (OSException | AceException e) {
 			System.err.print("Token request procedure failed: ");
 			e.printStackTrace();
-		}	
+		}
+		
+		printPause(memberName, "Will now post Token to Group Manager and perform group joining");
 		
 		//Post Token to GM and perform Group joining
 		GroupOSCoreCtx derivedCtx = null;
@@ -159,6 +163,8 @@ public class OscoreAsRsClient {
             System.err.print("Join procedure failed: ");
             e.printStackTrace();
         }
+        
+        printPause(memberName, "Has now joined the group and will start listening as a server");
         
         //Now start the Group OSCORE Client or Server application with the derived context
         try {
@@ -451,5 +457,24 @@ public class OscoreAsRsClient {
         Utility.printContextInfo(groupOscoreCtx);
 
         return groupOscoreCtx;
+    }
+    
+    /**
+     * Simple method for "press enter to continue" functionality
+     */
+    static void printPause(String memberName, String message) {
+    	
+    	//Only print for Server1
+    	if(!memberName.toLowerCase().equals("server1")) {
+    		return;
+    	}
+    	
+    	System.out.println("===");
+    	System.out.println(message);
+    	System.out.println("Press ENTER to continue");
+    	System.out.println("===");
+    	Scanner scanner = new Scanner(System.in);
+    	scanner.nextLine();
+    	scanner.close();
     }
 }
