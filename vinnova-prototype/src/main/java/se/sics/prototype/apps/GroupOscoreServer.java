@@ -123,7 +123,9 @@ public class GroupOscoreServer {
 			//Add the completed context to the context database
 			db.addContext(uriLocal, ctx);
 
-			OSCoreCoapStackFactory.useAsDefault();
+			if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
+				OSCoreCoapStackFactory.useAsDefault();
+			}
 		}
 		
 		//Initialize random number generator

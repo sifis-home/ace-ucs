@@ -21,6 +21,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
@@ -28,6 +29,7 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
@@ -86,6 +88,10 @@ public class OscoreAsRsClient {
 	 * @throws CoseException 
 	 */
 	public static void main(String[] args) throws CoseException, URISyntaxException {
+		
+		if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
+			OSCoreCoapStackFactory.useAsDefault();
+		}
 		
 		//Set member name, AS and GM to use from command line arguments
 		String memberName = "Client1";
@@ -473,8 +479,13 @@ public class OscoreAsRsClient {
     	System.out.println(message);
     	System.out.println("Press ENTER to continue");
     	System.out.println("===");
-    	Scanner scanner = new Scanner(System.in);
-    	scanner.nextLine();
-    	scanner.close();
+    	//FIXME
+//    	Scanner scanner = new Scanner(System.in);
+//    	
+//    	while(scanner.hasNextLine()) {
+//    		scanner.nextLine();
+//    	}
+//    	
+//    	scanner.close();
     }
 }

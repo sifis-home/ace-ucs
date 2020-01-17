@@ -134,7 +134,9 @@ public class GroupOscoreClient {
 			ctx.REPLAY_CHECK = true; //Enable replay checks
 			db.addContext(requestURI, ctx);
 
-			OSCoreCoapStackFactory.useAsDefault();
+			if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
+				OSCoreCoapStackFactory.useAsDefault();
+			}
 		}
 		
 		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);

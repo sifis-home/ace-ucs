@@ -1379,4 +1379,7 @@ public class CoapEndpoint implements Endpoint {
 		defaultCoapStackFactory = newFactory;
 	}
 
+	public static synchronized boolean isDefaultCoapStackFactorySet() {
+		return !(defaultCoapStackFactory == null);
+	}
 }

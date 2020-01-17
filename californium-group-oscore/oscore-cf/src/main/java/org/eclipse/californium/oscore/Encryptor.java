@@ -74,6 +74,7 @@ public abstract class Encryptor {
 	protected static byte[] encryptAndEncode(Encrypt0Message enc, OSCoreCtx ctx, Message mess, boolean newPartialIV, byte[] recipientId)
 			throws OSException {
 		boolean isRequest = mess instanceof Request;
+		
 		//Boolean to indicate whether this is an optimized response
 		boolean isOptimizedResponse = false;
 		if(ctx instanceof GroupOSCoreCtx) {
@@ -151,7 +152,7 @@ public abstract class Encryptor {
 				System.out.println("Encrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
 				//System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
 				System.out.println("Encrypt " + messageType + "External AAD:\t" + Utility.arrayToString(enc.getExternal()));
-				System.out.println("Encrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
+				//FIXME Print System.out.println("Encrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
 			}
 
 			/* ------ End prints for debugging ------ */
