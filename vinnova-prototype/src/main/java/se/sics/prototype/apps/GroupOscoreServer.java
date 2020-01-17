@@ -106,6 +106,7 @@ public class GroupOscoreServer {
 		GroupOSCoreCtx ctx = null;
 		if(useOSCORE) {
 			ctx = derivedCtx;
+			ctx.REPLAY_CHECK = true; //Enable replay checks
 			
 			//Add recipient contexts for the 2 clients
 			String keyClient1_base64 = KeyStorage.publicKeys.get("Client1");

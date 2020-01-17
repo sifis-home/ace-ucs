@@ -130,6 +130,7 @@ public class GroupOscoreClient {
 		GroupOSCoreCtx ctx = null;
 		if(useOSCORE) {
 			ctx = derivedCtx;
+			ctx.REPLAY_CHECK = true; //Enable replay checks
 			db.addContext(requestURI, ctx);
 
 			//OSCoreCoapStackFactory.useAsDefault();

@@ -69,7 +69,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	/**
 	 * Do replay detection.
 	 */
-	static final boolean REPLAY_CHECK = true;
+	public boolean REPLAY_CHECK = false;
 	
 	/**
 	 * Class describing a recipient context (one Group OSCORE context will have many)
