@@ -339,6 +339,12 @@ public abstract class Decryptor {
 					System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
 				}
 			}
+			
+		//Now update sequence number in context
+		if(isRequest && ctx instanceof GroupOSCoreCtx) {
+			//ctx.checkIncomingSeq(seq); //Fixed
+			((GroupOSCoreCtx)ctx).updateIncomingSeq(seq, recipientId);
+		}
 
 
 		return plaintext;

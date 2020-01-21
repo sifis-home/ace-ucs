@@ -387,7 +387,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		return result;
 	}
 
-	public synchronized void checkIncomingSeq(int seq, byte[] recipient_id) throws OSException {
+	public synchronized void updateIncomingSeq(int seq, byte[] recipient_id) throws OSException {
 		String index = Base64.encodeBytes(recipient_id);
 		
 		if(hmap.get(index) == null) {
@@ -425,6 +425,48 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 			if(hmap.get(index) != null) {
 				(hmap.get(index)).recipient_seq = seq;;
 			}
+			
+		}
+	}
+	
+	public synchronized void checkIncomingSeq(int seq, byte[] recipient_id) throws OSException {
+		String index = Base64.encodeBytes(recipient_id);
+		
+		if(hmap.get(index) == null) {
+			return;
+		}
+
+		if(REPLAY_CHECK) {
+			//(hmap.get(index)).rollback_recipient_seq = (hmap.get(index)).recipient_seq;
+			//(hmap.get(index)).rollback_recipient_replay = (hmap.get(index)).recipient_replay_window;
+			if (seq > (hmap.get(index)).recipient_seq) {
+				// Update the replay window
+				int shift = seq - (hmap.get(index)).recipient_seq;
+				//(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window << shift;
+				//(hmap.get(index)).recipient_seq = seq;
+			} else if (seq == (hmap.get(index)).recipient_seq) {
+				System.err.println("Sequence number is replay");
+				throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+			} else { // seq < recipient_seq
+				if (seq + recipient_replay_window_size < (hmap.get(index)).recipient_seq) {
+					System.err.println("Message too old");
+					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+				}
+				// seq+replay_window_size > recipient_seq
+				int shift = (hmap.get(index)).recipient_seq - seq;
+				int pattern = 1 << shift;
+				int verifier = (hmap.get(index)).recipient_replay_window & pattern;
+				verifier = verifier >> shift;
+				if (verifier == 1) {
+					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+				}
+				//(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window | pattern;
+			}
+		} else {
+			
+//			if(hmap.get(index) != null) {
+//				(hmap.get(index)).recipient_seq = seq;;
+//			}
 			
 		}
 	}
