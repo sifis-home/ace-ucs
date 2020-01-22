@@ -162,7 +162,7 @@ public class GroupOscoreClient {
 		System.out.println("==================");
 		
 		System.out.println("");
-		System.out.println("Client has joined the group.");
+		System.out.println("Ready to send requests to the OSCORE group.");
 		
 		//Send messages to trigger the LEDs/solenoids on/off
 		//int count = 10;

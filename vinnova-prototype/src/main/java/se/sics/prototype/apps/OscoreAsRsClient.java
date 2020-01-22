@@ -171,8 +171,6 @@ public class OscoreAsRsClient {
             e.printStackTrace();
         }
         
-        printPause(memberName, "Has now joined the group and will start listening as a server");
-        
         //Now start the Group OSCORE Client or Server application with the derived context
         try {
 	        if(memberName.equals("Client1") || memberName.equals("Client2")) {
@@ -448,7 +446,13 @@ public class OscoreAsRsClient {
         /* Parse the Join response in detail */
 
         Util.printJoinResponse(joinResponse);
-
+        
+        if(!memberName.toLowerCase().contains("server1")) {
+        	System.out.println("Has now joined the OSCORE group.");
+        } else {
+        	printPause(memberName, "Has now joined the OSCORE group.");
+        }
+        
         /* Generate a Group OSCORE security context from the Join response */
 
         CBORObject coseKeySetArray = CBORObject.NewArray();

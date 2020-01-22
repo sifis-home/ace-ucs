@@ -157,7 +157,7 @@ public class GroupOscoreServer {
 		System.out.println("==================");
 		
 		System.out.println("");
-		System.out.println("Server has joined the group. Waiting for requests.");
+		System.out.println("Waiting for requests in the OSCORE group.");
 		
 		server.start();
 	}
