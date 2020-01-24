@@ -329,6 +329,10 @@ public abstract class Decryptor {
 			if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
 				boolean countersign_valid = false;
 				countersign_valid = enc.validate(sign);
+				
+				if(DETAILED_DEBUG) {
+					System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
+				}
 
 				if(countersign_valid == false) {
 					System.err.println("Error: Countersignature verification failed!");
@@ -336,10 +340,6 @@ public abstract class Decryptor {
 					//Throw exception if countersignature verification fails
 					LOGGER.error(ErrorDescriptions.COUNTERSIGNATURE_CHECK_FAILED);
 					throw new CoseException(ErrorDescriptions.COUNTERSIGNATURE_CHECK_FAILED);
-				}
-
-				if(DETAILED_DEBUG) {
-					System.out.println("Decrypt " + messageType + "Countersignature Valid:\t" + countersign_valid);
 				}
 			}
 			
