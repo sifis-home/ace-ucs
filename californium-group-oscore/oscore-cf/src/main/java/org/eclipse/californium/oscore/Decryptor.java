@@ -301,6 +301,9 @@ public abstract class Decryptor {
 			} else { //For OSCORE take the KID from the OSCORE Context
 				System.out.println("Decrypt " + messageType + "Message KID:\t" + Utility.arrayToString(ctx.getRecipientId()));
 			}
+			if (true) {
+				System.out.println("Decrypt " + messageType + "Partial IV:\t" + seq);
+			}
 
 			System.out.println("Decrypt " + messageType + "Recipient Key:" + Utility.arrayToString(key));
 			System.out.println("Decrypt " + messageType + "External AAD:\t" + Utility.arrayToString(aad));

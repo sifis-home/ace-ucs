@@ -403,7 +403,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window << shift;
 				(hmap.get(index)).recipient_seq = seq;
 			} else if (seq == (hmap.get(index)).recipient_seq) {
-				System.err.println("Sequence number is replay");
+				System.err.println("Sequence number is replay (Sequence number: " + seq + ")");
 				throw new OSException(ErrorDescriptions.REPLAY_DETECT);
 			} else { // seq < recipient_seq
 				if (seq + recipient_replay_window_size < (hmap.get(index)).recipient_seq) {
@@ -445,7 +445,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				//(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window << shift;
 				//(hmap.get(index)).recipient_seq = seq;
 			} else if (seq == (hmap.get(index)).recipient_seq) {
-				System.err.println("Sequence number is replay");
+				System.err.println("Sequence number is replay (Sequence number: " + seq + ")");
 				throw new OSException(ErrorDescriptions.REPLAY_DETECT);
 			} else { // seq < recipient_seq
 				if (seq + recipient_replay_window_size < (hmap.get(index)).recipient_seq) {

@@ -74,6 +74,8 @@ public class CoapOSExceptionHandler {
 					//Set content format for error messages
 					error.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
 					
+					System.out.println("Error: " + e.getMessage());
+					
 					return error;
 				} else {
 					LOGGER.error(ErrorDescriptions.CANNOT_CREATE_ERROR_MESS + ": " + ErrorDescriptions.ERROR_MESS_NULL);
