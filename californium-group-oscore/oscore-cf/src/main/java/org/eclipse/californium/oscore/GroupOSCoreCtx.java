@@ -22,8 +22,10 @@ package org.eclipse.californium.oscore;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 
 import javax.crypto.KeyAgreement;
 
@@ -90,6 +92,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 
 		private int rollback_recipient_seq = -1;
 		private int rollback_recipient_replay = -1;
+		private List<Integer> replay_window_list = new ArrayList<Integer>();
 		
 		public OneKey recipient_public_key = null;
 		
@@ -200,6 +203,15 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 			
 			//System.out.println("Key 2 " + Utils.toHexString(this.recipient_key));
 		}
+		
+		public boolean CheckReplay(int seq) {
+			return replay_window_list.contains(seq);
+		}
+		
+		public void AddSeq(int seq) {
+			replay_window_list.add(seq);
+		}
+		
 	}
 	
 	/**
@@ -395,6 +407,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		}
 
 		if(REPLAY_CHECK) {
+			(hmap.get(index)).AddSeq(seq);
 			(hmap.get(index)).rollback_recipient_seq = (hmap.get(index)).recipient_seq;
 			(hmap.get(index)).rollback_recipient_replay = (hmap.get(index)).recipient_replay_window;
 			if (seq > (hmap.get(index)).recipient_seq) {
@@ -415,9 +428,9 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				int pattern = 1 << shift;
 				int verifier = (hmap.get(index)).recipient_replay_window & pattern;
 				verifier = verifier >> shift;
-				if (verifier == 1) {
-					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
-				}
+				//if (verifier == 1) {
+				//	throw new OSException(ErrorDescriptions.REPLAY_DETECT);
+				//}
 				(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window | pattern;
 			}
 		} else {
@@ -457,7 +470,8 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				int pattern = 1 << shift;
 				int verifier = (hmap.get(index)).recipient_replay_window & pattern;
 				verifier = verifier >> shift;
-				if (verifier == 1) {
+				boolean check = (hmap.get(index)).CheckReplay(seq);
+				if (check) {
 					throw new OSException(ErrorDescriptions.REPLAY_DETECT);
 				}
 				//(hmap.get(index)).recipient_replay_window = (hmap.get(index)).recipient_replay_window | pattern;
