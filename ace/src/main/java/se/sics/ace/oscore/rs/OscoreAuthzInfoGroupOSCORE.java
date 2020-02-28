@@ -89,14 +89,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * Handles audience validation
 	 */
 	private GroupOSCOREJoinValidator audience;
-    
-	private int groupIdPrefixSize; // Same for all the OSCORE Group of the Group Manager
 
     /**
      * OSCORE groups active under the Group Manager
      */
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	private Map<Integer, GroupInfo> activeGroups;
+	private Map<String, GroupInfo> activeGroups;
 	
 	/**
 	 * Constructor.
@@ -276,7 +274,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		
     		byte[] rawScope = scope.GetByteString();
     		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
-    		String scopeStr = cborScope.get(0).AsString();
+    		String groupName = cborScope.get(0).AsString();
 
     		// Check that the audience is in fact a Group Manager
     		for (String foo : auds) {
@@ -288,7 +286,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		
     		// Check that the scope refers to a join resource
     		if (error == false) {
-    			if (myJoinResources.contains(scopeStr) == false)
+    			if (myJoinResources.contains(groupName) == false)
     				error = true;
     		}
     		
@@ -298,12 +296,9 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
-    		
-    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	GroupInfo myGroup = activeGroups.get(groupName);
     		
         	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
@@ -363,14 +358,14 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
         return msg.successReply(reply.getMessageCode(), payload);
 	}
 
-	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
+	/**
+	 * 
+	 * @param activeGroups
+	 */
+	public synchronized void setActiveGroups(Map<String, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
 	}
-	
-	public synchronized void setGroupIdPrefixSize (int groupIdPrefixSize) {
-		this.groupIdPrefixSize = groupIdPrefixSize;
-	}
-	
+
 	@Override
 	protected synchronized void processOther(Map<Short, CBORObject> claims) {
 	    this.cnf = claims.get(Constants.CNF);

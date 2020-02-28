@@ -52,6 +52,8 @@ public class GroupInfo {
 	/**
 	 * Information element for the OSCORE group
 	 */
+	private String groupName;
+	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
 	
@@ -83,6 +85,7 @@ public class GroupInfo {
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
 	 * 
 	 * @param masterSecret        the OSCORE Master Secret.
+	 * @param groupName			  the invariant name of the OSCORE group.
 	 * @param masterSalt          the OSCORE Master Salt.
 	 * @param groupIdPrefixSize   the size in bytes of the Prefix part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
@@ -96,7 +99,8 @@ public class GroupInfo {
 	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
 	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
 	 */
-    public GroupInfo(final byte[] masterSecret,
+    public GroupInfo(final String groupName,
+    				 final byte[] masterSecret,
     				 final byte[] masterSalt,
     				 final int groupIdPrefixSize,
     		         final byte[] groupIdPrefix,
@@ -111,6 +115,8 @@ public class GroupInfo {
     		         final CBORObject csKeyEnc) {
     	
         this.version = 0;
+        
+        setGroupName(groupName);
 
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
@@ -160,6 +166,25 @@ public class GroupInfo {
     	
     	this.masterSecret = new byte[masterSecret.length];
     	System.arraycopy(masterSecret, 0, this.masterSecret, 0, masterSecret.length);
+    	
+    }
+    
+    /** Retrieve the name of the OSCORE group
+     * @return  the name of the OSCORE group
+     */
+    synchronized public final String getGroupName() {
+    	
+    	return new String(this.groupName); 
+    	
+    }
+    
+    /** 
+     * Set the name of the OSCORE group
+     * @param groupName
+     */
+    synchronized public void setGroupName(final String groupName) {
+    	
+    	this.groupName = new String(groupName);
     	
     }
     

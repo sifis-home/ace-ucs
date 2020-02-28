@@ -101,7 +101,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
-    private static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+    private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
     /**
      * Set up the necessary objects.
@@ -132,18 +132,20 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myResource.put("co2", actions2);
         myScopes.put("rw_co2", myResource2);
         
+        final String groupName = "feedca570000";
+        
         // M.T.
         // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        // roles admitted in the OSCORE Group, with Group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put("feedca570000", actions3);
-        myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_responder", myResource3);
-        myScopes.put("feedca570000_monitor", myResource3);
-        myScopes.put("feedca570000_requester_responder", myResource3);
-        myScopes.put("feedca570000_requester_monitor", myResource3);
+        myResource3.put(groupName, actions3);
+        myScopes.put(groupName + "_requester", myResource3);
+        myScopes.put(groupName + "_responder", myResource3);
+        myScopes.put(groupName + "_monitor", myResource3);
+        myScopes.put(groupName + "_requester_responder", myResource3);
+        myScopes.put(groupName + "_requester_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -158,7 +160,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        valid.setJoinResources(Collections.singleton(groupName));
         
         
         // Create the OSCORE group
@@ -211,7 +213,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    	GroupInfo myGroup = new GroupInfo(groupName,
+    									  masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
@@ -225,9 +228,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     			                          csKeyParams,
     			                          csKeyEnc);
         
-    	// Add this OSCORE group to the set of active groups
-    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	// Add this OSCORE group to the set of active OSCORE groups
+    	activeGroups.put(groupName, myGroup);
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -241,10 +243,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx, tokenFile, valid, false);
-        
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai.setGroupIdPrefixSize(groupIdPrefixSize);
-        
+
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
@@ -256,9 +255,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx, tokenFile, valid, false);
-        
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai2.setGroupIdPrefixSize(groupIdPrefixSize);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
@@ -288,10 +284,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with a single role
         Map<Short, CBORObject> params2 = new HashMap<>();
-        String gid = new String("feedca570000");
     	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -314,7 +309,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params3 = new HashMap<>();
     	String role2 = new String("responder");
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -429,10 +424,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                         KeyKeys.Octet_K).GetByteString());
                
       
-       //Test that the token is there
+       // Test that the token is there
+        String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                TokenRepository.getInstance().canAccess(
-                       kid, kid, "feedca570000", Constants.POST, null));
+                       kid, kid, groupName, Constants.POST, null));
     }
     
     // M.T.
@@ -478,10 +474,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                         KeyKeys.Octet_K).GetByteString());
                
       
-       //Test that the token is there
+       // Test that the token is there
+        String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(
-                        kid, kid, "feedca570000", Constants.POST, null));
+                        kid, kid, groupName, Constants.POST, null));
     }
     
     /**

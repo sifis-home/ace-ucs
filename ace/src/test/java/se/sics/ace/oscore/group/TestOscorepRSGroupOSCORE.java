@@ -74,8 +74,7 @@ public class TestOscorepRSGroupOSCORE {
 	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4; 
 	
-	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 
     /**
      * Definition of the Hello-World Resource
@@ -181,6 +180,8 @@ public class TestOscorepRSGroupOSCORE {
             e.printStackTrace();
         }
     	
+        final String groupName = "feedca570000";
+        
     	// Uncomment to set ECDSA with curve P-256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
         
@@ -207,20 +208,20 @@ public class TestOscorepRSGroupOSCORE {
         
         // M.T.
         // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        // roles admitted in the OSCORE Group, with Group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put("feedca570000", actions3);
-        myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_responder", myResource3);
-        myScopes.put("feedca570000_monitor", myResource3);
-        myScopes.put("feedca570000_requester_responder", myResource3);
-        myScopes.put("feedca570000_requester_monitor", myResource3);
+        myResource3.put(groupName, actions3);
+        myScopes.put(groupName + "_requester", myResource3);
+        myScopes.put(groupName + "_responder", myResource3);
+        myScopes.put(groupName + "_monitor", myResource3);
+        myScopes.put(groupName + "_requester_responder", myResource3);
+        myScopes.put(groupName + "_requester_monitor", myResource3);
         
         // M.T.
         // Adding another join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
+        // roles admitted in the OSCORE Group, with Group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Set<Short> actions4 = new HashSet<>();
         actions4.add(Constants.POST);
@@ -233,7 +234,9 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put("fBBBca570000_requester_monitor", myResource4);
         
         //Create the OSCORE Group(s)
-        OSCOREGroupCreation(countersignKeyCurve);
+        if(!OSCOREGroupCreation(groupName, countersignKeyCurve)) {
+        	return;
+        }
 
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -247,8 +250,8 @@ public class TestOscorepRSGroupOSCORE {
         
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
-        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        // The resource name is the name of the OSCORE group.
+        valid.setJoinResources(Collections.singleton(groupName));
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -268,9 +271,6 @@ public class TestOscorepRSGroupOSCORE {
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                   new KissTime(), null, valid, ctx,
                   tokenFile, valid, false);
-      
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai.setGroupIdPrefixSize(groupIdPrefixSize);
       
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -297,7 +297,7 @@ public class TestOscorepRSGroupOSCORE {
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting Token
-              //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign)); //Signing Token
+
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1); 
         payload.Add(Constants.CNONCE, n1);
@@ -309,8 +309,8 @@ public class TestOscorepRSGroupOSCORE {
         Resource hello = new HelloWorldResource();
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
-        // Resource manage = new ManageResource();
-        Resource join = new GroupOSCOREJoinResource("feedca570000", false); // M.T.
+        // The name of the OSCORE group is used as resource name
+        Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
       
         rs = new CoapServer();
         rs.add(hello);
@@ -349,23 +349,18 @@ public class TestOscorepRSGroupOSCORE {
      * Definition of the Group OSCORE Join Resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-
-    	boolean testGroupNames = false;
     	
 		/**
          * Constructor
          * @param resId  the resource identifier
          */
-        public GroupOSCOREJoinResource(String resId, boolean testGroupNames) {
+        public GroupOSCOREJoinResource(String resId) {
             
             // set resource identifier
             super(resId);
             
             // set display name
             getAttributes().setTitle("Group OSCORE Join Resource " + resId);
-            
-            // testing with the new group names parameter
-            this.testGroupNames = testGroupNames;
         }
 
         @Override
@@ -379,6 +374,7 @@ public class TestOscorepRSGroupOSCORE {
             
         	System.out.println("POST request reached the GM");
         	
+        	String groupName;
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
@@ -450,14 +446,13 @@ public class TestOscorepRSGroupOSCORE {
         		return;
             }
         	
-        	// Retrieve the zeroed-epoch Group ID of the OSCORE group
-        	String scopeStr;
+        	// Retrieve name of the OSCORE group
       	  	CBORObject scopeElement = cborScope.get(0);
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
+      	  			groupName = scopeElement.AsString();
 
-      	  		if (!scopeStr.equals(this.getName())) {
-	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
+      	  		if (!groupName.equals(this.getName())) {
+	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group name in 'scope' is not pertinent for this join resource");
 	  				return;
 	  			}      	  		
       	  	}
@@ -505,19 +500,9 @@ public class TestOscorepRSGroupOSCORE {
         		providePublicKeys = true;
         		
         	}
-        	
-        	// The first 'groupIdPrefixSize' pairs of characters are the Group ID Prefix.
-        	// This string is surely hexadecimal, since it passed the early check against the URI path to the join resource.
-        	String prefixStr = "";
-        	if(testGroupNames) { //Even though we have a group name, take the group info considering "feedca570000" (since it has been configured)
-        		prefixStr = "feedca570000".substring(0, 2 * groupIdPrefixSize);	
-        	} else { //Normal functionality as with Group IDs
-        		prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	}
-        	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
-        	
-        	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
+        	       	
+        	// Retrieve the entry for the target group, using the Group name
+        	GroupInfo myGroup = activeGroups.get(groupName);
         	
         	// Assign a new Sender ID to the joining node.
         	// For the sake of testing, a particular Sender ID is used as known to be available.
@@ -789,7 +774,7 @@ public class TestOscorepRSGroupOSCORE {
         
     }
     
-    private static void OSCOREGroupCreation(int countersignKeyCurve) throws CoseException
+    private static boolean OSCOREGroupCreation(String groupName, int countersignKeyCurve) throws CoseException
     {
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -829,13 +814,18 @@ public class TestOscorepRSGroupOSCORE {
         final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
+        if (activeGroups.containsKey(groupName)) {
+        	System.out.println("The OSCORE group " + groupName + " already exists.");
+        	return false;
+        }
 
         // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
         // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	GroupInfo myGroup = new GroupInfo(masterSecret,
+    	GroupInfo myGroup = new GroupInfo(groupName,
+    								      masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
@@ -910,11 +900,19 @@ public class TestOscorepRSGroupOSCORE {
     	
     	
     	// Add this OSCORE group to the set of active groups
-    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+    	activeGroups.put(groupName, myGroup);
     	
+    	return true;
     }
 
+    /**
+     * 
+     * @param countersignKeyCurve
+     * @param pubKey
+     * @param signedData
+     * @param expectedSignature
+     * @return
+     */
     public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
         Signature mySignature = null;
@@ -950,10 +948,7 @@ public class TestOscorepRSGroupOSCORE {
              System.out.println(e.getMessage());
              Assert.fail("Invalid key excpetion - Invalid public key");
          }
-         
-         // TODO: REMOVE DEBUG PRINT
-         // System.out.println("success after: " + success);
-         
+
          try {
              if (mySignature != null) {
                  mySignature.update(signedData);
@@ -963,10 +958,7 @@ public class TestOscorepRSGroupOSCORE {
              System.out.println(e.getMessage());
              Assert.fail("Failed signature verification");
          }
-         
-         // TODO: REMOVE DEBUG PRINT
-         // System.out.println("success before: " + success);
-         
+
          return success;
 
     }
