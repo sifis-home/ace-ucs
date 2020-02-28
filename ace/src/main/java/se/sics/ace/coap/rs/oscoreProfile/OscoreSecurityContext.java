@@ -168,17 +168,6 @@ public class OscoreSecurityContext {
                     + " in OSCORE security context");
         }
         this.ms = msC.GetByteString();
-        
-        CBORObject rpl = osc.get(Constants.OS_RPL);
-        if (rpl != null) {
-            if (!rpl.CanFitInInt32()) {
-                LOGGER.info("Invalid parameter: 'replay window size',"
-                        + " must be 32-bit integer");
-                throw new AceException("malformed replay window size"
-                        + " in OSCORE security context");
-            }
-            this.replaySize = rpl.AsInt32();
-        }
 
         CBORObject saltC = osc.get(Constants.OS_SALT);
         if (saltC != null) {

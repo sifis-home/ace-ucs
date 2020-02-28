@@ -435,9 +435,7 @@ public class DtlsAsRsClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.alg)) == false)
         	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.salt)) == false)
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject((int)32));        
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));   
         
         Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
@@ -522,11 +520,7 @@ public class DtlsAsRsClientGroupOSCORE {
     	}
     	
     	//RPL (replay window information)
-    	CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
     	int rpl = 32; //Default value
-    	if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
-    		rpl = rpl_param.AsInt32();
-    	}
     	
     	//Set up private & public keys for sender (not from response but set by client)
     	String sid_private_key_string = groupKeyPair;

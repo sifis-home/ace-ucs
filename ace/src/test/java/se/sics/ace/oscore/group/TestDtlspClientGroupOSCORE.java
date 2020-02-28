@@ -455,7 +455,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
 
         // ECDSA_256
@@ -525,8 +524,6 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));
         
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
@@ -810,7 +807,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // ECDSA_256
@@ -880,9 +876,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));        
-        
+
         //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams);
         
@@ -1277,7 +1271,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
 
         // ECDSA_256
@@ -1347,9 +1340,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));
-        
+
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
@@ -1634,7 +1625,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // ECDSA_256
@@ -1704,9 +1694,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));
-        
+
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
@@ -2237,7 +2225,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // ECDSA_256
@@ -2307,9 +2294,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));
-        
+
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
@@ -2606,7 +2591,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // ECDSA_256
@@ -2676,9 +2660,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
         	myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-        	myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));        
-        
+         
         //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
@@ -2979,7 +2961,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
         
         // ECDSA_256
@@ -3049,8 +3030,6 @@ public class TestDtlspClientGroupOSCORE {
             myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
             myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)) == false)
-            myMap.Add(OSCORESecurityContextObjectParameters.rpl, CBORObject.FromObject(32));        
         
         Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
         GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
@@ -3212,11 +3191,7 @@ public class TestDtlspClientGroupOSCORE {
         }
 
         //RPL (replay window information)
-        CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
         int rpl = 32; //Default value
-        if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
-            rpl = rpl_param.AsInt32();
-        }
 
         //Set up private & public keys for sender (not from response but set by client)
         String sid_private_key_string = groupKeyPair;

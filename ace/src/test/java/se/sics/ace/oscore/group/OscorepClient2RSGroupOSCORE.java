@@ -430,9 +430,6 @@ public class OscorepClient2RSGroupOSCORE {
         System.out.print("contextId: ");
         System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
 
-        System.out.print("rpl: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
-
 
         System.out.print("cs_alg: ");
         System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
@@ -540,11 +537,7 @@ public class OscorepClient2RSGroupOSCORE {
         }
 
         //RPL (replay window information)
-        CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
         int rpl = 32; //Default value
-        if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
-            rpl = rpl_param.AsInt32();
-        }
 
         //Set up private & public keys for sender (not from response but set by client)
         String sid_private_key_string = groupKeyPair;
