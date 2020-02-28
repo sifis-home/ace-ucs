@@ -484,9 +484,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     		}
     	}
     	scopeMustBeBinary = rsOSCOREGroupManager;
-        
-    	System.out.println("ZZZ: " + scopeMustBeBinary);
-    	
+           	
         if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
         		return false;
