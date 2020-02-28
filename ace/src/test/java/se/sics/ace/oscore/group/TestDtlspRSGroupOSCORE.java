@@ -164,7 +164,30 @@ public class TestDtlspRSGroupOSCORE {
     
     // M.T.
     /**
-     * Definition of the Group OSCORE Join Resource
+     * Definition of the root group-membership resource for Group OSCORE
+     * 
+     * Children of this resource are the group-membership resources
+     */
+    public static class GroupOSCORERootMembershipResource extends CoapResource {
+        
+        /**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORERootMembershipResource(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Entry Resource " + resId);
+        }
+        
+    }
+    
+    // M.T.
+    /**
+     * Definition of the group-membership resource for Group OSCORE
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
         
@@ -178,7 +201,7 @@ public class TestDtlspRSGroupOSCORE {
             super(resId);
             
             // set display name
-            getAttributes().setTitle("Group OSCORE Join Resource " + resId);
+            getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
         }
 
         @Override
@@ -255,14 +278,14 @@ public class TestDtlspRSGroupOSCORE {
         		return;
             }
         	
-        	// Retrieve the zeroed-epoch Group ID of the OSCORE group
+        	// Retrieve the name of the OSCORE group
         	String groupName;
       	  	CBORObject scopeElement = cborScope.get(0);
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
       	  		groupName = scopeElement.AsString();
 
           	  	if (!groupName.equals(this.getName())) {
-	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The Group ID in 'scope' is not pertinent for this join resource");
+	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The group name in 'scope' is not pertinent for this group-membership resource");
 	  				return;
 	  			}      	  		
       	  	}
@@ -316,7 +339,7 @@ public class TestDtlspRSGroupOSCORE {
         	//String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
         	//byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
         	
-        	// Retrieve the entry for the target group, using the Group ID Prefix
+        	// Retrieve the entry for the target group, using the group name
         	GroupInfo myGroup = activeGroups.get(groupName);
         	
         	// Assign a new Sender ID to the joining node.
@@ -478,7 +501,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(0));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -511,7 +534,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
@@ -579,6 +602,7 @@ public class TestDtlspRSGroupOSCORE {
         // install needed cryptography providers
         org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
 
+        final String rootGroupMembershipResource = "group-oscore";
         final String groupName = "feedca570000";
         
         //Set up DTLSProfileTokenRepository
@@ -601,12 +625,12 @@ public class TestDtlspRSGroupOSCORE {
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put(groupName, actions3);
-        myScopes.put(groupName + "_requester", myResource3);
-        myScopes.put(groupName + "_responder", myResource3);
-        myScopes.put(groupName + "_monitor", myResource3);
-        myScopes.put(groupName + "_requester_responder", myResource3);
-        myScopes.put(groupName + "_requester_monitor", myResource3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
         
         // M.T.
         // Adding another join resource, as one scope for each different combinations of
@@ -628,12 +652,12 @@ public class TestDtlspRSGroupOSCORE {
         Set<Short> actions5 = new HashSet<>();
         actions5.add(Constants.POST);
         Map<String, Set<Short>> myResource5 = new HashMap<>();
-        myResource5.put(groupName, actions5);
-        myScopes.put(groupName + "_requester", myResource5);
-        myScopes.put(groupName + "_responder", myResource5);
-        myScopes.put(groupName + "_monitor", myResource5);
-        myScopes.put(groupName + "_requester_responder", myResource5);
-        myScopes.put(groupName + "_requester_monitor", myResource5);
+        myResource5.put(rootGroupMembershipResource + "/" + groupName, actions5);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource5);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource5);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource5);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource5);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource5);
         
         // M.T. (for rs4)
         // Adding another join resource, as one scope for each different combinations of
@@ -654,7 +678,7 @@ public class TestDtlspRSGroupOSCORE {
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         auds.add("rs4"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
@@ -666,7 +690,7 @@ public class TestDtlspRSGroupOSCORE {
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(groupName));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -859,72 +883,6 @@ public class TestDtlspRSGroupOSCORE {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
-
-        // M.T.
-        // Add a token to enable access to a join resource,
-        // for joining an OSCORE group with a single role
-        Map<Short, CBORObject> params2 = new HashMap<>();
-        String gid = new String("feedca570000");
-  	  	String role1 = new String("requester");
-      
-  	  	CBORObject cborArrayScope = CBORObject.NewArray();
-  	  	cborArrayScope.Add(gid);
-  	  	cborArrayScope.Add(role1);
-  	  	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-  	  	params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-  	  	params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
-  	  	params2.put(Constants.CTI, CBORObject.FromObject(
-                    "token2".getBytes(Constants.charset)));
-  	  	params2.put(Constants.ISS, CBORObject.FromObject(AS_NAME));
-
-  	  	OneKey key2 = new OneKey();
-  	  	key2.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-  	  	byte[] kid2 = new byte[] {0x04, 0x05, 0x06};
-  	  	CBORObject kidC2 = CBORObject.FromObject(kid2);
-  	  	key2.add(KeyKeys.KeyId, kidC2);
-  	  	key2.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-  	  	CBORObject cnf2 = CBORObject.NewMap();
-  	    cnf2.Add(Constants.COSE_KEY_CBOR, key2.AsCBOR());
-  	    params2.put(Constants.CNF, cnf2);
-  	    CWT token2 = new CWT(params2);
-  	    ai.processMessage(new LocalMessage(0, null, null, token2.encode(ctx)));
-
-  	    /*
-  	    // M.T.
-  	    // Testing addition of tokens to enable access to a join resource,
-  	    // for joining an OSCORE group with multiple roles
-  	    Map<Short, CBORObject> params3 = new HashMap<>();
-  	    String role2 = new String("responder");
-      
-  	    cborArrayScope = CBORObject.NewArray();
-  	    cborArrayScope.Add(gid);
-  	    CBORObject cborArrayRoles = CBORObject.NewArray();
-  	    cborArrayRoles.Add(role1);
-  	    cborArrayRoles.Add(role2);
-  	    cborArrayScope.Add(cborArrayRoles);
-  	    byteStringScope = cborArrayScope.EncodeToBytes();
-  	    params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-  	    params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
-  	    params3.put(Constants.CTI, CBORObject.FromObject(
-                    "token3".getBytes(Constants.charset)));
-  	    params3.put(Constants.ISS, CBORObject.FromObject(AS_NAME));
-
-  	    OneKey key3 = new OneKey();
-  	    key3.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-  	    byte[] kid3 = new byte[] {0x07, 0x08, 0x09};
-  	    CBORObject kidC3 = CBORObject.FromObject(kid3);
-  	    key3.add(KeyKeys.KeyId, kidC3);
-  	    key3.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-  	    CBORObject cnf3 = CBORObject.NewMap();
-  	    cnf3.Add(Constants.COSE_KEY_CBOR, key3.AsCBOR());
-  	    params3.put(Constants.CNF, cnf3);
-  	    CWT token3 = new CWT(params3);
-  	    ai.processMessage(new LocalMessage(0, null, null, token3.encode(ctx)));
-        */
       
   	    AsRequestCreationHints asi 
   	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
@@ -932,11 +890,13 @@ public class TestDtlspRSGroupOSCORE {
   	    Resource temp = new TempResource();
   	    Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
   	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
+  	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource); // M.T.
       
   	    rs = new CoapServer();
   	    rs.add(hello);
   	    rs.add(temp);
-  	    rs.add(join); // M.T.
+  	    rs.add(groupOSCORERootMembership); // M.T.
+  	  	groupOSCORERootMembership.add(join);
   	    rs.add(authzInfo);
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
@@ -980,6 +940,15 @@ public class TestDtlspRSGroupOSCORE {
     }
 
     
+	/**
+	 * Verify the correctness of a digital signature
+	 * 
+	 * @param countersignKeyCurve Elliptic curve used to process the signature, encoded as in RFC 8152
+	 * @param pubKey Public key of the signer, used to verify the signature
+	 * @param signedData Data over which the signature has been computed
+	 * @param expectedSignatureSignature to verify
+	 * @return True is the signature verifies correctly, false otherwise
+	 */
     public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
     	Signature mySignature = null;

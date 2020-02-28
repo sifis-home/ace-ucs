@@ -91,6 +91,8 @@ public class TestTokenRepositoryGroupOSCORE {
     private static String ourKey = "ourKey";
     private static String rpk = "ni:///sha-256;-QCjSk6ojWX8-YaHwQMOkewLD7p89aFF2eh8shWDmKE";
     
+    private static final String rootGroupMembershipResource = "group-oscore";
+    
     /**
      * Converter for generating byte arrays from int
      */
@@ -142,33 +144,35 @@ public class TestTokenRepositoryGroupOSCORE {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
+        final String groupName = "feedca570000";
+        
         // M.T.
-        // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+        // Adding the group-membership resource, as one scope for each different combinations of
+        // roles admitted in the OSCORE Group, with name "feedca570000".
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
-        myResource2.put("feedca570000", actions2);
-        myScopes.put("feedca570000_requester", myResource2);
-        myScopes.put("feedca570000_responder", myResource2);
-        myScopes.put("feedca570000_monitor", myResource2);
-        myScopes.put("feedca570000_requester_responder", myResource2);
-        myScopes.put("feedca570000_requester_monitor", myResource2);
+        myResource2.put(rootGroupMembershipResource + "/" + groupName, actions2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource2);
         
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
         // M.T.
-        // Include this resource as a join resource for Group OSCORE.
-        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton("feedca570000"));
+        // Include this resource as a group-membership resource for Group OSCORE.
+        // The resource name is the name of the OSCORE group.
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -494,7 +498,7 @@ public class TestTokenRepositoryGroupOSCORE {
     // M.T.
     /**
      * Test add token with cnf containing COSE_Key, to access a
-     * join resource for joining an OSCORE group with a single role
+     * group-membership resource for joining an OSCORE group with a single role
      *
      * @throws AceException 
      * @throws IntrospectionException 
@@ -505,11 +509,11 @@ public class TestTokenRepositoryGroupOSCORE {
             throws AceException, IntrospectionException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -531,19 +535,19 @@ public class TestTokenRepositoryGroupOSCORE {
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
  // M.T.
     /**
      * Test add token with cnf containing COSE_Key, to access a
-     * join resource for joining an OSCORE group with multiple roles
+     * group-membership resource for joining an OSCORE group with multiple roles
      *
      * @throws AceException 
      * @throws IntrospectionException 
@@ -554,12 +558,12 @@ public class TestTokenRepositoryGroupOSCORE {
             throws AceException, IntrospectionException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -585,13 +589,13 @@ public class TestTokenRepositoryGroupOSCORE {
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     /**
@@ -639,7 +643,7 @@ public class TestTokenRepositoryGroupOSCORE {
     // M.T.
     /**
      * Test add token with cnf containing known kid, to access a
-     * join resource for joining an OSCORE group with a single role
+     * group-membership resource for joining an OSCORE group with a single role
      *
      * @throws AceException 
      * @throws IntrospectionException 
@@ -648,11 +652,11 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testTokenCnfKidGroupOSCORESingleRole() throws AceException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -676,13 +680,13 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(params, ctx, null);
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     // M.T.
@@ -697,12 +701,12 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testTokenCnfKidGroupOSCOREMultipleRoles() throws AceException, IntrospectionException {
     	Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -729,13 +733,13 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(params, ctx, null);
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     /**
@@ -796,11 +800,11 @@ public class TestTokenRepositoryGroupOSCORE {
             IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	cborArrayScope.Add(role1);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -819,19 +823,19 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(params, ctx, null);
 
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
 
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     // M.T.
     /**
      * Test add token with cnf containing valid Encrypt0, to access a
-     * join resource for joining an OSCORE group with multiple roles
+     * group-membership resource for joining an OSCORE group with multiple roles
      *
      * @throws AceException 
      * @throws CoseException 
@@ -845,12 +849,12 @@ public class TestTokenRepositoryGroupOSCORE {
             IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
         
-        String gid = new String("feedca570000");
+        String groupName = new String("feedca570000");
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayScope.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
@@ -872,13 +876,13 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(params, ctx, null);
 
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "feedca570000", Constants.POST, null));
+                tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
 
         Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "feedca570000", Constants.POST, null));
+                tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     /**

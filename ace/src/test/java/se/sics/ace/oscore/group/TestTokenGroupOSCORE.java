@@ -393,7 +393,7 @@ public class TestTokenGroupOSCORE {
         db.addToken(cti2, claims);
         
         // M.T.
-        // Setup additional tokens to access a join resource at an OSCORE Group Manager.
+        // Setup additional tokens to access a group-membership resource at an OSCORE Group Manager.
         // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
         cti = new byte[]{0x02};
         cti3 = Base64.getEncoder().encodeToString(cti);

@@ -93,8 +93,9 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     /**
      * OSCORE groups active under the Group Manager
      */
-	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
 	private Map<String, GroupInfo> activeGroups;
+	
+	private final String rootGroupMemberResource = "group-oscore";
 	
 	/**
 	 * Constructor.
@@ -286,7 +287,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		
     		// Check that the scope refers to a join resource
     		if (error == false) {
-    			if (myJoinResources.contains(groupName) == false)
+    			if (myJoinResources.contains(rootGroupMemberResource + "/" + groupName) == false)
     				error = true;
     		}
     		

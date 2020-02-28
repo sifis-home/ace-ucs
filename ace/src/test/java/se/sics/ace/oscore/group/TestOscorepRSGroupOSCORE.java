@@ -159,6 +159,30 @@ public class TestOscorepRSGroupOSCORE {
         }
     }
     
+    // M.T.
+    /**
+     * Definition of the root group-membership resource for Group OSCORE
+     * 
+     * Children of this resource are the group-membership resources
+     */
+    public static class GroupOSCORERootMembershipResource extends CoapResource {
+        
+        /**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORERootMembershipResource(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Resource" + resId);
+        }
+        
+    }
+    
+    
     private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
@@ -179,7 +203,8 @@ public class TestOscorepRSGroupOSCORE {
             System.err.println("Failed to install cryptography providers.");
             e.printStackTrace();
         }
-    	
+        
+        final String rootGroupMembershipResource = "group-oscore";
         final String groupName = "feedca570000";
         
     	// Uncomment to set ECDSA with curve P-256 for countersignatures
@@ -207,31 +232,31 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put("r_temp", myResource2);
         
         // M.T.
-        // Adding the join resource, as one scope for each different combinations of
+        // Adding the group-membership resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with Group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put(groupName, actions3);
-        myScopes.put(groupName + "_requester", myResource3);
-        myScopes.put(groupName + "_responder", myResource3);
-        myScopes.put(groupName + "_monitor", myResource3);
-        myScopes.put(groupName + "_requester_responder", myResource3);
-        myScopes.put(groupName + "_requester_monitor", myResource3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
         
         // M.T.
-        // Adding another join resource, as one scope for each different combinations of
+        // Adding another group-membership resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with Group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Set<Short> actions4 = new HashSet<>();
         actions4.add(Constants.POST);
         Map<String, Set<Short>> myResource4 = new HashMap<>();
-        myResource4.put("fBBBca570000", actions4);
-        myScopes.put("fBBBca570000_requester", myResource4);
-        myScopes.put("fBBBca570000_responder", myResource4);
-        myScopes.put("fBBBca570000_monitor", myResource4);
-        myScopes.put("fBBBca570000_requester_responder", myResource4);
-        myScopes.put("fBBBca570000_requester_monitor", myResource4);
+        myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor", myResource4);
         
         //Create the OSCORE Group(s)
         if(!OSCOREGroupCreation(groupName, countersignKeyCurve)) {
@@ -242,7 +267,7 @@ public class TestOscorepRSGroupOSCORE {
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
@@ -251,7 +276,7 @@ public class TestOscorepRSGroupOSCORE {
         // M.T.
         // Include this resource as a join resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(groupName));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -311,11 +336,13 @@ public class TestOscorepRSGroupOSCORE {
         Resource authzInfo = new CoapAuthzInfo(ai);
         // The name of the OSCORE group is used as resource name
         Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
+        Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource); // M.T.
       
         rs = new CoapServer();
         rs.add(hello);
         rs.add(temp);
-        rs.add(join);
+        rs.add(groupOSCORERootMembership); // M.T.
+        groupOSCORERootMembership.add(join); // M.T.
         rs.add(authzInfo);
       
         rs.addEndpoint(new CoapEndpoint.Builder()
@@ -346,7 +373,7 @@ public class TestOscorepRSGroupOSCORE {
 
     // M.T.
     /**
-     * Definition of the Group OSCORE Join Resource
+     * Definition of the Group OSCORE group-membership resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
     	
@@ -360,7 +387,7 @@ public class TestOscorepRSGroupOSCORE {
             super(resId);
             
             // set display name
-            getAttributes().setTitle("Group OSCORE Join Resource " + resId);
+            getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
         }
 
         @Override
@@ -408,7 +435,7 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
         	
         	if (!joinRequest.getType().equals(CBORType.Map))
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the group-membership request must be a CBOR Map");
         		
         	// More steps follow:
         	//
@@ -661,7 +688,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(0));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -694,7 +721,7 @@ public class TestOscorepRSGroupOSCORE {
 
         	// CBOR Value assigned to the coap_group_oscore profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.PROFILE, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(0));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
@@ -906,12 +933,13 @@ public class TestOscorepRSGroupOSCORE {
     }
 
     /**
+     * Verify the correctness of a digital signature
      * 
-     * @param countersignKeyCurve
-     * @param pubKey
-     * @param signedData
-     * @param expectedSignature
-     * @return
+     * @param countersignKeyCurve Elliptic curve used to process the signature, encoded as in RFC 8152
+     * @param pubKey Public key of the signer, used to verify the signature
+     * @param signedData Data over which the signature has been computed
+     * @param expectedSignature Signature to verify
+     * @return True is the signature verifies correctly, false otherwise
      */
     public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 

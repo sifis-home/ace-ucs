@@ -385,7 +385,7 @@ public class OscorepClient2RSGroupOSCORE {
         System.out.println("Join response contents: ");
 
         System.out.print("KTY: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KTY)));
+        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.GKTY)));
 
         System.out.print("KEY: ");
         System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KEY)));

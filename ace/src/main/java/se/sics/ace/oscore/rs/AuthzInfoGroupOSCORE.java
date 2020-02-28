@@ -91,6 +91,8 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
      */
 	private Map<String, GroupInfo> activeGroups;
 	
+	private final String rootGroupMembershipResource;
+	
 	/**
 	 * Constructor.
 	 * 
@@ -117,6 +119,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;
 		
+		this.rootGroupMembershipResource = this.audience.getRootGroupMembershipResource();
 	}
 
 	@Override
@@ -210,7 +213,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
 	    Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(ctiStr);
     	
-    	// Check that audience and scope are consistent with the access to a join resource.
+    	// Check that audience and scope are consistent with the access to a group-membership resource.
 	    // Consistency checks have been already performed when processing the Token upon posting
 	    
     	CBORObject scope = claims.get(Constants.SCOPE);
@@ -245,14 +248,14 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    	}
     	    }
     		
-    		// Check that the scope refers to a join resource
+    		// Check that the scope refers to a group membership resource
     		if (error == false) {
-    			if (myJoinResources.contains(groupName) == false)
+    			if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false)
     				error = true;
     		}
     		
     		if (error == true) {
-                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for join resources at a Group Manager");
+                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for group-membership resources at a Group Manager");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 

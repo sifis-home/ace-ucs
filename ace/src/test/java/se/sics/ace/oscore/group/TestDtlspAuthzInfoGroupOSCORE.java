@@ -103,6 +103,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
+    private static final String rootGroupMembershipResource = "group-oscore";
+    
     /**
      * Set up the necessary objects.
      * 
@@ -135,32 +137,32 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         final String groupName = "feedca570000";
         
         // M.T.
-        // Adding the join resource, as one scope for each different combinations of
+        // Adding the group-membership resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with Group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put(groupName, actions3);
-        myScopes.put(groupName + "_requester", myResource3);
-        myScopes.put(groupName + "_responder", myResource3);
-        myScopes.put(groupName + "_monitor", myResource3);
-        myScopes.put(groupName + "_requester_responder", myResource3);
-        myScopes.put(groupName + "_requester_monitor", myResource3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
         // M.T.
-        // Include this resource as a join resource for Group OSCORE.
-        // The resource name is the zeroed-epoch Group ID of the OSCORE group.
-        valid.setJoinResources(Collections.singleton(groupName));
+        // Include this resource as a group-membership resource for Group OSCORE.
+        // The resource name is the name of the OSCORE group.
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
         
         // Create the OSCORE group
@@ -428,7 +430,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                TokenRepository.getInstance().canAccess(
-                       kid, kid, groupName, Constants.POST, null));
+                       kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     // M.T.
@@ -478,7 +480,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(
-                        kid, kid, groupName, Constants.POST, null));
+                        kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
     /**

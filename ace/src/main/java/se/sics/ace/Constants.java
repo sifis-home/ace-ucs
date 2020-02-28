@@ -884,7 +884,7 @@ public class Constants {
      /*
       * Value for the label "kty" in the Join Response message
       */
-     public static final short KTY = 1;
+     public static final short GKTY = 1;
      
      /*
       * Value for the label "key" in the Join Response message
@@ -895,6 +895,11 @@ public class Constants {
       * Value for the label "pub_keys" in the Join Response message
       */
      public static final short PUB_KEYS = 3;
+     
+     /*
+      * Value for the label "ace-groupcomm-profile" in the Join Response message
+      */
+     public static final short ACE_GROUPCOMM_PROFILE = 38;
      
      /*
       * Value for the label "sign_info" in the Token POST request and in the Join Response message
