@@ -445,29 +445,24 @@ public class Constants {
 	public static final CBORObject OS_SERVERID = CBORObject.FromObject(3);
 
     /**
-     * The master secret
+     * The HKDF algorithm
      */
     public static final CBORObject OS_HKDF = CBORObject.FromObject(4);
 
     /**
-     * The client Id
+     * The AEAD algorithm
      */
     public static final CBORObject OS_ALG = CBORObject.FromObject(5);
 
     /**
-     * The server Id
+     * The Master Salt
      */
     public static final CBORObject OS_SALT = CBORObject.FromObject(6);
     
     /**
-     * The server Id
+     * The Id Context
      */
     public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(7);
-
-    /**
-     * The master secret
-     */
-    public static final CBORObject OS_RPL = CBORObject.FromObject(8);
 
 
     /**
@@ -481,13 +476,7 @@ public class Constants {
      * Default value for hkdf
      */
     public static final short OS_DEFAULT_HKDF 
-        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();
-    
-    /**
-     * Default value for rpl
-     */
-    public static final short OS_DEFAULT_RPL = 32;
-    
+        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();    
     
 	/**
 	 * RESTful action names ===================================================
