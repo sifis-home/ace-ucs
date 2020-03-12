@@ -205,17 +205,13 @@ public class OSCOREProfileRequests {
         }
         
         byte[] n2 = n2C.GetByteString();
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
-        
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-       OSCoreCtx ctx = osc.getContext(true, n1, n2);
-       OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-       db.addContext(ctx);
-       db.addContext(rsAddr, ctx);
+        OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        db.addContext(ctx);
+        db.addContext(rsAddr, ctx);
         
         return r;
     }
