@@ -52,9 +52,9 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * Enables or disables the optimized response functionality.
 	 * If it is enabled responses no longer require a separate
 	 * signature but rather use the encryption keys for source
-	 * authentication.
+	 * authentication. By default it is disabled.
 	 */
-	private final static boolean OPTIMIZED_RESPONSES = false;
+	private static boolean optimizedResponsesEnabled = false;
 	
 	/**
 	 * Enable or disable use of countersignatures.
@@ -145,7 +145,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 			}
 			
 			//If optimized responses are enabled.
-			if(OPTIMIZED_RESPONSES) {
+			if(optimizedResponsesEnabled) {
 				//First derive the response recipient key
 				info = CBORObject.NewArray();
 				info.Add(this.recipient_id);
@@ -171,9 +171,17 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 //					// TODO Auto-generated catch block
 //					e.printStackTrace();
 //				}
+						
+				byte[] sharedSecret = null;
 				
-				//FIXME: Generate shared secret correctly. Now it just uses the sender and recipient IDs.
-				byte[] sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();
+				//FIXME: Generate shared secret correctly for EdDSA. Now it just uses the sender and recipient IDs.
+				if(alg_countersign == AlgorithmID.EDDSA) {
+					sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();	
+				} else if(alg_countersign == AlgorithmID.ECDSA_256 || alg_countersign == AlgorithmID.ECDSA_384 || alg_countersign == AlgorithmID.ECDSA_512) {
+					sharedSecret = generateSharedSecretECDSA(sender_private_key, recipient_public_key);
+				} else {
+					System.err.println("Error: Unknown countersignature!");
+				}
 				
 				try {
 					this.response_recipient_key = deriveKey(this.recipient_key, sharedSecret, this.key_length, digest,
@@ -540,7 +548,28 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * @return true/false to indicate if optimized responses are used
 	 */
 	public boolean getOptimizedResponses() {
-		return OPTIMIZED_RESPONSES;
+		return optimizedResponsesEnabled;
+	}
+	
+	/**
+	 * Sets whether this context uses optimized responses or not.
+	 * 
+	 * @param enabled true/false to indicate if optimized responses are used
+	 */
+	public void setOptimizedResponse(boolean enabled) {
+		optimizedResponsesEnabled = enabled;
+	}
+	
+	/**
+	 * Generate a shared secret when using ECDSA.
+	 * 
+	 * @param sender_private_key the public/private key of the sender
+	 * @param recipient_public_key the public key of the recipient
+	 * @return the shared secret
+	 */
+	public byte[] generateSharedSecretECDSA(OneKey sender_private_key, OneKey recipient_public_key) {
+		
+		return new byte[] { 0x11};
 	}
 	
 	/** ---- Methods below should never be called on a Group OSCORE context ---- **/

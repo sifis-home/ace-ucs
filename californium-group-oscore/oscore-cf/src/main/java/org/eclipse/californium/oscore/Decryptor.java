@@ -307,6 +307,7 @@ public abstract class Decryptor {
 
 			System.out.println("Decrypt " + messageType + "Recipient Key:" + Utility.arrayToString(key));
 			System.out.println("Decrypt " + messageType + "External AAD:\t" + Utility.arrayToString(aad));
+			System.out.println("Decrypt " + messageType + "Is optimized response:\t" + isOptimizedResponse);
 			//FIXME: Print System.out.println("Decrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
 		}
 

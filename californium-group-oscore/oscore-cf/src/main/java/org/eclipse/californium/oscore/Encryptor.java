@@ -152,6 +152,7 @@ public abstract class Encryptor {
 				System.out.println("Encrypt " + messageType + "Message KID:\t" + Utility.arrayToString(enc.findAttribute(HeaderKeys.KID).GetByteString()));
 				//System.out.println("Encrypt " + messageType + "*Recipient Key:" + Utility.arrayToString(key));
 				System.out.println("Encrypt " + messageType + "External AAD:\t" + Utility.arrayToString(enc.getExternal()));
+				System.out.println("Encrypt " + messageType + "Is optimized response:\t" + isOptimizedResponse);
 				//FIXME Print System.out.println("Encrypt " + messageType + "Optimized Response:\t" + isOptimizedResponse);
 			}
 
