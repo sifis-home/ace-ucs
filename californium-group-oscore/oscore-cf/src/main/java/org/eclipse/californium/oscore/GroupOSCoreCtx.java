@@ -21,25 +21,21 @@ package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.KeyAgreement;
-import javax.crypto.SecretKey;
-
-import org.bouncycastle.util.Arrays;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.util.Base64;
-import org.eclipse.californium.elements.util.Bytes;
-
 import com.upokecenter.cbor.CBORObject;
 
 /**
@@ -147,8 +143,12 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				System.err.println(e.getMessage());
 			}
 			
-			//If optimized responses are enabled.
-			if(optimizedResponsesEnabled) {
+			if(recipient_public_key == null) {
+				System.out.println("Info: Recipient added without public key.");
+			}
+			
+			//If optimized responses are enabled and recipient has a public key.
+			if(optimizedResponsesEnabled && recipient_public_key != null) {
 				//First derive the response recipient key
 				info = CBORObject.NewArray();
 				info.Add(this.recipient_id);
@@ -180,7 +180,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 				//FIXME: Generate shared secret correctly for EdDSA. Now it just uses the sender and recipient IDs.
 				if(alg_countersign == AlgorithmID.EDDSA) {
 					sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();	
-				} else if(alg_countersign == AlgorithmID.ECDSA_256 || alg_countersign == AlgorithmID.ECDSA_384 || alg_countersign == AlgorithmID.ECDSA_512) {
+				} else if(alg_countersign == AlgorithmID.ECDSA_256 || alg_countersign == AlgorithmID.ECDSA_384 || alg_countersign == AlgorithmID.ECDSA_512) { //ECDSA case
 					sharedSecret = generateSharedSecretECDSA(sender_private_key, recipient_public_key);
 				} else {
 					System.err.println("Error: Unknown countersignature!");
@@ -571,27 +571,22 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * @return the shared secret
 	 */
 	public byte[] generateSharedSecretECDSA(OneKey sender_private_key, OneKey recipient_public_key) {
+
+		byte[] sharedSecret = null;
+		try {
+			ECPublicKey recipientPubKey = (ECPublicKey) recipient_public_key.AsPublicKey();
+			ECPrivateKey senderPrivKey = (ECPrivateKey) sender_private_key.AsPrivateKey();
+			
+			KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
+			keyAgreement.init(senderPrivKey);
+			keyAgreement.doPhase(recipientPubKey, true);
+
+			sharedSecret = keyAgreement.generateSecret();
+		} catch (GeneralSecurityException | CoseException e) {
+			System.err.println("Could not generate the shared secret: " + e);
+		}
 		
-//		try {
-//			System.out.println(sender_private_key.AsPublicKey().getClass());
-//		} catch (CoseException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
-//
-//		try {
-//			KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
-//			keyAgreement.init(privateKey);
-//			keyAgreement.doPhase(peerPublicKey, true);
-//
-//			byte[] sharedSecret = keyAgreement.generateSecret();
-//		} catch (GeneralSecurityException e) {
-//			//LOGGER.error("Could not generate the premaster secret", e);
-//		}
-//		//return sharedSecret;
-		
-		
-		return new byte[] { 0x11};
+		return sharedSecret;
 	}
 	
 	/** ---- Methods below should never be called on a Group OSCORE context ---- **/

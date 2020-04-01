@@ -26,7 +26,7 @@ import java.security.Provider;
 import java.security.Security;
 import java.util.Base64;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -158,10 +158,10 @@ public class GroupOSCORESenderECDSA {
 		}
 
 		//Install cryptographic providers
-		Provider PROVIDER = new BouncyCastleProvider();
-		Provider EdDSA = new EdDSASecurityProvider();
-		Security.insertProviderAt(PROVIDER, 1);
-		Security.insertProviderAt(EdDSA, 0);
+		//Provider PROVIDER = new BouncyCastleProvider();
+		//Provider EdDSA = new EdDSASecurityProvider();
+		//Security.insertProviderAt(PROVIDER, 1);
+		//Security.insertProviderAt(EdDSA, 0);
 		//InstallCryptoProviders.generateCounterSignKey(AlgorithmID.ECDSA_256); //For generating keys
 
 		//Add private & public keys for sender & receiver(s)

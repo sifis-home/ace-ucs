@@ -24,7 +24,7 @@ import java.security.Security;
 import java.util.Base64;
 import java.util.Random;
 
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
+//import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
@@ -124,10 +124,10 @@ public class GroupOSCOREReceiverECDSA {
 	
 	public static void main(String[] args) throws Exception {
 		//Install cryptographic providers
-		Provider PROVIDER = new BouncyCastleProvider();
-		Provider EdDSA = new EdDSASecurityProvider();
-		Security.insertProviderAt(PROVIDER, 1);
-		Security.insertProviderAt(EdDSA, 0);
+		//Provider PROVIDER = new BouncyCastleProvider();
+		//Provider EdDSA = new EdDSASecurityProvider();
+		//Security.insertProviderAt(PROVIDER, 1);
+		//Security.insertProviderAt(EdDSA, 0);
 
 		//Set sender & receiver keys for countersignatures
 		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
@@ -218,6 +218,11 @@ public class GroupOSCOREReceiverECDSA {
 			id = random.nextInt(1000);
 			
 			System.out.println("coap receiver: " + id);
+//			
+//			Provider[] providers = Security.getProviders();
+//			for (int i = 0; i < providers.length; i++) {
+//				System.out.println("Provider Name: " + providers[i].getName() + " Version: " + providers[i].getVersion());
+//			}
 		}
 		
 		//Added for handling GET
