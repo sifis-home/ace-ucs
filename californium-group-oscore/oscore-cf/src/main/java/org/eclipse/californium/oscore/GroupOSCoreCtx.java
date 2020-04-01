@@ -20,6 +20,7 @@
 package org.eclipse.californium.oscore;
 
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import java.util.HashMap;
 import java.util.List;
 
 import javax.crypto.KeyAgreement;
+import javax.crypto.SecretKey;
 
 import org.bouncycastle.util.Arrays;
 import org.eclipse.californium.core.Utils;
@@ -36,6 +38,7 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.elements.util.Bytes;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -54,7 +57,7 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * signature but rather use the encryption keys for source
 	 * authentication. By default it is disabled.
 	 */
-	private static boolean optimizedResponsesEnabled = false;
+	private boolean optimizedResponsesEnabled = false;
 	
 	/**
 	 * Enable or disable use of countersignatures.
@@ -548,16 +551,16 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * @return true/false to indicate if optimized responses are used
 	 */
 	public boolean getOptimizedResponses() {
-		return optimizedResponsesEnabled;
+		return this.optimizedResponsesEnabled;
 	}
 	
 	/**
 	 * Sets whether this context uses optimized responses or not.
 	 * 
-	 * @param enabled true/false to indicate if optimized responses are used
+	 * @param b true/false to indicate if optimized responses are used
 	 */
-	public void setOptimizedResponse(boolean enabled) {
-		optimizedResponsesEnabled = enabled;
+	public void setOptimizedResponse(boolean b) {
+		this.optimizedResponsesEnabled = b;
 	}
 	
 	/**
@@ -568,6 +571,25 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 	 * @return the shared secret
 	 */
 	public byte[] generateSharedSecretECDSA(OneKey sender_private_key, OneKey recipient_public_key) {
+		
+//		try {
+//			System.out.println(sender_private_key.AsPublicKey().getClass());
+//		} catch (CoseException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
+//
+//		try {
+//			KeyAgreement keyAgreement = KeyAgreement.getInstance("ECDH");
+//			keyAgreement.init(privateKey);
+//			keyAgreement.doPhase(peerPublicKey, true);
+//
+//			byte[] sharedSecret = keyAgreement.generateSecret();
+//		} catch (GeneralSecurityException e) {
+//			//LOGGER.error("Could not generate the premaster secret", e);
+//		}
+//		//return sharedSecret;
+		
 		
 		return new byte[] { 0x11};
 	}
