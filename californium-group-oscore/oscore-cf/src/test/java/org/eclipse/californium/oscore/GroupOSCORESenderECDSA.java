@@ -19,14 +19,10 @@ package org.eclipse.californium.oscore;
 import java.io.File;
 import java.net.Inet6Address;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.Provider;
-import java.security.Security;
 import java.util.Base64;
 
-//import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapResponse;
@@ -38,12 +34,9 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 
 import com.upokecenter.cbor.CBORObject;
-
-import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 
@@ -102,15 +95,9 @@ public class GroupOSCORESenderECDSA {
 	 */
 	static final String requestPayload = "test";
 	
-	/**
-	 * ED25519 curve value.
-	 * https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves
-	 */
-	static final int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
-	
 	/* --- OSCORE Security Context information (sender) --- */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
-	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID alg = AlgorithmID.AES_GCM_128; //Use GCM for no BouncyCastle
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 	
 	//Group OSCORE specific values for the countersignature
@@ -147,6 +134,9 @@ public class GroupOSCORESenderECDSA {
 	/* --- OSCORE Security Context information --- */
 	
 	public static void main(String args[]) throws Exception {
+		
+		//Do not install any extra crypto providers
+		
 		/**
 		 * URI to perform request against. Need to check for IPv6 to surround it with []
 		 */
@@ -156,13 +146,6 @@ public class GroupOSCORESenderECDSA {
 		} else {
 			requestURI = "coap://" + multicastIP.getHostAddress() + ":" + destinationPort + requestResource;
 		}
-
-		//Install cryptographic providers
-		//Provider PROVIDER = new BouncyCastleProvider();
-		//Provider EdDSA = new EdDSASecurityProvider();
-		//Security.insertProviderAt(PROVIDER, 1);
-		//Security.insertProviderAt(EdDSA, 0);
-		//InstallCryptoProviders.generateCounterSignKey(AlgorithmID.ECDSA_256); //For generating keys
 
 		//Add private & public keys for sender & receiver(s)
 		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));

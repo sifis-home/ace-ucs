@@ -109,14 +109,6 @@ public class OSCoreCtx {
 	public OSCoreCtx(byte[] master_secret, boolean client, AlgorithmID alg, byte[] sender_id, byte[] recipient_id,
 			AlgorithmID kdf, Integer replay_size, byte[] master_salt, byte[] contextId) throws OSException {
 
-		//Install cryptographic providers that may be needed. TODO: Move?
-		try {
-			InstallCryptoProviders.installProvider();
-		} catch (Exception e1) {
-			LOGGER.error("Failed to install cryptographic providers!");
-			e1.printStackTrace();
-		}
-
 		if (alg == null) {
 			this.common_alg = AlgorithmID.AES_CCM_16_64_128;
 		} else {
@@ -444,6 +436,10 @@ public class OSCoreCtx {
 				iv_length = ivLength(common_alg);
 				id_length = 7;
 				key_length = common_alg.getKeySize() / 8; // 16;
+			} else if (common_alg.equals(AlgorithmID.AES_GCM_128)) {
+				iv_length = ivLength(common_alg);
+				id_length = 8;
+				key_length = common_alg.getKeySize() / 8;;
 			} else {
 				LOGGER.error("Unable to set lengths, since algorithm");
 				throw new RuntimeException("Unable to set lengths, since algorithm");
@@ -531,6 +527,8 @@ public class OSCoreCtx {
 		switch (alg) {
 		case AES_CCM_16_64_128:
 			return 13;
+		case AES_GCM_128:
+			return 96 / 8;
 		default:
 			return -1;
 		}

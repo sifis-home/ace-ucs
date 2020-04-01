@@ -159,7 +159,7 @@ public abstract class Encryptor {
 			/* ------ End prints for debugging ------ */
 
 			enc.addAttribute(HeaderKeys.IV, CBORObject.FromObject(nonce), Attribute.DO_NOT_SEND);
-			enc.addAttribute(HeaderKeys.Algorithm, AlgorithmID.AES_CCM_16_64_128.AsCBOR(), Attribute.DO_NOT_SEND);
+			enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg().AsCBOR(), Attribute.DO_NOT_SEND);
 
 			/* ------ Rikard: Add the countersignature (if using Group OSCORE) ------ */
 			//TODO: Extract to separate method?

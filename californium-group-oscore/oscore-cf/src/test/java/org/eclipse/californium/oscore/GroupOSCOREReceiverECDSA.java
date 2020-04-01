@@ -24,7 +24,6 @@ import java.security.Security;
 import java.util.Base64;
 import java.util.Random;
 
-//import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
@@ -37,14 +36,11 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
 
 import com.upokecenter.cbor.CBORObject;
-
-import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 /**
  * Test receiver using {@link UdpMulticastConnector}.
@@ -81,16 +77,10 @@ public class GroupOSCOREReceiverECDSA {
 	 */
 	static final int listenPort = CoAP.DEFAULT_COAP_PORT;
 
-	/**
-	 * ED25519 curve value.
-	 * https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves
-	 */
-	static final int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
-	
 	/* --- OSCORE Security Context information (receiver) --- */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uriLocal = "coap://localhost";
-	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID alg = AlgorithmID.AES_GCM_128; //Use GCM for no BouncyCastle
 	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
 	//Group OSCORE specific values for the countersignature
@@ -123,12 +113,8 @@ public class GroupOSCOREReceiverECDSA {
 	private static Random random;
 	
 	public static void main(String[] args) throws Exception {
-		//Install cryptographic providers
-		//Provider PROVIDER = new BouncyCastleProvider();
-		//Provider EdDSA = new EdDSASecurityProvider();
-		//Security.insertProviderAt(PROVIDER, 1);
-		//Security.insertProviderAt(EdDSA, 0);
-
+		//Do not install any extra crypto providers
+		
 		//Set sender & receiver keys for countersignatures
 		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid1_public_key_string)));
@@ -218,11 +204,12 @@ public class GroupOSCOREReceiverECDSA {
 			id = random.nextInt(1000);
 			
 			System.out.println("coap receiver: " + id);
-//			
-//			Provider[] providers = Security.getProviders();
-//			for (int i = 0; i < providers.length; i++) {
-//				System.out.println("Provider Name: " + providers[i].getName() + " Version: " + providers[i].getVersion());
-//			}
+			
+			// See installed crypto providers at this moment (for debugging)
+			Provider[] providers = Security.getProviders();
+			for (int i = 0; i < providers.length; i++) {
+				System.out.println("Provider Name: " + providers[i].getName() + " Version: " + providers[i].getVersion());
+			}
 		}
 		
 		//Added for handling GET
