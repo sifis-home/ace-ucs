@@ -173,6 +173,7 @@ public class GroupOSCORESenderECDSA {
 		if(useOSCORE) {
 			GroupOSCoreCtx ctx = new GroupOSCoreCtx(master_secret, true, alg, sid, kdf, 32, 
 					master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
+			ctx.setOptimizedResponse(true); // Enable optimized responses
 			ctx.addRecipientContext(rid0);
 			ctx.addRecipientContext(rid1, rid1_public_key);
 			ctx.addRecipientContext(rid2, rid2_public_key);
