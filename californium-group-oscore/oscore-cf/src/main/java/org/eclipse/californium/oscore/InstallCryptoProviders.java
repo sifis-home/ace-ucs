@@ -29,8 +29,8 @@ public abstract class InstallCryptoProviders {
     }
     
     //Rikard: Generate a key to be used for Countersignatures
-    public static void generateCounterSignKey() throws CoseException {
-    	OneKey myKey = OneKey.generateKey(AlgorithmID.EDDSA);
+	public static void generateCounterSignKey(AlgorithmID alg) throws CoseException {
+		OneKey myKey = OneKey.generateKey(alg);
     	
     	//Print base64 encoded version with both public & private keys
     	byte[] keyObjectBytes = myKey.AsCBOR().EncodeToBytes();
@@ -44,6 +44,12 @@ public abstract class InstallCryptoProviders {
 
     }
     
+	// Rikard: Generate a key to be used for EDDSA Countersignatures
+	public static void generateCounterSignKey() throws CoseException {
+		generateCounterSignKey(AlgorithmID.EDDSA);
+
+	}
+
     //Rikard: Return a key to be used for Countersignatures
     public static String getCounterSignKey() throws CoseException {
     	OneKey myKey = OneKey.generateKey(AlgorithmID.EDDSA);

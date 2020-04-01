@@ -14,3 +14,19 @@ Public only: pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib
 Public & Private: pQMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bouI1gge/Yvdn7Rz0xgkR/En9/Mub1HzH6fr0HLZjadXIUIsjk=
 Public only: pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou
 
+--
+
+ECDSA Keys:
+
+# Group OSCORE Sender (SID 0x25) #
+Public & Private: pgMmAQIgASFYIErNHsCmkyKsCh0kt16utIujYCK1l0W1fo3NZtfzCdK6Ilgg7n8KnN9SLkbIiheU8uxuQ25LzBwW+K5ed1+Z3qeXdjwjWCDtw3Wqf4uQoY/dYx8bjZUpUuBfC3k1UHxIcIgs8FxOQg==
+Public only: pQMmAQIgASFYIErNHsCmkyKsCh0kt16utIujYCK1l0W1fo3NZtfzCdK6Ilgg7n8KnN9SLkbIiheU8uxuQ25LzBwW+K5ed1+Z3qeXdjw=
+
+# Group OSCORE Receiver 1 (SID 0x52) #
+Public & Private: pgMmAQIgASFYICOiiV4tfl1H+lwa09KGLTZmF7vs3MnoDbknAet2KumIIlggI4nnvVDN/VxssAfVor9MDWVHXnG2QzrFqhpId7lCsWUjWCBWoGUr6f4Aza+EilxGzrsb2e2ZnvJ9J6jGgZN37Xiczg==
+Public only: pQMmAQIgASFYICOiiV4tfl1H+lwa09KGLTZmF7vs3MnoDbknAet2KumIIlggI4nnvVDN/VxssAfVor9MDWVHXnG2QzrFqhpId7lCsWU=
+
+# Group OSCORE Receiver 2 (SID 0x77) #
+Public & Private: pgMmAQIgASFYICDhVZs4x3YIiIGDDkMB3fLwA9KbDiLHUHRC+d9CCoF/IlggkHYXeExSt8/x/oyP4H1lnfMOjN5DeGvoDlXKja4BKGwjWCCrRws/eb/7eXXstGP0aIKj5isHUQaXSlJ96eseOFK4Lw==
+Public only: pQMmAQIgASFYICDhVZs4x3YIiIGDDkMB3fLwA9KbDiLHUHRC+d9CCoF/IlggkHYXeExSt8/x/oyP4H1lnfMOjN5DeGvoDlXKja4BKGw=
+
