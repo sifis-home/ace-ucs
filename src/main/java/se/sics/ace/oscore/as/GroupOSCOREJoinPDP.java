@@ -514,6 +514,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	      }
         	      
         	      if (allowedRoles.size() == 2) {
+        	    		  
         	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
         	    	  
         	    	  for (String foo : allowedRoles) {

@@ -87,11 +87,6 @@ public class TestTokenGroupOSCORE {
     private static Token t = null;
     private static String cti1;
     private static String cti2;
-    private static String cti3;
-    private static String cti4;
-    private static String cti5;
-    private static String cti6;
-    private static String cti7;
     private static GroupOSCOREJoinPDP pdp = null;
     
     /**
@@ -258,7 +253,6 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_responder");
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
-        scopes.add("feedca570000_requester_monitor");
         auds.clear();
         auds.add("rs8");
         keyTypes.clear();
@@ -277,8 +271,38 @@ public class TestTokenGroupOSCORE {
         // Add the resource server rs8 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs8", auds);
         
+        
         // M.T.
         // Add a further resource server "rs9" acting as OSCORE Group Manager
+        // This resource server uses only REF Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        auds.clear();
+        auds.add("rs9");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs9", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, skey, skey, publicKey);
+        
+        // M.T.
+        // Add the resource server rs8 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs9", auds);
+        
+        
+        // M.T.
+        // Add a further resource server "rs10" acting as OSCORE Group Manager
         // This resource server uses only CBOR Web Tokens
         profiles.clear();
         profiles.add("coap_dtls");
@@ -287,9 +311,8 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_responder");
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
-        scopes.add("feedca570000_requester_monitor");
         auds.clear();
-        auds.add("rs9");
+        auds.add("rs10");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -299,11 +322,40 @@ public class TestTokenGroupOSCORE {
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
-        db.addRS("rs9", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+        db.addRS("rs10", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
         // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
-        db.addOSCOREGroupManagers("rs9", auds);
+        db.addOSCOREGroupManagers("rs10", auds);
+        
+        
+        // M.T.
+        // Add a further resource server "rs11" acting as OSCORE Group Manager
+        // This resource server uses only CBOR Web Tokens
+        profiles.clear();
+        profiles.add("coap_dtls");
+        scopes.clear();
+        scopes.add("feedca570000_requester");
+        scopes.add("feedca570000_responder");
+        scopes.add("feedca570000_monitor");
+        scopes.add("feedca570000_requester_responder");
+        auds.clear();
+        auds.add("rs11");
+        keyTypes.clear();
+        keyTypes.add("PSK");
+        tokenTypes.clear();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        cose.clear();
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        expiration = 1000000L;
+        db.addRS("rs11", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, skey, skey, publicKey);
+        
+        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        db.addOSCOREGroupManagers("rs11", auds);
+        
         
         //Setup client entries
         profiles.clear();
@@ -392,109 +444,7 @@ public class TestTokenGroupOSCORE {
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
         db.addToken(cti2, claims);
         
-        // M.T.
-        // Setup additional tokens to access a group-membership resource at an OSCORE Group Manager.
-        // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
-        cti = new byte[]{0x02};
-        cti3 = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        CBORObject cborArrayScope = CBORObject.NewArray();
-        String gid = new String("feedca570000");
-    	String role1 = new String("requester");
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs8"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti3, claims);
-        
-        
-        cti = new byte[]{0x03};
-        cti4 = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
-    	role1 = new String("responder");
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs8"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti4, claims);
-        
-        cti = new byte[]{0x04};
-        cti5 = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
-    	role1 = new String("monitor");
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs8"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti5, claims);
-        
-        
-        cti = new byte[]{0x05};
-        cti6 = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
-    	role1 = new String("requester");
-    	String role2 = new String("responder");
-    	cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs8"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti6, claims);
-        
-        
-        cti = new byte[]{0x06};
-        cti7 = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gid = new String("feedca570000");
-    	role1 = new String("requester");
-    	role2 = new String("monitor");
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs8"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti7, claims);
+
         
         
         pdp = new GroupOSCOREJoinPDP(db);
@@ -548,25 +498,35 @@ public class TestTokenGroupOSCORE {
         pdp.addAccess("clientE", "rs3", "failProfile");
         
         // M.T.
-        // Specify access right also for client "clientF" as a joining node of an OSCORE group.
-        // This client is allowed to be requester and/or monitor, but not responder.
         pdp.addAccess("clientF", "rs2", "r_light");
-        pdp.addAccess("clientF", "rs8", "feedca570000_requester_monitor");
+        
+        // Specify access right also for client "clientF" as a joining node of an OSCORE group.
+        // On this Group Manager, this client is allowed to be requester, responder, requester+responder or monitor.
+        pdp.addAccess("clientF", "rs8", "feedca570000_requester_monitor_responder");
+        // On this Group Manager, this client is allowed to be requester or monitor.
         pdp.addAccess("clientF", "rs9", "feedca570000_requester_monitor");
         
-        // M.T.
+        // On this Group Manager, this client is allowed to be requester, responder, requester+responder or monitor.
+        pdp.addAccess("clientF", "rs10", "feedca570000_requester_monitor_responder");
+        // On this Group Manager, this client is allowed to be requester or monitor.
+        pdp.addAccess("clientF", "rs11", "feedca570000_requester_monitor");
+        
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
         // This client is allowed to be only requester.
         pdp.addAccess("clientG", "rs8", "feedca570000_requester");
-        pdp.addAccess("clientG", "rs9", "feedca570000_requester");
+        pdp.addAccess("clientG", "rs10", "feedca570000_requester");
         
         // M.T.
-        // Add the resource server rs8 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        // Add the resource servers rs8, rs9, r10 and rs11 and their OSCORE Group Manager audience
+        // to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs8 = Collections.singleton("rs8");
         pdp.addOSCOREGroupManagers("rs8", rs8);
-        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs9 = Collections.singleton("rs9");
         pdp.addOSCOREGroupManagers("rs9", rs9);
+        Set<String> rs10 = Collections.singleton("rs10");
+        pdp.addOSCOREGroupManagers("rs10", rs10);
+        Set<String> rs11 = Collections.singleton("rs11");
+        pdp.addOSCOREGroupManagers("rs11", rs11);
         
         t = new Token("AS", pdp, db, new KissTime(), privateKey); 
     }
@@ -1122,7 +1082,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1203,7 +1163,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -1240,7 +1200,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1277,7 +1237,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1314,7 +1274,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1335,7 +1295,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1356,7 +1316,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1377,7 +1337,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1386,6 +1346,7 @@ public class TestTokenGroupOSCORE {
         Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
         
     }
+    
     
     // M.T.
     /**
@@ -1412,7 +1373,7 @@ public class TestTokenGroupOSCORE {
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1440,8 +1401,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("monitor")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("monitor") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("responder")) ||
+        	   (cborArrayScope.get(1).get(0).AsString().equals("responder") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1453,7 +1414,7 @@ public class TestTokenGroupOSCORE {
     	cborArrayScope.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1484,7 +1445,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1516,48 +1477,8 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
-        msg = new LocalMessage(-1, "clientF", "TestAS", params);
-        response = t.processMessage(msg);
-        rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
-        params = Constants.getParams(rparams);
-        assert(response.getMessageCode() == Message.CREATED);
-        token = params.get(Constants.ACCESS_TOKEN);     
-        
-        ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
-        claims = db.getClaims(ctiStr);
-        
-        byteStringScope = claims.get(Constants.SCOPE).GetByteString();
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("monitor"));
-        assert(!params.containsKey(Constants.PROFILE));
-        
-        
-        // Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1596,7 +1517,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1604,14 +1525,14 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
         Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
-        
+                
     }
     
     // M.T.
@@ -1639,14 +1560,14 @@ public class TestTokenGroupOSCORE {
     	cborArrayScope.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -1667,8 +1588,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
         assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("monitor")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("monitor") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("responder")) ||
+        	   (cborArrayScope.get(1).get(0).AsString().equals("responder") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1680,14 +1601,14 @@ public class TestTokenGroupOSCORE {
     	cborArrayScope.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1711,7 +1632,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1743,7 +1664,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1751,47 +1672,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
-        msg = new LocalMessage(-1, "clientF", "TestAS", params);
-        response = t.processMessage(msg);
-        rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
-        params = Constants.getParams(rparams);
-        assert(response.getMessageCode() == Message.CREATED);
-        token = params.get(Constants.ACCESS_TOKEN);     
-        
-        cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
-                token.GetByteString()).EncodeToBytes(), 
-                CwtCryptoCtx.sign1Verify(
-                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
-        
-        byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("monitor"));
-        assert(!params.containsKey(Constants.PROFILE));
-        
-        
-        // Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1823,7 +1704,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
     	cborArrayScope.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1831,7 +1712,7 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
