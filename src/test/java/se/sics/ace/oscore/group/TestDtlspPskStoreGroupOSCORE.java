@@ -122,7 +122,15 @@ public class TestDtlspPskStoreGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();

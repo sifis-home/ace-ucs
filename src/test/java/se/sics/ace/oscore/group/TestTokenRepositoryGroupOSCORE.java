@@ -157,7 +157,15 @@ public class TestTokenRepositoryGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource2);
         
         // M.T.
         Set<String> auds = new HashSet<>();

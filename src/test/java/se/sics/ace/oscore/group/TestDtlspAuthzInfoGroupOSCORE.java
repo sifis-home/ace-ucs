@@ -144,12 +144,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
+        
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -373,7 +375,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai.handlePOST(ex);
       
         String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
@@ -422,15 +426,15 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai2.handlePOST(ex);
       
         String kid = new String(new byte[]{0x03, 0x04}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
                
         // Test that the token is there
-        
         String groupName = "feedca570000";
-        
         Assert.assertEquals(TokenRepository.OK, 
                TokenRepository.getInstance().canAccess(
                        kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -473,15 +477,15 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai2.handlePOST(ex);
       
         String kid = new String(new byte[]{0x05, 0x06}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
                
         //Test that the token is there
-        
         String groupName = "feedca570000";
-        
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(
                         kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));

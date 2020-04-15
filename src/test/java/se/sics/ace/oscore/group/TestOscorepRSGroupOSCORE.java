@@ -243,7 +243,15 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource3);
         
         // M.T.
         // Adding another group-membership resource, as one scope for each different combinations of
@@ -257,7 +265,15 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder_monitor", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor_responder", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester_monitor", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_monitor_requester", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester_responder", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_responder_requester", myResource4);
         
         //Create the OSCORE Group(s)
         if (!OSCOREGroupCreation(groupName, countersignKeyCurve))
@@ -499,7 +515,7 @@ public class TestOscorepRSGroupOSCORE {
       	  	}
       	  	else if (scopeElement.getType().equals(CBORType.Array)) {
       	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
+      	  		if (scopeElement.size() != 2) {
       	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
             		return;
       	  		}
@@ -507,9 +523,15 @@ public class TestOscorepRSGroupOSCORE {
       	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
       	  				roles.add(scopeElement.get(i).AsString());
       	  			else {
-      	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+      	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
       	        		return;
       	  			}
+      	  		}
+      	  		// Check for illegal combinations of roles
+      	  		if ( (roles.contains("requester") && roles.contains("monitor")) ||
+      	  			 (roles.contains("responder") && roles.contains("monitor")) ) {
+  	  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+  	  					return;
       	  		}
       	  	}
       	  	else {
