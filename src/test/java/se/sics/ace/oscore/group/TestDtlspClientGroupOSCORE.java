@@ -286,8 +286,10 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+        CBORObject scopeEntry = CBORObject.NewArray();
+        scopeEntry.Add(groupName);
+        scopeEntry.Add(role1);
+        cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -353,40 +355,55 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
-        }
-        
+                
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         CBORObject requestPayload = CBORObject.NewMap();
-              
+        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+        cborArrayScope.Add(role1);
+        byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -636,11 +653,13 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject scopeEntry = CBORObject.NewArray();
+    	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	scopeEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -706,33 +725,44 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
-        }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -740,6 +770,13 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1108,8 +1145,10 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject scopeEntry = CBORObject.NewArray();
+    	scopeEntry.Add(groupName);
+    	scopeEntry.Add(role1);
+    	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -1171,33 +1210,44 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
-        }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1205,6 +1255,10 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
 
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+        cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1460,11 +1514,13 @@ public class TestDtlspClientGroupOSCORE {
     	boolean providePublicKey = true;
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject scopeEntry = CBORObject.NewArray();
+    	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	scopeEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -1526,33 +1582,44 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
-        }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1560,6 +1627,13 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
         
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1868,8 +1942,10 @@ public class TestDtlspClientGroupOSCORE {
         String groupName = new String("feedca570000");
     	String role1 = new String("requester");
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+        CBORObject scopeEntry = CBORObject.NewArray();
+        scopeEntry.Add(groupName);
+        scopeEntry.Add(role1);
+        cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -1934,11 +2010,13 @@ public class TestDtlspClientGroupOSCORE {
     	String role1 = new String("requester");
     	String role2 = new String("responder");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject scopeEntry = CBORObject.NewArray();
+    	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	scopeEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -2060,8 +2138,10 @@ public class TestDtlspClientGroupOSCORE {
         asymmetric.add(KeyKeys.KeyId, asymmetricKid);
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+        CBORObject scopeEntry = CBORObject.NewArray();
+        scopeEntry.Add(groupName);
+        scopeEntry.Add(role1);
+        cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -2123,33 +2203,44 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
-        }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(
@@ -2161,6 +2252,10 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
 
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+        cborArrayScope.Add(role1);
+        byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -2424,11 +2519,13 @@ public class TestDtlspClientGroupOSCORE {
         asymmetric.add(KeyKeys.KeyId, asymmetricKid);
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+        CBORObject scopeEntry = CBORObject.NewArray();
+        scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	scopeEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -2490,33 +2587,44 @@ public class TestDtlspClientGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
-        	signInfo = CBORObject.NewArray();
+            signInfo = CBORObject.NewArray();
         	signInfo = cbor.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
-        }
-        
-        if (askForPubKeyEnc) {
-            Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)));
-            Assert.assertEquals(CBORType.Integer, cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType());
-        	pubKeyEnc = cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(
@@ -2528,6 +2636,13 @@ public class TestDtlspClientGroupOSCORE {
         
         CBORObject requestPayload = CBORObject.NewMap();
 
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+    	cborArrayRoles = CBORObject.NewArray();
+    	cborArrayRoles.Add(role1);
+    	cborArrayRoles.Add(role2);
+    	cborArrayScope.Add(cborArrayRoles);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {

@@ -246,8 +246,10 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
         params.put(Constants.SCOPE, 
@@ -273,8 +275,10 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role2);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
@@ -299,8 +303,9 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
+        cborArrayEntry.Add(role1);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -326,8 +331,10 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role3);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -353,8 +360,10 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add("fakerole");
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -415,11 +424,13 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	
@@ -446,11 +457,13 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -476,11 +489,13 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -505,11 +520,15 @@ public class TestCoAPClientGroupOSCORE {
         byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
         CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
         assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
+        assert(receivedArrayScope.size() == 1);
+        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+        assert(receivedArrayScope.get(0).size() == 2);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
         
@@ -554,8 +573,10 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role3);
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -580,11 +601,13 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	
@@ -609,11 +632,15 @@ public class TestCoAPClientGroupOSCORE {
         byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
         CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
         assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
+        assert(receivedArrayScope.size() == 1);
+        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+        assert(receivedArrayScope.get(0).size() == 2);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
             	

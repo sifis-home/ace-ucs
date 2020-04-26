@@ -393,8 +393,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(role1);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -444,11 +446,13 @@ public class TestDtlspPskStoreGroupOSCORE {
     	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -497,8 +501,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(role1);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         claims.put(Constants.AUD, CBORObject.FromObject("rs2"));

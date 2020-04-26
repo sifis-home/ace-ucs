@@ -379,43 +379,55 @@ public class TestGroupOSCOREJoinPDP {
     	
     	// The requested role is allowed in the specified group
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(role1);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(role2);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(role2);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), byteStringScope));
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid2);
+    	cborArrayEntry.Add(role2);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(role1);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add("fakerole");
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
@@ -425,20 +437,24 @@ public class TestGroupOSCOREJoinPDP {
     	
     	// Both requested roles are allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	byte[] bysteStringScope2;
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role3);
     	cborArrayRoles.Add(role1);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope) ||
@@ -447,11 +463,13 @@ public class TestGroupOSCOREJoinPDP {
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
@@ -459,16 +477,20 @@ public class TestGroupOSCOREJoinPDP {
 
     	// Only one role out of the two requested ones is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(role2);
+    	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
     	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), bysteStringScope2));
@@ -476,11 +498,13 @@ public class TestGroupOSCOREJoinPDP {
     	
     	// None of the requested ones is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	    	
     	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);

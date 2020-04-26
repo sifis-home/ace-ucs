@@ -943,8 +943,11 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -967,11 +970,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -980,8 +985,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role2);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1004,11 +1011,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("monitor"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1017,8 +1026,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1041,11 +1052,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1054,8 +1067,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1075,8 +1090,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role3);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1096,8 +1113,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add("fakerole");
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1117,8 +1136,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role2);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1156,8 +1177,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1180,11 +1203,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1193,8 +1218,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role2);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1217,11 +1244,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("monitor"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("monitor"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1230,8 +1259,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1254,11 +1285,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1267,8 +1300,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1288,8 +1323,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role3);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1309,8 +1346,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add("fakerole");
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1330,8 +1369,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        cborArrayEntry.Add(role2);
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1370,11 +1411,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1397,12 +1440,14 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("responder")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("responder") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Array) && cborArrayEntry.get(1).size() == 2);
+        assert((cborArrayEntry.get(1).get(0).AsString().equals("requester") && cborArrayEntry.get(1).get(1).AsString().equals("responder")) ||
+        	   (cborArrayEntry.get(1).get(0).AsString().equals("responder") && cborArrayEntry.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1411,11 +1456,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1435,11 +1482,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1462,11 +1511,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1475,11 +1526,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1502,11 +1555,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = claims.get(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1515,11 +1570,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1557,11 +1614,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1584,12 +1643,14 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.Array) && cborArrayScope.get(1).size() == 2);
-        assert((cborArrayScope.get(1).get(0).AsString().equals("requester") && cborArrayScope.get(1).get(1).AsString().equals("responder")) ||
-        	   (cborArrayScope.get(1).get(0).AsString().equals("responder") && cborArrayScope.get(1).get(1).AsString().equals("requester")));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Array) && cborArrayEntry.get(1).size() == 2);
+        assert((cborArrayEntry.get(1).get(0).AsString().equals("requester") && cborArrayEntry.get(1).get(1).AsString().equals("responder")) ||
+        	   (cborArrayEntry.get(1).get(0).AsString().equals("responder") && cborArrayEntry.get(1).get(1).AsString().equals("requester")));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1598,11 +1659,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1622,11 +1685,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1649,11 +1714,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1662,11 +1729,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -1689,11 +1758,13 @@ public class TestTokenGroupOSCORE {
         byteStringScope = cwt.getClaim(Constants.SCOPE).GetByteString();
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope = CBORObject.DecodeFromBytes(byteStringScope);
-        assert(cborArrayScope.getType().equals(CBORType.Array) && cborArrayScope.size() == 2);
-        assert(cborArrayScope.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayScope.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayScope.get(1).AsString().equals("requester"));
+        assert(cborArrayScope.size() == 1);
+        cborArrayEntry = cborArrayScope.get(0);
+        assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
+        assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
+        assert(cborArrayEntry.get(1).AsString().equals("requester"));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1702,11 +1773,13 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
     	cborArrayRoles.Add(role1);
     	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 

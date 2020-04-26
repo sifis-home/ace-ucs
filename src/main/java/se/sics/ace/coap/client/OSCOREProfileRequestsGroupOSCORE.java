@@ -179,6 +179,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         CoapClient client = new CoapClient(rsAddr);
 
         LOGGER.finest("Sending request payload: " + payload);
+        
         Response r = null;
         try {
             r = client.post(
@@ -218,23 +219,13 @@ public class OSCOREProfileRequestsGroupOSCORE {
                     "Missing or malformed PoP rsnonce in RS response");
         }
         
-        if (askForSignInfo) {
+        if (askForSignInfo || askForPubKeyEnc) {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
         		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
                 	throw new AceException(
                 			"Missing or malformed sign_info in the RS response, although requested");
         	}
-
-        }
-        
-        if (askForPubKeyEnc) {
-        	
-        	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Integer) {
-                   	throw new AceException(
-                   			"Missing or malformed pub_key_enc in the RS response, although requested");
-           	}
 
         }
         
@@ -252,6 +243,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         db.addContext(rsAddr, ctx);
         
         return r;
+        
     }
     
     

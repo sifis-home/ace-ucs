@@ -446,88 +446,109 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         // This type of scope is expected to have this structure for each RS acting as OSCORE Group Manager
         else if (scope instanceof byte[] && rsOSCOREGroupManager) {
         	
+        	// Allowed scope to be returned to the /token endpoint
+        	CBORObject cborArrayScope = CBORObject.NewArray();
+        	
         	// Retrieve the scope as CBOR Array
         	CBORObject scopeCBOR = CBORObject.DecodeFromBytes((byte[])scope);
         	
         	if (scopeCBOR.getType().equals(CBORType.Array)) {
         	
-        	  String groupID = "";
-        	  Set<String> roles = new HashSet<>();
+        	  // Inspect each scope entry, i.e. group name followed by role(s)
+        	  for (int entryIndex = 0; entryIndex < scopeCBOR.size(); entryIndex++) {
         		
-        	  if (scopeCBOR.size() != 2)
-        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
-        	  
-        	  // Retrieve the Group ID of the OSCORE group
-        	  CBORObject scopeElement = scopeCBOR.get(0);
-        	  if (scopeElement.getType().equals(CBORType.TextString)) {
-        		  groupID = scopeElement.AsString();
-        	  }
-        	  else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	  
-        	  // Retrieve the role or list of roles
-        	  scopeElement = scopeCBOR.get(1);
-        	  if (scopeElement.getType().equals(CBORType.TextString)) {
-        		  // Only one role is specified
-        		  roles.add(scopeElement.AsString());
-        	  }
-        	  else if (scopeElement.getType().equals(CBORType.Array)) {
-        		  // Multiple roles are specified
-        		  if (scopeElement.size() < 2) {
-        			  throw new AceException("The CBOR Array of roles must include at least two roles");
-        		  }
-        		  for (int i=0; i<scopeElement.size(); i++) {
-        			  if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
-            			  String role = scopeElement.get(i).AsString();
-            			  roles.add(role);        				  
-        			  }
-        			  else {throw new AceException("The roles must be CBOR Text Strings");}
-        		  }
-        	  }
-        	  else {throw new AceException("Invalid format of roles");}
-        	  
-        	  // Check if the client can access the specified Group ID on the RS with the specified roles
-        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
-        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
-        	  boolean canJoin = false;
-        	  Set<String> allowedRoles = new HashSet<>();
-        	  for (String foo : scopes) {
-        		  String[] scopeParts = foo.split("_");
-        		  if(groupID.equals(scopeParts[0])) {
-        			  canJoin = true;
-        			  for (int i=1; i<scopeParts.length; i++) {
-        				  if (roles.contains(scopeParts[i]))
-        					  allowedRoles.add(scopeParts[i]);
-        			  }
-        		  }
-        	  }
-        	  
-        	  if (canJoin == true && !allowedRoles.isEmpty()) {
+        		  CBORObject scopeEntry = scopeCBOR.get(entryIndex);
         		  
-        		  CBORObject cborArrayScope = CBORObject.NewArray();
-        	      
-        		  cborArrayScope.Add(groupID);
-        	      
-        	      if (allowedRoles.size() == 1) {
-        	    	  for (String foo : allowedRoles) {
-        	    		  cborArrayScope.Add(foo);
-                	  }
-        	      }
-        	      
-        	      if (allowedRoles.size() == 2) {
-        	    		  
-        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
-        	    	  
-        	    	  for (String foo : allowedRoles) {
-        	    		  cborArrayRoles.Add(foo);
-                	  }
-        	    	  
-        	    	  cborArrayScope.Add(cborArrayRoles);
-        	      }
-        	      
-        	      grantedScopes = cborArrayScope.EncodeToBytes();
-        	     
-        	  }
+        		  if (scopeEntry.getType().equals(CBORType.Array)) {
+        		
+		        	  String groupID = "";
+		        	  Set<String> roles = new HashSet<>();
+		        		
+		        	  if (scopeEntry.size() != 2)
+		        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+		        	  
+		        	  // Retrieve the Group ID of the OSCORE group
+		        	  CBORObject scopeElement = scopeEntry.get(0);
+		        	  if (scopeElement.getType().equals(CBORType.TextString)) {
+		        		  groupID = scopeElement.AsString();
+		        	  }
+		        	  else {throw new AceException("The Group ID must be a CBOR Text String");}
+		        	  
+		        	  // Retrieve the role or list of roles
+		        	  scopeElement = scopeEntry.get(1);
+		        	  if (scopeElement.getType().equals(CBORType.TextString)) {
+		        		  // Only one role is specified
+		        		  roles.add(scopeElement.AsString());
+		        	  }
+		        	  else if (scopeElement.getType().equals(CBORType.Array)) {
+		        		  // Multiple roles are specified
+		        		  if (scopeElement.size() < 2) {
+		        			  throw new AceException("The CBOR Array of roles must include at least two roles");
+		        		  }
+		        		  for (int i=0; i<scopeElement.size(); i++) {
+		        			  if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
+		            			  String role = scopeElement.get(i).AsString();
+		            			  roles.add(role);        				  
+		        			  }
+		        			  else {throw new AceException("The roles must be CBOR Text Strings");}
+		        		  }
+		        	  }
+		        	  else {throw new AceException("Invalid format of roles");}
+		        	  
+		        	  // Check if the client can access the specified Group ID on the RS with the specified roles
+		        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
+		        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
+		        	  boolean canJoin = false;
+		        	  Set<String> allowedRoles = new HashSet<>();
+		        	  for (String foo : scopes) {
+		        		  String[] scopeParts = foo.split("_");
+		        		  if(groupID.equals(scopeParts[0])) {
+		        			  canJoin = true;
+		        			  for (int i=1; i<scopeParts.length; i++) {
+		        				  if (roles.contains(scopeParts[i]))
+		        					  allowedRoles.add(scopeParts[i]);
+		        			  }
+		        		  }
+		        	  }
+		        	  
+		        	  if (canJoin == true && !allowedRoles.isEmpty()) {
+		        		  
+		        		  CBORObject cborArrayScopeEntry = CBORObject.NewArray();
+		        	      
+		        		  cborArrayScopeEntry.Add(groupID);
+		        	      
+		        	      if (allowedRoles.size() == 1) {
+		        	    	  for (String foo : allowedRoles) {
+		        	    		  cborArrayScopeEntry.Add(foo);
+		                	  }
+		        	      }
+		        	      
+		        	      if (allowedRoles.size() == 2) {
+		        	    		  
+		        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
+		        	    	  
+		        	    	  for (String foo : allowedRoles) {
+		        	    		  cborArrayRoles.Add(foo);
+		                	  }
+		        	    	  
+		        	    	  cborArrayScopeEntry.Add(cborArrayRoles);
+		        	      }
+		        	      
+		        	      cborArrayScope.Add(cborArrayScopeEntry);
+		        	     
+		        	  }
   		      
+        		  } else {
+        	            throw new AceException(
+          	                    "Invalid scope entry format for joining OSCORE groups");
+          	      }
+        		  
+        	  
+        	  } // End of scope entries inspection
+        	  
+        	  if (cborArrayScope.size() != 0)
+        		  grantedScopes = cborArrayScope.EncodeToBytes();
+        	  
   		    } else {
   	            throw new AceException(
   	                    "Invalid scope format for joining OSCORE groups");

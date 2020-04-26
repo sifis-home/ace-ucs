@@ -127,7 +127,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         CBORObject token = cbor.get(
                 CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing manadory paramter 'access_token'");
+            LOGGER.info("Missing mandatory parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 

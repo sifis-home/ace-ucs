@@ -231,6 +231,7 @@ public class TestOscorepClient2RSGroupOSCORE {
        CoapResponse deleteHelloRes = c.advanced(deleteHello);
        assert(deleteHelloRes.getCode().equals(
                CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+       
     }
     
     // M.T.
@@ -260,8 +261,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         String role1 = new String("requester");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(groupName);
+        cborArrayEntry.Add(role1);
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -326,30 +329,48 @@ public class TestOscorepClient2RSGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
+        
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+            Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
+            signInfo = CBORObject.NewArray();
         	signInfo = rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
-        if (askForPubKeyEnc) {
-        	pubKeyEnc = rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
-        }
-
+        
         // Now proceed with the Join request
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
@@ -358,6 +379,10 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         CBORObject requestPayload = CBORObject.NewMap();
        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+        cborArrayScope.Add(role1);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        
         if (askForPubKeys) {
@@ -498,11 +523,7 @@ public class TestOscorepClient2RSGroupOSCORE {
             myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
             myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-       
-        //FIXME: can this be removed?
-        //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
-       
+              
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
         // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
@@ -620,11 +641,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         String role2 = new String("responder");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(groupName);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(groupName);
         CBORObject cborArrayRoles = CBORObject.NewArray();
         cborArrayRoles.Add(role1);
         cborArrayRoles.Add(role2);
-        cborArrayScope.Add(cborArrayRoles);
+        cborArrayEntry.Add(cborArrayRoles);
+        cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -689,29 +712,46 @@ public class TestOscorepClient2RSGroupOSCORE {
         final CBORObject csKeyParamsExpected = CBORObject.FromObject(csKeyParamsMapExpected);
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo) {
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+            Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
+            signInfo = CBORObject.NewArray();
         	signInfo = rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO));
         	
-	    	CBORObject signInfoRes = CBORObject.NewArray();
-	    	if (csAlgExpected == null)
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csAlgExpected);
-	    	if (csParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	else
-	    		signInfoRes.Add(csParamsExpected);
-	    	if (csKeyParamsMapExpected.isEmpty())
-	    		signInfoRes.Add(CBORObject.Null);
-	    	signInfoRes.Add(csKeyParamsExpected);
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	if (askForSignInfo) {
+	    	
+		    	if (csAlgExpected == null)
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csAlgExpected);
+		    	if (csParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csParamsExpected);
+		    	if (csKeyParamsMapExpected.isEmpty())
+		    		signInfoEntry.Add(CBORObject.Null);
+		    	else
+		    		signInfoEntry.Add(csKeyParamsExpected);
 
-        	Assert.assertEquals(signInfo, signInfoRes);
+	    	}
+	    	
+	        if (askForPubKeyEnc) {
+	        	
+	        	if (csKeyEncExpected == null)
+	        		signInfoEntry.Add(CBORObject.Null);
+	        	else
+	        		signInfoEntry.Add(csKeyEncExpected);
+	        	
+	        }
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
         }
         
-        if (askForPubKeyEnc) {
-        	pubKeyEnc = rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        	Assert.assertEquals(pubKeyEnc, csKeyEncExpected);
-        }
         
         // Now proceed with the Join request        
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
@@ -721,6 +761,13 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         CBORObject requestPayload = CBORObject.NewMap();
        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+        cborArrayRoles = CBORObject.NewArray();
+        cborArrayRoles.Add(role1);
+        cborArrayRoles.Add(role2);
+        cborArrayScope.Add(cborArrayRoles);
+        byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        
         if (askForPubKeys) {
@@ -861,10 +908,6 @@ public class TestOscorepClient2RSGroupOSCORE {
             myMap.Add(OSCORESecurityContextObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)) == false)
             myMap.Add(OSCORESecurityContextObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-       
-        //FIXME: can this be removed?
-        //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
