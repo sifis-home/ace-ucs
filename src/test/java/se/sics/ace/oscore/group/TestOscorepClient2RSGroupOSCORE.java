@@ -300,7 +300,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
@@ -683,7 +683,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;

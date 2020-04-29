@@ -325,11 +325,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -695,11 +695,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
      // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -1180,11 +1180,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
      // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -1552,11 +1552,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
      // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -2173,11 +2173,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
      // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -2557,11 +2557,11 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject signInfo = null;
         CBORObject pubKeyEnc = null;
         
-        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.RSNONCE)));
-        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.RSNONCE)).getType());
+        Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
+        Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
         
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
      // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;

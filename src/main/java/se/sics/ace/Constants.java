@@ -903,7 +903,7 @@ public class Constants {
      /**
       * Value for the label "rs_nonce" in the Token POST response
       */
-     public static final short RSNONCE = 203;
+     public static final short KDCCHALLENGE = 203;
      
      /**
       * Value for the label "num" in the Join Response message

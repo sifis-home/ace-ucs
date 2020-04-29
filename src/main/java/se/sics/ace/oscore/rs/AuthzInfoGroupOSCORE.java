@@ -273,7 +273,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
         	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
-            rep.Add(Constants.RSNONCE, rsnonce);
+            rep.Add(Constants.KDCCHALLENGE, rsnonce);
             
     	    CBORObject sid = responseMap.get(CBORObject.FromObject(Constants.SUB));
     	    

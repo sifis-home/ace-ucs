@@ -213,7 +213,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject rsNoncePoP = rsPayload.get(
-                CBORObject.FromObject(Constants.RSNONCE));
+                CBORObject.FromObject(Constants.KDCCHALLENGE));
         if (rsNoncePoP == null || !rsNoncePoP.getType().equals(CBORType.ByteString)) {
             throw new AceException(
                     "Missing or malformed PoP rsnonce in RS response");
