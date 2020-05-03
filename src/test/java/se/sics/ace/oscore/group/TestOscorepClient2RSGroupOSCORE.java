@@ -258,12 +258,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         //Create a byte string scope for use later
         String groupName = new String("feedca570000");
-        String role1 = new String("requester");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(groupName);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -303,7 +302,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
-        CBORObject pubKeyEnc = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -381,7 +379,7 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(role1);
+        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        
@@ -637,15 +635,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         //Create a byte string scope for use later
         String groupName = new String("feedca570000");
-        String role1 = new String("requester");
-        String role2 = new String("responder");
         
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(groupName);
         CBORObject cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(role1);
-        cborArrayRoles.Add(role2);
+        cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+        cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayEntry.Add(cborArrayRoles);
         cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -686,7 +682,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
-        CBORObject pubKeyEnc = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject csAlgExpected = null;
@@ -764,8 +759,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
         cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(role1);
-        cborArrayRoles.Add(role2);
+        cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+        cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayScope.Add(cborArrayRoles);
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));

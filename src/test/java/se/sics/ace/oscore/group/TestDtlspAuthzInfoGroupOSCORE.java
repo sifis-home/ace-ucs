@@ -290,11 +290,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with a single role
         Map<Short, CBORObject> params2 = new HashMap<>();
-    	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(role1);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -315,13 +314,12 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with multiple roles
         Map<Short, CBORObject> params3 = new HashMap<>();
-    	String role2 = new String("responder");
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();

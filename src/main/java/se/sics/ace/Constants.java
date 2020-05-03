@@ -823,37 +823,32 @@ public class Constants {
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
+
     
-    // TODO: Remove when the latest RESTification of the Group Manager is completed.
-//    /**
-//	 * ACE Groupcomm Request Type "Key Distribution" (1)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Leave" (2)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Update Key" (3)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "New" (4)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Pub Keys" (5)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
+    /**
+     * Requester role
+     */
+    public static final short GROUP_OSCORE_REQUESTER = 1;
+    
+    /**
+     * Responder role
+     */
+    public static final short GROUP_OSCORE_RESPONDER = 2;
+    
+    /**
+     * Monitor role
+     */
+    public static final short GROUP_OSCORE_MONITOR = 3;
+    
+    /**
+     * Verifier role
+     */
+    public static final short GROUP_OSCORE_VERIFIER = 4;
+    
+    /**
+     * Roles as strings
+     */
+    public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
     
      /**
       * Value for the label "get_pub_keys" in the Join Request message

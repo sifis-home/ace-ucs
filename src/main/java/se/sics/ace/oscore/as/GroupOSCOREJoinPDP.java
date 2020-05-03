@@ -47,6 +47,7 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
+import se.sics.ace.Constants;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -113,6 +114,9 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
     
     // M.T.
     private PreparedStatement selectOSCOREGroupManagers;
+    
+    // M.T. 
+    private Map<String, Short> rolesToInt = new HashMap<>();
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -244,6 +248,11 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 		+ oscoreGroupManagersTable + " WHERE "
                         + DBConnector.rsIdColumn + "=? ORDER BY " 
 		                + DBConnector.audColumn +";"));
+        
+        // M.T.
+        rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
+        rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
+        rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
 	}
 	
 	@Override
@@ -476,9 +485,15 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	  
 		        	  // Retrieve the role or list of roles
 		        	  scopeElement = scopeEntry.get(1);
-		        	  if (scopeElement.getType().equals(CBORType.TextString)) {
+		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
 		        		  // Only one role is specified
-		        		  roles.add(scopeElement.AsString());
+		        		  int index = scopeElement.AsInt32();
+		        		  if (index < 0)
+		        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+		        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+		        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
+		        		  else
+		        			  roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
 		        	  }
 		        	  else if (scopeElement.getType().equals(CBORType.Array)) {
 		        		  // Multiple roles are specified
@@ -486,11 +501,16 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        			  throw new AceException("The CBOR Array of roles must include at least two roles");
 		        		  }
 		        		  for (int i=0; i<scopeElement.size(); i++) {
-		        			  if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
-		            			  String role = scopeElement.get(i).AsString();
-		            			  roles.add(role);        				  
+		        			  if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+				        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
 		        			  }
-		        			  else {throw new AceException("The roles must be CBOR Text Strings");}
+		        			  else {throw new AceException("The roles must be a CBOR Unsigned Integer");}
 		        		  }
 		        	  }
 		        	  else {throw new AceException("Invalid format of roles");}
@@ -519,7 +539,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	      
 		        	      if (allowedRoles.size() == 1) {
 		        	    	  for (String foo : allowedRoles) {
-		        	    		  cborArrayScopeEntry.Add(foo);
+		        	    		  cborArrayScopeEntry.Add(rolesToInt.get(foo));
 		                	  }
 		        	      }
 		        	      
@@ -528,7 +548,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
 		        	    	  
 		        	    	  for (String foo : allowedRoles) {
-		        	    		  cborArrayRoles.Add(foo);
+		        	    		  cborArrayRoles.Add(rolesToInt.get(foo));
 		                	  }
 		        	    	  
 		        	    	  cborArrayScopeEntry.Add(cborArrayRoles);

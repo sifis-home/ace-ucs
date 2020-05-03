@@ -92,6 +92,8 @@ public class TestTokenRepositoryGroupOSCORE {
     private static String rpk = "ni:///sha-256;-QCjSk6ojWX8-YaHwQMOkewLD7p89aFF2eh8shWDmKE";
     
 	private static final String rootGroupMembershipResource = "group-oscore";
+	
+	private static Map<String, Short> rolesToInt = new HashMap<>();
     
     /**
      * Converter for generating byte arrays from int
@@ -181,6 +183,11 @@ public class TestTokenRepositoryGroupOSCORE {
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        
+        // M.T.
+    	rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
+    	rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
+    	rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -518,12 +525,11 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(role1);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -569,15 +575,13 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -665,12 +669,11 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(role1);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -716,15 +719,13 @@ public class TestTokenRepositoryGroupOSCORE {
     	Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -817,12 +818,11 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(role1);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -868,15 +868,13 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();

@@ -279,7 +279,6 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -288,7 +287,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-        scopeEntry.Add(role1);
+        scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -402,7 +401,7 @@ public class TestDtlspClientGroupOSCORE {
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(role1);
+        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -645,8 +644,6 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, ConnectorException, IOException {  
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -656,8 +653,8 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -773,8 +770,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1138,7 +1135,6 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -1147,7 +1143,7 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
-    	scopeEntry.Add(role1);
+    	scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1257,7 +1253,7 @@ public class TestDtlspClientGroupOSCORE {
 
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(role1);
+        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1506,8 +1502,6 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -1517,8 +1511,8 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1630,8 +1624,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2007,14 +2001,12 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2124,7 +2116,6 @@ public class TestDtlspClientGroupOSCORE {
                
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
         boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -2140,7 +2131,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-        scopeEntry.Add(role1);
+        scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2254,7 +2245,7 @@ public class TestDtlspClientGroupOSCORE {
 
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(role1);
+        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -2504,8 +2495,6 @@ public class TestDtlspClientGroupOSCORE {
                
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
@@ -2522,8 +2511,8 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2639,8 +2628,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(cborArrayRoles);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));

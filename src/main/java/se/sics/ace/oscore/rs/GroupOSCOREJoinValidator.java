@@ -314,21 +314,34 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
 	        	
 	      	  	// Retrieve the role or list of roles
-	      	  	scopeElement = scopeEntry.get(1);
-	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  	scopeElement = scopeEntry.get(1);	      	  	
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
 	      	  		// Only one role is specified
-	      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
 	      	  	}
 	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
 	      	  		// Multiple roles are specified
 	      	  		if (scopeElement.size() < 2) {
 	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
 	      	  		}
-	      	  		for (int i=0; i<scopeElement.size(); i++) {
-	      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-	      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-	      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
 	      	  	}
 	      	  	else {throw new AceException("Invalid format of roles");}
 	      	  	
@@ -420,20 +433,33 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        	
 	      	  	// Retrieve the role or list of roles
 	      	  	scopeElement = scopeEntry.get(1);
-	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
 	      	  		// Only one role is specified
-	      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
 	      	  	}
 	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
 	      	  		// Multiple roles are specified
 	      	  		if (scopeElement.size() < 2) {
 	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
 	      	  		}
-	      	  		for (int i=0; i<scopeElement.size(); i++) {
-	      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-	      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-	      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
 	      	  	}
 	      	  	else {throw new AceException("Invalid format of roles");}
 	      	  	
@@ -519,20 +545,33 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	      	  	
 	      	  	// Retrieve the role or list of roles
 	      	  	scopeElement = scopeEntry.get(1);
-	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
 	      	  		// Only one role is specified
-	      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
 	      	  	}
 	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
 	      	  		// Multiple roles are specified
 	      	  		if (scopeElement.size() < 2) {
 	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
 	      	  		}
-	      	  		for (int i=0; i<scopeElement.size(); i++) {
-	      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-	      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-	      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
 	      	  	}
 	      	  	else {throw new AceException("Invalid format of roles");}
 	      	  	

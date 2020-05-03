@@ -761,12 +761,10 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-        
-    	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
-    	cborArrayEntry.Add(role1);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -831,14 +829,12 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject cborArrayEntry = CBORObject.NewArray();
     	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();

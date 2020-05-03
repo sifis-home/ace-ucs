@@ -295,9 +295,17 @@ public class TestDtlspRSGroupOSCORE {
       	  	
       	  	// Retrieve the role or list of roles
       	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
       	  		// Only one role is specified
-      	  		roles.add(scopeElement.AsString());
+      	  		int index = scopeElement.AsInt32();
+      	  		if (index < 0) {
+      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+	        		return;
+      	  		}
+      	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
+      	  			roles.add(Constants.GROUP_OSCORE_ROLES[index]);
+      	  		else
+      	  			roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
       	  	}
       	  	else if (scopeElement.getType().equals(CBORType.Array)) {
       	  		// Multiple roles are specified
@@ -306,18 +314,31 @@ public class TestDtlspRSGroupOSCORE {
             		return;
       	  		}
       	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				roles.add(scopeElement.get(i).AsString());
+      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
+      	      	  		int index = scopeElement.get(i).AsInt32();
+      	      	  		if (index < 0) {
+      	      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+      		        		return;
+      	      	  		}
+      	      	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
+      	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[index]);
+      	      	  		else
+      	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+      	  		}
       	  			else {
       	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
       	        		return;
       	  			}
       	  		}
       	  		// Check for illegal combinations of roles
-      	  		if ( (roles.contains("requester") && roles.contains("monitor")) ||
-      	  			 (roles.contains("responder") && roles.contains("monitor")) ) {
-  	  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
-  	  					return;
+      	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
+      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
+      	  				||
+      	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
+      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
+      	  		   ) {
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+  					return;
       	  		}
       	  	}
       	  	else {

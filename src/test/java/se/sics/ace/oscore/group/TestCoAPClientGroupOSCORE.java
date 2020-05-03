@@ -221,9 +221,6 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -248,7 +245,7 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -277,7 +274,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role2);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, 
@@ -305,7 +302,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -333,7 +330,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role3);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -362,7 +359,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add("fakerole");
+        cborArrayEntry.Add((short)10);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -398,9 +395,6 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -427,8 +421,8 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -460,8 +454,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -492,8 +486,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -527,7 +521,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
@@ -547,9 +541,6 @@ public class TestCoAPClientGroupOSCORE {
     public void testGroupOSCOREAltClientREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -575,7 +566,7 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role3);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -604,8 +595,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -639,7 +630,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);

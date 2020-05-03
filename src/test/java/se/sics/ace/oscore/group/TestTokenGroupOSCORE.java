@@ -932,9 +932,6 @@ public class TestTokenGroupOSCORE {
     public void testGroupOSCORESingleRoleREFToken() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -946,7 +943,7 @@ public class TestTokenGroupOSCORE {
         
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -975,8 +972,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -987,7 +984,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role2);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1015,9 +1012,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("monitor"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_MONITOR);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1028,7 +1025,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1057,8 +1054,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1069,7 +1066,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1092,7 +1089,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role3);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1115,7 +1112,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add("fakerole");
+        cborArrayEntry.Add((short)10);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1138,7 +1135,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role2);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1166,9 +1163,6 @@ public class TestTokenGroupOSCORE {
     public void testGroupOSCORESingleRoleCWT() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1179,7 +1173,7 @@ public class TestTokenGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1208,8 +1202,8 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
         assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1220,7 +1214,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role2);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1248,9 +1242,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("monitor"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_MONITOR);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1261,7 +1255,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1289,9 +1283,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1302,7 +1296,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
-        cborArrayEntry.Add(role1);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1325,7 +1319,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role3);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1348,7 +1342,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add("fakerole");
+        cborArrayEntry.Add((short)10);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1371,7 +1365,7 @@ public class TestTokenGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(role2);
+        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1400,9 +1394,6 @@ public class TestTokenGroupOSCORE {
     public void testGroupOSCOREMultipleRolesREFToken() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1414,8 +1405,8 @@ public class TestTokenGroupOSCORE {
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1444,10 +1435,13 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Array) && cborArrayEntry.get(1).size() == 2);
-        assert((cborArrayEntry.get(1).get(0).AsString().equals("requester") && cborArrayEntry.get(1).get(1).AsString().equals("responder")) ||
-        	   (cborArrayEntry.get(1).get(0).AsString().equals("responder") && cborArrayEntry.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayEntry.get(1).get(0).AsInt32() == Constants.GROUP_OSCORE_REQUESTER &&
+        		cborArrayEntry.get(1).get(1).AsInt32() == Constants.GROUP_OSCORE_RESPONDER)
+        		||
+        	   (cborArrayEntry.get(1).get(0).AsInt32() == Constants.GROUP_OSCORE_RESPONDER &&
+        	    cborArrayEntry.get(1).get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1459,8 +1453,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1485,8 +1479,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1515,9 +1509,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1529,8 +1523,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1559,9 +1553,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1573,8 +1567,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1603,9 +1597,6 @@ public class TestTokenGroupOSCORE {
     public void testGroupOSCOREMultipleRolesCWT() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
@@ -1617,8 +1608,8 @@ public class TestTokenGroupOSCORE {
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1647,10 +1638,13 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Array) && cborArrayEntry.get(1).size() == 2);
-        assert((cborArrayEntry.get(1).get(0).AsString().equals("requester") && cborArrayEntry.get(1).get(1).AsString().equals("responder")) ||
-        	   (cborArrayEntry.get(1).get(0).AsString().equals("responder") && cborArrayEntry.get(1).get(1).AsString().equals("requester")));
+        assert((cborArrayEntry.get(1).get(0).AsInt32() == Constants.GROUP_OSCORE_REQUESTER &&
+        		cborArrayEntry.get(1).get(1).AsInt32() == Constants.GROUP_OSCORE_RESPONDER)
+        		||
+        	   (cborArrayEntry.get(1).get(0).AsInt32() == Constants.GROUP_OSCORE_RESPONDER &&
+        	    cborArrayEntry.get(1).get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER));
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1662,8 +1656,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1688,8 +1682,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1718,9 +1712,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1732,8 +1726,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1762,9 +1756,9 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = cborArrayScope.get(0);
         assert(cborArrayEntry.getType().equals(CBORType.Array) && cborArrayEntry.size() == 2);
         assert(cborArrayEntry.get(0).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(0).AsString().equals("feedca570000"));
-        assert(cborArrayEntry.get(1).getType().equals(CBORType.TextString));
-        assert(cborArrayEntry.get(1).AsString().equals("requester"));
+        assert(cborArrayEntry.get(0).AsString().equals(gid));
+        assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
+        assert(cborArrayEntry.get(1).AsInt32() == Constants.GROUP_OSCORE_REQUESTER);
         assert(!params.containsKey(Constants.PROFILE));
         
         
@@ -1776,8 +1770,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(cborArrayRoles);
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
