@@ -54,6 +54,8 @@ import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Message;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -141,18 +143,30 @@ public class CoapDeliverer implements MessageDeliverer {
         }      
        
        
-        String subject;
+        String subject = null;
+        
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
             //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+        	
+        	// Old way for retrieving only the OSCORE Sender ID of the message originator
+        	/*
             if (ex.getCryptographicContextID()!= null) {                
                 subject = new String(ex.getCryptographicContextID(),
                         Constants.charset);    
-            } else {
-                LOGGER.warning("Unauthenticated client tried to get access");
-                failUnauthz(null, ex);
-                return;
-            }
+            }*/
+            
+        	Request req = ex.getRequest();
+            try {
+				subject = CoapReq.getInstance(req).getSenderId();
+				if (subject == null) {
+				    LOGGER.warning("Unauthenticated client tried to get access");
+				    failUnauthz(null, ex);
+				    return;
+				}
+			} catch (AceException e) {
+	            LOGGER.severe("Error while retrieving the client identity: " + e.getMessage());
+			}
         } else  {
             subject = request.getSourceContext().getPeerIdentity().getName();
         }

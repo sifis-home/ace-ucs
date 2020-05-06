@@ -79,6 +79,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -209,16 +210,23 @@ public class TestDtlspRSGroupOSCORE {
         	Set<String> roles = new HashSet<>();
         	boolean providePublicKeys = false;
         	
-        	String subject;
+        	String subject = null;
         	Request request = exchange.advanced().getCurrentRequest();
             if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
                 //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
-                if (exchange.advanced().getCryptographicContextID()!= null) {                
-                    subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);    
-                } else {
-                	// At this point, this should not really happen, due to the earlier check at the Token Repository
-                	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
-	  				return;
+                	
+            	// Old way for retrieving only the OSCORE Sender ID of the message originator
+                // subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);
+            	
+                try {
+					subject = CoapReq.getInstance(request).getSenderId();
+				} catch (AceException e) {
+				    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+				}
+                if (subject == null) {
+	            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+	            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+  				return;
                 }
             } else  {
                 subject = request.getSourceContext().getPeerIdentity().getName();
