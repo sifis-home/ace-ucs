@@ -306,27 +306,34 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 					
 					CBORObject signInfoEntry = CBORObject.NewArray();
 					
+					signInfoEntry.Add(CBORObject.FromObject(groupName)); // 'id' element
+					
 				    if (provideSignInfo) {
 					
-						signInfoEntry.Add(myGroup.getCsAlg().AsCBOR());
+						signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
 				    	
-				    	CBORObject arrayElem = myGroup.getCsParams();
+				    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
 				    	if (arrayElem == null)
 				    		signInfoEntry.Add(CBORObject.Null);
 				    	else
 				    		signInfoEntry.Add(arrayElem);
 				    	
-				    	arrayElem = myGroup.getCsKeyParams();
+				    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
 				    	if (arrayElem == null)
 				    		signInfoEntry.Add(CBORObject.Null);
 				    	else
 				    		signInfoEntry.Add(arrayElem);
 			    
 				    }
+				    else {
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_alg' element
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_parameters' element
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_key_parameters' element
+				    }
 			    	
 				    if (providePubKeyEnc) {
 				    	
-				    	signInfoEntry.Add(myGroup.getCsKeyEnc());
+				    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
 				    	
 				    }
 			    	

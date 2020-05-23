@@ -337,6 +337,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	CBORObject signInfoExpected = CBORObject.NewArray();
 	    	CBORObject signInfoEntry = CBORObject.NewArray();
 	    	
+	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
+	    	
 	    	if (askForSignInfo) {
 	    	
 		    	if (csAlgExpected == null)
@@ -715,6 +717,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         	
 	    	CBORObject signInfoExpected = CBORObject.NewArray();
 	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
 	    	if (askForSignInfo) {
 	    	
