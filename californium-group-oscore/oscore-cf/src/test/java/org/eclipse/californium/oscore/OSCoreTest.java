@@ -63,6 +63,8 @@ public class OSCoreTest {
 		clientCtx = new OSCoreCtx(key, true);
 		db.addContext(uriId, clientCtx);
 		serverCtx = new OSCoreCtx(key, false);
+
+		InstallCryptoProviders.installProvider();
 	}
 
 	@After
