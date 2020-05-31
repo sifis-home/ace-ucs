@@ -97,6 +97,10 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 		return null;
 	}
 
+	public synchronized void removeContext(byte[] rid) {
+		ridMap.remove(new ByteId(rid));
+	}
+
 	@Override
 	public synchronized OSCoreCtx getContext(byte[] rid) {
 		//System.out.println("getContext(byte[] rid)");
