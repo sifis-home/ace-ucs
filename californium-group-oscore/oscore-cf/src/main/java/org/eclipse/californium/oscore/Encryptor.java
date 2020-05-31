@@ -21,8 +21,6 @@ package org.eclipse.californium.oscore;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.util.Random;
-
 import java.util.Base64;
 
 import org.slf4j.Logger;
@@ -37,13 +35,11 @@ import org.eclipse.californium.cose.Encrypt0Message;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.Attribute;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.CounterSign1;
 import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.cose.OneKey;
-import org.junit.Assert;
 
 /**
  * 
@@ -162,76 +158,11 @@ public abstract class Encryptor {
 			enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg().AsCBOR(), Attribute.DO_NOT_SEND);
 
 			/* ------ Rikard: Add the countersignature (if using Group OSCORE) ------ */
-			//TODO: Extract to separate method?
 			//Skip signatures for responses when using the optimized responses
 			if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
-				OneKey sender_private_key = ((GroupOSCoreCtx)ctx).getSenderPrivateKey();
-				CounterSign1 sign = new CounterSign1(sender_private_key);
-
-				CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
-				sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
-				//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
-				
-				enc.setCountersign1(sign);
-				
-				//Testing new external AAD for signing
-				//byte[] currentExternalAAD = sign.getExternal();
-				//System.out.println("Encrypting: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
-				byte[] newExternalAAD = null;
-				if(mess instanceof Request) {
-					newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, ctx.getSenderId(), CoAP.VERSION, ctx.getSenderSeq(), ctx, mess.getOptions(), false);
-				} else if (mess instanceof Response) {
-					newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, recipientId, CoAP.VERSION, ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId), ctx, mess.getOptions(), newPartialIV);
-				}
-				System.out.println("Encrypting: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
-				//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
-				//End testing new external AAD for signing
-				
-				sign.setExternal(newExternalAAD); //Set external AAD for signing
-				
-				enc.encrypt(key);
-
-				CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());
-				byte[] countersign_bytes = mySignature.GetByteString();
-				if(DETAILED_DEBUG) {
-					System.out.println("Encrypt " + messageType + "Countersignature length:\t" + countersign_bytes.length);
-					System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
-
-					byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
-					String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
-					System.out.println("Encrypt " + messageType + "Sender Private Key:\t" + base64_encoded);
-				}
-
-				if(countersign_bytes.length != ((GroupOSCoreCtx)ctx).getCountersignLength()) {
-					System.err.println("Error: Unexpected countersignature length!");
-				}
-
-				//If countersignature is not to be used empty the byte array
-				if(((GroupOSCoreCtx)ctx).getCountersignLength() == 0) {
-					countersign_bytes = new byte[0];
-				}
-
-				//Append countersignature to ciphertext
-				byte[] ciphertext = enc.getEncryptedContent();
-
-				if(DETAILED_DEBUG) {
-					System.out.println("Encrypt: " + messageType + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
-				}
-				
-				ByteArrayOutputStream os = new ByteArrayOutputStream( );
-				try {
-					os.write(ciphertext);
-					os.write(countersign_bytes);
-				} catch (IOException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				
-				byte[] full_payload = os.toByteArray();
-
-				/* ------ End add the countersignature	------ */
-
-				return full_payload;
+				byte[] fullPayload = calculateAndAddSignature(enc, ctx, mess, newPartialIV, recipientId, key,
+						DETAILED_DEBUG, messageType);
+				return fullPayload;
 			} else { //If using normal OSCORE, or optimized responses
 				enc.encrypt(key);
 				return enc.getEncryptedContent();
@@ -241,6 +172,90 @@ public abstract class Encryptor {
 			e.printStackTrace();
 			throw new OSException(e.getMessage());
 		}
+	}
+
+	/**
+	 * @param enc the Encrypt0 object
+	 * @param ctx the Group OSCORE context
+	 * @param mess the CoAP message
+	 * @param newPartialIV if a new Partial IV is to be included
+	 * @param recipientId the recipient ID
+	 * @param key the key used
+	 * @param DETAILED_DEBUG if detailed debugging is used
+	 * @param messageType type of CoAP message
+	 * @return the payload with signature added
+	 * @throws CoseException on failure
+	 */
+	private static byte[] calculateAndAddSignature(Encrypt0Message enc, OSCoreCtx ctx, Message mess,
+			boolean newPartialIV, byte[] recipientId, byte[] key, boolean DETAILED_DEBUG, String messageType)
+			throws CoseException {
+		OneKey sender_private_key = ((GroupOSCoreCtx)ctx).getSenderPrivateKey();
+		CounterSign1 sign = new CounterSign1(sender_private_key);
+
+		CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
+		sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
+		//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+		
+		enc.setCountersign1(sign);
+		
+		//Testing new external AAD for signing
+		//byte[] currentExternalAAD = sign.getExternal();
+		//System.out.println("Encrypting: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
+		byte[] newExternalAAD = null;
+		if(mess instanceof Request) {
+			newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, ctx.getSenderId(), CoAP.VERSION, ctx.getSenderSeq(), ctx, mess.getOptions(), false);
+		} else if (mess instanceof Response) {
+			newExternalAAD = OSSerializer.serializeSigningAAD(false, mess, recipientId, CoAP.VERSION, ((GroupOSCoreCtx)ctx).getReceiverSeq(recipientId), ctx, mess.getOptions(), newPartialIV);
+		}
+		System.out.println("Encrypting: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
+		//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
+		//End testing new external AAD for signing
+		
+		sign.setExternal(newExternalAAD); //Set external AAD for signing
+		
+		enc.encrypt(key); // TODO: Move?
+
+		CBORObject mySignature = enc.getUnprotectedAttributes().get(HeaderKeys.CounterSignature0.AsCBOR());
+		byte[] countersign_bytes = mySignature.GetByteString();
+		if(DETAILED_DEBUG) {
+			System.out.println("Encrypt " + messageType + "Countersignature length:\t" + countersign_bytes.length);
+			System.out.println("Encrypt " + messageType + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
+
+			byte[] keyObjectBytes = sender_private_key.AsCBOR().EncodeToBytes();
+			String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
+			System.out.println("Encrypt " + messageType + "Sender Private Key:\t" + base64_encoded);
+		}
+
+		if(countersign_bytes.length != ((GroupOSCoreCtx)ctx).getCountersignLength()) {
+			System.err.println("Error: Unexpected countersignature length!");
+		}
+
+		//If countersignature is not to be used empty the byte array
+		if(((GroupOSCoreCtx)ctx).getCountersignLength() == 0) {
+			countersign_bytes = new byte[0];
+		}
+
+		//Append countersignature to ciphertext
+		byte[] ciphertext = enc.getEncryptedContent();
+
+		if(DETAILED_DEBUG) {
+			System.out.println("Encrypt: " + messageType + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
+		}
+		
+		ByteArrayOutputStream os = new ByteArrayOutputStream( );
+		try {
+			os.write(ciphertext);
+			os.write(countersign_bytes);
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+		byte[] full_payload = os.toByteArray();
+
+		/* ------ End add the countersignature	------ */
+
+		return full_payload;
 	}
 
 	//Rikard: Old method that did not support supplying recipientId
