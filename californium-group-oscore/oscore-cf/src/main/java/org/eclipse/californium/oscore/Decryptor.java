@@ -19,12 +19,8 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Random;
-
 import java.util.Base64;
 
 import org.slf4j.Logger;
@@ -44,7 +40,6 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.CounterSign1;
 import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.cose.OneKey;
-import org.junit.Assert;
 
 /**
  * 
@@ -205,76 +200,10 @@ public abstract class Decryptor {
 		enc.setExternal(aad);
 		
 		/* ------ Rikard: Prepare check of the countersignature	------ */
-		//TODO: Move to different method?
-		//Rikard: TODO: Clean up, Fail if sig is bad
 		//Skip if this is a response and optimized responses are used
 		CounterSign1 sign = null;
 		if(ctx instanceof GroupOSCoreCtx && isOptimizedResponse == false) {
-
-			//First remove the countersignature from the payload (if existing and if using Group OSCORE)
-			byte[] full_payload = null;
-			try {
-				full_payload = enc.getEncryptedContent();
-			} catch (CoseException e1) {
-				// TODO Auto-generated catch block
-				e1.printStackTrace();
-			}
-
-			int countersignature_length = ((GroupOSCoreCtx)ctx).getCountersignLength();
-			byte[] countersign_bytes  = Arrays.copyOfRange(full_payload, full_payload.length - countersignature_length, full_payload.length);
-
-			if(Utility.DETAILED_DEBUG) {
-				System.out.println("Decrypt " + "Countersignature length:\t" + countersign_bytes.length);
-				System.out.println("Decrypt " + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
-			}
-
-			byte[] ciphertext = Arrays.copyOfRange(full_payload, 0, full_payload.length - countersignature_length);
-			
-			if(Utility.DETAILED_DEBUG) {
-				System.out.println("Decrypt " + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
-			}
-
-			enc.setEncryptedContent(ciphertext); //Rikard: Set new truncated ciphertext
-
-			//Now actually prepare to check the countersignature
-			OneKey recipient_public_key = ((GroupOSCoreCtx)ctx).getRecipientPublicKey(recipientId);
-			//countersign_bytes[3] = (byte) 0xff; //Corrupt countersignature
-			sign = new CounterSign1(countersign_bytes);
-			sign.setKey(recipient_public_key);
-			
-			//Testing new external AAD for signing
-			//byte[] currentExternalAAD = enc.getExternal();
-			//System.out.println("Decryption: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
-			byte[] newExternalAAD = null;
-			if(message instanceof Request) {
-				newExternalAAD = OSSerializer.serializeSigningAAD(true, message, recipientId, CoAP.VERSION, seq, ctx, message.getOptions(), false);
-			} else if (message instanceof Response) {
-				newExternalAAD = OSSerializer.serializeSigningAAD(true, message, ctx.getSenderId(), CoAP.VERSION, seq, ctx, message.getOptions(), false);
-			}
-			System.out.println("Decryption: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
-			//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
-			//End testing new external AAD for signing
-
-			if(Utility.DETAILED_DEBUG) {
-				byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
-				String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
-				System.out.println("Decrypt " + "Recipient Public Key:\t" + base64_encoded);
-			}
-
-			CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
-			sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
-
-			//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
-			sign.setExternal(newExternalAAD); //Set external AAD for signing
-
-			//CBORObject countersign_cbor = CBORObject.FromObject(countersign_bytes);
-			//enc.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
-			//sign.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
-
-			//boolean valid = false;
-			//valid = enc.validate(sign);
-			//System.out.println("Decrypt " + "Countersignature Valid:\t" + valid);
-
+			sign = prepareCheckSignature(enc, message, ctx, seq, recipientId);
 		}
 
 		/* ------ End prepare check of the countersignature	------ */
@@ -352,6 +281,84 @@ public abstract class Decryptor {
 
 
 		return plaintext;
+	}
+
+	/**
+	 * @param enc the Encrypt0 object
+	 * @param message the CoAP message
+	 * @param ctx the OSCORE context
+	 * @param seq the sequence number used
+	 * @param recipientId the recipientID
+	 * @return Sign object that can later be checked
+	 * @throws CoseException on signature preparation failure
+	 */
+	private static CounterSign1 prepareCheckSignature(Encrypt0Message enc, Message message, OSCoreCtx ctx, int seq,
+			byte[] recipientId) throws CoseException {
+		CounterSign1 sign;
+		//First remove the countersignature from the payload (if existing and if using Group OSCORE)
+		byte[] full_payload = null;
+		try {
+			full_payload = enc.getEncryptedContent();
+		} catch (CoseException e1) {
+			// TODO Auto-generated catch block
+			e1.printStackTrace();
+		}
+
+		int countersignature_length = ((GroupOSCoreCtx)ctx).getCountersignLength();
+		byte[] countersign_bytes  = Arrays.copyOfRange(full_payload, full_payload.length - countersignature_length, full_payload.length);
+
+		if(Utility.DETAILED_DEBUG) {
+			System.out.println("Decrypt " + "Countersignature length:\t" + countersign_bytes.length);
+			System.out.println("Decrypt " + "Countersignature bytes:\t" + Utility.arrayToString(countersign_bytes));
+		}
+
+		byte[] ciphertext = Arrays.copyOfRange(full_payload, 0, full_payload.length - countersignature_length);
+		
+		if(Utility.DETAILED_DEBUG) {
+			System.out.println("Decrypt " + "Ciphertext bytes:\t" + Utility.arrayToString(ciphertext));
+		}
+
+		enc.setEncryptedContent(ciphertext); //Rikard: Set new truncated ciphertext
+
+		//Now actually prepare to check the countersignature
+		OneKey recipient_public_key = ((GroupOSCoreCtx)ctx).getRecipientPublicKey(recipientId);
+		//countersign_bytes[3] = (byte) 0xff; //Corrupt countersignature
+		sign = new CounterSign1(countersign_bytes);
+		sign.setKey(recipient_public_key);
+		
+		//Testing new external AAD for signing
+		//byte[] currentExternalAAD = enc.getExternal();
+		//System.out.println("Decryption: Current external AAD:\t" + Utility.arrayToString(currentExternalAAD));
+		byte[] newExternalAAD = null;
+		if(message instanceof Request) {
+			newExternalAAD = OSSerializer.serializeSigningAAD(true, message, recipientId, CoAP.VERSION, seq, ctx, message.getOptions(), false);
+		} else if (message instanceof Response) {
+			newExternalAAD = OSSerializer.serializeSigningAAD(true, message, ctx.getSenderId(), CoAP.VERSION, seq, ctx, message.getOptions(), false);
+		}
+		System.out.println("Decryption: Signing external AAD:\t" + Utility.arrayToString(newExternalAAD));
+		//Assert.assertArrayEquals(currentExternalAAD, newExternalAAD);
+		//End testing new external AAD for signing
+
+		if(Utility.DETAILED_DEBUG) {
+			byte[] keyObjectBytes = recipient_public_key.AsCBOR().EncodeToBytes();
+			String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
+			System.out.println("Decrypt " + "Recipient Public Key:\t" + base64_encoded);
+		}
+
+		CBORObject sign_alg = ((GroupOSCoreCtx)ctx).getAlgCountersign().AsCBOR();
+		sign.addAttribute(HeaderKeys.Algorithm, sign_alg, Attribute.DO_NOT_SEND);
+
+		//sign.setExternal(enc.getExternal()); //Set external AAD taken from enc object
+		sign.setExternal(newExternalAAD); //Set external AAD for signing
+
+		//CBORObject countersign_cbor = CBORObject.FromObject(countersign_bytes);
+		//enc.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
+		//sign.addAttribute(HeaderKeys.CounterSignature0.AsCBOR(), countersign_cbor, Attribute.UNPROTECTED);
+
+		//boolean valid = false;
+		//valid = enc.validate(sign);
+		//System.out.println("Decrypt " + "Countersignature Valid:\t" + valid);
+		return sign;
 	}
 
 	private static byte[] expandToIntSize(byte[] partialIV) throws OSException {
