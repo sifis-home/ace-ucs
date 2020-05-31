@@ -14,7 +14,7 @@
  *    Bosch Software Innovations - initial creation
  *    Rikard Höglund (RISE SICS)
  ******************************************************************************/
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import java.io.File;
 import java.net.Inet6Address;
@@ -35,6 +35,9 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
 
 import com.upokecenter.cbor.CBORObject;
 

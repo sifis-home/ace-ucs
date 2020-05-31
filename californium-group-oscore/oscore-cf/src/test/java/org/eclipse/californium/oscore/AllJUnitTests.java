@@ -17,6 +17,9 @@
  ******************************************************************************/
 package org.eclipse.californium.oscore;
 
+import org.eclipse.californium.oscore.group.GroupOSCORESenderReceiverECDSAPairwiseTest;
+import org.eclipse.californium.oscore.group.GroupOSCORESenderReceiverECDSATest;
+import org.eclipse.californium.oscore.group.GroupOSCORESenderReceiverTest;
 import org.junit.runner.RunWith;
 import org.junit.runners.Suite;
 import org.junit.runners.Suite.SuiteClasses;

@@ -17,7 +17,7 @@
  *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
@@ -36,6 +36,10 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.oscore.ErrorDescriptions;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSException;
+
 import com.upokecenter.cbor.CBORObject;
 
 /**

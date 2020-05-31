@@ -14,13 +14,16 @@
  *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import java.util.Base64;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.oscore.GroupOSCoreCtx.RecipientCtx;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSException;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx.RecipientCtx;
 
 import net.i2p.crypto.eddsa.Utils;
 

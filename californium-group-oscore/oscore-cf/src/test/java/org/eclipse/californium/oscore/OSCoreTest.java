@@ -40,6 +40,7 @@ import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.OSSerializer;
 import org.eclipse.californium.oscore.ObjectSecurityLayer;
+import org.eclipse.californium.oscore.group.InstallCryptoProviders;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Ignore;

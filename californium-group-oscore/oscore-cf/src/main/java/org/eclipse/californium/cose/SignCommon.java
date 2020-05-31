@@ -11,7 +11,7 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.util.Arrays;
 
-import org.eclipse.californium.oscore.Utility;
+import org.eclipse.californium.oscore.group.Utility;
 
 /**
  *

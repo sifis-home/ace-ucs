@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.serialization.DataParser;
 import org.eclipse.californium.cose.Encrypt0Message;
 import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
 
 /**
  * 

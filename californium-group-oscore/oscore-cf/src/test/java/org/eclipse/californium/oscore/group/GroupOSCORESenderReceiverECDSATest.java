@@ -1,4 +1,4 @@
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +42,9 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
 import org.junit.Ignore;
 import org.junit.Test;
 
@@ -49,7 +52,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
-public class GroupOSCORESenderReceiverTest {
+public class GroupOSCORESenderReceiverECDSATest {
 
 	@Test
 	public void testOneRecipient() throws Exception {
@@ -219,8 +222,8 @@ public class GroupOSCORESenderReceiverTest {
 		private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
 		// Group OSCORE specific values for the countersignature
-		private final static AlgorithmID alg_countersign = AlgorithmID.EDDSA;
-		private final static Integer par_countersign = ED25519; // Ed25519
+		private final static AlgorithmID alg_countersign = AlgorithmID.ECDSA_256;
+		private final static Integer par_countersign = null;
 
 		// test vector OSCORE draft Appendix C.1.2
 		private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
@@ -236,11 +239,11 @@ public class GroupOSCORESenderReceiverTest {
 		 */
 
 		private static byte[] sid = new byte[] { 0x52 };
-		private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
+		private static String sid_private_key_string = "pgMmAQIgASFYICOiiV4tfl1H+lwa09KGLTZmF7vs3MnoDbknAet2KumIIlggI4nnvVDN/VxssAfVor9MDWVHXnG2QzrFqhpId7lCsWUjWCBWoGUr6f4Aza+EilxGzrsb2e2ZnvJ9J6jGgZN37Xiczg==";
 		private static OneKey sid_private_key;
 
 		private final static byte[] rid1 = new byte[] { 0x25 };
-		private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
+		private final static String rid1_public_key_string = "pQMmAQIgASFYIErNHsCmkyKsCh0kt16utIujYCK1l0W1fo3NZtfzCdK6Ilgg7n8KnN9SLkbIiheU8uxuQ25LzBwW+K5ed1+Z3qeXdjw=";
 		private static OneKey rid1_public_key;
 
 		private final static byte[] group_identifier = new byte[] { 0x44, 0x61, 0x6c }; // Group
@@ -269,7 +272,7 @@ public class GroupOSCORESenderReceiverTest {
 			if (recipientTwoSettings) {
 				System.out.println("Starting with alternative sid 0x77.");
 				sid = new byte[] { 0x77 };
-				sid_private_key_string = "pQMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bouI1gge/Yvdn7Rz0xgkR/En9/Mub1HzH6fr0HLZjadXIUIsjk=";
+				sid_private_key_string = "pgMmAQIgASFYICDhVZs4x3YIiIGDDkMB3fLwA9KbDiLHUHRC+d9CCoF/IlggkHYXeExSt8/x/oyP4H1lnfMOjN5DeGvoDlXKja4BKGwjWCCrRws/eb/7eXXstGP0aIKj5isHUQaXSlJ96eseOFK4Lw==";
 				sid_private_key = new OneKey(
 						CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 			} else {
@@ -495,8 +498,8 @@ public class GroupOSCORESenderReceiverTest {
 		private final AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
 		// Group OSCORE specific values for the countersignature
-		private final AlgorithmID alg_countersign = AlgorithmID.EDDSA;
-		private final Integer par_countersign = ED25519; // Ed25519
+		private final AlgorithmID alg_countersign = AlgorithmID.ECDSA_256;
+		private final Integer par_countersign = null;
 
 		// test vector OSCORE draft Appendix C.1.1
 		private final byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
@@ -512,15 +515,15 @@ public class GroupOSCORESenderReceiverTest {
 		 */
 
 		private final byte[] sid = new byte[] { 0x25 };
-		private final static String sid_private_key_string = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+		private final static String sid_private_key_string = "pgMmAQIgASFYIErNHsCmkyKsCh0kt16utIujYCK1l0W1fo3NZtfzCdK6Ilgg7n8KnN9SLkbIiheU8uxuQ25LzBwW+K5ed1+Z3qeXdjwjWCDtw3Wqf4uQoY/dYx8bjZUpUuBfC3k1UHxIcIgs8FxOQg==";
 		private OneKey sid_private_key;
 
 		private final byte[] rid1 = new byte[] { 0x52 }; // Recipient 1
-		private final static String rid1_public_key_string = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+		private final static String rid1_public_key_string = "pQMmAQIgASFYICOiiV4tfl1H+lwa09KGLTZmF7vs3MnoDbknAet2KumIIlggI4nnvVDN/VxssAfVor9MDWVHXnG2QzrFqhpId7lCsWU=";
 		private OneKey rid1_public_key;
 
 		private final byte[] rid2 = new byte[] { 0x77 }; // Recipient 2
-		private final static String rid2_public_key_string = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+		private final static String rid2_public_key_string = "pQMmAQIgASFYICDhVZs4x3YIiIGDDkMB3fLwA9KbDiLHUHRC+d9CCoF/IlggkHYXeExSt8/x/oyP4H1lnfMOjN5DeGvoDlXKja4BKGw=";
 		private OneKey rid2_public_key;
 
 		private final byte[] rid0 = new byte[] { (byte) 0xCC }; // Does

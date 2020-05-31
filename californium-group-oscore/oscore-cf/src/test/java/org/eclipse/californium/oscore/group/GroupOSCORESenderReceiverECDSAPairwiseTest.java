@@ -1,4 +1,4 @@
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
@@ -42,6 +42,9 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
 import org.junit.Ignore;
 import org.junit.Test;
 

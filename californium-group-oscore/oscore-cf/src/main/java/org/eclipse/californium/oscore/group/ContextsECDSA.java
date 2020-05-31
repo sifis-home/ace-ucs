@@ -1,4 +1,4 @@
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import java.util.HashMap;
 
@@ -6,6 +6,7 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.oscore.ByteId;
 
 import com.upokecenter.cbor.CBORObject;
 

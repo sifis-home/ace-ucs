@@ -12,38 +12,47 @@
  * 
  * Contributors:
  *    Bosch Software Innovations - initial creation
- *    Rikard Höglund (RISE SICS)
+ *    Rikard HÃ¶glund (RISE SICS)
  ******************************************************************************/
-package org.eclipse.californium.oscore;
+package org.eclipse.californium.oscore.group;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.security.Provider;
+import java.security.Security;
+import java.util.Base64;
 import java.util.Random;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
+import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
+
+import com.upokecenter.cbor.CBORObject;
+
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 /**
- * Group OSCORE interop test receiver application.
- * 
- * See the Contexts class for the definition of context parameters.
+ * Test receiver using {@link UdpMulticastConnector}.
  */
-public class GroupOSCOREInteropReceiver {
+public class GroupOSCOREReceiver {
 	
 	/**
 	 * Controls whether or not the receiver will reply to incoming multicast non-confirmable requests.
@@ -63,76 +72,89 @@ public class GroupOSCOREInteropReceiver {
 	 * FIXME: Communication does not work with this turned on
 	 */
 	static final boolean randomUnicastIP = false;
+	
+	/**
+	 * Multicast address to listen to (use the first line to set a custom one).
+	 */
+	//static final InetAddress multicastIP = new InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
+	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
 
 	/**
-	 * String the server will reply with for tests
+	 * Port to listen to.
 	 */
-	private static String SERVER_RESPONSE = "Hello World!";
+	static final int listenPort = CoAP.DEFAULT_COAP_PORT;
+
+	/**
+	 * ED25519 curve value.
+	 * https://www.iana.org/assignments/cose/cose.xhtml#elliptic-curves
+	 */
+	static final int ED25519 = KeyKeys.OKP_Ed25519.AsInt32(); //Integer value 6
 	
-	/* --- Partial OSCORE Security Context information (receiver) --- */
+	/* --- OSCORE Security Context information (receiver) --- */
 	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
 	private final static String uriLocal = "coap://localhost";
+	private final static AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+	private final static AlgorithmID kdf = AlgorithmID.HKDF_HMAC_SHA_256;
+
+	//Group OSCORE specific values for the countersignature
+	private final static AlgorithmID alg_countersign = AlgorithmID.EDDSA;
+	private final static Integer par_countersign = ED25519; //Ed25519
 	
-	private static byte[] sid = Contexts.Server_1.sid;
+	// test vector OSCORE draft Appendix C.1.2
+	private final static byte[] master_secret = { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B,
+			0x0C, 0x0D, 0x0E, 0x0F, 0x10 };
+	private final static byte[] master_salt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23,
+			(byte) 0x78, (byte) 0x63, (byte) 0x40 };
+	
+	/* Rikard: Note regarding countersignature keys.
+	 * The sid_private_key contains both the public and private keys.
+	 * The rid*_public_key contains only the public key.
+	 * For information on the keys see the Countersign_Keys file.
+	 */
+	
+	private static byte[] sid = new byte[] { 0x52 };
+	private static String sid_private_key_string = "pQMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0YzibI1gghX62HT9tcKJ4o2dA0TLAmfYogO1Jfie9/UaF+howTyY=";
 	private static OneKey sid_private_key;
+	
+	private final static byte[] rid1 = new byte[] { 0x25 };
+	private final static String rid1_public_key_string = "pAMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6";
+	private static OneKey rid1_public_key;
+	
+	private final static byte[] group_identifier = new byte[] { 0x44, 0x61, 0x6c }; //Group ID
+	/* --- OSCORE Security Context information --- */
 	
 	private static Random random;
 	
 	public static void main(String[] args) throws Exception {
 		//Install cryptographic providers
-		InstallCryptoProviders.installProvider();
-		
-		//Fill list with information about receivers and associated public keys
-		//Can be used when getting messages and a recipient context should be generated
-		Contexts.fillRecipientInfo();
-		
-		//Set sender & receiver keys for countersignatures
-		sid_private_key = new OneKey(Contexts.Server_1.signing_key_cbor);
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
 
+		//Set sender & receiver keys for countersignatures
+		sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
+		rid1_public_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rid1_public_key_string)));
+		
+		//TODO: Re-enable
 		//Check command line arguments (flag to use different sid and sid key)
 		if(args.length != 0) {
-			sid = Contexts.Server_2.sid;
-			System.out.println("Starting with alternative sid 0x" + Utility.arrayToString(sid));
-			sid_private_key = new OneKey(Contexts.Server_2.signing_key_cbor);
+			System.out.println("Starting with alternative sid 0x77.");
+			sid = new byte[] { 0x77 };
+			sid_private_key_string = "pQMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bouI1gge/Yvdn7Rz0xgkR/En9/Mub1HzH6fr0HLZjadXIUIsjk=";
+			sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 		} else {
-			System.out.println("Starting with sid 0x" + Utility.arrayToString(sid));
+			System.out.println("Starting with sid 0x52.");
 		}
 		
 		//If OSCORE is being used set the context information
 		if(useOSCORE) {
-			
-			//Make the OSCORE Group Context
-			GroupOSCoreCtx ctx = new GroupOSCoreCtx(
-					Contexts.Common.master_secret,
-					true,
-					Contexts.alg,
-					sid,
-					Contexts.kdf,
-					Contexts.replay_size,
-					Contexts.Common.master_salt,
-					Contexts.Common.id_context,
-					Contexts.Common.alg_countersign,
-					Contexts.Common.par_countersign,
-					sid_private_key);
-			
-			//Add the pre-configured recipient contexts
-			
-			//Add contexts for clients from Jim and Peter
-			//ctx.addRecipientContext(Contexts.Jim.client_rid, new OneKey(Contexts.Jim.public_key_cbor));
-			ctx.addRecipientContext(Contexts.Peter.client_rid, new OneKey(Contexts.Peter.public_key_cbor));
-			
-			//Add recipient context for my own client
-			//ctx.addRecipientContext(Contexts.Client.sid, new OneKey(Contexts.Client.signing_key_cbor));
-			
-			//ctx.setSenderKey(new byte[16]); //Set a bad sender key
-			//ctx.setRecipientKey(Contexts.Jim.client_rid, new byte[16]); //Set a bad recipient key
-			
+			GroupOSCoreCtx ctx = new GroupOSCoreCtx(master_secret, true, alg, sid, kdf, 32,
+					master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
+			ctx.addRecipientContext(rid1, rid1_public_key);
 			db.addContext(uriLocal, ctx);
 
 			OSCoreCoapStackFactory.useAsDefault();
-			
-			System.out.println("Current Group OSCORE Context:");
-			Utility.printContextInfo(ctx);
 		}
 		
 		//Initialize random number generator
@@ -142,57 +164,28 @@ public class GroupOSCOREInteropReceiver {
 		CoapEndpoint endpoint = createEndpoints(config);
 		CoapServer server = new CoapServer(config);
 		server.addEndpoint(endpoint);
-		
-		//Creating resource hierarchy
-		
-		//Hello resource
-		CoapResource root_hello = new CoapResource("hello", true);
-		
-		//Base resource for OSCORE interop test resources
-		OSCoreResource oscore = new OSCoreResource("oscore", true);
-		
-		//Second level base resource for OSCORE interop test resources
-		OSCoreResource oscore_hello = new OSCoreResource("hello", true);
-		
-		//CoAP resource for OSCORE interop tests
-		CoapResource oscore_hello_coap = new OSCoreHelloCoAP("coap", true);
-		
-		//1 resource for OSCORE interop tests
-		OSCoreResource oscore_hello_1 = new OSCoreHello1("1", true);
-		
-		oscore_hello.add(oscore_hello_coap);				
-		oscore_hello.add(oscore_hello_1);
-		oscore.add(oscore_hello);
-		server.add(oscore);
-		server.add(root_hello);
 		server.add(new HelloWorldResource());
 		
 		//Information about the receiver
 		System.out.println("==================");
-		System.out.println("Multicast receiver");
+		System.out.println("*Multicast receiver");
 		System.out.println("Uses OSCORE: " + useOSCORE);
 		System.out.println("Respond to non-confirmable messages: " + replyToNonConfirmable);
-		System.out.println("Multicast IP: " + CoAP.MULTICAST_IPV4);
+		System.out.println("Listening to Multicast IP: " + multicastIP.getHostAddress());
 		System.out.println("Unicast IP: " + endpoint.getAddress().getHostString());
 		System.out.println("Incoming port: " + endpoint.getAddress().getPort());
 		System.out.print("CoAP resources: ");
-		for(Resource resDepth1 : server.getRoot().getChildren()) {
-			System.out.print(resDepth1.getURI() + " ");
-			for(Resource resDepth2 : resDepth1.getChildren()) {
-				System.out.print(resDepth2.getURI() + " ");
-				for(Resource resDepth3 : resDepth2.getChildren()) {
-					System.out.print(resDepth3.getURI() + " ");
-				}
-			}
+		for(Resource res : server.getRoot().getChildren()) {
+			System.out.print(res.getURI() + " ");
 		}
 		System.out.println("");	
-		System.out.println("==================");		
+		System.out.println("==================");
 		
 		server.start();
 	}
 
 	private static CoapEndpoint createEndpoints(NetworkConfig config) throws UnknownHostException {
-		int port = config.getInt(Keys.COAP_PORT);
+		int port = listenPort;
 		
 		InetSocketAddress localAddress;
 		//Set a random loopback address in 127.0.0.0/8
@@ -208,11 +201,10 @@ public class GroupOSCOREInteropReceiver {
 			localAddress = new InetSocketAddress(port);
 		}
 		
-		Connector connector = new UdpMulticastConnector(localAddress, CoAP.MULTICAST_IPV4);
+		Connector connector = new UdpMulticastConnector(localAddress, multicastIP);
 		return new CoapEndpoint.Builder().setNetworkConfig(config).setConnector(connector).build();
 	}
 
-	//Hello world resource that additionally replies with an ID
 	private static class HelloWorldResource extends CoapResource {
 
 		private int id;
@@ -233,7 +225,7 @@ public class GroupOSCOREInteropReceiver {
 		//Added for handling GET
 		@Override
 		public void handleGET(CoapExchange exchange) {
-			exchange.respond(SERVER_RESPONSE);
+			handlePOST(exchange);
 		}
 		
 		@Override
@@ -269,40 +261,6 @@ public class GroupOSCOREInteropReceiver {
 			}
 			
 		}
+		
 	}
-	
-	/** --- Resources for interop tests follow --- **/
-	
-	//CoAP resource for OSCORE interop tests (normal CoAP resource)
-	static class OSCoreHelloCoAP extends CoapResource {
-
-		public OSCoreHelloCoAP(String name, boolean isProtected) {
-			super(name, isProtected);
-		}
-
-		@Override
-		public void handleGET(CoapExchange exchange) {
-			Response r = new Response(ResponseCode.CONTENT);
-			r.setPayload(SERVER_RESPONSE);
-			r.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-			
-			exchange.respond(r);
-		}
-	};
-	
-	//1 resource for OSCORE interop tests (OSCORE protected Resource)
-	static class OSCoreHello1 extends OSCoreResource {
-		public OSCoreHello1(String name, boolean isProtected) {
-			super(name, isProtected);
-		}
-
-		@Override
-		public void handleGET(CoapExchange exchange) {
-			Response r = new Response(ResponseCode.CONTENT);
-			r.setPayload(SERVER_RESPONSE);
-			r.getOptions().setContentFormat(MediaTypeRegistry.TEXT_PLAIN);
-
-			exchange.respond(r);
-		}
-	};
 }

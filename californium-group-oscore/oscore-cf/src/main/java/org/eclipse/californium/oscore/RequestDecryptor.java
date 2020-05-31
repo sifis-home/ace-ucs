@@ -35,6 +35,9 @@ import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OptionJuggle;
+import org.eclipse.californium.oscore.group.Contexts;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
+import org.eclipse.californium.oscore.group.Utility;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;

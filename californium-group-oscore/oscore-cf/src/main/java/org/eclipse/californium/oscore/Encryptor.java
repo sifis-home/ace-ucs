@@ -40,6 +40,8 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.CounterSign1;
 import org.eclipse.californium.cose.HeaderKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
+import org.eclipse.californium.oscore.group.Utility;
 
 /**
  * 

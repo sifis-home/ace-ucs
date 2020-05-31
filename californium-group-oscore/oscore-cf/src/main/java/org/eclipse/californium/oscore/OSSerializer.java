@@ -34,6 +34,8 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.serialization.DataSerializer;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.oscore.group.GroupOSCoreCtx;
+import org.eclipse.californium.oscore.group.Utility;
 
 import com.upokecenter.cbor.CBORObject;
 

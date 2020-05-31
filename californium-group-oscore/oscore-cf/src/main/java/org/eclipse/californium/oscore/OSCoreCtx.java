@@ -59,7 +59,7 @@ public class OSCoreCtx {
 	private int sender_seq;
 
 	private byte[] recipient_id;
-	protected byte[] recipient_key;
+	public byte[] recipient_key;
 	private int recipient_seq;
 	protected int recipient_replay_window_size;
 	private int recipient_replay_window;
