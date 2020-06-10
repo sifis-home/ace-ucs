@@ -14,7 +14,7 @@
  *    Joakim Brorsson
  *    Ludwig Seitz (RISE SICS)
  *    Tobias Andersson (RISE SICS)
- *    Rikard HÃ¶glund (RISE SICS)
+ *    Rikard Höglund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore;
@@ -103,7 +103,7 @@ public class OSSerializer {
 					cs_key_params.Add(CBORObject.FromObject((int)1)); 
 					cs_key_params.Add(CBORObject.FromObject((int)6)); //When using ECDSA_256
 				} else if(((GroupOSCoreCtx)ctx).getAlgCountersign() == AlgorithmID.ECDSA_256) {
-					cs_key_params.Add(CBORObject.FromObject((int)26));
+					cs_key_params.Add(CBORObject.FromObject((int)2));
 					cs_key_params.Add(CBORObject.FromObject((int)1));
 				}
 
