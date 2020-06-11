@@ -181,9 +181,8 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 						
 				byte[] sharedSecret = null;
 				
-				//FIXME: Generate shared secret correctly for EdDSA. Now it just uses the sender and recipient IDs.
 				if(alg_countersign == AlgorithmID.EDDSA) {
-					sharedSecret = ByteBuffer.allocate(8).putInt(Arrays.hashCode(this.recipient_id) + Arrays.hashCode(getSenderId())).array();	
+					sharedSecret = generateSharedSecretEdDSA(sender_private_key, recipient_public_key);
 				} else if(alg_countersign == AlgorithmID.ECDSA_256 || alg_countersign == AlgorithmID.ECDSA_384 || alg_countersign == AlgorithmID.ECDSA_512) { //ECDSA case
 					sharedSecret = generateSharedSecretECDSA(sender_private_key, recipient_public_key);
 				} else {
