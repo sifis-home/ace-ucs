@@ -593,6 +593,25 @@ public class GroupOSCoreCtx extends OSCoreCtx {
 		return sharedSecret;
 	}
 	
+	/**
+	 * Generate a shared secret when using EdDSA.
+	 * 
+	 * @param sender_private_key the public/private key of the sender
+	 * @param recipient_public_key the public key of the recipient
+	 * @return the shared secret
+	 */
+	public byte[] generateSharedSecretEdDSA(OneKey sender_private_key, OneKey recipient_public_key) {
+
+		byte[] sharedSecret = null;
+		try {
+			sharedSecret = SharedSecretCalculation.calculateSharedSecret(recipient_public_key, sender_private_key);
+		} catch (CoseException e) {
+			System.err.println("Could not generate the shared secret: " + e);
+		}
+
+		return sharedSecret;
+	}
+
 	/** ---- Methods below should never be called on a Group OSCORE context ---- **/
 
 	/**

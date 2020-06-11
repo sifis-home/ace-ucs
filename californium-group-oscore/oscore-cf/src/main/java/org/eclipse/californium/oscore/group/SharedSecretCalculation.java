@@ -11,7 +11,7 @@
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
  * Contributors:
- *    Rikard Höglund (RISE SICS)
+ *    Rikard Hï¿½glund (RISE SICS)
  *    
  ******************************************************************************/
 package org.eclipse.californium.oscore.group;
@@ -22,6 +22,10 @@ import java.security.Security;
 import java.util.Arrays;
 
 import javax.xml.bind.DatatypeConverter;
+
+import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.CoseException;
+import org.eclipse.californium.cose.OneKey;
 
 import net.i2p.crypto.eddsa.EdDSAPrivateKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
@@ -490,8 +494,7 @@ public class SharedSecretCalculation {
 
 	}
 
-	
-	private static byte[] calculateSharedSecret(OneKey publicKey, OneKey privateKey) throws CoseException {
+	public static byte[] calculateSharedSecret(OneKey publicKey, OneKey privateKey) throws CoseException {
 
 		/* Calculate u coordinate from public key */
 		
