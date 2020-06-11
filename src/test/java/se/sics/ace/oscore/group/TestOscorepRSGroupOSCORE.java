@@ -633,28 +633,37 @@ public class TestOscorepRSGroupOSCORE {
         		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
         		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
         			
-        			if (!publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve.AsCBOR())))) {
-        				
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
+                   		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
+                   		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
+                   		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(0)) || // key capability: key type
+                		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(1))) // key capability: key curve
+        			{ 
+
                 			myGroup.deallocateSenderId(senderId);
+
                 			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
                 			return;
-                		
-        			}
+                        		
+                	}
+
         		}
         		
         		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
         			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR()))) ||
-           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()))) ||
-        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR())))) {
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
+               			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
+               			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
+               			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(0)) || // key capability: key type
+            			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(1))) // key capability: key curve
+        			{
 
-                			myGroup.deallocateSenderId(senderId);
+                    			myGroup.deallocateSenderId(senderId);
 
-                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                			return;
-                		
-        			}
+                    			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                    			return;
+                    		
+            		}
         				
         		}
         		
@@ -872,26 +881,30 @@ public class TestOscorepRSGroupOSCORE {
 
         // Group OSCORE specific values for the countersignature
         AlgorithmID csAlg = null;
-        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
-        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
+        CBORObject algCapabilities = CBORObject.NewArray();
+        CBORObject keyCapabilities = CBORObject.NewArray();
+        CBORObject csParams = CBORObject.NewArray();
+        CBORObject csKeyParams = CBORObject.NewArray();
         
         // ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
         }
         
         // EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
         }
-
-        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
-        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
+        
+    	csParams.Add(algCapabilities);
+    	csParams.Add(keyCapabilities);
+    	csKeyParams = keyCapabilities;       
         final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes

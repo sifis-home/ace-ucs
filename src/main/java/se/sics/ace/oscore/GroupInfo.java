@@ -425,7 +425,7 @@ public class GroupInfo {
      */
     synchronized public boolean setCsParams(final CBORObject csParams) {
 
-    	if (csParams.getType() != CBORType.Map)
+    	if (csParams.getType() != CBORType.Array)
     		return false;
     	
     	this.csParams = csParams;
@@ -435,7 +435,7 @@ public class GroupInfo {
     }
     
     /**
-     * @return parameters of the key of the countersignature algorithm 
+     * @return parameters of the key of the countersignature key 
      *      used in the group
      */
     synchronized public final CBORObject getCsKeyParams() {
@@ -445,14 +445,14 @@ public class GroupInfo {
     }
     
     /**
-     *  Set the parameters of the key of the countersignature algorithm used
+     *  Set the parameters of the key of the countersignature key used
      *   in the group
      * @param csKeyParams  the parameters
      * @return  true if the parameters were successfully set, false otherwise
      */
     synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
     
-    	if (csKeyParams.getType() != CBORType.Map)
+    	if (csKeyParams.getType() != CBORType.Array)
     		return false;
     	
     	this.csKeyParams = csKeyParams;
