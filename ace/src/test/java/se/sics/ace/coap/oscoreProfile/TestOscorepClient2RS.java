@@ -118,6 +118,12 @@ public class TestOscorepClient2RS {
      */
     @BeforeClass
     public static void setUp() throws OSException {
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
         srv = new RunTestServer();
         srv.run();
         //Initialize a fake context
@@ -125,6 +131,7 @@ public class TestOscorepClient2RS {
                 "clientA".getBytes(Constants.charset),
                 "rs1".getBytes(Constants.charset),
                 null, null, null, null);
+
     }
     
     /**
@@ -155,7 +162,7 @@ public class TestOscorepClient2RS {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+				"token3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();

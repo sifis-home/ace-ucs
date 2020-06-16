@@ -43,6 +43,7 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -50,6 +51,7 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.examples.KissPDP;
 import se.sics.ace.examples.KissTime;
 
@@ -78,6 +80,12 @@ public class OscoreASTestServer
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 

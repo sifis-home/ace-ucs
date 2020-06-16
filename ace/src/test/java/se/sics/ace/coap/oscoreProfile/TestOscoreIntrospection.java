@@ -33,6 +33,7 @@ package se.sics.ace.coap.oscoreProfile;
 
 import java.util.Map;
 
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -42,6 +43,7 @@ import org.junit.Test;
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.Constants;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
 
 /**
@@ -94,6 +96,12 @@ public class TestOscoreIntrospection {
      */
     @BeforeClass
     public static void setUp() {
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
         srv = new RunTestServer();
         srv.run();
     }
@@ -113,9 +121,8 @@ public class TestOscoreIntrospection {
      * @throws Exception
      */
     @Test
-	@Ignore
     public void testCoapIntrospect() throws Exception {
-        byte[] senderId = "rs1".getBytes(Constants.charset);
+		byte[] senderId = "rs1".getBytes(Constants.charset);
         byte[] recipientId = "AS".getBytes(Constants.charset);
         OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
                 senderId, recipientId, null, null, null, null);

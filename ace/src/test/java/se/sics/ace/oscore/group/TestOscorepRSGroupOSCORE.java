@@ -44,6 +44,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -199,6 +200,12 @@ public class TestOscorepRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
         // install needed cryptography providers
         try {
             org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
@@ -207,6 +214,7 @@ public class TestOscorepRSGroupOSCORE {
             e.printStackTrace();
         }
         
+
         final String rootGroupMembershipResource = "group-oscore";
         final String groupName = "feedca570000";
         

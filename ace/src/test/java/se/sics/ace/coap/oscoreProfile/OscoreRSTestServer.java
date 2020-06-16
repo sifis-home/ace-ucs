@@ -139,6 +139,12 @@ public class OscoreRSTestServer {
      */
     public static void main(String[] args) throws Exception {
     	
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
       //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);

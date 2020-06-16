@@ -152,6 +152,12 @@ public class TestOscorepClient2RSGroupOSCORE {
      */
     @BeforeClass
     public static void setUp() throws OSException {
+		try {
+			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
+		} catch (IllegalStateException e) {
+			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+		}
+
         srv = new RunTestServer();
         srv.run();
         //Initialize a fake context
@@ -1458,7 +1464,6 @@ public class TestOscorepClient2RSGroupOSCORE {
      * @throws Exception 
      */
     @Test
-	@Ignore
     public void testNoAccess() throws Exception {
 
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
