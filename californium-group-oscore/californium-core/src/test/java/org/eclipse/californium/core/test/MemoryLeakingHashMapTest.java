@@ -2,11 +2,11 @@
  * Copyright (c) 2014, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -34,26 +34,19 @@ package org.eclipse.californium.core.test;
 import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -64,16 +57,18 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.InMemoryMessageExchangeStore;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -92,6 +87,12 @@ import org.slf4j.LoggerFactory;
 public class MemoryLeakingHashMapTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
@@ -113,13 +114,10 @@ public class MemoryLeakingHashMapTest {
 	// The name of the resource of the server
 	private static final String URI = "test";
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class.getName());
-	private static ScheduledExecutorService timer;
-	private static CoapServer server;
-	private static int serverPort;
+	private static final Logger LOGGER = LoggerFactory.getLogger(MemoryLeakingHashMapTest.class);
+	private static Endpoint serverEndpoint;
 
 	// The server endpoint that we test
-	private static CoapEndpoint serverEndpoint;
 	private static CoapEndpoint clientEndpoint;
 	private static InMemoryMessageExchangeStore clientExchangeStore;
 	private static InMemoryMessageExchangeStore serverExchangeStore;
@@ -130,18 +128,9 @@ public class MemoryLeakingHashMapTest {
 
 	@BeforeClass
 	public static void startupServer() throws Exception {
-		LOGGER.debug("start {}", MemoryLeakingHashMapTest.class.getSimpleName());
-		timer = Executors.newSingleThreadScheduledExecutor();
 		createServerAndClientEndpoints();
 	}
 
-	@AfterClass
-	public static void shutdownServer() {
-		timer.shutdown();
-		clientEndpoint.stop();
-		server.destroy();
-		LOGGER.debug("end {}", MemoryLeakingHashMapTest.class.getSimpleName());
-	}
 
 	@Before
 	public void startExchangeStores() {
@@ -220,6 +209,7 @@ public class MemoryLeakingHashMapTest {
 
 		CoapResponse response = client.get();
 		assertThatResponseContainsValue(response, currentResponseText);
+		client.shutdown();
 	}
 
 	/**
@@ -255,12 +245,14 @@ public class MemoryLeakingHashMapTest {
 		CoapClient client = new CoapClient(uriOf(URI)).useNONs();
 		client.setEndpoint(clientEndpoint);
 		testBlockwise(client, Mode.PIGGY_BACKED_RESPONSE);
+		client.shutdown();
 	}
 
 	private static void testBlockwise(final Mode mode) throws Exception {
 		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
 		testBlockwise(client, mode);
+		client.shutdown();
 	}
 
 	private static void testBlockwise(final CoapClient client, final Mode mode) throws ConnectorException, IOException {
@@ -312,12 +304,10 @@ public class MemoryLeakingHashMapTest {
 
 		String currentResponseText = responseText;
 		int blocks = resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
-		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1);
-		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
 
 		CoapClient client = new CoapClient(uriOf(URI));
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, true);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1, true);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
@@ -329,9 +319,12 @@ public class MemoryLeakingHashMapTest {
 
 		// Wait until all the notifications are received and
 		// the relation is canceled
-		latch.await(calculateNotifiesTimeout((HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks), TimeUnit.MILLISECONDS);
-		assertTrue("Client has not received all expected responses, left " + latch.getCount(), 0 == latch.getCount());
-		assertFalse(isOnErrorInvoked.get()); // should not happen
+		handler.waitOnLoadCalls(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1,
+				calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1) * blocks, TimeUnit.MILLISECONDS);
+		assertThat("Client has not received all expected responses", handler.getOnLoadCalls(),
+				is(HOW_MANY_NOTIFICATION_WE_WAIT_FOR + 1));
+		assertThat("Client has errors", handler.getOnErrorCalls(), is(0));
+		client.shutdown();
 	}
 
 	/**
@@ -350,18 +343,18 @@ public class MemoryLeakingHashMapTest {
 		String currentResponseText = "Hello observer";
 		resource.setNotifies(currentResponseText, Mode.PIGGY_BACKED_RESPONSE);
 
-		CountDownLatch latch = new CountDownLatch(HOW_MANY_NOTIFICATION_WE_WAIT_FOR);
-		AtomicBoolean isOnErrorInvoked = new AtomicBoolean();
-
 		CoapClient client = new CoapClient(uri);
 		client.setEndpoint(clientEndpoint);
-		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(latch, isOnErrorInvoked, false);
+		CoapObserverAndCanceler handler = new CoapObserverAndCanceler(HOW_MANY_NOTIFICATION_WE_WAIT_FOR, false);
 		CoapObserveRelation rel = client.observe(handler);
 		handler.setObserveRelation(rel);
 
-		assertTrue("Client has not received all expected responses",
-				latch.await(calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS));
-		assertFalse(isOnErrorInvoked.get()); // should not happen
+		handler.waitOnLoadCalls(HOW_MANY_NOTIFICATION_WE_WAIT_FOR,
+				calculateNotifiesTimeout(HOW_MANY_NOTIFICATION_WE_WAIT_FOR), TimeUnit.MILLISECONDS);
+		assertThat("Client has not received all expected responses", handler.getOnLoadCalls(),
+				is(HOW_MANY_NOTIFICATION_WE_WAIT_FOR));
+		assertThat("Client has errors", handler.getOnErrorCalls(), is(0));
+		client.shutdown();
 	}
 
 	private static long calculateNotifiesTimeout(int numberOfNotifiesToWait) {
@@ -387,7 +380,7 @@ public class MemoryLeakingHashMapTest {
 		// Create the endpoint for the server and create surveillant
 		serverExchangeStore = new InMemoryMessageExchangeStore(config);	
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(serverExchangeStore);
 		serverEndpoint = builder.build();
@@ -395,26 +388,29 @@ public class MemoryLeakingHashMapTest {
 
 		clientExchangeStore = new InMemoryMessageExchangeStore(config);
 		builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 		builder.setMessageExchangeStore(clientExchangeStore);
 		clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(clientInterceptor);
 		clientEndpoint.start();
 
 		// Create a server with two resources: one that sends piggy-backed
 		// responses and one that sends separate responses
+		ScheduledExecutorService timer = Executors.newSingleThreadScheduledExecutor();
+		cleanup.add(timer);
 
-		server = new CoapServer(config);
+		CoapServer server = new CoapServer(config);
+		cleanup.add(server);
 		server.addEndpoint(serverEndpoint);
 		resource = new TestResource(timer);
 		server.add(resource);
 		server.start();
-		serverPort = serverEndpoint.getAddress().getPort();
 	}
 
 	private static String uriOf(final String resourcePath) {
-		return String.format("coap://%s:%d/%s", InetAddress.getLoopbackAddress().getHostAddress(), serverPort, resourcePath);
+		return TestTools.getUri(serverEndpoint, resourcePath);
 	}
 
 	private enum Mode { PIGGY_BACKED_RESPONSE, SEPARATE_RESPONSE; }
@@ -501,17 +497,14 @@ public class MemoryLeakingHashMapTest {
 		}
 	}
 
-	private class CoapObserverAndCanceler implements CoapHandler {
+	private class CoapObserverAndCanceler extends CountingCoapHandler {
 
 		private CoapObserveRelation relation;
-		final AtomicInteger counter = new AtomicInteger();
-		final CountDownLatch latch;
-		final AtomicBoolean errorFlag;
+		final int expectedNotifies;
 		final boolean cancelProactively;
 
-		public CoapObserverAndCanceler(final CountDownLatch latch, final AtomicBoolean errorFlag, final boolean cancelProactively) {
-			this.latch = latch;
-			this.errorFlag = errorFlag;
+		public CoapObserverAndCanceler(int expectedNotifies, boolean cancelProactively) {
+			this.expectedNotifies = expectedNotifies;
 			this.cancelProactively = cancelProactively;
 		}
 
@@ -520,43 +513,27 @@ public class MemoryLeakingHashMapTest {
 		}
 
 		@Override
-		public void onLoad(CoapResponse response) {
-			CoapObserveRelation relation;
-			synchronized (this) {
-				relation = this.relation;
-			}
-			int counter = this.counter.incrementAndGet();
+		public void assertLoad(CoapResponse response) {
+			int counter = this.loadCalls.get();
 
 			if (null == relation) {
-				LOGGER.info("Client ignore notification {}: [{}]",
-						new Object[] { counter, response.getResponseText() });
+				LOGGER.info("Client ignore notification {}: [{}]", counter, response.getResponseText());
 				return;
 			}
 
-			long countDown;
-			synchronized (latch) {
-				latch.countDown();
-				countDown = latch.getCount();
-			}
-			LOGGER.debug("Client received notification {}: [{}]",
-					new Object[] { counter, response.getResponseText() });
+			LOGGER.debug("Client received notification {}: [{}]", counter, response.getResponseText());
 
 			if (cancelProactively) {
-				if (countDown == 1) {
+				if ((counter + 1) == expectedNotifies) {
 					LOGGER.debug("Client proactively cancels observe relation");
 					relation.proactiveCancel();
 				}
 			} else {
-				if (countDown == 0) {
+				if (counter == expectedNotifies) {
 					LOGGER.debug("Client forgets observe relation");
 					relation.reactiveCancel();
 				}
 			}
-		}
-
-		@Override
-		public void onError() {
-			errorFlag.set(true);
 		}
 	}
 }

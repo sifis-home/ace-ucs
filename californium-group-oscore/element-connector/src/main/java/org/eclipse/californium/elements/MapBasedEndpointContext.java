@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -210,6 +210,38 @@ public class MapBasedEndpointContext extends AddressEndpointContext {
 		Map<String, String> additionalAttributes = createMap(attributes);
 		Map<String, String> entries = new HashMap<>(context.entries());
 		entries.putAll(additionalAttributes);
+		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
+				context.getPeerIdentity(), entries);
+	}
+
+	/**
+	 * Remove entries from endpoint context.
+	 * 
+	 * @param context original endpoint context.
+	 * @param attributes list of key
+	 * @return new endpoint context with attributes removed.
+	 * @throws NullPointerException if the provided attributes is {@code null},
+	 *             or one of the attributes is {@code null}.
+	 * @throws IllegalArgumentException if provided attributes list is not
+	 *             contained in the original context.
+	 * @since 2.1
+	 */
+	public static MapBasedEndpointContext removeEntries(EndpointContext context, String... attributes) {
+		if (attributes == null) {
+			throw new NullPointerException("attributes must not null!");
+		}
+		Map<String, String> entries = new HashMap<>(context.entries());
+		for (int index = 0; index < attributes.length; ++index) {
+			String key = attributes[index];
+			if (null == key) {
+				throw new NullPointerException(index + ". key is null");
+			} else if (key.isEmpty()) {
+				throw new IllegalArgumentException(index + ". key is empty");
+			}
+			if (entries.remove(key) == null) {
+				throw new IllegalArgumentException(index + ". key '" + key + "' is not contained");
+			}
+		}
 		return new MapBasedEndpointContext(context.getPeerAddress(), context.getVirtualHost(),
 				context.getPeerIdentity(), entries);
 	}

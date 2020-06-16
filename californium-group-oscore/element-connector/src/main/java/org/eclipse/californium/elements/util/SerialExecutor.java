@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialExecutor extends AbstractExecutorService {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class);
 
 	/**
 	 * Target executor to execute job serially.
@@ -173,7 +173,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * Doesn't shutdown the target executor {@link #executor}.
 	 */
 	@Override
-	public final void shutdown() {
+	public void shutdown() {
 		lock.lock();
 		try {
 			shutdown = true;
@@ -190,12 +190,11 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * @see #shutdownNow(Collection)
 	 */
 	@Override
-	public final List<Runnable> shutdownNow() {
+	public List<Runnable> shutdownNow() {
 		lock.lock();
 		try {
-			shutdown = true;
 			List<Runnable> pending = new ArrayList<>(tasks.size());
-			tasks.drainTo(pending);
+			shutdownNow(pending);
 			return pending;
 		} finally {
 			lock.unlock();
@@ -213,7 +212,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	public int shutdownNow(final Collection<Runnable> jobs) {
 		lock.lock();
 		try {
-			shutdown = true;
+			shutdown();
 			return tasks.drainTo(jobs);
 		} finally {
 			lock.unlock();

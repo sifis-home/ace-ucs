@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -37,13 +37,14 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContext;
@@ -51,8 +52,10 @@ import org.eclipse.californium.elements.EndpointContextMatcher;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -64,11 +67,15 @@ public class CoapEndpointTest {
 	static final byte[] TOKEN = new byte[] { 0x01, 0x02, 0x03 };
 	static final InetSocketAddress SOURCE_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 12000);
 	static final InetSocketAddress CONNECTOR_ADDRESS = new InetSocketAddress(InetAddress.getLoopbackAddress(), 13000);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
 	CoapEndpoint endpoint;
 	SimpleConnector connector;
 	List<Request> receivedRequests;
 	CountDownLatch latch;
-	CountDownLatch sentLatch;
+	CountDownLatch connectorSentLatch;
 	EndpointContext establishedContext;
 
 	@Before
@@ -81,7 +88,7 @@ public class CoapEndpointTest {
 		builder.setNetworkConfig(CONFIG);
 
 		endpoint = builder.build();
-		sentLatch = new CountDownLatch(1);
+		connectorSentLatch = new CountDownLatch(1);
 		latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
@@ -102,13 +109,12 @@ public class CoapEndpointTest {
 
 	@After
 	public void shutDownEndpoint() {
-		endpoint.stop();
+		endpoint.destroy();
 	}
 
 	@Test
 	public void testGetUriReturnsConnectorUri() throws URISyntaxException {
-		InetSocketAddress socketAddress = connector.getAddress();
-		URI uri = new URI("coap://" + socketAddress.getAddress().getHostAddress() + ":" + socketAddress.getPort());
+		URI uri = new URI(TestTools.getUri(connector.getAddress().getAddress(), connector.getAddress().getPort(), null));
 		assertThat(endpoint.getUri(), is(uri));
 	}
 
@@ -118,19 +124,15 @@ public class CoapEndpointTest {
 		// GIVEN an outbound request
 		Request request = Request.newGet();
 		request.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
-		request.addMessageObserver(new MessageObserverAdapter() {
-			@Override
-			public void onSent() {
-				latch.countDown();
-			}
-		});
+		CountingMessageObserver observer = new CountingMessageObserver();
+		request.addMessageObserver(observer);
 
 		// WHEN sending the request to the peer
 		endpoint.sendRequest(request);
 
 		// THEN assert that the message delivered to the Connector contains a
 		// MessageCallback
-		assertTrue(latch.await(1, TimeUnit.SECONDS));
+		assertTrue(observer.waitForSentCalls(1, 1, TimeUnit.SECONDS));
 	}
 
 	@Test
@@ -144,7 +146,7 @@ public class CoapEndpointTest {
 		};
 
 		
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS, clientId), false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getSourceContext().getPeerIdentity(), is(clientId));
@@ -152,7 +154,7 @@ public class CoapEndpointTest {
 
 	@Test
 	public void testStandardSchemeIsSetOnIncomingRequest() throws Exception {
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), new AddressEndpointContext(SOURCE_ADDRESS), false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_URI_SCHEME));
@@ -165,6 +167,7 @@ public class CoapEndpointTest {
 		builder.setConnector(connector);
 		builder.setNetworkConfig(CONFIG);
 		Endpoint endpoint = builder.build();
+		final CountDownLatch latch = new CountDownLatch(1);
 		MessageDeliverer deliverer = new MessageDeliverer() {
 
 			@Override
@@ -179,9 +182,10 @@ public class CoapEndpointTest {
 		};
 		endpoint.setMessageDeliverer(deliverer);
 		endpoint.start();
+		cleanup.add(endpoint);
 		
 		EndpointContext secureCtx = new DtlsEndpointContext(SOURCE_ADDRESS, null, "session", "1", "CIPHER", "100");
-		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false);
+		RawData inboundRequest = RawData.inbound(getSerializedRequest(), secureCtx, false, System.nanoTime());
 		connector.receiveMessage(inboundRequest);
 		assertTrue(latch.await(2, TimeUnit.SECONDS));
 		assertThat(receivedRequests.get(0).getScheme(), is(CoAP.COAP_SECURE_URI_SCHEME));
@@ -196,13 +200,13 @@ public class CoapEndpointTest {
 				0x00, 0x10, // message ID
 				(byte) 0xFF // payload marker
 		};
-		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false);
+		RawData inboundMessage = RawData.inbound(malformedGetRequest, new AddressEndpointContext(SOURCE_ADDRESS), false, System.nanoTime());
 
 		// WHEN the incoming message is processed by the Inbox
 		connector.receiveMessage(inboundMessage);
 
 		// THEN an RST message is sent back to the sender and the incoming message is not being delivered
-		assertTrue(sentLatch.await(2, TimeUnit.SECONDS));
+		assertTrue(connectorSentLatch.await(2, TimeUnit.SECONDS));
 		assertTrue(receivedRequests.isEmpty());
 	}
 
@@ -243,7 +247,7 @@ public class CoapEndpointTest {
 		public void send(RawData msg) {
 			msg.onContextEstablished(establishedContext);
 			msg.onSent();
-			sentLatch.countDown();
+			connectorSentLatch.countDown();
 		}
 
 		@Override

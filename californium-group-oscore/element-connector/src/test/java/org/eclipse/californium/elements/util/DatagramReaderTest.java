@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,6 +16,7 @@
 package org.eclipse.californium.elements.util;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThat;
 
 import org.junit.Before;
@@ -106,6 +107,91 @@ public class DatagramReaderTest {
 		reader.reset();
 		byte[] bytes = reader.readBytes(4);
 		assertThat(bytes, is(new byte[] { 0x03, 0x04, 0x05, 0x06 }));
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testReadBytesExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		reader.readBytes(7);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testReadExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02 });
+
+		reader.read(24);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testReadLongExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 });
+
+		reader.readLong(48);
+	}
+
+	@Test 
+	public void testReadLong() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 });
+
+		long value = reader.readLong(24);
+		assertEquals(0x010203, value);
+		value = reader.readLong(40);
+		assertEquals(0x0405060708L, value);
+	}
+
+	@Test 
+	public void testReadInt() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 });
+
+		int value = reader.read(24);
+		assertEquals(0x010203, value);
+		value = reader.read(16);
+		assertEquals(0x0405, value);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testReadNextByteExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02 });
+
+		reader.readNextByte();
+		reader.readNextByte();
+		reader.readNextByte();
+	}
+
+	@Test 
+	public void testCreateRangeReader() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		assertThat(reader.readNextByte(), is((byte)0x01));
+		DatagramReader rangeReader = reader.createRangeReader(4);
+		assertThat(reader.readNextByte(), is((byte)0x06));
+		assertThat(reader.bytesAvailable(), is(false));
+		assertThat(rangeReader.readNextByte(), is((byte)0x02));
+		assertThat(rangeReader.readNextByte(), is((byte)0x03));
+		assertThat(rangeReader.readNextByte(), is((byte)0x04));
+		assertThat(rangeReader.readNextByte(), is((byte)0x05));
+		assertThat(rangeReader.bytesAvailable(), is(false));
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testCreateRangeReaderExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		assertThat(reader.readNextByte(), is((byte)0x01));
+		reader.createRangeReader(6);
+	}
+
+	@Test (expected = IllegalArgumentException.class)
+	public void testRangeReaderExceedsAvailableBytes() {
+		givenABuffer(new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05, 0x06 });
+
+		assertThat(reader.readNextByte(), is((byte)0x01));
+		DatagramReader rangeReader = reader.createRangeReader(4);
+		assertThat(reader.readNextByte(), is((byte)0x06));
+		assertThat(reader.bytesAvailable(), is(false));
+		assertThat(rangeReader.readNextByte(), is((byte)0x02));
+		rangeReader.readBytes(4);
 	}
 
 	private void givenABuffer(byte[] buffer) {

@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -50,7 +50,7 @@ import org.eclipse.californium.core.network.Exchange;
 public abstract class AbstractLayer implements Layer {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLayer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(AbstractLayer.class);
 
 	/** The upper layer. */
 	private Layer upperLayer = LogOnlyLayer.getInstance();
@@ -58,8 +58,11 @@ public abstract class AbstractLayer implements Layer {
 	/** The lower layer. */
 	private Layer lowerLayer = LogOnlyLayer.getInstance();
 
-	/** The executor. */
+	/** The main executor. */
 	protected ScheduledExecutorService executor;
+
+	/** Scheduled executor intended to be used for rare executing timers (e.g. cleanup tasks). */
+	protected ScheduledExecutorService secondaryExecutor;
 
 	@Override
 	public void sendRequest(final Exchange exchange, final Request request) {
@@ -132,8 +135,9 @@ public abstract class AbstractLayer implements Layer {
 	}
 
 	@Override
-	public final void setExecutor(final ScheduledExecutorService executor) {
-		this.executor = executor;
+	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+		this.executor = mainExecutor;
+		this.secondaryExecutor = secondaryExecutor;
 	}
 
 	/**
@@ -153,6 +157,11 @@ public abstract class AbstractLayer implements Layer {
 		} else {
 			lower().sendEmptyMessage(exchange, EmptyMessage.newRST(message));
 		}
+	}
+
+	@Override
+	public void start() {
+		
 	}
 
 	/**
@@ -222,7 +231,13 @@ public abstract class AbstractLayer implements Layer {
 		}
 
 		@Override
-		public void setExecutor(final ScheduledExecutorService executor) {
+		public void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
+			// no nothing
+			
+		}
+
+		@Override
+		public void start() {
 			// do nothing
 		}
 

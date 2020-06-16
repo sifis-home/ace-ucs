@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -51,9 +51,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
@@ -61,6 +61,8 @@ import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Request represents a CoAP request and has either the {@link Type} CON or NON
@@ -116,12 +118,73 @@ import org.eclipse.californium.elements.util.ClockUtil;
  * String response = post.send().waitForResponse().getPayloadString();
  * </pre>
  * 
+ * <p>
+ * Since 2.1:
+ * 
+ * To use a coap-proxy, the proxy's address must be provided with
+ * {@link #setDestinationContext(EndpointContext)} ahead of the final
+ * destination with {@link #setURI}.
+ * </p>
+ * 
+ * <pre>
+ * InetSocketAddress proxy = new InetSocketAddress(...);
+ * Request get = new Request(Code.GET);
+ * get.setDestinationContext(new AddressEndpointContext(proxy));
+ * get.setURI(&quot;coap://example.com/sensors/temperature&quot;);
+ * String response = get.send().waitForResponse().getPayloadString();
+ * </pre>
+ * 
+ * <p>
+ * To change also the destination scheme, use {@link #setProxyScheme(String)}.
+ * </p>
+ * 
+ * <pre>
+ * InetSocketAddress proxy = new InetSocketAddress(...);
+ * Request get = new Request(Code.GET);
+ * get.setDestinationContext(new AddressEndpointContext(proxy));
+ * get.setProxyScheme("http");
+ * get.setURI(&quot;coap://example.com:80/sensors/temperature&quot;);
+ * String response = get.send().waitForResponse().getPayloadString();
+ * </pre>
+ * 
+ * Note: The default port refers always to the CoAP-URI, regardless of 
+ * the proxy-scheme.
+ * 
+ * <p>
+ * Results in a translated &quot;http://example.com:80/sensors/temperature&quot;
+ * request by the proxy.
+ * 
+ * The use of {@link #setProxyUri(String)} is only required, if the URI scheme of
+ * the final destination differs from the schemes supported by coap.
+ * </p>
+ * 
+ * <pre>
+ * InetSocketAddress proxy = new InetSocketAddress(...);
+ * Request get = new Request(Code.GET);
+ * get.setDestinationContext(new AddressEndpointContext(proxy));
+ * get.setProxyUri(&quot;http://user:pw@example.com/sensors/temperature&quot;);
+ * String response = get.send().waitForResponse().getPayloadString();
+ * </pre>
+ * 
+ * <p>
+ * Note:
+ * If for "none-compliant" backwards compatibility different URI-options
+ * are required, set them via {@link #getOptions()}.
+ * </p>
+ * 
+ * Note:</br>
+ * Using {@link #setDestination(InetAddress)} or
+ * {@link #setDestinationPort(int)} is deprecated since 2017-09. Using these
+ * functions may result in unexpected behavior, especially, if other
+ * destinations are used as in a provided URI. 
+ * Don't use it in combination with the new proxy support of 2.1!
+ * 
  * @see Response
  */
 public class Request extends Message {
 
 	private static final Pattern IP_PATTERN = Pattern
-			.compile("(\\[[0-9a-f:]+\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
+			.compile("(\\[[0-9a-fA-F:]+(%\\w+)?\\]|[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})");
 
 	/** The request code. */
 	private final CoAP.Code code;
@@ -132,7 +195,40 @@ public class Request extends Message {
 	/** The current response for the request. */
 	private Response response;
 
+	/**
+	 * Request's scheme.
+	 * 
+	 * @see CoAP#COAP_URI_SCHEME
+	 * @see CoAP#COAP_SECURE_URI_SCHEME
+	 * @see CoAP#COAP_TCP_URI_SCHEME
+	 * @see CoAP#COAP_SECURE_TCP_URI_SCHEME
+	 */
 	private String scheme;
+
+	/**
+	 * Indicates, that the URI is already set and parts of the URI are converted
+	 * into options. Though the usage of the
+	 * {@link OptionSet#setUriHost(String)} depends on the destination, it's not
+	 * supported to change the destination afterwards. Excludes to use a Proxy-URI,
+	 * see
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 */
+	private boolean uri;
+	/**
+	 * Indicates, that {@link #setProxyUri(String)} was called.
+	 * 
+	 * Excludes to use a CoAP-URI, see
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 */
+	private boolean proxyUri;
+	/**
+	 * Indicates, that {@link #setProxyScheme(String)} was called.
+	 * 
+	 * Used with a CoAP-URI to build the effective destination URI.
+	 * Excludes to use a Proxy-URI, see
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 */
+	private boolean proxyScheme;
 
 	/** The destination address of this message. */
 	@Deprecated
@@ -144,6 +240,13 @@ public class Request extends Message {
 
 	/** Contextual information about this request */
 	private Map<String, String> userContext;
+
+	/**
+	 * Indicates if handling the response caused an error.
+	 * 
+	 * @since 2.3
+	 */
+	private volatile Throwable responseHandlingError;
 
 	/**
 	 * Creates a request of type {@code CON} for a CoAP code.
@@ -235,7 +338,95 @@ public class Request extends Message {
 	}
 
 	/**
+	 * Sets this request's proxy URI.
+	 * <p>
+	 * Requires the proxy destination address provided by
+	 * {@link #setDestinationContext(EndpointContext)}. Using a Proxy-URI
+	 * excludes to use a CoAP-URI, see
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * To escape this strict Proxy-/CoAP-URI exclusion for backwards compatibility,
+	 * set the options directly in the options-set using {@link #getOptions()}.
+	 * </p>
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param proxyUri A proxy URI
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the proxyUri is {@code null}.
+	 * @throws IllegalStateException if the CoAP URI or Proxy Scheme was set.
+	 * @since 2.1
+	 */
+	public Request setProxyUri(String proxyUri) {
+		if (uri) {
+			throw new IllegalStateException("CoAP URI is set!");
+		}
+		if (proxyScheme) {
+			throw new IllegalStateException("Proxy Scheme is set!");
+		}
+		getOptions().setProxyUri(proxyUri);
+		this.proxyUri = true;
+		return this;
+	}
+
+	/**
+	 * Returns {@code true} if the Proxy URI was set via
+	 * {@link #setProxyUri(String)}.
+	 * 
+	 * @return {@code true}, if the Proxy URI was set via
+	 *         {@link #setProxyUri(String)}, {@code false}, otherwise, including
+	 *         received requests or directly set option using
+	 *         {@link #getOptions()}.
+	 * @since 2.1
+	 */
+	public boolean hasProxyURI() {
+		return proxyUri;
+	}
+
+	/**
+	 * Set proxy scheme.
+	 * 
+	 * Used with a CoAP-URI to build the effective destination URI.
+	 * Excludes to use a Proxy-URI, see
+	 * <a href="https://tools.ietf.org/html/rfc7252#section-5.10.2">Proxy-URI</a>
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param proxyScheme scheme to be used as effective scheme by the proxy. e.g. "http".
+	 * @return This request for command chaining.
+	 * @throws IllegalStateException if the Proxy URI was set.
+	 * @since 2.1
+	 */
+	public Request setProxyScheme(String proxyScheme) {
+		if (proxyUri) {
+			throw new IllegalStateException("Proxy URI is set!");
+		}
+		getOptions().setProxyScheme(proxyScheme);
+		this.proxyScheme = true;
+		return this;
+	}
+
+	/**
 	 * Sets this request's CoAP URI.
+	 * <p>
+	 * if the destination is not already set this method sets the
+	 * <em>destination</em> to the IP address that the host part of the URI has
+	 * been resolved to. Other parts of the URI are also used to populate the
+	 * request's options. If a different destination is required, that must be
+	 * set ahead. Using a CoAP URI excludes to use a Proxy URI. To escape this
+	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
+	 * options directly in the optons-set using {@link #getOptions()}.
+	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
+	 * 
+	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri A CoAP URI as specified by
 	 *            <a href="https://tools.ietf.org/html/rfc7252#section-6">
@@ -245,6 +436,7 @@ public class Request extends Message {
 	 * @throws IllegalArgumentException if the given string is not a valid CoAP
 	 *             URI, contains a non-resolvable host name, an unsupported
 	 *             scheme or a fragment.
+	 * @see #setURI(URI)
 	 */
 	public Request setURI(final String uri) {
 
@@ -267,10 +459,25 @@ public class Request extends Message {
 	/**
 	 * Sets the destination address and port and options from a given URI.
 	 * <p>
-	 * This method sets the <em>destination</em> to the IP address that the host
-	 * part of the URI has been resolved to and then delegates to the
-	 * {@link #setOptions(URI)} method in order to populate the request's
-	 * options.
+	 * if the destination is not already set this method sets the
+	 * <em>destination</em> to the IP address that the host part of the URI has
+	 * been resolved to. Other parts of the URI are also used to populate the
+	 * request's options. If a different destination is required, that must be
+	 * set ahead. Using a CoAP URI excludes to use a Proxy URI. To escape this
+	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
+	 * options directly in the optons-set using {@link #getOptions()}.
+	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
+	 * 
+	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri The target URI.
 	 * @return This request for command chaining.
@@ -279,29 +486,34 @@ public class Request extends Message {
 	 *             host name, an unsupported scheme or a fragment.
 	 */
 	public Request setURI(final URI uri) {
-
-		if (uri == null) {
-			throw new NullPointerException("URI must not be null");
-		}
+		checkURI(uri);
 
 		final String host = uri.getHost() == null ? "localhost" : uri.getHost();
+		final String uriScheme = uri.getScheme();
+		final boolean literalIp = IP_PATTERN.matcher(host).matches();
 
 		try {
-			if (getDestinationContext() == null) {
+			InetSocketAddress destinationAdress;
+			EndpointContext destinationContext = getDestinationContext();
+			if (destinationContext == null) {
+				final int port = uri.getPort();
 				InetAddress destAddress = InetAddress.getByName(host);
-				setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destAddress, 0), null));
+				String destHost = literalIp ? null : host;
+				int destPort = port <= 0 ? CoAP.getDefaultPort(uriScheme) : port;
+				destinationAdress = new InetSocketAddress(destAddress, destPort);
+				destinationContext = new AddressEndpointContext(destinationAdress, destHost, null);
+			} else {
+				destinationAdress = destinationContext.getPeerAddress();
 			}
 
-			return setOptions(new URI(uri.getScheme(), uri.getUserInfo(), host, uri.getPort(), uri.getPath(), uri.getQuery(),
-					uri.getFragment()));
+			setOptionsInternal(uri, destinationAdress, literalIp);
+			setDestinationContext(destinationContext);
+			this.scheme = uriScheme.toLowerCase();
+			this.uri = true;
+			return this;
 
 		} catch (UnknownHostException e) {
 			throw new IllegalArgumentException("cannot resolve host name: " + host);
-		} catch (URISyntaxException e) {
-			// should not happen because we are creating the URI from an
-			// existing URI object
-			LOGGER.warn("cannot set URI on request", e);
-			throw new IllegalArgumentException(e);
 		}
 	}
 
@@ -314,7 +526,21 @@ public class Request extends Message {
 	 * it does not try to resolve a host name that is part of the given URI.
 	 * Therefore, this method can be used as an alternative to the
 	 * {@link #setURI(String)} and {@link #setURI(URI)} methods when DNS is not
-	 * available.
+	 * available. Using a CoAP URI excludes to use a Proxy URI. To escape this
+	 * strict proxy/CoAP URI exclusion for backwards compatibility, set the
+	 * options directly in the optons-set using {@link #getOptions()}.
+	 * </p>
+	 * Note: if uri-path of uri-query option was set explicitly before, they are
+	 * not cleaned up, if the URI doesn't contain that part. e.g.
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path")} results in
+	 * {@code "coap://host/path?param=2"}. But
+	 * {@code request.getOptions().setUriQuery("param=2")} and
+	 * {@code request.setURI("coap://host/path?mark")} results in
+	 * {@code "coap://host/path?mark"}. That will be removed in the next major
+	 * version! Don't set uri-path or uri-query options before the URI!
+	 * 
+	 * Provides a fluent API to chain setters.
 	 * 
 	 * @param uri The URI to set the options from.
 	 * @return This request for command chaining.
@@ -324,80 +550,161 @@ public class Request extends Message {
 	 * @throws IllegalStateException if the destination is not set.
 	 */
 	public Request setOptions(final URI uri) {
-		InetAddress destination = getDestination();
-		if (uri == null) {
+		checkURI(uri);
+		EndpointContext destinationContext = getDestinationContext();
+		if (destinationContext == null) {
+			InetAddress destination = getDestination();
+			if (destination == null) {
+				throw new IllegalStateException("destination must be set ahead!");
+			}
+			destinationContext = new AddressEndpointContext(destination, destinationPort);
+		}
+		setOptionsInternal(uri, destinationContext.getPeerAddress(), IP_PATTERN.matcher(uri.getHost()).matches());
+		this.uri = true;
+		return this;
+	}
+
+	/**
+	 * Check URI.
+	 * 
+	 * @param uri URI to check
+	 * @throws NullPointerException if the URI is {@code null}.
+	 * @throws IllegalArgumentException if the URI contains an unsupported
+	 *             scheme or contains a fragment.
+	 */
+	private void checkURI(final URI uri) {
+		if (proxyUri) {
+			throw new IllegalStateException("Proxy URI is set!");
+		} else if (uri == null) {
 			throw new NullPointerException("URI must not be null");
 		} else if (!CoAP.isSupportedScheme(uri.getScheme())) {
-			throw new IllegalArgumentException("unsupported URI scheme: " + uri.getScheme());
+			throw new IllegalArgumentException("URI scheme '" + uri.getScheme() + "' is not supported!");
 		} else if (uri.getFragment() != null) {
 			throw new IllegalArgumentException("URI must not contain a fragment");
-		} else if (destination == null) {
-			throw new IllegalStateException("destination address must be set");
 		}
+	}
 
-		if (uri.getHost() != null) {
-			String host = uri.getHost().toLowerCase();
-			Matcher matcher = IP_PATTERN.matcher(host);
-			if (matcher.matches()) {
+	/**
+	 * Internal set options from URI.
+	 * 
+	 * Set the {@link OptionSet#setUriHost(String)},
+	 * {@link OptionSet#setUriPort(int)}, {@link OptionSet#setUriPath(String)},
+	 * and {@link OptionSet#setUriQuery(String)}, as well as the {@link #scheme}
+	 * from the URI. If the host is provided in literal form and equal to the
+	 * destination, the URI host options is left empty. The URI port options
+	 * will also be left empty, if the provided port matches the destination's
+	 * port.
+	 * 
+	 * See <a href="https://tools.ietf.org/html/rfc7252#section-6.4">Decomposing
+	 * URIs into Options</a> and <a href=
+	 * "https://tools.ietf.org/html/rfc7252#section-5.7.2">Forward-Proxies</a>
+	 * for proxy support.
+	 * 
+	 * @param uri The URI to set the options from.
+	 * @param destination The destination of the request.
+	 * @param literalIp {@code true}, if the host part of the URI is a literal
+	 *            address, {@code false}, if it's a DNS name.
+	 * @return This request for command chaining.
+	 * @throws NullPointerException if the destination is {@code null}
+	 * @throws IllegalArgumentException if the URI contains an unsupported
+	 *             scheme or contains a fragment.
+	 */
+	private void setOptionsInternal(URI uri, InetSocketAddress destination, boolean literalIp) {
+		if (destination == null) {
+			throw new NullPointerException("destination address must not be null!");
+		}
+		OptionSet options = getOptions();
+		boolean explicitUriOption = options.hasExplicitUriOptions();
+		String host = uri.getHost();
+
+		if (host != null) {
+			if (literalIp) {
 				try {
 					// host is a literal IP address, so we should be able
 					// to "wrap" it without invoking the resolver
 					InetAddress hostAddress = InetAddress.getByName(host);
-					if (!hostAddress.equals(destination)) {
-						throw new IllegalArgumentException("URI's literal host IP address '" + hostAddress
-								+ "' does not match request's destination address '" + destination + "'");
+					InetAddress destinationAddress = destination.getAddress();
+					if (hostAddress.equals(destinationAddress)) {
+						// literal destination IP => no Uri-Host option
+						host = null;
 					}
 				} catch (UnknownHostException e) {
-					// this should not happen because we do not need to resolve
-					// a host name
+					// this should not happen because we do not need to resolve a host name
 					LOGGER.warn("could not parse IP address of URI despite successful IP address pattern matching");
 				}
 			} else {
-				// host contains a host name, put it into Uri-Host option to
-				// enable virtual hosts (multiple names, same IP address)
-				getOptions().setUriHost(host);
+				if (!StringUtil.isValidHostName(host)) {
+					throw new IllegalArgumentException("URI's hostname '" + host + "' is invalid!'");
+				}
+				// host contains a host name, keep it to put it into Uri-Host option
+				// to enable virtual hosts (multiple names, same IP address)
+			}
+			if (host != null) {
+				options.setUriHost(host.toLowerCase());
 			}
 		}
-
-		String uriScheme = uri.getScheme().toLowerCase();
+		if (host == null) {
+			options.removeUriHost();
+		}
 		// The Uri-Port is only for special cases where it differs from
-		// the UDP port, usually when Proxy-Scheme is used.
+		// the destination port for proxy destinations.
 		int port = uri.getPort();
 		if (port <= 0) {
-			port = CoAP.getDefaultPort(uriScheme);
+			port = CoAP.getDefaultPort(uri.getScheme());
 		}
-
-		EndpointContext destinationContext = getDestinationContext();
-		if (destinationContext != null) {
-			int destPort = destinationContext.getPeerAddress().getPort();
-			if (destPort == 0) {
-				destinationContext = null;
-			} else if (destPort != port) {
-				throw new IllegalArgumentException(
-						"URI's port '" + port + "' does not match request's destination port '" + destPort + "'");
-			}
+		if (port == destination.getPort()) {
+			port = -1;
 		}
-
-		if (destinationContext == null) {
-			setDestinationContext(new AddressEndpointContext(new InetSocketAddress(destination, port), getOptions().getUriHost(), null));
+		if (0 < port) {
+			options.setUriPort(port);
+		} else {
+			options.removeUriPort();
 		}
-		this.scheme = uriScheme;
-		// do not set the Uri-Port option unless it is used for proxying
-		// (setting Uri-Scheme option)
-
 		// set Uri-Path options
 		String path = uri.getPath();
 		if (path != null && path.length() > 1) {
-			getOptions().setUriPath(path);
+			options.setUriPath(path);
+		} else if (!explicitUriOption) {
+			options.clearUriPath();
 		}
-
 		// set Uri-Query options
 		String query = uri.getQuery();
 		if (query != null) {
-			getOptions().setUriQuery(query);
+			options.setUriQuery(query);
+		} else if (!explicitUriOption) {
+			options.clearUriQuery();
 		}
+		if (!explicitUriOption) {
+			options.resetExplicitUriOptions();
+		}
+	}
 
-		return this;
+	/**
+	 * Set URI is applied.
+	 * 
+	 * Set {@link #uri} in order to prevent {@link CoapClient} to set the URI
+	 * and overwrite already directly set options via {@link #getOptions()}.
+	 * Only used for advanced use-cases, where special options may be required,
+	 * which are nor supported by the {@link #setURI} functions.
+	 * @since 2.1
+	 */
+	public void setUriIsApplied() {
+		this.uri = true;
+	}
+
+	/**
+	 * Returns {@code true} if the CoAP URI was set via {@link #setURI(String)},
+	 * {@link #setURI(URI)}, or {@link #setOptions(URI)}.
+	 * 
+	 * @return {@code true}, if the CoAP URI was set via
+	 *         {@link #setURI(String)}, {@link #setURI(URI)}, or
+	 *         {@link #setOptions(URI)}, {@code false}, otherwise, including
+	 *         received requests or directly set option using
+	 *         {@link #getOptions()}.
+	 * @since 2.1
+	 */
+	public boolean hasURI() {
+		return uri;
 	}
 
 	/**
@@ -415,8 +722,9 @@ public class Request extends Message {
 	 *             properties which cannot be parsed into a URI.
 	 */
 	public String getURI() {
-
-		String host = getOptions().getUriHost();
+		OptionSet options = getOptions();
+		String host = options.getUriHost();
+		Integer port = options.getUriPort();
 		if (host == null) {
 			if (getDestination() != null) {
 				host = getDestination().getHostAddress();
@@ -425,8 +733,6 @@ public class Request extends Message {
 				host = "localhost";
 			}
 		}
-
-		Integer port = getOptions().getUriPort();
 		if (port == null) {
 			port = getDestinationPort();
 		}
@@ -441,8 +747,8 @@ public class Request extends Message {
 		}
 		// according RFC7252, section 6.5, item 7, a empty resource name is represented by "/" as path. 
 		// therefore always use the leading "/", even if the uri path is empty. 
-		String path = "/" + getOptions().getUriPathString();
-		String query = getOptions().getURIQueryCount() > 0 ? getOptions().getUriQueryString() : null;
+		String path = "/" + options.getUriPathString();
+		String query = options.getURIQueryCount() > 0 ? options.getUriQueryString() : null;
 		try {
 			URI uri = new URI(getScheme(), null, host, port, path, query, null);
 			// ensure, that non-ascii characters are "percent-encoded"
@@ -456,8 +762,9 @@ public class Request extends Message {
 	 * Gets the destination address.
 	 *
 	 * @return the destination
-	 * @deprecated
+	 * @deprecated use {@link #getDestinationContext()}.
 	 */
+	@Deprecated
 	public InetAddress getDestination() {
 		EndpointContext context = getDestinationContext();
 		if (context != null) {
@@ -478,12 +785,13 @@ public class Request extends Message {
 	 * Note: intended to be removed with {@link #setDestinationPort(int)} and 
 	 * {@link Request#prepareDestinationContext()}
 	 */
+	@Deprecated
 	public Message setDestination(InetAddress destination) {
 		if (getDestinationContext() != null) {
 			throw new IllegalStateException("destination context already set!");
 		}
 		this.destination = destination;
-		multicast = destination != null && destination.isMulticastAddress();
+		multicast = NetworkInterfacesUtil.isMultiAddress(destination);
 		return this;
 	}
 
@@ -491,8 +799,9 @@ public class Request extends Message {
 	 * Gets the destination port.
 	 *
 	 * @return the destination port
-	 * @deprecated
+	 * @deprecated use {@link #getDestinationContext()}.
 	 */
+	@Deprecated
 	public int getDestinationPort() {
 		EndpointContext context = getDestinationContext();
 		if (context != null) {
@@ -513,6 +822,7 @@ public class Request extends Message {
 	 * Note: intended to be removed with {@link #setDestination(InetAddress)} and 
 	 * {@link Request#prepareDestinationContext()}
 	 */
+	@Deprecated
 	public Message setDestinationPort(int destinationPort) {
 		if (getDestinationContext() != null) {
 			throw new IllegalStateException("destination context already set!");
@@ -521,15 +831,14 @@ public class Request extends Message {
 		return this;
 	}
 
-
 	/**
 	 * Gets the authenticated (remote) sender's identity.
 	 * 
 	 * @return the identity or {@code null} if the sender has not been
 	 *         authenticated
-	 * @see #getSourceContext()
-	 * @deprecated
+	 * @deprecated use {@link #getSourceContext()}
 	 */
+	@Deprecated
 	public Principal getSenderIdentity() {
 		return getSourceContext().getPeerIdentity();
 	}
@@ -540,9 +849,10 @@ public class Request extends Message {
 	 * 
 	 * @throws IllegalStateException if no destination endpoint context is
 	 *             available and the destination is missing
-	 * @deprecated intended to be removed with {@link #setDestination(InetAddress)} and 
-	 * {@link #setDestinationPort(int)}
+	 * @deprecated Removing with {@link #setDestination(InetAddress)} and
+	 *             {@link #setDestinationPort(int)} obsoletes this
 	 */
+	@Deprecated
 	public void prepareDestinationContext() {
 		EndpointContext context = getDestinationContext();
 		if (context == null) {
@@ -555,13 +865,23 @@ public class Request extends Message {
 					null);
 			super.setDestinationContext(context);
 		}
-		multicast = context.getPeerAddress().getAddress().isMulticastAddress();
+		multicast = NetworkInterfacesUtil.isMultiAddress(context.getPeerAddress().getAddress());
 	}
 
 	/**
-	 * {@inheritDoc}
+	 * Set destination endpoint context.
 	 * 
-	 * Check, if {@link #destination} is different.
+	 * Multicast addresses are supported. Assumed to be called before setting
+	 * the URI. The {@link OptionSet#setUriHost(String)} depends on the
+	 * destination. Setting the destination after the URI doesn't adjust the
+	 * option and was only useful, if proxies are addressed. Set the URI now
+	 * supports the proxy functionality and therefore it's recommended to set
+	 * the destination always ahead of any URI.
+	 * 
+	 * Provides a fluent API to chain setters.
+	 * 
+	 * @param peerContext destination endpoint context
+	 * @return this Request
 	 * 
 	 * @throws IllegalStateException if destination differs.
 	 */
@@ -573,7 +893,8 @@ public class Request extends Message {
 			}
 		}
 		super.setRequestDestinationContext(peerContext);
-		multicast = peerContext != null && peerContext.getPeerAddress().getAddress().isMulticastAddress();
+		multicast = peerContext != null && !peerContext.getPeerAddress().isUnresolved()
+				&& NetworkInterfacesUtil.isMultiAddress(peerContext.getPeerAddress().getAddress());
 		return this;
 	}
 
@@ -816,6 +1137,39 @@ public class Request extends Message {
 	}
 
 	/**
+	 * Return the error which happened on response handling. 
+	 * 
+	 * @return a {@link Throwable} if an error happened or {@code null} is there was no error.
+	 * 
+	 * @since 2.3
+	 */
+	public Throwable getOnResponseError() {
+		return responseHandlingError;
+	}
+
+	/**
+	 * Mark this request as failing to handle the response.
+	 * 
+	 * @param cause the cause of the failure.
+	 * 
+	 * @since 2.3
+	 */
+	public void setOnResponseError(Throwable cause) {
+		this.responseHandlingError = cause;
+		if (responseHandlingError != null) {
+			for (MessageObserver handler : getMessageObservers()) {
+				if (handler instanceof MessageObserver2) {
+					((MessageObserver2) handler).onResponseHandlingError(responseHandlingError);
+				}
+			}
+
+			synchronized (this) {
+				notifyAll();
+			}
+		}
+	}
+
+	/**
 	 * @return an unmodifiable map containing additional information about this
 	 *         request.
 	 */
@@ -845,9 +1199,8 @@ public class Request extends Message {
 	 */
 	@Override
 	public String toString() {
-		String payload = getPayloadTracingString();
-		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(),
-				getTokenString(), getOptions(), payload);
+		Code code = getCode();
+		return toTracingString(code == null ? "PING" : code.toString());
 	}
 
 	////////// Some static factory methods for convenience //////////
@@ -860,6 +1213,17 @@ public class Request extends Message {
 	 */
 	public static Request newGet() {
 		return new Request(Code.GET);
+	}
+
+	/**
+	 * Convenience factory method to construct a FETCH request and equivalent to
+	 * <code>new Request(Code.FETCH);</code>
+	 * 
+	 * @return a new FETCH request
+	 * @since 2.3
+	 */
+	public static Request newFetch() {
+		return new Request(Code.FETCH);
 	}
 
 	/**
@@ -880,6 +1244,28 @@ public class Request extends Message {
 	 */
 	public static Request newPut() {
 		return new Request(Code.PUT);
+	}
+
+	/**
+	 * Convenience factory method to construct a PATCH request and equivalent to
+	 * <code>new Request(Code.PATCH);</code>
+	 * 
+	 * @return a new PATCH request
+	 * @since 2.3
+	 */
+	public static Request newPatch() {
+		return new Request(Code.PATCH);
+	}
+
+	/**
+	 * Convenience factory method to construct a IPATCH request and equivalent to
+	 * <code>new Request(Code.IPATCH);</code>
+	 * 
+	 * @return a new IPATCH request
+	 * @since 2.3
+	 */
+	public static Request newIPatch() {
+		return new Request(Code.IPATCH);
 	}
 
 	/**

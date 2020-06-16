@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -43,6 +43,10 @@ public class AvailableConnections {
 	 * called.
 	 */
 	private boolean setBySessionId;
+	/**
+	 * Indicates, that {@link #getConnectionBySessionId()} must be removed.
+	 */
+	private boolean removeBySessionId;
 
 	/**
 	 * Creates a new connection pair.
@@ -103,5 +107,25 @@ public class AvailableConnections {
 	 */
 	public boolean isConnectionBySessionIdKnown() {
 		return setBySessionId;
+	}
+
+	/**
+	 * Set, if the connection for the provided session id must be removed.
+	 * 
+	 * @param remove {@code true}, if {@link #getConnectionBySessionId()} must be
+	 *         removed, {@code false}, otherwise (default).
+	 */
+	public void setRemoveConnectionBySessionId(boolean remove) {
+		removeBySessionId = remove;
+	}
+
+	/**
+	 * Check, if the connection for the provided session id must be removed.
+	 * 
+	 * @return {@code true}, if {@link #getConnectionBySessionId()} must be
+	 *         removed, {@code false}, otherwise.
+	 */
+	public boolean isRemoveConnectionBySessionId() {
+		return removeBySessionId;
 	}
 }

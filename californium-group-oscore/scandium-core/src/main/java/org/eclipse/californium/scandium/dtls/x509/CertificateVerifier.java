@@ -1,3 +1,18 @@
+/*******************************************************************************
+ * Copyright (c) 2018 Sierra Wireless
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Manuel Sangoi (Sierra Wireless) - Initial creation
+ ******************************************************************************/
 package org.eclipse.californium.scandium.dtls.x509;
 
 import java.security.cert.X509Certificate;
@@ -27,7 +42,11 @@ public interface CertificateVerifier {
 	 * Return an array of certificate authority certificates which are trusted
 	 * for authenticating peers.
 	 * 
-	 * @return the trusted CA certificates (possibly <code>null</code>)
+	 * The javadoc of previous versions (2.1.0 and before) permits to use
+	 * {@code null}. This causes a failure, please adapt to use an empty array.
+	 * 
+	 * @return a non-null (possibly empty) array of acceptable CA issuer
+	 *         certificates.
 	 */
 	X509Certificate[] getAcceptedIssuers();
 

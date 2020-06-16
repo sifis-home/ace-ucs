@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,12 +24,10 @@ package org.eclipse.californium.scandium.dtls.cipher;
 
 import java.math.BigInteger;
 import java.security.GeneralSecurityException;
-import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
 import java.security.PrivateKey;
 import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.interfaces.ECPrivateKey;
 import java.security.interfaces.ECPublicKey;
 import java.security.spec.AlgorithmParameterSpec;
@@ -39,26 +37,30 @@ import java.security.spec.ECFieldFp;
 import java.security.spec.ECGenParameterSpec;
 import java.security.spec.ECParameterSpec;
 import java.security.spec.ECPoint;
-import java.security.spec.ECPublicKeySpec;
 import java.security.spec.EllipticCurve;
 import java.util.ArrayList;
 import java.util.List;
+
+import org.eclipse.californium.elements.util.Asn1DerDecoder;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.DatagramReader;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.crypto.KeyAgreement;
 import javax.crypto.SecretKey;
 
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
-
 /**
  * A helper class to execute the ECDHE key agreement and key generation.
+ * @deprecated use {@link XECDHECryptography} instead
  */
+@Deprecated
 public final class ECDHECryptography {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	protected static final Logger LOGGER = LoggerFactory.getLogger(ECDHECryptography.class.getCanonicalName());
+	protected static final Logger LOGGER = LoggerFactory.getLogger(ECDHECryptography.class);
 
 	// Static members /////////////////////////////////////////////////
 
@@ -71,22 +73,25 @@ public final class ECDHECryptography {
 	 */
 	private static final String KEYPAIR_GENERATOR_ALGORITHM = "EC";
 
+	private static final ThreadLocalKeyPairGenerator KEYPAIR_GENERATOR = new ThreadLocalKeyPairGenerator(KEYPAIR_GENERATOR_ALGORITHM);
+
 	private static final int PRIME = 1;
 	private static final int BINARY = 2;
-	
 
 	/**
 	 * Elliptic Curve Diffie-Hellman algorithm name. See also <a href=
 	 * "http://docs.oracle.com/javase/7/docs/technotes/guides/security/StandardNames.html#KeyAgreement"
 	 * >KeyAgreement Algorithms</a>.
 	 */
-	private static final String KEY_AGREEMENT_INSTANCE = "ECDH";
+	private static final String KEY_AGREEMENT_ALGORITHM = "ECDH";
+
+	private static final ThreadLocalKeyAgreement KEY_AGREEMENT = new ThreadLocalKeyAgreement(KEY_AGREEMENT_ALGORITHM);
 
 	// Members ////////////////////////////////////////////////////////
-	
+
 	/** The ephemeral private key. */
 	private ECPrivateKey privateKey;
-	
+
 	/** The ephemeral public key. */
 	private ECPublicKey publicKey;
 
@@ -147,14 +152,14 @@ public final class ECDHECryptography {
 	}
 	
 	private void createKeys(AlgorithmParameterSpec params) throws GeneralSecurityException {
-		KeyPairGenerator keyPairGenerator = KeyPairGenerator.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
-		keyPairGenerator.initialize(params, new SecureRandom());
+		KeyPairGenerator keyPairGenerator = KEYPAIR_GENERATOR.current();
+		keyPairGenerator.initialize(params, RandomManager.currentSecureRandom());
 
 		KeyPair keyPair = keyPairGenerator.generateKeyPair();
 		privateKey = (ECPrivateKey) keyPair.getPrivate();
 		publicKey = (ECPublicKey) keyPair.getPublic();
 	}
-	
+
 	public PrivateKey getPrivateKey() {
 		return privateKey;
 	}
@@ -172,18 +177,15 @@ public final class ECDHECryptography {
 	 *            the client's public key (encoded)
 	 * @return the premaster secret
 	 */
-	public SecretKey getSecret(byte[] encodedPoint) {
+	public SecretKey generateSecret(byte[] encodedPoint) {
 		SecretKey secretKey = null;
 		try {
 			// extract public key
 			ECParameterSpec params = publicKey.getParams();
-			ECPoint point = decodePoint(encodedPoint, params.getCurve());
+			DatagramReader reader = new DatagramReader(encodedPoint, false);
+			PublicKey peerPublicKey = Asn1DerDecoder.readEcPublicKey(reader, params);
 
-			KeyFactory keyFactory = KeyFactory.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
-			ECPublicKeySpec keySpec = new ECPublicKeySpec(point, params);
-			PublicKey peerPublicKey = keyFactory.generatePublic(keySpec);
-
-			secretKey = getSecret(peerPublicKey);
+			secretKey = generateSecret(peerPublicKey);
 
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not generate the premaster secret", e);
@@ -199,51 +201,49 @@ public final class ECDHECryptography {
 	 *            the peer's ephemeral public key.
 	 * @return the premaster secret.
 	 */
-	public SecretKey getSecret(PublicKey peerPublicKey) {
+	public SecretKey generateSecret(PublicKey peerPublicKey) {
 		SecretKey secretKey = null;
 		try {
-			KeyAgreement keyAgreement = KeyAgreement.getInstance(KEY_AGREEMENT_INSTANCE);
+			KeyAgreement keyAgreement = KEY_AGREEMENT.current();
 			keyAgreement.init(privateKey);
 			keyAgreement.doPhase(peerPublicKey, true);
-			
-			secretKey = keyAgreement.generateSecret("TlsPremasterSecret");
+
+			byte[] secret = keyAgreement.generateSecret();
+			secretKey = SecretUtil.create(secret, "TlsPremasterSecret");
+			Bytes.clear(secret);
 		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not generate the premaster secret", e);
 		}
 		return secretKey;
 	}
-	
+
 	// Serialization //////////////////////////////////////////////////
-	
+
 	/**
-	 * Decodes an EC point according to the X9.62 specification.
+	 * Trims the leading zeros.
 	 * 
-	 * @param encoded
-	 *            the encoded EC point.
-	 * @param curve
-	 *            the elliptic curve the point lies on.
-	 * @return the EC point.
+	 * @param byeArray the byte array with possible leading zeros.
+	 * @return the byte array with no leading zeros.
 	 */
-	public static ECPoint decodePoint(byte[] encoded, EllipticCurve curve) {
-		if ((encoded.length == 0) || (encoded[0] != 0x04)) {
-			LOGGER.error("Only uncompressed point format supported.");
-			return null;
+	public static byte[] trimZeroes(byte[] byeArray) {
+		// count how many leading zeros
+		int count = 0;
+		while ((count < byeArray.length - 1) && (byeArray[count] == 0)) {
+			count++;
 		}
-		
-		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
-		if (encoded.length != (fieldSize * 2) + 1) {
-			LOGGER.error("Point does not match field size.");
-			return null;
+		if (count == 0) {
+			// no leading zeros initially
+			return byeArray;
 		}
-		byte[] xb = new byte[fieldSize];
-		byte[] yb = new byte[fieldSize];
-		
-		System.arraycopy(encoded, 1, xb, 0, fieldSize);
-		System.arraycopy(encoded, fieldSize + 1, yb, 0, fieldSize);
-		
-		return new ECPoint(new BigInteger(1, xb), new BigInteger(1, yb));
+		if (count < byeArray.length) {
+			byte[] trimmedByteArray = new byte[byeArray.length - count];
+			System.arraycopy(byeArray, count, trimmedByteArray, 0, trimmedByteArray.length);
+			return trimmedByteArray;
+		} else {
+			return Bytes.EMPTY;
+		}
 	}
-	
+
 	/**
 	 * Encodes an EC point according to the X9.62 specification.
 	 * 
@@ -256,21 +256,21 @@ public final class ECDHECryptography {
 	public static byte[] encodePoint(ECPoint point, EllipticCurve curve) {
 		// get field size in bytes (rounding up)
 		int fieldSize = (curve.getField().getFieldSize() + 7) / 8;
-		
-		byte[] xb = ByteArrayUtils.trimZeroes(point.getAffineX().toByteArray());
-		byte[] yb = ByteArrayUtils.trimZeroes(point.getAffineY().toByteArray());
-		
+
+		byte[] xb = trimZeroes(point.getAffineX().toByteArray());
+		byte[] yb = trimZeroes(point.getAffineY().toByteArray());
+
 		if ((xb.length > fieldSize) || (yb.length > fieldSize)) {
 			LOGGER.error("Point coordinates do not match field size.");
 			return null;
 		}
-		
+
 		// 1 byte (compression state) + twice field size
 		byte[] encoded = new byte[1 + (fieldSize * 2)];
 		encoded[0] = 0x04; // uncompressed
 		System.arraycopy(xb, 0, encoded, fieldSize - xb.length + 1, xb.length);
 		System.arraycopy(yb, 0, encoded, encoded.length - yb.length, yb.length);
-		
+
 		return encoded;
 	}
 
@@ -431,7 +431,7 @@ public final class ECDHECryptography {
 			ECPoint g = new ECPoint(bi(x), bi(y));
 			this.params = new ECParameterSpec(curve, g, bi(n), h);
 			try {
-				KeyPairGenerator gen = KeyPairGenerator.getInstance(KEYPAIR_GENERATOR_ALGORITHM);
+				KeyPairGenerator gen = KEYPAIR_GENERATOR.current();
 				gen.initialize(new ECGenParameterSpec(name()));
 				usable = true;
 			} catch (GeneralSecurityException e) {

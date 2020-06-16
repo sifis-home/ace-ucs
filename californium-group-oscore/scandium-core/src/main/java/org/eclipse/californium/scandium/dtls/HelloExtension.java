@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,6 +21,7 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 
 
@@ -126,39 +127,41 @@ public abstract class HelloExtension {
 	 * a client sends an extension of a type that the server does not know or support (yet).
 	 * 
 	 * @param typeCode the extension type code
-	 * @param extensionData the serialized extension
+	 * @param extensionDataReader the serialized extension
 	 * @param peerAddress the IP address and port of the peer that sent this extension
 	 * @return the object representing the extension or <code>null</code> if the extension
 	 * type is not (yet) known to or supported by Scandium.
 	 * @throws HandshakeException if the (supported) extension could not be de-serialized, e.g. due
 	 * to erroneous encoding etc.
 	 */
-	public static HelloExtension fromByteArray(int typeCode, byte[] extensionData, InetSocketAddress peerAddress)
+	public static HelloExtension fromExtensionDataReader(int typeCode, DatagramReader extensionDataReader, InetSocketAddress peerAddress)
 			throws HandshakeException {
 		ExtensionType type = ExtensionType.getExtensionTypeById(typeCode);
-		if (type == null) {
-			return null;
-		} else {
+		if (type != null) {
 			switch (type) {
 			// the currently supported extensions
 			case ELLIPTIC_CURVES:
-				return SupportedEllipticCurvesExtension.fromExtensionData(extensionData);
+				return SupportedEllipticCurvesExtension.fromExtensionDataReader(extensionDataReader);
 			case EC_POINT_FORMATS:
-				return SupportedPointFormatsExtension.fromExtensionData(extensionData);
+				return SupportedPointFormatsExtension.fromExtensionDataReader(extensionDataReader);
+			case SIGNATURE_ALGORITHMS:
+				return SignatureAlgorithmsExtension.fromExtensionDataReader(extensionDataReader);
 			case CLIENT_CERT_TYPE:
-				return ClientCertificateTypeExtension.fromExtensionData(extensionData);
+				return ClientCertificateTypeExtension.fromExtensionDataReaader(extensionDataReader);
 			case SERVER_CERT_TYPE:
-				return ServerCertificateTypeExtension.fromExtensionData(extensionData);
+				return ServerCertificateTypeExtension.fromExtensionDataReader(extensionDataReader);
 			case MAX_FRAGMENT_LENGTH:
-				return MaxFragmentLengthExtension.fromExtensionData(extensionData, peerAddress);
+				return MaxFragmentLengthExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			case SERVER_NAME:
-				return ServerNameExtension.fromExtensionData(extensionData, peerAddress);
+				return ServerNameExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			case CONNECTION_ID:
-				return ConnectionIdExtension.fromExtensionData(extensionData, peerAddress);
+				return ConnectionIdExtension.fromExtensionDataReader(extensionDataReader, peerAddress);
 			default:
-				return null;
+				break;
 			}
 		}
+		extensionDataReader.close();
+		return null;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -244,8 +247,8 @@ public abstract class HelloExtension {
 		SESSION_TICKET_TLS(35, "SessionTicket TLS"),
 
 		/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
-		/** 2019-feb-18: the iana value is not assigned and 52 is only the currently next unassigned value. This value may change in the future! **/
-		CONNECTION_ID(52, "Connection ID"),
+		/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY">IANA code point assignment</a> **/
+		CONNECTION_ID(53, "Connection ID"),
 
 		/** See <a href="http://www.iana.org/go/rfc5746">RFC 5746</a> **/
 		RENEGOTIATION_INFO(65281, "renegotiation_info");

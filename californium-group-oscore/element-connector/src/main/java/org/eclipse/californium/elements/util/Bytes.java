@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -17,8 +17,6 @@ package org.eclipse.californium.elements.util;
 
 import java.util.Arrays;
 import java.util.Random;
-
-import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * Byte array as key.
@@ -140,5 +138,52 @@ public class Bytes {
 		byte[] byteArray = new byte[size];
 		generator.nextBytes(byteArray);
 		return byteArray;
+	}
+
+	/**
+	 * Concatenates two Bytes.
+	 * 
+	 * @param a
+	 *            the first Bytes.
+	 * @param b
+	 *            the second Bytes.
+	 * @return the concatenated array.
+	 * @see #concatenate(byte[], byte[])
+	 */
+	public static byte[] concatenate(Bytes a, Bytes b) {
+		return concatenate(a.getBytes(), b.getBytes());
+	}
+
+	/**
+	 * Concatenates two byte arrays.
+	 * 
+	 * @param a
+	 *            the first array.
+	 * @param b
+	 *            the second array.
+	 * @return the concatenated array.
+	 * @see #concatenate(Bytes, Bytes)
+	 */
+	public static byte[] concatenate(byte[] a, byte[] b) {
+		int lengthA = a.length;
+		int lengthB = b.length;
+
+		byte[] concat = new byte[lengthA + lengthB];
+
+		System.arraycopy(a, 0, concat, 0, lengthA);
+		System.arraycopy(b, 0, concat, lengthA, lengthB);
+
+		return concat;
+	}
+
+	/**
+	 * Clear provided byte array.
+	 * 
+	 * Fill it with 0s.
+	 * 
+	 * @param data byte array to be cleared.
+	 */
+	public static void clear(byte[] data) {
+		Arrays.fill(data, (byte) 0);
 	}
 }

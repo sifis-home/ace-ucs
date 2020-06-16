@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -34,6 +34,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.Connector;
 
 /**
  * A communication endpoint multiplexing CoAP message exchanges between (potentially multiple) clients and servers.
@@ -82,16 +83,19 @@ public interface Endpoint {
 	boolean isStarted();
 
 	/**
-	 * Sets the executor for this endpoint and all its components.
+	 * Sets executors for this endpoint and all its components.
 	 *
-	 * The executor is not managed by the endpoint, it must be shutdown
+	 * Executors are not managed by the endpoint, it must be shutdown
 	 * externally, if the resource should be freed.
+	 * 
+	 * Executors must not be <code>null</code>.
 	 *
-	 * @param executor the new executor
+	 * @param mainExecutor executors used for main tasks
+	 * @param secondaryExecutor intended to be used for rare executing timers (e.g. cleanup tasks). 
 	 * @throws IllegalStateException if the endpoint is already started and a
 	 *             new executor is provided.
 	 */
-	void setExecutor(ScheduledExecutorService executor);
+	void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor);
 
 	/**
 	 * Adds the observer to the list of observers. This has nothing to do with
@@ -126,7 +130,20 @@ public interface Endpoint {
 	void removeNotificationListener(NotificationListener lis);
 
 	/**
-	 * Adds a message interceptor to this endpoint.
+	 * Adds a message interceptor to this endpoint to be called, when messages
+	 * are passed between the {@link Connector} and this endpoint. When messages
+	 * arrive from the connector, the corresponding receive-method is called.
+	 * When a message is about to be sent over a connector, the corresponding
+	 * send method is called. The interceptor can be thought of being placed
+	 * inside an {@code CoapEndpoint} just between the message
+	 * {@code Serializer} and the {@code Matcher}.
+	 * <p>
+	 * A {@code MessageInterceptor} registered here can cancel a message to stop
+	 * it. If it is an outgoing message that traversed down through the
+	 * {@code CoapStack} to the {@code Matcher} and is now intercepted and
+	 * canceled, will not reach the {@code Connector}. If it is an incoming
+	 * message coming from the {@code Connector} to the {@code DataParser} and
+	 * is now intercepted and canceled, will not reach the {@code Matcher}.
 	 *
 	 * @param interceptor the interceptor
 	 */
@@ -203,9 +220,10 @@ public interface Endpoint {
 	/**
 	 * Cancel observation for this request.
 	 * 
-	 * @param token
-	 *            the token of the original request which establishes the
-	 *            observe relation to cancel.
+	 * @param token the token of the original request which establishes the
+	 *            observe relation to cancel. The token must have none
+	 *            client-local scope.
+	 * @throws IllegalArgumentException if the token has client-local scope.
 	 */
 	void cancelObservation(Token token);
 }

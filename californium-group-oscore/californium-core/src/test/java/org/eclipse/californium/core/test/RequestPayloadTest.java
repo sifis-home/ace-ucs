@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Rogier Cobben.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -31,9 +31,10 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
@@ -56,6 +57,13 @@ public class RequestPayloadTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
@@ -89,10 +97,6 @@ public class RequestPayloadTest {
 	public int bodySize;
 
 	/**
-	 * Test server.
-	 */
-	private static CoapServer server = null;
-	/**
 	 * Test client.
 	 */
 	private CoapClient client = null;
@@ -102,22 +106,10 @@ public class RequestPayloadTest {
 	 */
 	@BeforeClass
 	public static void setupServer() {
-		System.out.println(System.lineSeparator() + "Start " + RequestPayloadTest.class.getName());
-		server = new CoapServer();
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
+		cleanup.add(server);
 		server.add(new PayloadLengthResource(TARGET));
 		server.start();
-	}
-
-	/**
-	 * Stop server.
-	 */
-	@AfterClass
-	public static void tearDownServer() {
-		if (server != null) {
-			server.stop();
-			server.destroy();
-			server = null;
-		}
 	}
 
 	/**

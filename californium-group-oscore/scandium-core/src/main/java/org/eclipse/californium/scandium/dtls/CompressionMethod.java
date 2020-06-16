@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -48,7 +48,7 @@ public enum CompressionMethod {
 
 	// Logging ////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CompressionMethod.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CompressionMethod.class);
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -100,21 +100,16 @@ public enum CompressionMethod {
 	}
 
 	/**
-	 * Takes a byte array and creates the representing list of compression
-	 * methods.
+	 * Takes a reader and creates the representing list of compression methods.
 	 * 
-	 * @param byteArray
+	 * @param reader
 	 *            the encoded compression methods as byte array
-	 * @param numElements
-	 *            the number of compression methods represented in the byte
-	 *            array
 	 * @return corresponding list of compression methods
 	 */
-	public static List<CompressionMethod> listFromByteArray(byte[] byteArray, int numElements) {
+	public static List<CompressionMethod> listFromReader(DatagramReader reader) {
 		List<CompressionMethod> compressionMethods = new ArrayList<CompressionMethod>();
-		DatagramReader reader = new DatagramReader(byteArray);
 
-		for (int i = 0; i < numElements; i++) {
+		while (reader.bytesAvailable()) {
 			int code = reader.read(COMPRESSION_METHOD_BITS);
 			CompressionMethod method = CompressionMethod.getMethodByCode(code);
 			if (method != null) {

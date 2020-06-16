@@ -1,7 +1,51 @@
+storage/
+bin/
+run/
+test_out/
+tmp/
+doc/
+.directory
+.loadpath
+.metadata
+*.pydevproject
+*.bak
+*.swp
+*.tmp
+*~.nib
+local.properties
+
+# Android #
+###########
+.gradle
+gradle*.properties
+gradlew*
+build/
+
+# Maven #
+#########
+log/
+target/
+
+# Eclipse #
+###########
+.project
+.classpath
+.settings/
+.externalToolBuilders/
+*.launch
+.recommenders/
+
+# Intellij #
+############
+.idea/
+*.iml
+*.ipr
+*.iws
+
 # Compiled source #
 ###################
-*.com
 *.class
+*.com
 *.dll
 *.exe
 *.o
@@ -22,21 +66,23 @@
 
 # Logs and databases #
 ######################
+Californium*.properties
+UUID.properties
+Proxy.properties
 *.log
 *.sql
 *.sqlite
 
 # OS generated files #
 ######################
+._*
+.AppleDouble
 .DS_Store
 .DS_Store?
-._*
+.LSOverride
 .Spotlight-V100
 .Trashes
+Icon?
 ehthumbs.db
 Thumbs.db
-
-# Other #
-######################
-*~
-
+Desktop.ini

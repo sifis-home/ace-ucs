@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,16 +24,24 @@ package org.eclipse.californium.plugtests;
 import java.io.File;
 import java.net.SocketException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.network.Endpoint;
+import org.eclipse.californium.core.network.EndpointObserver;
+import org.eclipse.californium.core.network.MessagePostProcessInterceptors;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.interceptors.AnonymizedOriginTracer;
+import org.eclipse.californium.core.network.interceptors.HealthStatisticLogger;
 import org.eclipse.californium.core.network.interceptors.MessageTracer;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.plugtests.resources.Create;
 import org.eclipse.californium.plugtests.resources.DefaultTest;
 import org.eclipse.californium.plugtests.resources.Large;
@@ -57,6 +65,12 @@ import org.eclipse.californium.plugtests.resources.Query;
 import org.eclipse.californium.plugtests.resources.Separate;
 import org.eclipse.californium.plugtests.resources.Shutdown;
 import org.eclipse.californium.plugtests.resources.Validate;
+
+import picocli.CommandLine;
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
+import picocli.CommandLine.ParameterException;
+import picocli.CommandLine.ParseResult;
 
 // ETSI Plugtest environment
 //import java.net.InetSocketAddress;
@@ -87,33 +101,109 @@ public class PlugtestServer extends AbstractTestServer {
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_COUNT, 4);
 			config.setInt(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 30000);
 			config.setInt(Keys.HEALTH_STATUS_INTERVAL, 300);
+			config.setInt(Keys.UDP_CONNECTOR_RECEIVE_BUFFER, 0);
+			config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, 0);
 		}
 	};
 
+	public static class BaseConfig {
+
+		@Option(names = "--no-loopback", negatable = true, description = "enable endpoints on loopback network.")
+		public boolean loopback = true;
+
+		@Option(names = "--no-external", negatable = true, description = "enable endpoints on external network.")
+		public boolean external = true;
+
+		@Option(names = "--no-ipv4", negatable = true, description = "enable endpoints for ipv4.")
+		public boolean ipv4 = true;
+
+		@Option(names = "--no-ipv6", negatable = true, description = "enable endpoints for ipv6.")
+		public boolean ipv6 = true;
+
+		@Option(names = "--dtls-only", description = "only dtls endpoints.")
+		public boolean onlyDtls;
+
+		@Option(names = "--interfaces", split = ",", description = "interfaces for endpoints.")
+		public List<String> interfaceNames;
+
+		@Option(names = "--interfaces-pattern", split = ",", description = "interface patterns for endpoints.")
+		public List<String> interfacePatterns;
+
+	}
+
+	@Command(name = "PlugtestServer", version = "(c) 2014, Institute for Pervasive Computing, ETH Zurich.")
+	public static class Config extends BaseConfig {
+
+	}
+
+	private static final Config config = new Config();
+
 	public static void main(String[] args) {
-		System.out.println("\nCalifornium (Cf) Plugtest Server");
-		System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
-		System.out.println();
-		System.out.println("Usage: " + PlugtestServer.class.getSimpleName() + " [-noLoopback]");
-		System.out.println("  -noLoopback : no endpoints for loopback/localhost interfaces");
-		start(args);
-	}	
-	
-	public static void start(String[] args) {
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		CommandLine cmd = new CommandLine(config);
+		try {
+			ParseResult result = cmd.parseArgs(args);
+			if (result.isVersionHelpRequested()) {
+				String version = StringUtil.CALIFORNIUM_VERSION == null ? "" : StringUtil.CALIFORNIUM_VERSION;
+				System.out.println("\nCalifornium (Cf) " + cmd.getCommandName() + " " + version);
+				cmd.printVersionHelp(System.out);
+				System.out.println();
+			}
+			if (result.isUsageHelpRequested()) {
+				cmd.usage(System.out);
+				return;
+			}
+		} catch (ParameterException ex) {
+			System.err.println(ex.getMessage());
+			System.err.println();
+			cmd.usage(System.err);
+			System.exit(-1);
+		}
+		start(config);
+	}
+
+	public static void start(BaseConfig config) {
+
+		NetworkConfig netconfig = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
 
 		// create server
 		try {
-			boolean noLoopback = args.length > 0 ? args[0].equalsIgnoreCase("-noLoopback") : false;
-			List<InterfaceType> types = noLoopback ? Arrays.asList(InterfaceType.EXTERNAL, InterfaceType.IPV4, InterfaceType.IPV6) : null;
-			PlugtestServer server = new PlugtestServer(config);
+			List<Protocol> protocols = config.onlyDtls ? Arrays.asList(Protocol.DTLS)
+					: Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS);
+			List<InterfaceType> types = new ArrayList<InterfaceType>();
+			if (config.external) {
+				types.add(InterfaceType.EXTERNAL);
+			}
+			if (config.loopback) {
+				types.add(InterfaceType.LOCAL);
+			}
+			int s = types.size();
+			if (s == 0) {
+				System.err.println("Either --loopback or --external must be enabled!");
+				System.exit(1);
+			}
+			if (config.ipv6) {
+				types.add(InterfaceType.IPV6);
+			}
+			if (config.ipv4) {
+				types.add(InterfaceType.IPV4);
+			}
+			if (s == types.size()) {
+				System.err.println("Either --ipv4 or --ipv6 must be enabled!");
+			}
+			String pattern = config.interfacePatterns != null && !config.interfacePatterns.isEmpty()
+					? config.interfacePatterns.get(0)
+					: null;
+
+			PlugtestServer server = new PlugtestServer(netconfig);
 			// ETSI Plugtest environment
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("::1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("127.0.0.1", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("2a01:c911:0:2010::10", port)));
 //			server.addEndpoint(new CoAPEndpoint(new InetSocketAddress("10.200.1.2", port)));
-			server.addEndpoints(null, types, Arrays.asList(Protocol.UDP, Protocol.DTLS, Protocol.TCP, Protocol.TLS));
+			server.addEndpoints(pattern, types, protocols);
 			server.start();
+
+			ScheduledThreadPoolExecutor executor = ExecutorsUtil.newDefaultSecondaryScheduler("Health#");
 
 			// add special interceptor for message traces
 			for (Endpoint ep : server.getEndpoints()) {
@@ -121,6 +211,32 @@ public class PlugtestServer extends AbstractTestServer {
 				ep.addInterceptor(new MessageTracer());
 				// Anonymized IoT metrics for validation. On success, remove the OriginTracer.
 				ep.addInterceptor(new AnonymizedOriginTracer(uri.getPort() + "-" + uri.getScheme()));
+				if (ep instanceof MessagePostProcessInterceptors) {
+					int interval = ep.getConfig().getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL);
+					final HealthStatisticLogger healthLogger = new HealthStatisticLogger(uri.getScheme(),
+							!CoAP.isTcpScheme(uri.getScheme()), interval, executor);
+					if (healthLogger.isEnabled()) {
+						((MessagePostProcessInterceptors) ep).addPostProcessInterceptor(healthLogger);
+						ep.addObserver(new EndpointObserver() {
+
+							@Override
+							public void stopped(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+
+							@Override
+							public void started(Endpoint endpoint) {
+								healthLogger.start();
+							}
+
+							@Override
+							public void destroyed(Endpoint endpoint) {
+								healthLogger.stop();
+							}
+						});
+						healthLogger.start();
+					}
+				}
 			}
 
 			System.out.println(PlugtestServer.class.getSimpleName() + " started ...");
@@ -137,7 +253,7 @@ public class PlugtestServer extends AbstractTestServer {
 
 	public PlugtestServer(NetworkConfig config) throws SocketException {
 		super(config, null);
-		
+
 		// add resources to the server
 		add(new DefaultTest());
 		add(new LongPath());

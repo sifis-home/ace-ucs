@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,8 +26,8 @@ import java.util.Collections;
 import java.util.List;
 
 import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -70,8 +70,10 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
+				Collections.<SignatureAndHashAlgorithm> emptyList(),
 				Collections.<CertificateType> emptyList(),
-				Collections.<CertificateType> emptyList());
+				Collections.<CertificateType> emptyList(),
+				Collections.singletonList(SupportedGroup.secp256r1));
 		assertNull(
 				"ClientHello should not contain elliptic_curves extension for non-ECC based cipher suites",
 				clientHello.getSupportedEllipticCurvesExtension());
@@ -89,8 +91,10 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256),
+				Collections.<SignatureAndHashAlgorithm> emptyList(),
 				Collections.<CertificateType> emptyList(),
-				Collections.<CertificateType> emptyList());
+				Collections.<CertificateType> emptyList(),
+				Collections.singletonList(SupportedGroup.secp256r1));
 		assertNotNull(
 				"ClientHello should contain elliptic_curves extension for ECC based cipher suites",
 				clientHello.getSupportedEllipticCurvesExtension());
@@ -101,16 +105,17 @@ public class ClientHelloTest {
 
 	private void givenAClientHelloWithEmptyExtensions() {
 		clientHello = new ClientHello(new ProtocolVersion(), Collections.<CipherSuite> emptyList(),
-				null, null, peerAddress);
+				Collections.<SignatureAndHashAlgorithm> emptyList(), null, null,
+				Collections.<SupportedGroup> emptyList(), peerAddress);
 	}
 
-	private void givenAClientHello(
-			List<CipherSuite> supportedCipherSuites,
-			List<CertificateType> supportedClientCertTypes,
-			List<CertificateType> supportedServerCertTypes) {
+	private void givenAClientHello(List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
+			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
+			List<SupportedGroup> supportedGroups) {
 
-		clientHello = new ClientHello(new ProtocolVersion(), supportedCipherSuites, null, null,
-				peerAddress);
+		clientHello = new ClientHello(new ProtocolVersion(), supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+				null, null, supportedGroups, peerAddress);
 	}
 	
 }

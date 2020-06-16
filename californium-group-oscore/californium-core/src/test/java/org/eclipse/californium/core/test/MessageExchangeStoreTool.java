@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,13 +21,12 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
@@ -45,9 +44,13 @@ import org.eclipse.californium.core.network.stack.Layer;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.elements.UdpEndpointContextMatcher;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.IntendedTestException;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 
 /**
  * Test tools for MessageExchangeStore.
@@ -73,7 +76,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -99,7 +102,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -119,7 +122,7 @@ public class MessageExchangeStoreTool {
 		if (time != null) {
 			time.setTestTimeShift(exchangeLifetime + 1000, TimeUnit.MILLISECONDS);
 		}
-		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new CheckCondition() {
+		waitUntilDeduplicatorShouldBeEmpty(exchangeLifetime, sweepInterval, new TestCondition() {
 
 			@Override
 			public boolean isFulFilled() throws IllegalStateException {
@@ -132,11 +135,11 @@ public class MessageExchangeStoreTool {
 	}
 
 	public static void waitUntilDeduplicatorShouldBeEmpty(final int exchangeLifetime, final int sweepInterval,
-			CheckCondition check) {
+			TestCondition check) {
 		try {
 			int timeToWait = exchangeLifetime + sweepInterval + 300; // milliseconds
 			System.out.println("Wait until deduplicator should be empty (" + timeToWait / 1000f + " seconds)");
-			TestTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
+			TestConditionTools.waitForCondition(timeToWait, timeToWait / 10, TimeUnit.MILLISECONDS, check);
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 		}
@@ -160,7 +163,7 @@ public class MessageExchangeStoreTool {
 
 	private static final CoapStackFactory COAP_STACK_TEST_FACTORY = new CoapStackFactory() {
 
-		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox) {
+		public CoapStack createCoapStack(String protocol, NetworkConfig config, Outbox outbox, Object customStackArgument) {
 			if (CoAP.isTcpProtocol(protocol)) {
 				throw new IllegalArgumentException("protocol \"" + protocol + "\" is not supported!");
 			}
@@ -195,20 +198,27 @@ public class MessageExchangeStoreTool {
 
 		private final InMemoryMessageExchangeStore exchangeStore;
 		private final InMemoryObservationStore observationStore;
+		private final UDPTestConnector testConnector;
 		private RequestEventChecker requestChecker;
 
 		private CoapTestEndpoint(Connector connector, boolean applyConfiguration, NetworkConfig config,
 				InMemoryObservationStore observationStore, InMemoryMessageExchangeStore exchangeStore,
 				EndpointContextMatcher matcher) {
 			super(connector, applyConfiguration, config, new RandomTokenGenerator(config), observationStore,
-					exchangeStore, matcher, COAP_STACK_TEST_FACTORY);
+					exchangeStore, matcher, null, COAP_STACK_TEST_FACTORY, null);
 			this.exchangeStore = exchangeStore;
 			this.observationStore = observationStore;
 			this.requestChecker = new RequestEventChecker();
+			this.testConnector = connector instanceof UDPTestConnector ? (UDPTestConnector) connector : null;
+		}
+
+		public CoapTestEndpoint(UDPTestConnector connector, NetworkConfig config, boolean checkAddress) {
+			this(connector, true, config, new InMemoryObservationStore(config),
+					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
 		public CoapTestEndpoint(InetSocketAddress bind, NetworkConfig config, boolean checkAddress) {
-			this(new UDPConnector(bind), true, config, new InMemoryObservationStore(config),
+			this(new UDPTestConnector(bind), true, config, new InMemoryObservationStore(config),
 					new InMemoryMessageExchangeStore(config), new UdpEndpointContextMatcher(checkAddress));
 		}
 
@@ -245,6 +255,20 @@ public class MessageExchangeStoreTool {
 
 		public RequestEventChecker getRequestChecker() {
 			return requestChecker;
+		}
+
+		/**
+		 * Set message to be dropped.
+		 * 
+		 * @param drops indexes of messages to be dropped.
+		 * @throws IllegalStateException if the used {@link Connector} is no
+		 *             {@link UDPTestConnector}.
+		 */
+		public void setDrops(int... drops) {
+			if (testConnector == null) {
+				throw new IllegalStateException("no test connector available!");
+			}
+			testConnector.setDrops(drops);
 		}
 	}
 
@@ -290,6 +314,37 @@ public class MessageExchangeStoreTool {
 
 		public Collection<Request> getUnterminatedRequests() {
 			return requests;
+		}
+	}
+
+	public static class UDPTestConnector extends UDPConnector {
+
+		private int counter;
+		private int[] drops;
+
+		public UDPTestConnector(InetSocketAddress address) {
+			super(address);
+		}
+
+		@Override
+		public void send(RawData msg) {
+			synchronized (this) {
+				if (drops != null && Arrays.binarySearch(drops, counter++) >= 0) {
+					msg.onError(new IntendedTestException("Intended test error on send!"));
+					return;
+				}
+			}
+			super.send(msg);
+		}
+
+		/**
+		 * Set message to be dropped.
+		 * 
+		 * @param drops indexes of messages to be dropped.
+		 */
+		public synchronized void setDrops(int... drops) {
+			this.drops = drops;
+			this.counter = 0;
 		}
 	}
 }

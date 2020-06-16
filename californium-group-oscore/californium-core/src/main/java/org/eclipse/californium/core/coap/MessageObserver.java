@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -47,7 +47,7 @@ import org.eclipse.californium.elements.EndpointContext;
  * Not called, if the connection is already established or the connector doesn't
  * require to establish a connection.</li>
  * <li>{@link #onDtlsRetransmission(int)} when a dtls handshake flight is retransmitted.</li>
- * <li>{@link #onSent()} right after the message has been sent
+ * <li>{@link #onSent(boolean)} right after the message has been sent
  * (successfully)</li>
  * <li>{@link #onSendError(Throwable)} if the message cannot be sent</li>
  * </ul>
@@ -132,8 +132,12 @@ public interface MessageObserver {
 	 * Invoked right after the message has been sent.
 	 * <p>
 	 * Triggered, when the message was sent by a connector.
+	 * 
+	 * @param retransmission {@code true}, if the message is sent by
+	 *            retransmission, {@code false}, if the message is sent the
+	 *            first time.
 	 */
-	void onSent();
+	void onSent(boolean retransmission);
 
 	/**
 	 * Invoked when sending the message caused an error.
@@ -149,7 +153,7 @@ public interface MessageObserver {
 	 * Invoked when the resulting endpoint context is reported by the connector.
 	 * 
 	 * Note: usually this callback must be processed in a synchronous manner,
-	 * because if it returns, the message is sent. Therefore take special care
+	 * because on returning, the message is sent. Therefore take special care
 	 * in methods called on this callback.
 	 * 
 	 * @param endpointContext resulting endpoint context

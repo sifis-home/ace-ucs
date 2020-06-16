@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,9 +26,8 @@ import static org.junit.Assert.assertThat;
 
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.BlockOption;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,16 +39,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class BlockOptionTest {
-
-	@BeforeClass
-	public static void start() {
-		System.out.println(System.lineSeparator() + "Start " + BlockOptionTest.class.getSimpleName());
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println(System.lineSeparator() + "End " + BlockOptionTest.class.getSimpleName());
-	}
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
 	 * Verifies that conversion from block size to szx code works.

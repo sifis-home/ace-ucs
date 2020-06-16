@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,12 +18,14 @@
 package org.eclipse.californium.scandium.dtls.pskstore;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -56,15 +58,15 @@ public class InMemoryPskStore implements PskStore {
 	private static class Psk {
 
 		private final PskPublicInformation identity;
-		private final byte[] key;
+		private final SecretKey key;
 
 		private Psk(PskPublicInformation identity, byte[] key) {
 			this.identity = identity;
-			this.key = Arrays.copyOf(key, key.length);
+			this.key = SecretUtil.create(key, "PSK");
 		}
 
-		private byte[] getKey() {
-			return Arrays.copyOf(key, key.length);
+		private SecretKey getKey() {
+			return SecretUtil.create(key);
 		}
 	}
 
@@ -72,7 +74,7 @@ public class InMemoryPskStore implements PskStore {
 	private final Map<InetSocketAddress, Map<ServerName, PskPublicInformation>> scopedIdentities = new ConcurrentHashMap<>();
 
 	@Override
-	public byte[] getKey(final PskPublicInformation identity) {
+	public SecretKey getKey(final PskPublicInformation identity) {
 
 		if (identity == null) {
 			throw new NullPointerException("identity must not be null");
@@ -84,7 +86,7 @@ public class InMemoryPskStore implements PskStore {
 	}
 
 	@Override
-	public byte[] getKey(final ServerNames serverNames, final PskPublicInformation identity) {
+	public SecretKey getKey(final ServerNames serverNames, final PskPublicInformation identity) {
 
 		if (serverNames == null) {
 			return getKey(identity);
@@ -93,14 +95,17 @@ public class InMemoryPskStore implements PskStore {
 		} else {
 			synchronized (scopedKeys) {
 				for (ServerName serverName : serverNames) {
-					return getKeyFromMapAndNormalizeIdentity(identity, scopedKeys.get(serverName));
+					SecretKey secretKey = getKeyFromMapAndNormalizeIdentity(identity, scopedKeys.get(serverName));
+					if (secretKey != null) {
+						return secretKey;
+					}
 				}
 				return null;
 			}
 		}
 	}
 
-	private static byte[] getKeyFromMapAndNormalizeIdentity(final PskPublicInformation identity,
+	private static SecretKey getKeyFromMapAndNormalizeIdentity(final PskPublicInformation identity,
 			final Map<PskPublicInformation, Psk> keyMap) {
 
 		if (keyMap != null) {
@@ -123,7 +128,7 @@ public class InMemoryPskStore implements PskStore {
 	 * 
 	 * @param identity the identity associated with the key
 	 * @param key the key used to authenticate the identity
-	 * @see #setKey(PskPublicInformation, byte[])
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final String identity, final byte[] key) {
 
@@ -138,7 +143,7 @@ public class InMemoryPskStore implements PskStore {
 	 * 
 	 * @param identity the identity associated with the key
 	 * @param key the key used to authenticate the identity
-	 * @see #setKey(String, byte[])
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final PskPublicInformation identity, final byte[] key) {
 
@@ -155,7 +160,7 @@ public class InMemoryPskStore implements PskStore {
 	 * @param key The key to set for the identity.
 	 * @param virtualHost The virtual host to associate the identity and key
 	 *            with.
-	 * @see #setKey(PskPublicInformation, byte[], String)
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final String identity, final byte[] key, final String virtualHost) {
 		setKey(new PskPublicInformation(identity), key, ServerName.fromHostName(virtualHost));
@@ -171,7 +176,7 @@ public class InMemoryPskStore implements PskStore {
 	 * @param key The key to set for the identity.
 	 * @param virtualHost The virtual host to associate the identity and key
 	 *            with.
-	 * @see #setKey(String, byte[], String)
+	 * @see #setKey(PskPublicInformation, byte[], ServerName)
 	 */
 	public void setKey(final PskPublicInformation identity, final byte[] key, final String virtualHost) {
 		setKey(identity, key, ServerName.fromHostName(virtualHost));
@@ -321,6 +326,83 @@ public class InMemoryPskStore implements PskStore {
 		}
 	}
 
+	/**
+	 * Removes a key value for a given identity.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity) {
+		removeKey(new PskPublicInformation(identity), GLOBAL_SCOPE);
+	}
+
+	/**
+	 * Removes a key value for a given identity.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final PskPublicInformation identity) {
+		removeKey(identity, GLOBAL_SCOPE);
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity and key
+	 *            with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity, final String virtualHost) {
+		removeKey(new PskPublicInformation(identity), ServerName.fromHostName(virtualHost));
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity and key
+	 *            with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final PskPublicInformation identity, final String virtualHost) {
+		removeKey(identity, ServerName.fromHostName(virtualHost));
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity with.
+	 * @see #removeKey(PskPublicInformation, ServerName)
+	 */
+	public void removeKey(final String identity, final ServerName virtualHost) {
+		removeKey(new PskPublicInformation(identity), virtualHost);
+	}
+
+	/**
+	 * Removes a key for an identity scoped to a virtual host.
+	 * 
+	 * @param identity The identity to remove the key for.
+	 * @param virtualHost The virtual host to associate the identity with.
+	 */
+	public void removeKey(final PskPublicInformation identity, final ServerName virtualHost) {
+
+		if (identity == null) {
+			throw new NullPointerException("identity must not be null");
+		} else if (virtualHost == null) {
+			throw new NullPointerException("serverName must not be null");
+		} else {
+			synchronized (scopedKeys) {
+				Map<PskPublicInformation, Psk> keysForServerName = scopedKeys.get(virtualHost);
+				if (keysForServerName != null) {
+					keysForServerName.remove(identity);
+				}
+			}
+		}
+	}
+
 	@Override
 	public PskPublicInformation getIdentity(final InetSocketAddress peerAddress) {
 
@@ -341,7 +423,7 @@ public class InMemoryPskStore implements PskStore {
 		} else if (peerAddress == null) {
 			throw new NullPointerException("address must not be null");
 		} else {
-			synchronized (scopedKeys) {
+			synchronized (scopedIdentities) {
 				for (ServerName serverName : virtualHost) {
 					PskPublicInformation identity = getIdentityFromMap(serverName, scopedIdentities.get(peerAddress));
 					if (identity != null) {

@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -39,15 +39,17 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.eclipse.californium.core.coap.InternalMessageObserver;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObserveNotificationOrderer;
 import org.eclipse.californium.elements.EndpointContext;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,10 +62,10 @@ import org.slf4j.LoggerFactory;
 public class CoapObserveRelation {
 
 	/** The logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CoapObserveRelation.class);
 
 	/** A executor service to schedule re-registrations */
-	private static final ScheduledThreadPoolExecutor scheduler = ExecutorsUtil.getScheduledExecutor();
+	private final ScheduledThreadPoolExecutor scheduler;
 
 	/** The endpoint. */
 	private final Endpoint endpoint;
@@ -72,12 +74,13 @@ public class CoapObserveRelation {
 	private final long reregistrationBackoff;
 
 	/**
-	 * Indicates, that an observe request is pending.
+	 * Indicates, that an observe request or a (proactive) cancel observe request is
+	 * pending.
 	 * 
-	 * {@ink #reregister()} is only effective, when no observe request is
-	 * already pending.
+	 * {@link #reregister()} is only effective, when no other request is already
+	 * pending.
 	 */
-	private final AtomicBoolean registrationPending = new AtomicBoolean(true);
+	private final AtomicBoolean requestPending = new AtomicBoolean(true);
 
 	/** The handle to re-register for Observe notifications */
 	private final AtomicReference<ScheduledFuture<?>> reregistrationHandle = new AtomicReference<ScheduledFuture<?>>();
@@ -87,6 +90,8 @@ public class CoapObserveRelation {
 
 	/** Indicates whether the relation has been canceled. */
 	private volatile boolean canceled = false;
+	/** Indicates whether a proactive cancel request is pending. */
+	private volatile boolean proactiveCancel = false;
 
 	/** The current notification. */
 	private volatile CoapResponse current = null;
@@ -108,17 +113,49 @@ public class CoapObserveRelation {
 	};
 
 	/**
+	 * Monitor pending request.
+	 */
+	private final MessageObserver pendingRequestObserver = new MessageObserverAdapter() {
+
+		@Override
+		public void onResponse(Response response) {
+			next();
+		}
+
+		@Override
+		public void onCancel() {
+			next();
+		}
+
+		@Override
+		protected void failed() {
+			next();
+		}
+
+		private void next() {
+			if (proactiveCancel) {
+				sendCancelObserve();
+			} else {
+				requestPending.set(false);
+			}
+		}
+	};
+
+	/**
 	 * Constructs a new CoapObserveRelation with the specified request.
 	 *
 	 * @param request the request
 	 * @param endpoint the endpoint
 	 */
-	protected CoapObserveRelation(Request request, Endpoint endpoint) {
+	protected CoapObserveRelation(Request request, Endpoint endpoint, ScheduledThreadPoolExecutor executor) {
 		this.request = request;
 		this.endpoint = endpoint;
 		this.orderer = new ObserveNotificationOrderer();
 		this.reregistrationBackoff = endpoint.getConfig()
 				.getLong(NetworkConfig.Keys.NOTIFICATION_REREGISTRATION_BACKOFF);
+		this.scheduler = executor;
+		this.request.addMessageObserver(pendingRequestObserver);
+		this.request.setProtectFromOffload();
 	}
 
 	/**
@@ -144,29 +181,41 @@ public class CoapObserveRelation {
 		if (isCanceled()) {
 			throw new IllegalStateException("observe already canceled!");
 		}
-		if (registrationPending.compareAndSet(false, true)) {
+		if (requestPending.compareAndSet(false, true)) {
 			Request refresh = Request.newGet();
 			EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
 					: request.getDestinationContext();
 			refresh.setDestinationContext(destinationContext);
 			// use same Token
 			refresh.setToken(request.getToken());
-			// copy options, but set Observe to zero
+			// copy options
 			refresh.setOptions(request.getOptions());
 
+			refresh.setMaxResourceBodySize(request.getMaxResourceBodySize());
+			if (request.isUnintendedPayload()) {
+				refresh.setUnintendedPayload();
+				refresh.setPayload(request.getPayload());
+			}
+
 			// use same message observers
-			for (MessageObserver mo : request.getMessageObservers()) {
-				request.removeMessageObserver(mo);
-				refresh.addMessageObserver(mo);
+			for (MessageObserver observer : request.getMessageObservers()) {
+				if (observer instanceof InternalMessageObserver) {
+					if (((InternalMessageObserver) observer).isInternal()) {
+						continue;
+					}
+				}
+				request.removeMessageObserver(observer);
+				refresh.addMessageObserver(observer);
 			}
 
 			this.request = refresh;
-			endpoint.sendRequest(refresh);
-
 			// update request in observe handle for correct cancellation
 			// reset orderer to accept any sequence number since server
 			// might have rebooted
 			this.orderer = new ObserveNotificationOrderer();
+
+			endpoint.sendRequest(refresh);
+
 			return true;
 		} else {
 			return false;
@@ -177,6 +226,7 @@ public class CoapObserveRelation {
 	 * Send request with option "cancel observe" (GET with Observe=1).
 	 */
 	private void sendCancelObserve() {
+		proactiveCancel = false;
 		CoapResponse response = current;
 		Request request = this.request;
 		EndpointContext destinationContext = response != null ? response.advanced().getSourceContext()
@@ -191,14 +241,29 @@ public class CoapObserveRelation {
 		// set Observe to cancel
 		cancel.setObserveCancel();
 
-		// dispatch final response to the same message observers
-		cancel.addMessageObservers(request.getMessageObservers());
+		cancel.setMaxResourceBodySize(request.getMaxResourceBodySize());
+		if (request.isUnintendedPayload()) {
+			cancel.setUnintendedPayload();
+			cancel.setPayload(request.getPayload());
+		}
+
+		// use same message observers
+		for (MessageObserver observer : request.getMessageObservers()) {
+			if (observer instanceof InternalMessageObserver) {
+				if (((InternalMessageObserver) observer).isInternal()) {
+					continue;
+				}
+			}
+			request.removeMessageObserver(observer);
+			cancel.addMessageObserver(observer);
+		}
 
 		endpoint.sendRequest(cancel);
 	}
 
 	/**
-	 * Cancel observer.
+	 * Cancel observation.
+	 * Cancel pending request of this observation and stop reregistrations.
 	 */
 	private void cancel() {
 		endpoint.cancelObservation(request.getToken());
@@ -210,9 +275,13 @@ public class CoapObserveRelation {
 	 * GET with Observe=1.
 	 */
 	public void proactiveCancel() {
-		sendCancelObserve();
-		// cancel observe relation
+		// stop reregistration
 		cancel();
+		proactiveCancel = true;
+		if (requestPending.compareAndSet(false, true)) {
+			sendCancelObserve();
+		}
+		// cancel observe relation
 	}
 
 	/**
@@ -281,14 +350,24 @@ public class CoapObserveRelation {
 	 *         {@code false} otherwise.
 	 */
 	protected boolean onResponse(CoapResponse response) {
-		if (null != response && orderer.isNew(response.advanced())) {
-			current = response;
-			prepareReregistration(response);
-			registrationPending.set(false);
-			return true;
-		} else {
-			return false;
+		boolean isNew = false;
+		if (null != response) {
+			Integer observe = response.getOptions().getObserve();
+			// check, if observation is still ongoing
+			boolean prepareNext = observe != null && !isCanceled();
+			isNew = orderer.isNew(response.advanced());
+			if (isNew) {
+				current = response;
+			} else if (prepareNext) {
+				// renew preparation also for reregistration responses,
+				// which may still be unchanged
+				prepareNext = orderer.getCurrent() == observe;
+			}
+			if (prepareNext) {
+				prepareReregistration(response);
+			}
 		}
+		return isNew;
 	}
 
 	private void setReregistrationHandle(ScheduledFuture<?> reregistrationHandle) {
@@ -303,10 +382,8 @@ public class CoapObserveRelation {
 	}
 
 	private void prepareReregistration(CoapResponse response) {
-		if (!isCanceled()) {
-			long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
-			ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
-			setReregistrationHandle(f);
-		}
+		long timeout = response.getOptions().getMaxAge() * 1000 + this.reregistrationBackoff;
+		ScheduledFuture<?> f = scheduler.schedule(reregister, timeout, TimeUnit.MILLISECONDS);
+		setReregistrationHandle(f);
 	}
 }

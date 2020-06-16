@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -40,12 +40,13 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.ConcurrentModificationException;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,15 +61,24 @@ import org.slf4j.LoggerFactory;
  */
 public final class Connection {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Connection.class);
+	private static final Logger LOGGER_OWNER = LoggerFactory.getLogger(Connection.class + "owner");
 
 	private final AtomicReference<Handshaker> ongoingHandshake = new AtomicReference<Handshaker>();
-	private final AtomicReference<Random> startedByClient = new AtomicReference<Random>();
 	private final SessionListener sessionListener = new ConnectionSessionListener();
+
+	/**
+	 * Random used by client to start the handshake. Maybe {@code null}, for
+	 * client side connections. Note: used outside of serial-execution!
+	 */
+	private Random startingClientHelloRandom;
+	private int startingClientHelloMessageSeq;
+
 	/**
 	 * Expired real time nanoseconds of the last message send or received.
 	 */
-	private final AtomicLong lastMessageNanos = new AtomicLong();
+	private long lastMessageNanos;
+	private long lastPeerAddressNanos;
 	private SerialExecutor serialExecutor;
 	private InetSocketAddress peerAddress;
 	private ConnectionId cid;
@@ -86,16 +96,19 @@ public final class Connection {
 	 * @param serialExecutor serial executor.
 	 * @throws NullPointerException if the peer address or the serial executor is {@code null}
 	 */
-	public Connection(final InetSocketAddress peerAddress, final SerialExecutor serialExecutor) {
+	public Connection(InetSocketAddress peerAddress, SerialExecutor serialExecutor) {
 		if (peerAddress == null) {
 			throw new NullPointerException("Peer address must not be null");
 		} else if (serialExecutor == null) {
 			throw new NullPointerException("Serial executor must not be null");
 		} else {
+			long now = ClockUtil.nanoRealtime();
 			this.sessionId = null;
 			this.ticket = null;
 			this.peerAddress = peerAddress;
 			this.serialExecutor = serialExecutor;
+			this.lastPeerAddressNanos = now;
+			this.lastMessageNanos = now;
 		}
 	}
 
@@ -204,6 +217,17 @@ public final class Connection {
 	}
 
 	/**
+	 * Check, if this connection expects connection ID for incoming records.
+	 * 
+	 * @return {@code true}, if connection ID is expected, {@code false},
+	 *         otherwise
+	 */
+	public boolean expectCid() {
+		DTLSSession session = getSession();
+		return session != null && session.getWriteConnectionId() != null;
+	}
+
+	/**
 	 * Gets the connection id.
 	 * 
 	 * @return the cid
@@ -219,6 +243,17 @@ public final class Connection {
 	 */
 	public void  setConnectionId(ConnectionId cid) {
 		this.cid = cid;
+	}
+
+	/**
+	 * Get real time nanoseconds of last
+	 * {@link #updatePeerAddress(InetSocketAddress)}.
+	 * 
+	 * @return real time nanoseconds
+	 * @see ClockUtil#nanoRealtime()
+	 */
+	public long getLastPeerAddressNanos() {
+		return lastPeerAddressNanos;
 	}
 
 	/**
@@ -247,17 +282,24 @@ public final class Connection {
 	 *             non-null value without an established session.
 	 */
 	public void updatePeerAddress(InetSocketAddress peerAddress) {
-		this.peerAddress = peerAddress;
-		if (establishedSession != null) {
-			establishedSession.setPeer(peerAddress);
-		} else if (peerAddress == null) {
-			final Handshaker pendingHandshaker = getOngoingHandshake();
-			if (pendingHandshaker != null) {
-				// this will only call the listener, if no other cause was set before!
-				pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+		if (!equalsPeerAddress(peerAddress)) {
+			if (establishedSession == null && peerAddress != null) {
+				throw new IllegalArgumentException("Address change without established sesson is not supported!");
 			}
-		} else {
-			throw new IllegalArgumentException("Address change without established sesson is not supported!");
+			this.lastPeerAddressNanos = ClockUtil.nanoRealtime();
+			this.peerAddress = peerAddress;
+			if (establishedSession != null) {
+				establishedSession.setPeer(peerAddress);
+			}
+			if (peerAddress == null) {
+				final Handshaker pendingHandshaker = getOngoingHandshake();
+				if (pendingHandshaker != null) {
+					if (establishedSession == null || pendingHandshaker.getSession() != establishedSession) {
+						// this will only call the listener, if no other cause was set before!
+						pendingHandshaker.handshakeFailed(new IOException("address changed!"));
+					}
+				}
+			}
 		}
 	}
 
@@ -315,17 +357,27 @@ public final class Connection {
 	/**
 	 * Checks whether this connection is started for the provided CLIENT_HELLO.
 	 * 
-	 * Use the random contained in the CLIENT_HELLO.
+	 * Use the random and message sequence number contained in the CLIENT_HELLO.
+	 * 
+	 * Note: called outside of serial-execution and so requires external synchronization!
 	 * 
 	 * @param clientHello the message to check.
 	 * @return {@code true} if the given client hello has initially started this
 	 *         connection.
 	 * @see #startByClientHello(ClientHello)
+	 * @throws NullPointerException if client hello is {@code null}.
 	 */
 	public boolean isStartedByClientHello(ClientHello clientHello) {
-		Random startRandom = startedByClient.get();
-		if (startRandom != null) {
-			return startRandom.equals(clientHello.getRandom());
+		if (clientHello == null) {
+			throw new NullPointerException("client hello must not be null!");
+		}
+		Random startingClientHelloRandom = this.startingClientHelloRandom;
+		if (startingClientHelloRandom != null) {
+			if (startingClientHelloRandom.equals(clientHello.getRandom())) {
+				if (startingClientHelloMessageSeq >= clientHello.getMessageSeq()) {
+					return true;
+				}
+			}
 		}
 		return false;
 	}
@@ -333,14 +385,22 @@ public final class Connection {
 	/**
 	 * Set starting CLIENT_HELLO.
 	 * 
-	 * Use the random contained in the CLIENT_HELLO. Removed, if when the
-	 * handshake is completed or fails.
+	 * Use the random and handshake message sequence number contained in the
+	 * CLIENT_HELLO. Removed, if when the handshake fails or with configurable
+	 * timeout after handshake completion.
+	 * 
+	 * Note: called outside of serial-execution and so requires external synchronization!
 	 * 
 	 * @param clientHello message which starts the connection.
 	 * @see #isStartedByClientHello(ClientHello)
 	 */
 	public void startByClientHello(ClientHello clientHello) {
-		startedByClient.set(clientHello.getRandom());
+		if (clientHello == null) {
+			startingClientHelloRandom = null;
+		} else {
+			startingClientHelloMessageSeq = clientHello.getMessageSeq();
+			startingClientHelloRandom = clientHello.getRandom();
+		}
 	}
 
 	/**
@@ -413,6 +473,34 @@ public final class Connection {
 	}
 
 	/**
+	 * Check, if connection was closed.
+	 * 
+	 * @return {@code true}, if connection was closed, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public boolean isClosed() {
+		DTLSSession session = establishedSession;
+		return session != null && session.isMarkedAsClosed();
+	}
+
+	/**
+	 * Close connection with record.
+	 * 
+	 * Mark session as closed. Received records with sequence numbers before
+	 * will still be processed, others are dropped. No message will be send
+	 * after this.
+	 * 
+	 * @param record received close notify record.
+	 * @since 2.3
+	 */
+	public void close(Record record) {
+		DTLSSession session = establishedSession;
+		if (session != null) {
+			session.markCloseNotiy(record.getEpoch(), record.getSequenceNumber());
+		}
+	}
+
+	/**
 	 * Check, if resumption is required.
 	 * 
 	 * @return true if an abbreviated handshake should be done next time a data
@@ -427,21 +515,16 @@ public final class Connection {
 	 * already required.
 	 * 
 	 * @param autoResumptionTimeoutMillis auto resumption timeout in
-	 *            milliseconds. {@code 0} milliseconds to force a resumption,
-	 *            {@code null}, if auto resumption is not used.
+	 *            milliseconds. {@code null}, if auto resumption is not used.
 	 * @return {@code true}, if the provided autoResumptionTimeoutMillis has
 	 *         expired without exchanging messages.
 	 */
 	public boolean isAutoResumptionRequired(Long autoResumptionTimeoutMillis) {
 		if (!resumptionRequired && autoResumptionTimeoutMillis != null && establishedSession != null) {
-			if (autoResumptionTimeoutMillis == 0) {
+			long now = ClockUtil.nanoRealtime();
+			long expires = lastMessageNanos + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
+			if ((now - expires) > 0) {
 				setResumptionRequired(true);
-			} else {
-				long now = ClockUtil.nanoRealtime();
-				long expires = lastMessageNanos.get() + TimeUnit.MILLISECONDS.toNanos(autoResumptionTimeoutMillis);
-				if ((now - expires) > 0) {
-					setResumptionRequired(true);
-				}
 			}
 		}
 		return resumptionRequired;
@@ -455,8 +538,7 @@ public final class Connection {
 	 * @see #lastMessageNanos
 	 */
 	public void refreshAutoResumptionTime() {
-		long now = ClockUtil.nanoRealtime();
-		lastMessageNanos.set(now);
+		lastMessageNanos = ClockUtil.nanoRealtime();
 	}
 
 	/**
@@ -475,13 +557,22 @@ public final class Connection {
 		}
 		if (peerAddress != null) {
 			builder.append(", ").append(peerAddress);
-			if (hasOngoingHandshake()) {
-				builder.append(", ongoing handshake");
+			if (getOngoingHandshake() != null) {
+				builder.append(", ongoing handshake ");
+				SessionId id = getOngoingHandshake().getSession().getSessionIdentifier();
+				if (id != null && !id.isEmpty()) {
+					// during handshake this may by not already set
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
+				}
 			}
 			if (isResumptionRequired()) {
 				builder.append(", resumption required");
 			} else if (hasEstablishedSession()) {
-				builder.append(", session established");
+				builder.append(", session established ");
+				SessionId id = getEstablishedSession().getSessionIdentifier();
+				if (id != null && !id.isEmpty()) {
+					builder.append(StringUtil.byteArray2HexString(id.getBytes(), StringUtil.NO_SEPARATOR, 6));
+				}
 			}
 		}
 		if (sessionId != null) {
@@ -509,16 +600,37 @@ public final class Connection {
 
 		@Override
 		public void handshakeCompleted(Handshaker handshaker) {
+			SerialExecutor executor = serialExecutor;
+			if (executor != null && !executor.isShutdown() && LOGGER_OWNER.isErrorEnabled()) {
+				try {
+					executor.assertOwner();
+				} catch (ConcurrentModificationException ex) {
+					LOGGER_OWNER.error("on handshake completed: connection {}", ex.getMessage(), ex);
+					if (LOGGER_OWNER.isDebugEnabled()) {
+						throw ex;
+					}
+				}
+			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startedByClient.set(null);
 				LOGGER.debug("Handshake with [{}] has been completed", handshaker.getPeerAddress());
 			}
 		}
 
 		@Override
 		public void handshakeFailed(Handshaker handshaker, Throwable error) {
+			SerialExecutor executor = serialExecutor;
+			if (executor != null && !executor.isShutdown() && LOGGER_OWNER.isErrorEnabled()) {
+				try {
+					executor.assertOwner();
+				} catch (ConcurrentModificationException ex) {
+					LOGGER_OWNER.error("on handshake failed: connection {}", ex.getMessage(), ex);
+					if (LOGGER_OWNER.isDebugEnabled()) {
+						throw ex;
+					}
+				}
+			}
 			if (ongoingHandshake.compareAndSet(handshaker, null)) {
-				startedByClient.set(null);
+				startingClientHelloRandom = null;
 				LOGGER.debug("Handshake with [{}] has failed", handshaker.getPeerAddress());
 			}
 		}

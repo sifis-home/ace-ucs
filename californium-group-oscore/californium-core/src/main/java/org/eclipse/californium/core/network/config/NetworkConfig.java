@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -39,6 +39,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.elements.util.NotForAndroid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,9 +47,12 @@ import org.slf4j.LoggerFactory;
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  * Depending on the environment, the configuration is stored and loaded from
- * properties files. If file access is not possible, there are variants, which
- * are marked as "WithoutFile" or variants, which use a {@link InputStream} to
- * read the properties.
+ * properties files. When missing, californium will generated this properties
+ * file. If file access is not possible, there are variants, which are marked as
+ * "WithoutFile" or variants, which use a {@link InputStream} to read the
+ * properties. Please use such a variant, e.g.
+ * {@link #createStandardWithoutFile()}, if you want californium to stop
+ * generating a properties file.
  * 
  * Note: For Android it's recommended to use the AssetManager and pass in the
  * InputStream to the variants using that as parameter. Alternatively you may
@@ -57,7 +61,7 @@ import org.slf4j.LoggerFactory;
  */
 public final class NetworkConfig {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class);
 
 	/** The default name for the configuration. */
 	public static final String DEFAULT_FILE_NAME = "Californium.properties";
@@ -119,6 +123,13 @@ public final class NetworkConfig {
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
+		/**
+		 * Configure message-offloading.
+		 * 
+		 * @see Message#offload(org.eclipse.californium.core.coap.Message.OffloadMode)
+		 * @since 2.2
+		 */
+		public static final String USE_MESSAGE_OFFLOADING = "USE_MESSAGE_OFFLOADING";
 
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String MID_TRACKER = "MID_TACKER";
@@ -210,13 +221,31 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
 		/**
+		 * Peers based deduplicator. Limits maxium messages kept per peer to
+		 * {@link #PEERS_MARK_AND_SWEEP_MESSAGES}. Removes messages, even if
+		 * exchange-lifetime is not expired.
+		 * 
+		 * @since 2.3
+		 */
+		public static final String DEDUPLICATOR_PEERS_MARK_AND_SWEEP = "DEDUPLICATOR_PEERS_MARK_AND_SWEEP";
+		/**
 		 * The interval after which the next sweep run should occur (in
 		 * MILLISECONDS).
 		 */
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
+		/**
+		 * The number of messages per peer kept for deduplication.
+		 * @since 2.3
+		 */
+		public static final String PEERS_MARK_AND_SWEEP_MESSAGES = "PEERS_MARK_AND_SWEEP_MESSAGES";
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
+		/**
+		 * The interval after which the next crop run should occur (in
+		 * MILLISECONDS).
+		 */
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
+		public static final String DEDUPLICATOR_AUTO_REPLACE = "DEDUPLICATOR_AUTO_REPLACE";
 		public static final String RESPONSE_MATCHING = "RESPONSE_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
@@ -677,9 +706,9 @@ public final class NetworkConfig {
 				LOGGER.warn("value for key [{}] is not a {0}, returning default value", key, defaultValue.getClass());
 			}
 		} else if (value == null) {
-			LOGGER.warn("key [{}] is undefined, returning default value", key);
+			LOGGER.debug("key [{}] is undefined, returning default value", key);
 		} else {
-			LOGGER.warn("key [{}] is empty, returning default value", key);
+			LOGGER.debug("key [{}] is empty, returning default value", key);
 		}
 		return result;
 	}

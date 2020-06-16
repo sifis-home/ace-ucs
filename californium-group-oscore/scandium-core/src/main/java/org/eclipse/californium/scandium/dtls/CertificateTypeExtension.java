@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -36,7 +36,7 @@ import org.eclipse.californium.scandium.util.ListUtils;
  */
 public abstract class CertificateTypeExtension extends HelloExtension {
 
-	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(CertificateTypeExtension.class);
 	
 	// DTLS-specific constants ////////////////////////////////////////
 	
@@ -68,30 +68,30 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 	 * certificate types, or a selected certificate type chosen by the server.
 	 * 
 	 * @param type the type of the extension.
-	 * @param extensionData the list of supported certificate types or the
+	 * @param extensionDataReader the list of supported certificate types or the
 	 *            selected certificate type encoded in bytes.
 	 * @throws NullPointerException if extension data is {@code null}
 	 * @throws IllegalArgumentException if extension data is empty
 	 */
-	protected CertificateTypeExtension(ExtensionType type, byte[] extensionData) {
+	protected CertificateTypeExtension(ExtensionType type, DatagramReader extensionDataReader) {
 		super(type);
-		if (extensionData == null) {
+		if (extensionDataReader == null) {
 			throw new NullPointerException("extension data must not be null!");
-		} else if (extensionData.length == 0) {
+		} else if (!extensionDataReader.bytesAvailable()) {
 			throw new IllegalArgumentException("extension data must not be empty!");
 		}
 		// the selected certificate would be a single byte,
 		// the supported list is longer
-		isClientExtension = extensionData.length > 1;
+		isClientExtension = extensionDataReader.bitsLeft() > Byte.SIZE;
 		List<CertificateType> types;
-		DatagramReader reader = new DatagramReader(extensionData);
 		if (isClientExtension) {
 			// an extension containing a list of preferred certificate types
 			// is at least 2 bytes long (1 byte length, 1 byte type)
-			int length = reader.read(LIST_FIELD_LENGTH_BITS);
+			int length = extensionDataReader.read(LIST_FIELD_LENGTH_BITS);
 			types = new ArrayList<>(length);
-			for (int i = 0; i < length; i++) {
-				int typeCode = reader.read(EXTENSION_TYPE_BITS);
+			DatagramReader rangeReader = extensionDataReader.createRangeReader(length);
+			while (rangeReader.bytesAvailable()) {
+				int typeCode = rangeReader.read(EXTENSION_TYPE_BITS);
 				CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
 				if (certificateType != null) {
 					types.add(certificateType);
@@ -103,7 +103,7 @@ public abstract class CertificateTypeExtension extends HelloExtension {
 			}
 		} else {
 			// an extension containing the negotiated certificate type is exactly 1 byte long
-			int typeCode = reader.read(EXTENSION_TYPE_BITS);
+			int typeCode = extensionDataReader.read(EXTENSION_TYPE_BITS);
 			CertificateType certificateType = CertificateType.getTypeFromCode(typeCode);
 			if (certificateType != null) {
 				types = new ArrayList<>(1);

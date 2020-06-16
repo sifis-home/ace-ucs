@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -23,6 +23,7 @@
 package org.eclipse.californium.core.coap;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.EndpointContext;
 
 /**
  * EmptyMessage represents an empty CoAP message. An empty message has either
@@ -37,8 +38,11 @@ public class EmptyMessage extends Message {
 	 */
 	public EmptyMessage(Type type) {
 		super(type);
+		// empty message are not considered to hav payload nor options
+		// offloading is therefore not useful for well-formed empty messages.
+		setProtectFromOffload();
 	}
-	
+
 	/* (non-Javadoc)
 	 * @see java.lang.Object#toString()
 	 */
@@ -90,8 +94,20 @@ public class EmptyMessage extends Message {
 	 * @return the acknowledgment
 	 */
 	public static EmptyMessage newACK(Message message) {
+		return newACK(message, message.getSourceContext());
+
+	}
+	/**
+	 * Create a new acknowledgment for the specified message.
+	 *
+	 * @param message the message to acknowledge
+	 * @param destination destination context
+	 * @return the acknowledgment
+	 * @since 2.1
+	 */
+	public static EmptyMessage newACK(Message message, EndpointContext destination) {
 		EmptyMessage ack = new EmptyMessage(Type.ACK);
-		ack.setDestinationContext(message.getSourceContext());
+		ack.setDestinationContext(destination);
 		ack.setMID(message.getMID());
 		return ack;
 	}
@@ -103,8 +119,20 @@ public class EmptyMessage extends Message {
 	 * @return the reset
 	 */
 	public static EmptyMessage newRST(Message message) {
+		return newRST(message, message.getSourceContext());
+	}
+
+	/**
+	 * Create a new reset message for the specified message.
+	 *
+	 * @param message the message to reject
+	 * @param destination destination context
+	 * @return the reset
+	 * @since 2.1
+	 */
+	public static EmptyMessage newRST(Message message, EndpointContext destination) {
 		EmptyMessage rst = new EmptyMessage(Type.RST);
-		rst.setDestinationContext(message.getSourceContext());
+		rst.setDestinationContext(destination);
 		rst.setMID(message.getMID());
 		return rst;
 	}

@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -25,16 +25,18 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
 
-import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.SerialExecutor;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class InMemoryConnectionStoreTest {
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
@@ -133,6 +135,18 @@ public class InMemoryConnectionStoreTest {
 		Connection connectionToResume = store.find(sessionId);
 		assertThat(connectionToResume, is(nullValue()));
 		assertThat(store.get(peerAddress), is(nullValue()));
+	}
+
+	@Test
+	public void testRemoveShutsdownExecutor() throws Exception {
+		// given a non-empty connection store
+		store.put(con);
+
+		// when clearing the store
+		store.remove(con);
+
+		// assert that the executor is shutdown
+		assertThat(con.getExecutor().isShutdown(), is(true));
 	}
 
 	@Test
@@ -277,7 +291,7 @@ public class InMemoryConnectionStoreTest {
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new TestSerialExecutor());
+		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
 		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
 		return con;
 	}
@@ -294,20 +308,5 @@ public class InMemoryConnectionStoreTest {
 			ip >>= 8;
 		}
 		return result;
-	}
-
-	private static class TestSerialExecutor extends SerialExecutor {
-
-		private TestSerialExecutor() {
-			super(ExecutorsUtil.getScheduledExecutor());
-		}
-
-		/**
-		 * Ensure, the jobs are executed synchronous with the test.
-		 */
-		@Override
-		public void execute(final Runnable command) {
-			command.run();
-		}
 	}
 }

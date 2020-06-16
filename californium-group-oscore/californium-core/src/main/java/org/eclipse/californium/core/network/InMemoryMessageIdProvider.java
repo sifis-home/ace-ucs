@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -30,6 +30,7 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class);
 
 	public enum TrackerMode {
 		NULL, GROUPED, MAPBASED
@@ -148,7 +149,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		// destination sp
 		// => use special range 0 - 65000
 
-		if (destination.getAddress().isMulticastAddress()) {
+		if (NetworkInterfacesUtil.isMultiAddress(destination.getAddress())) {
 			if (multicastTracker == null) {
 				LOG.warn(
 						"Destination address {} is a multicast address, please configure NetworkConfig to support multicast messaging",

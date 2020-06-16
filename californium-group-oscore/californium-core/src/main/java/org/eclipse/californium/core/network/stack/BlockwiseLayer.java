@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -65,10 +65,12 @@ package org.eclipse.californium.core.network.stack;
 import java.util.Iterator;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -77,7 +79,6 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -152,10 +153,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	 * matches the example in the draft.
 	 */
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseLayer.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	private final LeastRecentlyUsedCache<KeyUri, Block1BlockwiseStatus> block1Transfers;
 	private final LeastRecentlyUsedCache<KeyUri, Block2BlockwiseStatus> block2Transfers;
+	private final AtomicInteger ignoredBlock2 = new AtomicInteger();
 	private volatile boolean enableStatus;
 	private ScheduledFuture<?> statusLogger;
 	private int maxMessageSize;
@@ -164,6 +166,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private int blockTimeout;
 	private int maxResourceBodySize;
 	private boolean strictBlock2Option;
+	private int healthStatusInterval;
 
 	/**
 	 * Creates a new blockwise layer for a configuration.
@@ -216,14 +219,18 @@ public class BlockwiseLayer extends AbstractLayer {
 		block2Transfers = new LeastRecentlyUsedCache<>(maxActivePeers, TimeUnit.MILLISECONDS.toSeconds(blockTimeout));
 		block2Transfers.setEvictingOnReadAccess(false);
 		strictBlock2Option = config.getBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, NetworkConfigDefaults.DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
-		
-		LOGGER.info(
-			"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
-			maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
-		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
 
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+		healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
+
+		LOGGER.info(
+				"BlockwiseLayer uses MAX_MESSAGE_SIZE={}, PREFERRED_BLOCK_SIZE={}, BLOCKWISE_STATUS_LIFETIME={}, MAX_RESOURCE_BODY_SIZE={}, BLOCKWISE_STRICT_BLOCK2_OPTION={}",
+				 maxMessageSize, preferredBlockSize, blockTimeout, maxResourceBodySize, strictBlock2Option);
+	}
+
+	@Override
+	public void start() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && statusLogger == null) {
+			statusLogger = secondaryExecutor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -252,6 +259,7 @@ public class BlockwiseLayer extends AbstractLayer {
 								}
 							}
 						}
+						HEALTH_LOGGER.debug("{} block2 responses ignored", ignoredBlock2.get());
 					}
 				}
 			}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
@@ -331,7 +339,7 @@ public class BlockwiseLayer extends AbstractLayer {
 			status = getOutboundBlock1Status(key, exchange, request);
 
 			final Request block = status.getNextRequestBlock();
-
+			block.setDestinationContext(request.getDestinationContext());
 			block.addMessageObserver(new MessageObserverAdapter() {
 
 				@Override
@@ -401,7 +409,7 @@ public class BlockwiseLayer extends AbstractLayer {
 	private void handleInboundBlockwiseUpload(final Exchange exchange, final Request request) {
 
 		if (requestExceedsMaxBodySize(request)) {
-
+			int maxResourceBodySize = getMaxResourceBodySize(request);
 			Response error = Response.createResponse(request, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
 			error.setPayload(String.format("body too large, can process %d bytes max", maxResourceBodySize));
 			error.getOptions().setSize1(maxResourceBodySize);
@@ -655,39 +663,13 @@ public class BlockwiseLayer extends AbstractLayer {
 				}
 				return;
 			}
-
-			KeyUri key = getKey(exchange, response);
-			BlockOption block = response.getOptions().getBlock2();
-			Block2BlockwiseStatus status = getBlock2Status(key);
-			if (status != null) {
-				// ongoing blockwise transfer
-				boolean starting = (block == null) || (block.getNum() == 0);
-				if (starting) {
-					if (status.isNew(response)) {
-						LOGGER.debug("discarding outdated block2 transfer {}, current is [{}]", status.getObserve(),
-								response);
-						clearBlock2Status(key, status);
-						status.completeOldTransfer(exchange);
-					} else {
-						LOGGER.debug("discarding old block2 transfer [{}], received during ongoing block2 transfer {}",
-								response, status.getObserve());
-						status.completeNewTranfer(exchange);
-						return;
-					}
-				}
-				else if (!status.matchTransfer(exchange)) {
-					LOGGER.debug(
-							"discarding outdate block2 response [{}, {}] received during ongoing block2 transfer {}",
-							exchange.getNotificationNumber(), response, status.getObserve());
-					status.completeNewTranfer(exchange);
-					return;
-				}
+			
+			if (response.getMaxResourceBodySize() == 0) {
+				response.setMaxResourceBodySize(exchange.getRequest().getMaxResourceBodySize());
 			}
-			else if (block != null && block.getNum() != 0) {
-				LOGGER.debug(
-						"discarding stale block2 response [{}, {}] received without ongoing block2 transfer for {}",
-						exchange.getNotificationNumber(), response, key);
-				exchange.setComplete();
+			KeyUri key = getKey(exchange, response);
+			Block2BlockwiseStatus status = getBlock2Status(key);
+			if (discardBlock2(key, status, exchange, response)) {
 				return;
 			}
 
@@ -816,9 +798,9 @@ public class BlockwiseLayer extends AbstractLayer {
 			nextBlock = status.getNextRequestBlock(nextNum, newSzx);
 			// we use the same token to ease traceability
 			nextBlock.setToken(response.getToken());
-			nextBlock.setDestinationContext(response.getSourceContext());
+			nextBlock.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
 			addBlock1CleanUpObserver(nextBlock, key, status);
-	
+
 			exchange.setCurrentRequest(nextBlock);
 			prepareBlock1Cleanup(status, key);
 			lower().sendRequest(exchange, nextBlock);
@@ -830,6 +812,50 @@ public class BlockwiseLayer extends AbstractLayer {
 				exchange.getRequest().setSendError(ex);
 			}
 		}
+	}
+
+	/**
+	 * Check, if response is to be discarded caused by the block2 status. Clears
+	 * also the block status for new block transfers
+	 * 
+	 * @param key uri key for blocktransfer
+	 * @param status status of blocktransfer
+	 * @param exchange exchange of blocktransfer
+	 * @param response current response
+	 * @return {@code true}, if reponse is to be ignored, {@code false},
+	 *         otherwise
+	 */
+	private boolean discardBlock2(KeyUri key, Block2BlockwiseStatus status, Exchange exchange, Response response) {
+		BlockOption block = response.getOptions().getBlock2();
+		if (status != null) {
+			// ongoing blockwise transfer
+			boolean starting = (block == null) || (block.getNum() == 0);
+			if (starting) {
+				if (status.isNew(response)) {
+					LOGGER.debug("discarding outdated block2 transfer {}, current is [{}]", status.getObserve(),
+							response);
+					clearBlock2Status(key, status);
+					status.completeOldTransfer(exchange);
+				} else {
+					LOGGER.debug("discarding old block2 transfer [{}], received during ongoing block2 transfer {}",
+							response, status.getObserve());
+					status.completeNewTranfer(exchange);
+					return true;
+				}
+			} else if (!status.matchTransfer(exchange)) {
+				LOGGER.debug("discarding outdate block2 response [{}, {}] received during ongoing block2 transfer {}",
+						exchange.getNotificationNumber(), response, status.getObserve());
+				status.completeNewTranfer(exchange);
+				return true;
+			}
+		} else if (block != null && block.getNum() != 0) {
+			LOGGER.debug("discarding stale block2 response [{}, {}] received without ongoing block2 transfer for {}",
+					exchange.getNotificationNumber(), response, key);
+			exchange.setComplete();
+			return true;
+		}
+
+		return false;
 	}
 
 	/**
@@ -863,16 +889,25 @@ public class BlockwiseLayer extends AbstractLayer {
 
 		} else if (responseExceedsMaxBodySize(response)) {
 
-			LOGGER.debug("requested resource body exceeds max buffer size [{}], aborting request", maxResourceBodySize);
+			String msg = String.format(
+					"requested resource body [%d bytes] exceeds max buffer size [%d bytes], aborting request",
+					response.getOptions().getSize2(), getMaxResourceBodySize(response));
+			LOGGER.debug(msg);
+			exchange.getRequest().setOnResponseError(new IllegalStateException(msg));
+			// TODO we keep the cancel event for backward compatibility but this
+			// should be removed in 3.x
 			exchange.getRequest().cancel();
 
 		} else {
-
-			Block2BlockwiseStatus status = getInboundBlock2Status(key, exchange, response);
-
-			if (block2.getNum() == status.getCurrentNum() && (block2.getNum() == 0 || response.getToken().equals(exchange.getCurrentRequest().getToken()))) {
-
-				// check token to avoid mixed blockwise transfers (possible with observe) 
+			Block2BlockwiseStatus status;
+			synchronized (block2Transfers) {
+				status = getBlock2Status(key);
+				if (discardBlock2(key, status, exchange, response)) {
+					return;
+				}
+				status = getInboundBlock2Status(key, exchange, response);
+			}
+			if (block2.getNum() == status.getCurrentNum()) {
 
 				// We got the block we expected :-)
 				LOGGER.debug("processing incoming block2 response [num={}]: {}", block2.getNum(), response);
@@ -886,7 +921,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 				} else if (!status.addBlock(response)) {
 
-					LOGGER.debug("cannot process payload of block2 response, aborting request");
+					String msg = "cannot process payload of block2 response, aborting request";
+					LOGGER.debug(msg);
+					exchange.getRequest().setOnResponseError(new IllegalStateException(msg));
+					// TODO we keep the cancel event for backward compatibility
+					// but this should be removed in 3.x
 					exchange.getRequest().cancel();
 					return;
 
@@ -920,9 +959,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			} else {
 				// ERROR, wrong block number (server error)
-				// Canceling the request would interfere with Observe, so just ignore it
-				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}): {}", block2.getNum(),
-						status.getCurrentNum(), response);
+				// Canceling the request would interfere with Observe,
+				// so just ignore it
+				ignoredBlock2.incrementAndGet();
+				LOGGER.warn("ignoring block2 response with wrong block number {} (expected {}) - {}: {}",
+						block2.getNum(), status.getCurrentNum(), exchange.getCurrentRequest().getToken(), response);
 			}
 		}
 	}
@@ -950,7 +991,7 @@ public class BlockwiseLayer extends AbstractLayer {
 		try {
 			// do not enforce CON, since NON could make sense over SMS or similar transports
 			block.setType(request.getType());
-			block.setDestinationContext(response.getSourceContext());
+			block.setDestinationContext(status.getFollowUpEndpointContext(response.getSourceContext()));
 
 			/*
 			 * WARNING:
@@ -982,10 +1023,14 @@ public class BlockwiseLayer extends AbstractLayer {
 
 			status.setCurrentNum(nextNum);
 
-			LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
-			exchange.setCurrentRequest(block);
-			prepareBlock2Cleanup(status, key);
-			lower().sendRequest(exchange, block);
+			if (status.isComplete()) {
+				LOGGER.debug("stopped block2 transfer, droping response.");
+			} else {
+				LOGGER.debug("requesting next Block2 [num={}]: {}", nextNum, block);
+				exchange.setCurrentRequest(block);
+				prepareBlock2Cleanup(status, key);
+				lower().sendRequest(exchange, block);
+			}
 		} catch (RuntimeException ex) {
 			LOGGER.warn("cannot process next block request, aborting request!", ex);
 			block.setSendError(ex);
@@ -1029,10 +1074,11 @@ public class BlockwiseLayer extends AbstractLayer {
 
 	private Block1BlockwiseStatus getInboundBlock1Status(final KeyUri key, final Exchange exchange, final Request request) {
 		Block1BlockwiseStatus status;
+		int maxPayloadSize = getMaxResourceBodySize(request);
 		synchronized (block1Transfers) {
 			status = block1Transfers.get(key);
 			if (status == null) {
-				status = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxResourceBodySize);
+				status = Block1BlockwiseStatus.forInboundRequest(exchange, request, maxPayloadSize);
 				block1Transfers.put(key, status);
 				enableStatus = true;
 				LOGGER.debug("created tracker for inbound block1 transfer {}, transfers in progress: {}", status,
@@ -1079,11 +1125,11 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private Block2BlockwiseStatus getInboundBlock2Status(final KeyUri key, final Exchange exchange, final Response response) {
-
+		int maxPayloadSize = getMaxResourceBodySize(response);
 		synchronized (block2Transfers) {
 			Block2BlockwiseStatus status = block2Transfers.get(key);
 			if (status == null) {
-				status = Block2BlockwiseStatus.forInboundResponse(exchange, response, maxResourceBodySize);
+				status = Block2BlockwiseStatus.forInboundResponse(exchange, response, maxPayloadSize);
 				block2Transfers.put(key, status);
 				enableStatus = true;
 				LOGGER.debug("created tracker for {} inbound block2 transfer {}, transfers in progress: {}, {}", key,
@@ -1096,14 +1142,15 @@ public class BlockwiseLayer extends AbstractLayer {
 	private KeyUri addRandomAccessBlock2Status(final Exchange exchange, final Request request) {
 
 		KeyUri key = getKey(exchange, request);
+		int size;
 		Block2BlockwiseStatus status = Block2BlockwiseStatus.forRandomAccessRequest(exchange, request);
 		synchronized (block2Transfers) {
 			block2Transfers.put(key, status);
+			size = block1Transfers.size();
 		}
 		enableStatus = true;
 		addBlock2CleanUpObserver(request, key, status);
-		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status,
-				block2Transfers.size());
+		LOGGER.debug("created tracker for random access block2 retrieval {}, transfers in progress: {}", status, size);
 		return key;
 	}
 
@@ -1193,11 +1240,19 @@ public class BlockwiseLayer extends AbstractLayer {
 	}
 
 	private boolean responseExceedsMaxBodySize(final Response response) {
-		return response.getOptions().hasSize2() && response.getOptions().getSize2() > maxResourceBodySize;
+		return response.getOptions().hasSize2() && response.getOptions().getSize2() > getMaxResourceBodySize(response);
 	}
 
 	private boolean requestExceedsMaxBodySize(final Request request) {
-		return request.getOptions().hasSize1() && request.getOptions().getSize1() > maxResourceBodySize;
+		return request.getOptions().hasSize1() && request.getOptions().getSize1() > getMaxResourceBodySize(request);
+	}
+
+	private int getMaxResourceBodySize(final Message message) {
+		int maxPayloadSize = message.getMaxResourceBodySize();
+		if (maxPayloadSize == 0) {
+			maxPayloadSize = maxResourceBodySize; 
+		}
+		return maxPayloadSize;
 	}
 
 	/**

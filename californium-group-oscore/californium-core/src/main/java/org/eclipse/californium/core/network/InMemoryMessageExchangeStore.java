@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -51,8 +51,10 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
@@ -60,31 +62,36 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaults;
 import org.eclipse.californium.core.network.deduplication.Deduplicator;
 import org.eclipse.californium.core.network.deduplication.DeduplicatorFactory;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.EndpointIdentityResolver;
+import org.eclipse.californium.elements.UdpEndpointContextMatcher;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A {@code MessageExchangeStore} that manages all exchanges in local memory.
  */
 public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(InMemoryMessageExchangeStore.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 	// for all
 	private final ConcurrentMap<KeyMID, Exchange> exchangesByMID = new ConcurrentHashMap<>();
 	// for outgoing
-	private final ConcurrentMap<Token, Exchange> exchangesByToken = new ConcurrentHashMap<>();
+	private final ConcurrentMap<KeyToken, Exchange> exchangesByToken = new ConcurrentHashMap<>();
 	private volatile boolean enableStatus;
 
 	private final NetworkConfig config;
 	private final TokenGenerator tokenGenerator;
+	private final EndpointIdentityResolver endpointIdentityResolver;
+	private final String tag;
 	private volatile boolean running = false;
 	private volatile Deduplicator deduplicator;
 	private volatile MessageIdProvider messageIdProvider;
+	private ScheduledExecutorService executor;
 	private ScheduledFuture<?> statusLogger;
 
 	/**
@@ -92,38 +99,50 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	 * 
 	 * @param config the configuration to use.
 	 * 
+	 * @throws NullPointerException if config is {@code null}
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config) {
-		this(config, new RandomTokenGenerator(config));
-		LOGGER.debug("using default TokenProvider {}", RandomTokenGenerator.class.getName());
+	public InMemoryMessageExchangeStore(NetworkConfig config) {
+		this(null, config, new RandomTokenGenerator(config), new UdpEndpointContextMatcher());
 	}
 
 	/**
 	 * Creates a new store for configuration values.
 	 * 
 	 * @param config the configuration to use.
-	 * @param tokenProvider the TokenProvider which provides CoAP tokens that
-	 *            are guaranteed to be not in use.
-	 * 
+	 * @param tokenProvider the TokenProvider which provides CoAP tokens.
+	 * @param endpointResolver the endpoint resolver which provides endpoint
+	 *            identity.
+	 * @throws NullPointerException if one or the parameter is {@code null}
 	 */
-	public InMemoryMessageExchangeStore(final NetworkConfig config, TokenGenerator tokenProvider) {
+	public InMemoryMessageExchangeStore(NetworkConfig config, TokenGenerator tokenProvider,
+			EndpointIdentityResolver endpointResolver) {
+		this(null, config, tokenProvider, endpointResolver);
+	}
+
+	public InMemoryMessageExchangeStore(String tag, NetworkConfig config, TokenGenerator tokenProvider,
+			EndpointIdentityResolver endpointResolver) {
 		if (config == null) {
 			throw new NullPointerException("Configuration must not be null");
 		}
 		if (tokenProvider == null) {
 			throw new NullPointerException("TokenProvider must not be null");
 		}
+		if (endpointResolver == null) {
+			throw new NullPointerException("EndpointContextResolver must not be null");
+		}
 		this.tokenGenerator = tokenProvider;
+		this.endpointIdentityResolver = endpointResolver;
 		this.config = config;
+		this.tag = StringUtil.normalizeLoggingTag(tag);
+		LOGGER.debug("{}using TokenProvider {}", tag, tokenProvider.getClass().getName());
 	}
 
 	private void startStatusLogging() {
-
 		final int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, NetworkConfigDefaults.DEFAULT_HEALTH_STATUS_INTERVAL); // seconds
 		// this is a useful health metric
 		// that could later be exported to some kind of monitoring interface
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			statusLogger = ExecutorsUtil.getScheduledExecutor().scheduleAtFixedRate(new Runnable() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && executor != null) {
+			statusLogger = executor.scheduleAtFixedRate(new Runnable() {
 
 				@Override
 				public void run() {
@@ -136,10 +155,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	private String dumpCurrentLoadLevels() {
-		StringBuilder b = new StringBuilder("MessageExchangeStore contents: ");
+		StringBuilder b = new StringBuilder(tag);
+		b.append("MessageExchangeStore contents: ");
 		b.append(exchangesByMID.size()).append(" exchanges by MID, ");
 		b.append(exchangesByToken.size()).append(" exchanges by token, ");
-		b.append(deduplicator.size()).append(" MIDs, ");
+		b.append(deduplicator.size()).append(" MIDs.");
 		return b.toString();
 	}
 
@@ -178,6 +198,15 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
+	public synchronized void setExecutor(ScheduledExecutorService executor) {
+		if (running) {
+			throw new IllegalStateException("Cannot set messageIdProvider when store is already started");
+		} else {
+			this.executor = executor;
+		}
+	}
+
+	@Override
 	public boolean isEmpty() {
 		return exchangesByMID.isEmpty() && exchangesByToken.isEmpty() && deduplicator.isEmpty();
 	}
@@ -194,7 +223,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			InetSocketAddress dest = message.getDestinationContext().getPeerAddress();
 			mid = messageIdProvider.getNextMessageId(dest);
 			if (Message.NONE == mid) {
-				LOGGER.warn("cannot send message to {}, all MIDs are in use", dest);
+				LOGGER.warn("{}cannot send message to {}, all MIDs are in use", tag, dest);
 			} else {
 				message.setMID(mid);
 			}
@@ -202,75 +231,90 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 		return mid;
 	}
 
-	private int registerWithMessageId(final Exchange exchange, final Message message) {
+	private KeyMID registerWithMessageId(final Exchange exchange, final Message message) {
 		enableStatus = true;
 		exchange.assertIncomplete(message);
+		Object peer = endpointIdentityResolver.getEndpointIdentity(message.getDestinationContext());
+		KeyMID key;
 		int mid = message.getMID();
 		if (Message.NONE == mid) {
 			mid = assignMessageId(message);
 			if (Message.NONE != mid) {
-				KeyMID key = KeyMID.fromOutboundMessage(message);
+				key = new KeyMID(mid, peer);
 				if (exchangesByMID.putIfAbsent(key, exchange) != null) {
 					throw new IllegalArgumentException(String.format(
-							"generated mid [%d] already in use, cannot register %s", message.getMID(), exchange));
+							"generated mid [%d] already in use, cannot register %s", mid, exchange));
 				}
-				LOGGER.debug("{} added with generated mid {}, {}", exchange, key, message);
+				LOGGER.debug("{}{} added with generated mid {}, {}", tag, exchange, key, message);
+			} else {
+				key = null;
 			}
 		} else {
-			KeyMID key = KeyMID.fromOutboundMessage(message);
+			key = new KeyMID(mid, peer);
 			Exchange existingExchange = exchangesByMID.putIfAbsent(key, exchange);
 			if (existingExchange != null) {
 				if (existingExchange != exchange) {
 					throw new IllegalArgumentException(
-							String.format("mid [%d] already in use, cannot register %s", message.getMID(), exchange));
+							String.format("mid [%d] already in use, cannot register %s", mid, exchange));
 				} else if (exchange.getFailedTransmissionCount() == 0) {
 					throw new IllegalArgumentException(String.format(
 							"message with already registered mid [%d] is not a re-transmission, cannot register %s",
-							message.getMID(), exchange));
+							mid, exchange));
 				}
 			} else {
-				LOGGER.debug("{} added with {}, {}", exchange, key, message);
+				LOGGER.debug("{}{} added with {}, {}", tag, exchange, key, message);
 			}
 		}
-		return mid;
+		if (key != null) {
+			exchange.setKeyMID(key);
+		}
+		return key;
 	}
 
 	private void registerWithToken(final Exchange exchange) {
 		enableStatus = true;
 		Request request = exchange.getCurrentRequest();
 		exchange.assertIncomplete(request);
+		Object peer = endpointIdentityResolver.getEndpointIdentity(request.getDestinationContext());
+		KeyToken key;
 		Token token = request.getToken();
 		if (token == null) {
+			Scope scope = request.isMulticast() ? Scope.SHORT_TERM : Scope.SHORT_TERM_CLIENT_LOCAL;
 			do {
-				token = tokenGenerator.createToken(false);
+				token = tokenGenerator.createToken(scope);
 				request.setToken(token);
-			} while (exchangesByToken.putIfAbsent(token, exchange) != null);
-			LOGGER.debug("{} added with generated token {}, {}", exchange, token, request);
+				key = tokenGenerator.getKeyToken(token, peer);
+			} while (exchangesByToken.putIfAbsent(key, exchange) != null);
+			LOGGER.debug("{}{} added with generated token {}, {}", tag, exchange, key, request);
 		} else {
 			// ongoing requests may reuse token
 			if (token.isEmpty() && request.getCode() == null) {
 				// ping, no exchange by token required!
 				return;
 			}
-			Exchange previous = exchangesByToken.put(token, exchange);
+			key = tokenGenerator.getKeyToken(token, peer);
+			Exchange previous = exchangesByToken.put(key, exchange);
 			if (previous == null) {
 				BlockOption block2 = request.getOptions().getBlock2();
 				if (block2 != null) {
-					LOGGER.debug("block2 {} for block {} add with token {}", exchange, block2.getNum(), token);
+					LOGGER.debug("{}block2 {} for block {} add with token {}", tag, exchange, block2.getNum(), key);
 				} else {
-					LOGGER.debug("{} added with token {}, {}", exchange, token, request);
+					LOGGER.debug("{}{} added with token {}, {}", tag, exchange, key, request);
 				}
 			} else if (previous != exchange) {
 				if (exchange.getFailedTransmissionCount() == 0 && !request.getOptions().hasBlock1()
 						&& !request.getOptions().hasBlock2() && !request.getOptions().hasObserve()) {
-					LOGGER.warn("{} with manual token overrides existing {} with open request: {}", exchange, previous,
-							token);
+					LOGGER.warn("{}{} with manual token overrides existing {} with open request: {}", tag, exchange,
+							previous, key);
 				} else {
-					LOGGER.debug("{} replaced with token {}, {}", exchange, token, request);
+					LOGGER.debug("{}{} replaced with token {}, {}", tag, exchange, key, request);
 				}
 			} else {
-				LOGGER.debug("{} keep for {}, {}", exchange, token, request);
+				LOGGER.debug("{}{} keep for {}, {}", tag, exchange, key, request);
 			}
+		}
+		if (key != null) {
+			exchange.setKeyToken(key);
 		}
 	}
 
@@ -283,8 +327,8 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new IllegalArgumentException("exchange does not contain a request");
 		} else {
 			Request currentRequest = exchange.getCurrentRequest();
-			int mid = registerWithMessageId(exchange, currentRequest);
-			if (Message.NONE != mid) {
+			KeyMID key = registerWithMessageId(exchange, currentRequest);
+			if (key != null) {
 				registerWithToken(exchange);
 				if (exchange.getCurrentRequest() != currentRequest) {
 					throw new ConcurrentModificationException("Current request modified!");
@@ -313,10 +357,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
-	public void remove(final Token token, final Exchange exchange) {
+	public void remove(final KeyToken token, final Exchange exchange) {
 		boolean removed = exchangesByToken.remove(token, exchange);
 		if (removed) {
-			LOGGER.debug("removing {} for token {}", exchange, token);
+			LOGGER.debug("{}removing {} for token {}", tag, exchange, token);
 		}
 	}
 
@@ -331,17 +375,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			removedExchange = null;
 		}
 		if (null != removedExchange) {
-			LOGGER.debug("removing {} for MID {}", removedExchange, messageId);
+			LOGGER.debug("{}removing {} for MID {}", tag, removedExchange, messageId);
 		}
 		return removedExchange;
 	}
 
 	@Override
-	public Exchange get(final Token token) {
-		if (token == null) {
+	public Exchange get(final KeyToken keyToken) {
+		if (keyToken == null) {
 			return null;
 		} else {
-			return exchangesByToken.get(token);
+			return exchangesByToken.get(keyToken);
 		}
 	}
 
@@ -362,7 +406,7 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 			throw new IllegalArgumentException("exchange does not contain a response");
 		} else {
 			Response currentResponse = exchange.getCurrentResponse();
-			if (registerWithMessageId(exchange, currentResponse) > Message.NONE) {
+			if (registerWithMessageId(exchange, currentResponse) != null) {
 				if (exchange.getCurrentResponse() != currentResponse) {
 					throw new ConcurrentModificationException("Current response modified!");
 				}
@@ -381,9 +425,10 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 				DeduplicatorFactory factory = DeduplicatorFactory.getDeduplicatorFactory();
 				this.deduplicator = factory.createDeduplicator(config);
 			}
+			this.deduplicator.setExecutor(executor);
 			this.deduplicator.start();
 			if (messageIdProvider == null) {
-				LOGGER.debug("no MessageIdProvider set, using default {}", InMemoryMessageIdProvider.class.getName());
+				LOGGER.debug("{}no MessageIdProvider set, using default {}", tag, InMemoryMessageIdProvider.class.getName());
 				messageIdProvider = new InMemoryMessageIdProvider(config);
 			}
 			running = true;
@@ -467,6 +512,11 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	}
 
 	@Override
+	public boolean replacePrevious(KeyMID key, Exchange previous, Exchange exchange) {
+		return deduplicator.replacePrevious(key, previous, exchange);
+	}
+
+	@Override
 	public Exchange find(final KeyMID messageId) {
 		return deduplicator.find(messageId);
 	}
@@ -475,12 +525,17 @@ public class InMemoryMessageExchangeStore implements MessageExchangeStore {
 	public List<Exchange> findByToken(Token token) {
 		List<Exchange> result = new ArrayList<>();
 		if (token != null) {
+			if (tokenGenerator.getScope(token) == Scope.SHORT_TERM_CLIENT_LOCAL) {
+				throw new IllegalArgumentException("token must not have client-local scope!");
+			}
 			// TODO: remove the for ...
-			for (Entry<Token, Exchange> entry : exchangesByToken.entrySet()) {
+			for (Entry<KeyToken, Exchange> entry : exchangesByToken.entrySet()) {
 				if (entry.getValue().isOfLocalOrigin()) {
 					Request request = entry.getValue().getRequest();
-					if (request != null && token.equals(request.getToken())) {
-						result.add(entry.getValue());
+					if (request != null) {
+						if (token.equals(request.getToken())) {
+							result.add(entry.getValue());
+						}
 					}
 				}
 			}

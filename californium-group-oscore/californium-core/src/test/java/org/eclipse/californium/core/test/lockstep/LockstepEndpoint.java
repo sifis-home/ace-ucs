@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -62,6 +62,7 @@ import java.util.Set;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
@@ -119,7 +120,7 @@ public class LockstepEndpoint {
 		this.destination = destination;
 		this.storage = new HashMap<String, Object>();
 		this.incoming = new LinkedBlockingQueue<RawData>();
-		this.connector = new UDPConnector(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		this.connector = new UDPConnector(TestTools.LOCALHOST_EPHEMERAL);
 		this.connector.setRawDataReceiver(new RawDataChannel() {
 
 			public void receiveData(RawData raw) {
@@ -168,6 +169,10 @@ public class LockstepEndpoint {
 
 	public InetAddress getAddress() {
 		return connector.getAddress().getAddress();
+	}
+
+	public InetSocketAddress getSocketAddress() {
+		return connector.getAddress();
 	}
 
 	public Object get(String var) {
@@ -257,6 +262,10 @@ public class LockstepEndpoint {
 
 	public ResponseExpectation expectResponse(Type type, ResponseCode code, Token token, int mid) {
 		return expectResponse().type(type).code(code).token(token).mid(mid);
+	}
+
+	public ResponseExpectation expectSeparateResponse(Type type, ResponseCode code, Token token) {
+		return expectResponse().type(type).code(code).token(token);
 	}
 
 	public EmptyMessageExpectation expectEmpty(Type type, int mid) {
@@ -638,6 +647,21 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		public MessageExpectation hasObserve() {
+			expectations.add(new Expectation<Message>() {
+
+				public void check(Message message) {
+					assertTrue("No observe option:", message.getOptions().hasObserve());
+					print("Has observe option");
+				}
+
+				public String toString() {
+					return "Expected observe option";
+				}
+			});
+			return this;
+		}
+
 		public MessageExpectation hasEtag(final byte[] etag) {
 
 			expectations.add(new Expectation<Message>() {
@@ -690,6 +714,7 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
+					print("store " + var + ":=" + message.getMID());
 					storage.put(var, message.getMID());
 				}
 
@@ -704,6 +729,7 @@ public class LockstepEndpoint {
 			expectations.add(new Expectation<Message>() {
 
 				public void check(Message message) {
+					print("store " + var + ":=" + message.getToken());
 					storage.put(var, message.getToken());
 				}
 
@@ -717,10 +743,11 @@ public class LockstepEndpoint {
 		public MessageExpectation storeBoth(final String var) {
 			expectations.add(new Expectation<Message>() {
 
-				public void check(final Message request) {
+				public void check(final Message message) {
+					print("store " + var + ":=" + message.getToken() + "," + message.getMID());
 					Object[] pair = new Object[2];
-					pair[0] = request.getMID();
-					pair[1] = request.getToken();
+					pair[0] = message.getMID();
+					pair[1] = message.getToken();
 					storage.put(var, pair);
 				}
 			});
@@ -1040,6 +1067,12 @@ public class LockstepEndpoint {
 		}
 
 		@Override
+		public ResponseExpectation hasObserve() {
+			super.hasObserve();
+			return this;
+		}
+
+		@Override
 		public ResponseExpectation hasEtag(final byte[] etag) {
 			super.hasEtag(etag);
 			return this;
@@ -1124,6 +1157,21 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		public ResponseExpectation sameObserve(final String var) {
+			expectations.add(new Expectation<Response>() {
+
+				@Override
+				public void check(final Response response) {
+					assertTrue("Response has no observer", response.getOptions().hasObserve());
+					Object obj = storage.get(var);
+					assertThat("Object stored under " + var + " is not an observe option", obj, is(instanceOf(Integer.class)));
+					assertThat("Response contains wrong observe option", (Integer) obj,
+							is(response.getOptions().getObserve()));
+				}
+			});
+			return this;
+		}
+
 		public ResponseExpectation storeETag(final String var) {
 			expectations.add(new Expectation<Response>() {
 
@@ -1151,7 +1199,19 @@ public class LockstepEndpoint {
 			return this;
 		}
 
+		/**
+		 * Check, if received observe is newer than the previous stored one.
+		 * 
+		 * @param key key of previous stored one
+		 * @return expectation for
+		 * @deprecated use {@link #newerObserve(String)}
+		 */
+		@Deprecated
 		public ResponseExpectation largerObserve(final String key) {
+			return newerObserve(key);
+		}
+
+		public ResponseExpectation newerObserve(final String key) {
 			expectations.add(new Expectation<Response>() {
 
 				public void check(Response response) {
@@ -1170,7 +1230,7 @@ public class LockstepEndpoint {
 		}
 
 		public ResponseExpectation checkObs(String former, String next) {
-			largerObserve(former);
+			newerObserve(former);
 			storeObserve(next);
 			return this;
 		}

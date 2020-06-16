@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -29,14 +29,14 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
-import org.eclipse.californium.scandium.dtls.SupportedPointFormatsExtension.ECPointFormat;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 
 /**
  * When a client first connects to a server, it is required to send the
@@ -45,6 +45,7 @@ import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedG
  * re-negotiate the security parameters in an existing connection. See
  * <a href="http://tools.ietf.org/html/rfc5246#section-7.4.1.2">RFC 5246</a>.
  */
+@NoPublicAPI
 public final class ClientHello extends HandshakeMessage {
 
 	// DTLS-specific constants ///////////////////////////////////////////
@@ -102,24 +103,31 @@ public final class ClientHello extends HandshakeMessage {
 	 * Creates a <em>Client Hello</em> message to be sent to a server.
 	 * 
 	 * @param version the protocol version to use
-	 * @param supportedCipherSuites the list of the supported cipher suites in order of
-	 *            the client’s preference (favorite choice first)
+	 * @param supportedCipherSuites the list of the supported cipher suites in
+	 *            order of the client’s preference (favorite choice first)
+	 * @param supportedSignatureAndHashAlgorithms the list of the supported
+	 *            signature and hash algorithms
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
 	 * @param supportedServerCertificateTypes the list of certificate types
 	 *            supported by the server
+	 * @param supportedGroups the list of the supported groups (curves) in order of
+	 *            the client’s preference (favorite choice first)
 	 * @param peerAddress the IP address and port of the peer this message has
 	 *            been received from or should be sent to
+	 * @since 2.3
 	 */
 	public ClientHello(
 			ProtocolVersion version,
 			List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups,
 			InetSocketAddress peerAddress) {
 
-		this(version, null, supportedCipherSuites, supportedClientCertificateTypes,
-				supportedServerCertificateTypes, peerAddress);
+		this(version, null, supportedCipherSuites, supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes,
+				supportedServerCertificateTypes, supportedGroups, peerAddress);
 	}
 
 	/**
@@ -128,20 +136,27 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * @param version the protocol version to use
 	 * @param session the (already existing) DTLS session to resume
+	 * @param supportedSignatureAndHashAlgorithms the list of the supported
+	 *            signature and hash algorithms
 	 * @param supportedClientCertificateTypes the list of certificate types
 	 *            supported by the client
 	 * @param supportedServerCertificateTypes the list of certificate types
 	 *            supported by the server
+	 * @param supportedGroups the list of the supported groups (curves) in order of
+	 *            the client’s preference (favorite choice first)
+	 * @since 2.3
 	 */
 	public ClientHello(
 			ProtocolVersion version,
 			DTLSSession session,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
-			List<CertificateType> supportedServerCertificateTypes) {
+			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups) {
 
-		this(version, session.getSessionIdentifier(),
-				Arrays.asList(session.getCipherSuite()), supportedClientCertificateTypes,
-				supportedServerCertificateTypes, session.getPeer());
+		this(version, session.getSessionIdentifier(), Arrays.asList(session.getCipherSuite()),
+				supportedSignatureAndHashAlgorithms, supportedClientCertificateTypes, supportedServerCertificateTypes,
+				supportedGroups, session.getPeer());
 		addCompressionMethod(session.getWriteState().getCompressionMethod());
 	}
 
@@ -149,14 +164,16 @@ public final class ClientHello extends HandshakeMessage {
 			ProtocolVersion version,
 			SessionId sessionId,
 			List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
 			List<CertificateType> supportedClientCertificateTypes,
 			List<CertificateType> supportedServerCertificateTypes,
+			List<SupportedGroup> supportedGroups,
 			InetSocketAddress peerAddress) {
 
 		this(peerAddress);
 		this.clientVersion = version;
 		this.random = new Random();
-		this.cookie = new byte[] {};
+		this.cookie = Bytes.EMPTY;
 		if (sessionId != null) {
 			this.sessionId = sessionId;
 		} else {
@@ -170,15 +187,16 @@ public final class ClientHello extends HandshakeMessage {
 		// if the client supports at least one ECC based cipher suite
 		if (CipherSuite.containsEccBasedCipherSuite(supportedCipherSuites)) {
 			// the supported groups
-			// TODO make list of supported groups configurable
-			SupportedGroup[] supportedGroups = SupportedGroup.getPreferredGroups().toArray(new SupportedGroup[] {});
 			this.extensions.addExtension(new SupportedEllipticCurvesExtension(supportedGroups));
 
 			// the supported point formats
-			List<ECPointFormat> formats = Arrays.asList(ECPointFormat.UNCOMPRESSED);
-			this.extensions.addExtension(new SupportedPointFormatsExtension(formats));
+			this.extensions.addExtension(SupportedPointFormatsExtension.DEFAULT_POINT_FORMATS_EXTENSION);
 		}
-
+		
+		// the supported signature and hash algorithms
+		if (!supportedSignatureAndHashAlgorithms.isEmpty()) {
+			this.extensions.addExtension(new SignatureAlgorithmsExtension(supportedSignatureAndHashAlgorithms));
+		}
 		// the certificate types the client is able to provide to the server
 		if (useCertificateTypeExtension(supportedClientCertificateTypes)) {
 			CertificateTypeExtension clientCertificateType = new ClientCertificateTypeExtension(supportedClientCertificateTypes);
@@ -244,8 +262,10 @@ public final class ClientHello extends HandshakeMessage {
 	}
 
 	/**
-	 * Creates a new ClientObject instance from its byte representation.
+	 * Creates a new ClientHello instance from its byte representation.
 	 * 
+	 * @param reader 
+	 *            reader for the binary encoding of the message.
 	 * @param byteArray
 	 *            the bytes representing the message
 	 * @param peerAddress
@@ -256,9 +276,8 @@ public final class ClientHello extends HandshakeMessage {
 	 *             if any of the extensions included in the message is of an
 	 *             unsupported type
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress)
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress)
 			throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
 		ClientHello result = new ClientHello(peerAddress);
 
 		int major = reader.read(VERSION_BITS);
@@ -274,16 +293,15 @@ public final class ClientHello extends HandshakeMessage {
 		result.cookie = reader.readBytes(cookieLength);
 
 		int cipherSuitesLength = reader.read(CIPHER_SUITS_LENGTH_BITS);
-		result.supportedCipherSuites = CipherSuite.listFromByteArray(reader.readBytes(cipherSuitesLength),
-				cipherSuitesLength / 2); // 2
+		DatagramReader rangeReader = reader.createRangeReader(cipherSuitesLength);
+		result.supportedCipherSuites = CipherSuite.listFromReader(rangeReader);
 
 		int compressionMethodsLength = reader.read(COMPRESSION_METHODS_LENGTH_BITS);
-		result.compressionMethods = CompressionMethod.listFromByteArray(reader.readBytes(compressionMethodsLength),
-				compressionMethodsLength);
+		rangeReader = reader.createRangeReader(compressionMethodsLength);
+		result.compressionMethods = CompressionMethod.listFromReader(rangeReader);
 
-		byte[] bytesLeft = reader.readBytesLeft();
-		if (bytesLeft.length > 0) {
-			result.extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
+		if (reader.bytesAvailable()) {
+			result.extensions = HelloExtensions.fromReader(reader, peerAddress);
 		}
 		return result;
 
@@ -369,6 +387,11 @@ public final class ClientHello extends HandshakeMessage {
 		this.sessionId = sessionId;
 	}
 
+	/**
+	 * Get cookie.
+	 * 
+	 * @return cookie, or {@link Bytes#EMPTY}, if no cookie is available.
+	 */
 	public byte[] getCookie() {
 		return cookie;
 	}
@@ -378,7 +401,7 @@ public final class ClientHello extends HandshakeMessage {
 	 * 
 	 * Adjust fragment length.
 	 * 
-	 * @param cookie recevied cookie
+	 * @param cookie received cookie
 	 * @throws NullPointerException if cookie is {@code null}
 	 * @throws IllegalArgumentException if cookie is empty
 	 */
@@ -389,6 +412,7 @@ public final class ClientHello extends HandshakeMessage {
 			throw new IllegalArgumentException("cookie must not be empty!");
 		}
 		this.cookie = Arrays.copyOf(cookie, cookie.length);
+		fragmentChanged();
 	}
 
 	public List<CipherSuite> getCipherSuites() {
@@ -414,6 +438,15 @@ public final class ClientHello extends HandshakeMessage {
 		if (extensions != null) {
 			extensions.addExtension(extension);
 		}
+	}
+
+	/**
+	 * Gets the client hello extensions the client has included in this message.
+	 * 
+	 * @return The extensions or {@code null} if no extensions are used.
+	 */
+	public HelloExtensions getExtensions() {
+		return extensions;
 	}
 
 	/**
@@ -465,6 +498,22 @@ public final class ClientHello extends HandshakeMessage {
 	public ServerCertificateTypeExtension getServerCertificateTypeExtension() {
 		if (extensions != null) {
 			return (ServerCertificateTypeExtension) extensions.getExtension(ExtensionType.SERVER_CERT_TYPE);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>Signature and Hash Algorithms</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>SignatureAlgorithms</em> extension.
+	 * 
+	 * @since 2.3
+	 */
+	public SignatureAlgorithmsExtension getSupportedSignatureAlgorithms() {
+		if (extensions != null) {
+			return (SignatureAlgorithmsExtension) extensions.getExtension(ExtensionType.SIGNATURE_ALGORITHMS);
 		} else {
 			return null;
 		}

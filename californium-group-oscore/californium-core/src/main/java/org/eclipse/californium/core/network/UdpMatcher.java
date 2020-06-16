@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -63,6 +63,7 @@ import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.CoAP.Type;
 
+import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
 
 import org.eclipse.californium.core.coap.EmptyMessage;
@@ -70,22 +71,21 @@ import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.network.Exchange.KeyMID;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * A Matcher for CoAP messages transmitted over UDP.
  */
 public final class UdpMatcher extends BaseMatcher {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(UdpMatcher.class);
 
-	// TODO: Multicast Exchanges: should not be removed from deduplicator
 	private final RemoveHandler exchangeRemoveHandler = new RemoveHandlerImpl();
 	private final EndpointContextMatcher endpointContextMatcher;
 
@@ -131,7 +131,7 @@ public final class UdpMatcher extends BaseMatcher {
 		try {
 			if (exchangeStore.registerOutboundRequest(exchange)) {
 				exchange.setRemoveHandler(exchangeRemoveHandler);
-				LOGGER.debug("tracking open request [MID: {}, Token: {}]", request.getMID(), request.getToken());
+				LOGGER.debug("tracking open request [{}, {}]", exchange.getKeyMID(), exchange.getKeyToken());
 			} else {
 				LOGGER.warn("message IDs exhausted, could not register outbound request for tracking");
 				request.setSendError(new IllegalStateException("automatic message IDs exhausted"));
@@ -147,8 +147,7 @@ public final class UdpMatcher extends BaseMatcher {
 		boolean ready = true;
 		Response response = exchange.getCurrentResponse();
 		// ensure Token is set
-		response.setToken(exchange.getCurrentRequest().getToken());
-
+		response.ensureToken(exchange.getCurrentRequest().getToken());
 		// Insert CON to match ACKs and RSTs to the exchange.
 		// Do not insert ACKs and RSTs.
 		if (response.getType() == Type.CON) {
@@ -156,6 +155,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// all previous NON notifications
 			exchange.removeNotifications();
 			exchangeStore.registerOutboundResponse(exchange);
+			LOGGER.debug("tracking open response [{}]", exchange.getKeyMID());
 			ready = false;
 		} else if (response.getType() == Type.NON) {
 			if (response.isNotification()) {
@@ -188,7 +188,7 @@ public final class UdpMatcher extends BaseMatcher {
 
 		if (message.getType() == Type.RST && exchange != null) {
 			// We have rejected the request or response
-			exchange.setComplete();
+			exchange.executeComplete();
 		}
 	}
 
@@ -204,24 +204,41 @@ public final class UdpMatcher extends BaseMatcher {
 		//      if nothing has been sent yet => do nothing
 		// (Retransmission is supposed to be done by the retransm. layer)
 
-		final KeyMID idByMID = KeyMID.fromInboundMessage(request);
+		final KeyMID idByMID = new KeyMID(request.getMID(),
+				endpointContextMatcher.getEndpointIdentity(request.getSourceContext()));
 		final Exchange exchange = new Exchange(request, Origin.REMOTE, executor);
 		final Exchange previous = exchangeStore.findPrevious(idByMID, exchange);
 		boolean duplicate = previous != null;
 
 		if (duplicate) {
-			// assuming addresses changing, request could not only be deduplicated by their address and mid.
+			// assuming addresses changing, request could not be
+			// deduplicated only by their address and MID.
 			EndpointContext sourceContext = request.getSourceContext();
-			Request previousRequest = previous.getRequest();
-			EndpointContext previousSourceContext = previousRequest.getSourceContext();
-			// the previous response would be send with its previous context using 
-			// the current request context as connection context
+			Request previousRequest = previous.getCurrentRequest();
+			EndpointContext previousSourceContext;
+			if (previous.getOrigin() == Origin.REMOTE) {
+				previousSourceContext = previousRequest.getSourceContext();
+			} else {
+				previousSourceContext = previousRequest.getDestinationContext();
+			}
+			// the previous response would be send with its previous context
+			// using the current request context as connection context
 			duplicate = endpointContextMatcher.isToBeSent(previousSourceContext, sourceContext);
 			if (!duplicate) {
 				// the new context doesn't match the previous.
-				exchangeStore.remove(idByMID, previous);
-				if (exchangeStore.findPrevious(idByMID, exchange) != null) {
-					LOGGER.warn("new request could not be registered!");
+				if (exchangeStore.replacePrevious(idByMID, previous, exchange)) {
+					LOGGER.debug("replaced request {} by new request {}!", previousRequest, request);
+				} else {
+					LOGGER.warn("new request {} could not be registered! Deduplication disabled!", request);
+				}
+			} else if (previousRequest.isMulticast() || request.isMulticast()) {
+				InetSocketAddress group = request.getDestinationContext() == null ? null
+						: request.getDestinationContext().getPeerAddress();
+				InetSocketAddress previousGroup = previousRequest.getDestinationContext() == null ? null
+						: previousRequest.getDestinationContext().getPeerAddress();
+				if (group != previousGroup && (group == null || !group.equals(previousGroup))) {
+					LOGGER.warn("received request {} via different multicast groups ({} != {})!", request,
+							StringUtil.toString(group), StringUtil.toString(previousGroup));
 				}
 			}
 		}
@@ -237,7 +254,9 @@ public final class UdpMatcher extends BaseMatcher {
 						receiver.receiveRequest(previous, request);
 					} catch (RuntimeException ex) {
 						LOGGER.warn("error receiving request {} again!", request, ex);
-						receiver.reject(request);
+						if (!request.isMulticast()) {
+							receiver.reject(request);
+						}
 					}
 				}
 			});
@@ -251,7 +270,9 @@ public final class UdpMatcher extends BaseMatcher {
 						receiver.receiveRequest(exchange, request);
 					} catch (RuntimeException ex) {
 						LOGGER.warn("error receiving request {}", request, ex);
-						receiver.reject(request);
+						if (!request.isMulticast()) {
+							receiver.reject(request);
+						}
 					}
 				}
 			});
@@ -266,8 +287,9 @@ public final class UdpMatcher extends BaseMatcher {
 		// - Retransmitted CON (because client got no ACK)
 		// => resend ACK
 
-		final Token idByToken = response.getToken();
-		LOGGER.trace("received response {}", response);
+		final Object peer = endpointContextMatcher.getEndpointIdentity( response.getSourceContext());
+		final KeyToken idByToken = tokenGenerator.getKeyToken(response.getToken(), peer);
+		LOGGER.trace("received response {} from {}", response, response.getSourceContext());
 		Exchange tempExchange = exchangeStore.get(idByToken);
 
 		if (tempExchange == null) {
@@ -282,7 +304,7 @@ public final class UdpMatcher extends BaseMatcher {
 			// finally check if the response is a duplicate
 			if (response.getType() != Type.ACK) {
 				// deduplication is only relevant for CON/NON messages
-				KeyMID idByMID = KeyMID.fromInboundMessage(response);
+				final KeyMID idByMID = new KeyMID(response.getMID(), peer);
 				final Exchange prev = exchangeStore.find(idByMID);
 				if (prev != null) {
 					prev.execute(new Runnable() {
@@ -293,16 +315,24 @@ public final class UdpMatcher extends BaseMatcher {
 							if (prev.getCurrentRequest().isMulticast()) {
 								LOGGER.debug("Ignore delayed response {} to multicast request {}", response,
 										prev.getCurrentRequest().getDestinationContext().getPeerAddress());
+								cancel(response, receiver);
 								return;
 							}
 
 							try {
 								if (endpointContextMatcher.isResponseRelatedToRequest(prev.getEndpointContext(),
 										response.getSourceContext())) {
-									LOGGER.trace("received response for already completed {}: {}", prev, response);
+									LOGGER.trace("received response {} for already completed {}", response, prev);
 									response.setDuplicate(true);
+									Response prevResponse = prev.getCurrentResponse();
+									if (prevResponse != null) {
+										response.setRejected(prevResponse.isRejected());
+									}
 									receiver.receiveResponse(prev, response);
 									return;
+								} else {
+									LOGGER.debug("ignoring potentially forged response {} for already completed {}",
+											response, prev);
 								}
 							} catch (RuntimeException ex) {
 								LOGGER.warn("error receiving response {} for {}", response, prev, ex);
@@ -311,11 +341,14 @@ public final class UdpMatcher extends BaseMatcher {
 						}
 					});
 				} else {
+					LOGGER.trace("discarding by [{}] unmatchable response from [{}]: {}", idByToken,
+							response.getSourceContext(), response);
 					reject(response, receiver);
 				}
 			} else {
-				LOGGER.trace("discarding unmatchable piggy-backed response from [{}]: {}", response.getSourceContext(),
-						response);
+				LOGGER.trace("discarding by [{}] unmatchable piggy-backed response from [{}]: {}", idByToken,
+						response.getSourceContext(), response);
+				cancel(response, receiver);
 			}
 			return;
 		}
@@ -330,19 +363,22 @@ public final class UdpMatcher extends BaseMatcher {
 					if (running) {
 						LOGGER.debug("ignoring response {}, exchange not longer matching!", response);
 					}
+					cancel(response, receiver);
 					return;
 				}
 
 				EndpointContext context = exchange.getEndpointContext();
-				Request currentRequest = exchange.getCurrentRequest();
-				int requestMid = currentRequest.getMID();
 				if (context == null) {
 					LOGGER.debug("ignoring response {}, request pending to sent!", response);
+					cancel(response, receiver);
 					return;
 				}
 
 				try {
 					if (endpointContextMatcher.isResponseRelatedToRequest(context, response.getSourceContext())) {
+						final Type type = response.getType();
+						Request currentRequest = exchange.getCurrentRequest();
+						int requestMid = currentRequest.getMID();
 						// As per RFC 7252, section 8.2:
 						// When matching a response to a multicast request, only the token MUST
 						// match; the source endpoint of the response does not need to (and will
@@ -350,13 +386,14 @@ public final class UdpMatcher extends BaseMatcher {
 						if (currentRequest.isMulticast()) {
 							// do some check, e.g. NON ...
 							// this avoids flooding of ACK messages to multicast groups
-							if (response.getType() != Type.NON) {
+							if (type != Type.NON) {
 								LOGGER.debug(
 										"ignoring response of type {} for multicast request with token [{}], from {}",
 										response.getType(), response.getTokenString(), response.getSourceContext().getPeerAddress());
+								cancel(response, receiver);
 								return;
 							}
-						} else if (response.getType() == Type.ACK && requestMid != response.getMID()) {
+						} else if (type == Type.ACK && requestMid != response.getMID()) {
 							// The token matches but not the MID.
 							LOGGER.debug("ignoring ACK, possible MID reuse before lifetime end for token {}, expected MID {} but received {}",
 									response.getTokenString(), requestMid, response.getMID());
@@ -369,29 +406,30 @@ public final class UdpMatcher extends BaseMatcher {
 							// too early. Therefore don't return a exchange when the MID
 							// doesn't match.
 							// See issue #275
+							cancel(response, receiver);
+							return;
+						}
+						if (type != Type.ACK && !exchange.isNotification() && response.isNotification()
+								&& currentRequest.isObserveCancel()) {
+							// overlapping notification and observation cancel request
+							LOGGER.debug("ignoring notify for pending cancel {}!", response);
+							cancel(response, receiver);
 							return;
 						}
 						// we have received a Response matching the token of an ongoing
 						// Exchange's Request according to the CoAP spec
 						// (https://tools.ietf.org/html/rfc7252#section-4.5),
 						// deduplication is relevant only for CON and NON messages
-						KeyMID idByMID = KeyMID.fromInboundMessage(response);
-						if ((response.getType() == Type.CON || response.getType() == Type.NON)
-								&& exchangeStore.findPrevious(idByMID, exchange) != null) {
-							LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
-							response.setDuplicate(true);
-						} else if (!exchange.isNotification() && !currentRequest.isMulticast()) {
-							if (response.isNotification() && response.getType() != Type.ACK
-									&& currentRequest.isObserveCancel()) {
-								// overlapping notification for observation cancel request
-								LOGGER.debug("ignoring notify for pending cancel {}!", response);
-								return;
-							}
-							// we have received the expected response for the
-							// original request
-							idByMID = KeyMID.fromOutboundMessage(currentRequest);
-							if (exchangeStore.remove(idByMID, exchange) != null) {
-								LOGGER.debug("closed open request [{}]", idByMID);
+						if (type == Type.CON || type == Type.NON) {
+							KeyMID idByMID = new KeyMID(response.getMID(), peer);
+							Exchange prev = exchangeStore.findPrevious(idByMID, exchange);
+							if (prev != null) {
+								LOGGER.trace("received duplicate response for open {}: {}", exchange, response);
+								response.setDuplicate(true);
+								Response prevResponse = prev.getCurrentResponse();
+								if (prevResponse != null) {
+									response.setRejected(prevResponse.isRejected());
+								}
 							}
 						}
 						receiver.receiveResponse(exchange, response);
@@ -414,11 +452,13 @@ public final class UdpMatcher extends BaseMatcher {
 		// an empty ACK or RST always is received as a reply to a message
 		// exchange originating locally, i.e. the message will echo an MID
 		// that has been created here
-		final KeyMID idByMID = KeyMID.fromInboundMessage(message);
+		final KeyMID idByMID = new KeyMID(message.getMID(),
+				endpointContextMatcher.getEndpointIdentity(message.getSourceContext()));
 		final Exchange exchange = exchangeStore.get(idByMID);
 
 		if (exchange == null) {
-			LOGGER.debug("ignoring unmatchable empty message from {}: {}", message.getSourceContext(), message);
+			LOGGER.debug("ignoring {} message unmatchable by {}", message.getType(), idByMID);
+			cancel(message, receiver);
 			return;
 		}
 
@@ -428,50 +468,63 @@ public final class UdpMatcher extends BaseMatcher {
 			public void run() {
 				if (exchange.getCurrentRequest().isMulticast()) {
 					LOGGER.debug("ignoring {} message for multicast request {}", message.getType(), idByMID);
+					cancel(message, receiver);
 					return;
 				}
 				if (exchangeStore.get(idByMID) != exchange) {
 					if (running) {
-						LOGGER.debug("ignoring ack/rst {}, not longer matching!", message);
+						LOGGER.debug("ignoring {} message not longer matching by {}", message.getType(), idByMID);
 					}
+					cancel(message, receiver);
 					return;
 				}
 				try {
 					if (endpointContextMatcher.isResponseRelatedToRequest(exchange.getEndpointContext(),
 							message.getSourceContext())) {
 						exchangeStore.remove(idByMID, exchange);
-						LOGGER.debug("received expected reply for message {}", idByMID);
+						LOGGER.debug("received expected {} reply for {}", message.getType(), idByMID);
 						receiver.receiveEmptyMessage(exchange, message);
+						return;
 					} else {
-						LOGGER.debug(
-								"ignoring potentially forged reply for message {} with non-matching endpoint context",
-								idByMID);
+						LOGGER.debug("ignoring potentially forged {} reply for {} with non-matching endpoint context",
+								message.getType(), idByMID);
 					}
 				} catch (RuntimeException ex) {
-					LOGGER.warn("error receiving empty message {} for {}", message, exchange, ex);
+					LOGGER.warn("error receiving {} message for {}", message.getType(), exchange, ex);
 				}
+				cancel(message, receiver);
 			}
 		});
 	}
 
-	private void reject(final Response response, final EndpointReceiver receiver) {
+	private void reject(Response response, EndpointReceiver receiver) {
 
 		if (response.getType() != Type.ACK && response.hasMID()) {
 			// reject only messages with MID, ignore for TCP
-			LOGGER.debug("rejecting response from {}", response.getSourceContext());
 			receiver.reject(response);
 		}
+		cancel(response, receiver);
+	}
+
+	private void cancel(Response response, EndpointReceiver receiver) {
+		response.setCanceled(true);
+		receiver.receiveResponse(null, response);
+	}
+
+	private void cancel(EmptyMessage message, EndpointReceiver receiver) {
+		message.setCanceled(true);
+		receiver.receiveEmptyMessage(null, message);
 	}
 
 	private class RemoveHandlerImpl implements RemoveHandler {
 
 		@Override
-		public void remove(Exchange exchange, Token token, KeyMID key) {
-			if (token != null) {
-				exchangeStore.remove(token, exchange);
+		public void remove(Exchange exchange, KeyToken keyToken, KeyMID keyMID) {
+			if (keyToken != null) {
+				exchangeStore.remove(keyToken, exchange);
 			}
-			if (key != null) {
-				exchangeStore.remove(key, exchange);
+			if (keyMID != null) {
+				exchangeStore.remove(keyMID, exchange);
 			}
 		}
 	}

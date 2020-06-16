@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,7 +26,6 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.HelloExtension.ExtensionType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
@@ -169,7 +168,7 @@ public final class ServerHello extends HandshakeMessage {
 	 * Creates a <em>Server Hello</em> object from its binary encoding as used on
 	 * the wire.
 	 * 
-	 * @param byteArray the binary encoded message
+	 * @param reader reader for the binary encoding of the message.
 	 * @param peerAddress the IP address and port of the peer this
 	 *           message has been received from or should be sent to
 	 * @return the object representation
@@ -177,8 +176,7 @@ public final class ServerHello extends HandshakeMessage {
 	 *           unknown, i.e. not defined in {@link CipherSuite} at all, or
 	 *           {@link CipherSuite#TLS_NULL_WITH_NULL_NULL}
 	 */
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader, InetSocketAddress peerAddress) throws HandshakeException {
 
 		int major = reader.read(VERSION_BITS);
 		int minor = reader.read(VERSION_BITS);
@@ -201,10 +199,9 @@ public final class ServerHello extends HandshakeMessage {
 		}
 		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(reader.read(COMPRESSION_METHOD_BITS));
 
-		byte[] bytesLeft = reader.readBytesLeft();
 		HelloExtensions extensions = null;
-		if (bytesLeft.length > 0) {
-			extensions = HelloExtensions.fromByteArray(bytesLeft, peerAddress);
+		if (reader.bytesAvailable()) {
+			extensions = HelloExtensions.fromReader(reader, peerAddress);
 		}
 
 		return new ServerHello(version, random, sessionId, cipherSuite, compressionMethod, extensions, peerAddress);
@@ -339,6 +336,20 @@ public final class ServerHello extends HandshakeMessage {
 	MaxFragmentLengthExtension getMaxFragmentLength() {
 		if (extensions != null) {
 			return (MaxFragmentLengthExtension) extensions.getExtension(ExtensionType.MAX_FRAGMENT_LENGTH);
+		} else {
+			return null;
+		}
+	}
+
+	/**
+	 * Gets the <em>Point Formats</em> extension data from this message.
+	 * 
+	 * @return the extension data or <code>null</code> if this message does not contain the
+	 *          <em>SupportedPointFormats</em> extension.
+	 */
+	SupportedPointFormatsExtension getSupportedPointFormatsExtension() {
+		if (extensions != null) {
+			return (SupportedPointFormatsExtension) extensions.getExtension(ExtensionType.EC_POINT_FORMATS);
 		} else {
 			return null;
 		}

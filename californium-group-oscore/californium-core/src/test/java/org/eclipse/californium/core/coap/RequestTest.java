@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -31,6 +31,9 @@ import java.util.List;
 import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -41,6 +44,8 @@ import org.junit.experimental.categories.Category;
  */
 @Category(Small.class)
 public class RequestTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	/**
 	 * Verifies that a Request that is instantiated with a {@code null} CoAP.Code
@@ -65,15 +70,16 @@ public class RequestTest {
 				"coap://EXAMPLE.com/%7Esensors/temp.xml",
 				"coap://EXAMPLE.com:/%7esensors/temp.xml"
 		};
+		InetSocketAddress destination = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
 
 		for (String uriString : exampleUris) {
 			URI uri = new URI(uriString);
 			Request req = Request.newGet();
 			// explicitly set destination address so that we do not rely on working DNS
-			req.setDestination(InetAddress.getLoopbackAddress());
+			req.setDestinationContext(new AddressEndpointContext(destination));
 			req.setOptions(uri);
 			assertThat(req.getOptions().getUriHost(), is("example.com"));
-			assertThat(req.getDestinationPort(), is(5683));
+			assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(5683));
 			assertThat(req.getOptions().getUriPort(), is(nullValue()));
 			assertThat(req.getOptions().getUriPathString(), is("~sensors/temp.xml"));
 		}
@@ -125,8 +131,8 @@ public class RequestTest {
 	public void testSetURISetsDestination() {
 		InetSocketAddress dest = InetSocketAddress.createUnresolved("192.168.0.1", 12000);
 		Request req = Request.newGet().setURI("coap://192.168.0.1:12000");
-		assertThat(req.getDestination().getHostAddress(), is(dest.getHostString()));
-		assertThat(req.getDestinationPort(), is(dest.getPort()));
+		assertThat(req.getDestinationContext().getPeerAddress().getAddress().getHostAddress(), is(dest.getHostString()));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(dest.getPort()));
 	}
 
 	/**
@@ -192,8 +198,8 @@ public class RequestTest {
 
 		assumeTrue(dnsIsWorking());
 		Request req = Request.newGet().setURI("coaps://localhost");
-		assertNotNull(req.getDestination());
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertNotNull(req.getDestinationContext().getPeerAddress());
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 		assertThat(req.getOptions().getUriHost(), is("localhost"));
 	}
 
@@ -223,16 +229,36 @@ public class RequestTest {
 	@Test
 	public void testSetURISetsDestinationPortBasedOnUriScheme() {
 		Request req = Request.newGet().setURI("coap://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 
 		req = Request.newGet().setURI("coaps://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
 
 		req = Request.newGet().setURI("coap+tcp://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 
 		req = Request.newGet().setURI("coaps+tcp://127.0.0.1");
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_SECURE_PORT));
+	}
+
+	@Test
+	public void testSetURITwice() throws UnknownHostException {
+
+		Request req = Request.newGet();
+
+		req.setURI("coap://192.168.0.1/test?param");
+		assertThat(req.getOptions().getUriPathString(), is("test"));
+		assertThat(req.getOptions().getUriQueryString(), is("param"));
+
+		req.setURI("coap://192.168.0.1/test2");
+		assertThat(req.getOptions().getUriPathString(), is("test2"));
+		assertThat(req.getOptions().getURIQueryCount(), is(0));
+
+		// only for 2.x.y, in 3.x.y the uri-query option must be set after the URI  
+		req.getOptions().addUriQuery("param2");
+		req.setURI("coap://192.168.0.1/test2");
+		assertThat(req.getOptions().getUriPathString(), is("test2"));
+		assertThat(req.getOptions().getUriQueryString(), is("param2"));
 	}
 
 	@Test(expected = IllegalStateException.class)
@@ -242,11 +268,12 @@ public class RequestTest {
 
 	@Test
 	public void testSetOptionsSetsUriHostOption() {
+		InetSocketAddress destination = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5683);
 
 		Request req = Request.newGet();
-		req.setDestination(InetAddress.getLoopbackAddress());
+		req.setDestinationContext(new AddressEndpointContext(destination));
 		req.setOptions(URI.create("coap://iot.eclipse.org"));
-		assertThat(req.getDestinationPort(), is(CoAP.DEFAULT_COAP_PORT));
+		assertThat(req.getDestinationContext().getPeerAddress().getPort(), is(CoAP.DEFAULT_COAP_PORT));
 		assertThat(req.getOptions().getUriHost(), is("iot.eclipse.org"));
 	}
 

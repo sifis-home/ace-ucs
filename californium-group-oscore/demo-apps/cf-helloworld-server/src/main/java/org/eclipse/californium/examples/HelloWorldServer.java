@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,10 +24,10 @@ import java.net.SocketException;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.tcp.TcpServerConnector;
+import org.eclipse.californium.elements.tcp.netty.TcpServerConnector;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 public class HelloWorldServer extends CoapServer {
 
@@ -67,7 +67,7 @@ public class HelloWorldServer extends CoapServer {
 	 */
 	private void addEndpoints(boolean udp, boolean tcp) {
 		NetworkConfig config = NetworkConfig.getStandard();
-		for (InetAddress addr : EndpointManager.getEndpointManager().getNetworkInterfaces()) {
+		for (InetAddress addr : NetworkInterfacesUtil.getNetworkInterfaces()) {
 			InetSocketAddress bindToAddress = new InetSocketAddress(addr, COAP_PORT);
 			if (udp) {
 				CoapEndpoint.Builder builder = new CoapEndpoint.Builder();

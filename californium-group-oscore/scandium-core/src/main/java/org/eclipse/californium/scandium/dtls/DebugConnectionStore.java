@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
  * Intended to be used for unit tests.
  */
 public final class DebugConnectionStore extends InMemoryConnectionStore {
-	private static final Logger LOG = LoggerFactory.getLogger(DebugConnectionStore.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(DebugConnectionStore.class);
 
 	/**
 	 * Creates a store based on given configuration parameters.
@@ -52,14 +52,38 @@ public final class DebugConnectionStore extends InMemoryConnectionStore {
 			LOG.info("  {}connections empty!", tag);
 		} else {
 			for (Connection connection : connections.values()) {
-				if (connection.hasEstablishedSession()) {
-					LOG.info("  {}connection: {} - {} : {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress(), connection.getSession().getSessionIdentifier());
-				} else {
-					LOG.info("  {}connection: {} - {}", tag, connection.getConnectionId(),
-							connection.getPeerAddress());
-				}
+				dump(connection);
 			}
+		}
+	}
+
+	/**
+	 * Dump connections to logger. Intended to be used for unit tests.
+	 */
+	public boolean dump(InetSocketAddress address) {
+		if (connections.size() == 0) {
+			LOG.info("  {}connections empty!", tag);
+		} else {
+			Connection connection = get(address);
+			if (connection == null) {
+				LOG.info("  {}connection: {} - not available!", tag, address);
+			} else {
+				dump(connection);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Dump connection to logger. Intended to be used for unit tests.
+	 */
+	private void dump(Connection connection) {
+		if (connection.hasEstablishedSession()) {
+			LOG.info("  {}connection: {} - {} : {}", tag, connection.getConnectionId(),
+					connection.getPeerAddress(), connection.getEstablishedSession().getSessionIdentifier());
+		} else {
+			LOG.info("  {}connection: {} - {}", tag, connection.getConnectionId(), connection.getPeerAddress());
 		}
 	}
 

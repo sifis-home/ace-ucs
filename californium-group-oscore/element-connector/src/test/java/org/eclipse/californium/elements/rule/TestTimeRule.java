@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,11 +27,11 @@ import org.slf4j.LoggerFactory;
  * Rule to adjust the test time nanoseconds.
  * 
  * Only affects {@link ClockUtil#nanoRealtime()}, but not
- * {@link ScheduledExecutorService} nor {@link Thread#wait()}.
+ * {@link java.util.concurrent.ScheduledExecutorService} nor {@link Thread#wait()}.
  */
 public class TestTimeRule extends TestWatcher {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class);
 
 	/**
 	 * Realtime handler applying the {@link #timeShiftNanos}.

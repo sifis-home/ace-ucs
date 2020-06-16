@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Sierra Wireless and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -15,6 +15,8 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - adjust to use Token
  ******************************************************************************/
 package org.eclipse.californium.core.observe;
+
+import java.util.concurrent.ScheduledExecutorService;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.EndpointContext;
@@ -41,6 +43,7 @@ public interface ObservationStore {
 	 * @return the previous value associated with the specified key, or
 	 *         {@code null} if there was no mapping for the key.
 	 * @throws NullPointerException if token or observation is {@code null}.
+	 * @throws ObservationStoreException if observation isn't stored.
 	 */
 	Observation putIfAbsent(Token token, Observation obs);
 
@@ -54,6 +57,7 @@ public interface ObservationStore {
 	 * @return the previous value associated with the specified key, or
 	 *         {@code null} if there was no mapping for the key.
 	 * @throws NullPointerException if token or observation is {@code null}.
+	 * @throws ObservationStoreException if observation isn't stored.
 	 */
 	Observation put(Token token, Observation obs);
 
@@ -88,6 +92,16 @@ public interface ObservationStore {
 	 * @param endpointContext The context to set.
 	 */
 	void setContext(Token token, EndpointContext endpointContext);
+
+	/**
+	 * Set executor for this store.
+	 *
+	 * Executor is not managed by the store, it must be shutdown
+	 * externally, if the resource should be freed.
+	 *
+	 * @param executor intended to be used for rare executing timers (e.g. cleanup tasks). 
+	 */
+	void setExecutor(ScheduledExecutorService executor);
 
 	void start();
 

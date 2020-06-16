@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 public class ExecutorsUtil {
 
 	/** the logger. */
-	private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorsUtil.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ExecutorsUtil.class);
 
 	private static final Runnable WARMUP = new Runnable() {
 
@@ -53,20 +53,6 @@ public class ExecutorsUtil {
 	 * Thread group for timers.
 	 */
 	public static final ThreadGroup TIMER_THREAD_GROUP = new ThreadGroup("Timer"); //$NON-NLS-1$
-
-	/**
-	 * General scheduled executor intended for rare executing timers (e.g.
-	 * cleanup task).
-	 */
-	private static final ScheduledThreadPoolExecutor scheduler;
-
-	static {
-		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
-				new DaemonThreadFactory("Timer#", TIMER_THREAD_GROUP));
-		executor.execute(WARMUP);
-		executor.prestartAllCoreThreads();
-		scheduler = executor;
-	}
 
 	/**
 	 * Threshold for using the {@link SplitScheduledThreadPoolExecutor} to split
@@ -128,14 +114,62 @@ public class ExecutorsUtil {
 	}
 
 	/**
-	 * Get general scheduled executor.
+	 * Create a scheduler with 2 threads in pools.
 	 * 
 	 * Intended to be used for rare executing timers (e.g. cleanup tasks).
 	 * 
 	 * @return scheduled executor service
 	 */
-	public static ScheduledThreadPoolExecutor getScheduledExecutor() {
-		return scheduler;
+	public static ScheduledThreadPoolExecutor newDefaultSecondaryScheduler(String namePrefix) {
+		ScheduledThreadPoolExecutor executor = new ScheduledThreadPoolExecutor(2,
+				new NamedThreadFactory(namePrefix));
+		executor.execute(WARMUP);
+		executor.prestartAllCoreThreads();
+		return executor;
+	}
+
+	/**
+	 * Shutdown executor gracefully by waiting for task terminations.
+	 * 
+	 * @param timeMaxToWaitInMs max time to wait in milliseconds for task
+	 *            completions, after this time a more aggressive
+	 *            {@link ExecutorService#shutdownNow()} will be called.
+	 * @param executors
+	 */
+	public static void shutdownExecutorGracefully(long timeMaxToWaitInMs, ExecutorService... executors) {
+		if (executors.length == 0)
+			return;
+		
+		// shutdown executor
+		for (ExecutorService executor : executors) {
+			executor.shutdown();
+		}
+
+		// wait for task termination
+		try {
+			long timeToWait = timeMaxToWaitInMs / executors.length / 2;
+			for (ExecutorService executor : executors) {
+				if (!executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS)) {
+					// cancel still executing tasks
+					// and ignore all remaining tasks scheduled for later
+					List<Runnable> runningTasks = executor.shutdownNow();
+					if (runningTasks.size() > 0) {
+						// this is e.g. the case if we have performed an
+						// incomplete blockwise transfer
+						// and the BlockwiseLayer has scheduled a
+						// pending BlockCleanupTask for tidying up
+						LOGGER.debug("ignoring remaining {} scheduled task(s)", runningTasks.size());
+					}
+					// wait for executing tasks to respond to being cancelled
+					executor.awaitTermination(timeToWait, TimeUnit.MILLISECONDS);
+				}
+			}
+		} catch (InterruptedException e) {
+			for (ExecutorService executor : executors) {
+				executor.shutdownNow();
+			}
+			Thread.currentThread().interrupt();
+		}
 	}
 
 	/**

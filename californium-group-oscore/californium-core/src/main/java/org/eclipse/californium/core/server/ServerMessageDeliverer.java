@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -46,7 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ServerMessageDeliverer implements MessageDeliverer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ServerMessageDeliverer.class);
 
 	/* The root of all resources */
 	private final Resource root;
@@ -89,9 +89,7 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 		}
 		boolean processed = preDeliverRequest(exchange);
 		if (!processed) {
-			Request request = exchange.getRequest();
-			List<String> path = request.getOptions().getUriPath();
-			final Resource resource = findResource(path);
+			final Resource resource = findResource(exchange);
 			if (resource != null) {
 				checkForObserveOption(exchange, resource);
 
@@ -108,8 +106,11 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 					resource.handleRequest(exchange);
 				}
 			} else {
-				LOGGER.info("did not find resource {} requested by {}", path,
-						request.getSourceContext().getPeerAddress());
+				if (LOGGER.isInfoEnabled()) {
+					Request request = exchange.getRequest();
+					LOGGER.info("did not find resource /{} requested by {}", request.getOptions().getUriPathString(),
+							request.getSourceContext().getPeerAddress());
+				}
 				exchange.sendResponse(new Response(ResponseCode.NOT_FOUND));
 			}
 		}
@@ -152,11 +153,12 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 
 			if (request.isObserve()) {
 				// Requests wants to observe and resource allows it :-)
-				LOGGER.debug("initiating an observe relation between {} and resource {}", source, resource.getURI());
+				LOGGER.debug("initiating an observe relation between {} and resource {}, {}", source, resource.getURI(), exchange);
 				ObservingEndpoint remote = observeManager.findObservingEndpoint(source);
 				ObserveRelation relation = new ObserveRelation(remote, resource, exchange);
 				remote.addObserveRelation(relation);
 				exchange.setRelation(relation);
+				request.setProtectFromOffload();
 				// all that's left is to add the relation to the resource which
 				// the resource must do itself if the response is successful
 
@@ -187,12 +189,26 @@ public class ServerMessageDeliverer implements MessageDeliverer {
 	 * may accept requests to subresources, e.g., to allow addresses with
 	 * wildcards like <code>coap://example.com:5683/devices/*</code>
 	 * 
+	 * @param exchange The exchange containing the inbound request including the
+	 *            path of resource names
+	 * @return the resource or {@code null}, if not found
+	 * @since 2.1
+	 */
+	protected Resource findResource(Exchange exchange) {
+		return findResource(exchange.getRequest().getOptions().getUriPath());
+	}
+
+	/**
+	 * Searches in the resource tree for the specified path. A parent resource
+	 * may accept requests to subresources, e.g., to allow addresses with
+	 * wildcards like <code>coap://example.com:5683/devices/*</code>
+	 * 
 	 * @param list the path as list of resource names
-	 * @return the resource or null if not found
+	 * @return the resource or {@code null}, if not found
 	 */
 	protected Resource findResource(final List<String> list) {
 		Deque<String> path = new LinkedList<String>(list);
-		Resource current = root;
+		Resource current = getRootResource();
 		while (!path.isEmpty() && current != null) {
 			String name = path.removeFirst();
 			current = current.getChild(name);

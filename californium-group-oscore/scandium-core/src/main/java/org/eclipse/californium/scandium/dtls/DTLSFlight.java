@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -77,6 +77,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  */
 public class DTLSFlight {
 
+	private static final int MAX_TIMEOUT_MILLIS = 60 * 1000; // 60s
 	/**
 	 * The DTLS messages that belong to this flight and need to be sent, when
 	 * the timeout expires.
@@ -206,10 +207,12 @@ public class DTLSFlight {
 
 	/**
 	 * Called, when the flight needs to be retransmitted. Increment the timeout,
-	 * here we double it.
+	 * here we double it. Limit the timeout to {@link #MAX_TIMEOUT_MILLIS}.
+	 * 
+	 * @see #incrementTimeout(int)
 	 */
 	public void incrementTimeout() {
-		this.timeout *= 2;
+		this.timeout = incrementTimeout(this.timeout);
 	}
 
 	public boolean isRetransmissionNeeded() {
@@ -313,4 +316,22 @@ public class DTLSFlight {
 		}
 	}
 
+	/**
+	 * Increment the timeout, here we double it. Limit the timeout to
+	 * {@link #MAX_TIMEOUT_MILLIS}.
+	 * 
+	 * @param timeoutMillis timeout in milliseconds
+	 * @return doubled and limited timeout in milliseconds
+	 * @see #incrementTimeout()
+	 * @since 2.1
+	 */
+	public static int incrementTimeout(int timeoutMillis) {
+		if (timeoutMillis < MAX_TIMEOUT_MILLIS) {
+			timeoutMillis *= 2;
+			if (timeoutMillis > MAX_TIMEOUT_MILLIS) {
+				timeoutMillis = MAX_TIMEOUT_MILLIS;
+			}
+		}
+		return timeoutMillis;
+	}
 }

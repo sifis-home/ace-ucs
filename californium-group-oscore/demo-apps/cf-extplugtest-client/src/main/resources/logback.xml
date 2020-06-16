@@ -37,7 +37,27 @@
 		<appender-ref ref="FILE" />
 	</logger>
 
+	<logger name="org.eclipse.californium.scandium.dtls.Connection.owner" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
 	<logger name="org.eclipse.californium.extplugtests.statistics" level="INFO" additivity="false" >
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
+	<logger name="org.eclipse.californium.core.network.interceptors.HealthStatisticLogger" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
+	<logger name="org.eclipse.californium.unixhealth.NetStatLogger" level="DEBUG" additivity="false">
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
+	<logger name="org.eclipse.californium.plugtests.ClientInitializer" level="INFO" additivity="false" >
+		<appender-ref ref="STDOUT_SIMPLE" />
+	</logger>
+
+	<logger name="org.eclipse.californium.extplugtests.BenchmarkClient" level="INFO" additivity="false" >
 		<appender-ref ref="STDOUT_SIMPLE" />
 	</logger>
 

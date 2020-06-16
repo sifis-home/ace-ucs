@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -50,7 +50,7 @@ import org.slf4j.LoggerFactory;
  */
 public class Feed extends CoapResource {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(Feed.class);
 	/**
 	 * Resource name.
 	 */
@@ -59,6 +59,10 @@ public class Feed extends CoapResource {
 	 * URI query parameter to specify response length.
 	 */
 	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
+	/**
+	 * URI query parameter to specify ack and separate response.
+	 */
+	private static final String URI_QUERY_OPTION_ACK = "ack";
 	/**
 	 * Default interval for notifies in milliseconds.
 	 */
@@ -155,6 +159,7 @@ public class Feed extends CoapResource {
 		}
 
 		List<String> uriQuery = request.getOptions().getUriQuery();
+		boolean ack = false;
 		int length = 0;
 		for (String query : uriQuery) {
 			String message = null;
@@ -170,6 +175,8 @@ public class Feed extends CoapResource {
 				} catch (NumberFormatException ex) {
 					message = "URI-query-option " + query + " is no number!";
 				}
+			} else if (query.startsWith(URI_QUERY_OPTION_ACK)) {
+				ack = true;
 			} else {
 				message = "URI-query-option " + query + " is not supported!";
 			}
@@ -227,6 +234,9 @@ public class Feed extends CoapResource {
 			}
 		} else {
 			LOGGER.info("client[{}] no observe {}!", id, request);
+			if (ack) {
+				exchange.accept();
+			}
 		}
 		response.addMessageObserver(new MessageCompletionObserver(timeout, interval));
 		exchange.respond(response);

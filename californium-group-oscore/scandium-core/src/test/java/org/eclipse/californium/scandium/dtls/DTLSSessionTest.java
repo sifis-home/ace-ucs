@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,14 +27,15 @@ import java.security.GeneralSecurityException;
 import java.util.Random;
 
 import javax.crypto.SecretKey;
-import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretIvParameterSpec;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -72,25 +73,6 @@ public class DTLSSessionTest {
 		// then the maxFragmentLength is as adjusted so that a fragment
 		// fits into a single unfragmented UDP datagram
 		assertAnyFragmentFitsIntoUnfragmentedDatagram(mtu);
-	}
-
-	@Test
-	public void testMaxFragmentLengthIsAdjustedToCipherSuite() {
-		// given a handshake over an ethernet connection (MTU 1500 bytes)
-		int mtu = 1500;
-		session.setMaxTransmissionUnit(mtu);
-		int initialMaxFragmentLength = session.getMaxFragmentLength();
-
-		// when negotiating a cipher suite introducing ciphertext expansion
-		CipherSuite cipherSuite = CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256;
-		DTLSConnectionState newWriteState =
-				new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, null, null, null);
-		session.setWriteState(newWriteState);
-
-		// then the maxFragmentLength is adjusted so that any fragment using
-		// current write state fits into a single unfragmented UDP datagram
-		assertAnyFragmentFitsIntoUnfragmentedDatagram(mtu);
-		assertTrue(session.getMaxFragmentLength() < initialMaxFragmentLength);
 	}
 
 	private void assertAnyFragmentFitsIntoUnfragmentedDatagram(int mtu) {
@@ -168,6 +150,44 @@ public class DTLSSessionTest {
 	}
 
 	@Test
+	public void testHigherSequenceNumberIsNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 0);
+		assertTrue(session.markRecordAsRead(epoch, 2));
+	}
+
+	@Test
+	public void testLowerSequenceNumberIsNotNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertFalse(session.markRecordAsRead(epoch, 0));
+	}
+
+	@Test
+	public void testSameSequenceNumberIsNotNewer() {
+
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertFalse(session.markRecordAsRead(epoch, 2));
+	}
+
+	@Test
+	public void testHigherEpochIsNewer() {
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 2);
+		assertTrue(session.markRecordAsRead(epoch + 1, 0));
+	}
+
+	@Test
+	public void testLowerEpochIsNotNewer() {
+		int epoch = session.getReadEpoch();
+		session.markRecordAsRead(epoch, 0);
+		assertFalse(session.markRecordAsRead(epoch - 1, 2));
+	}
+
+	@Test
 	public void testConstructorEnforcesMaxSequenceNo() {
 		session = new DTLSSession(PEER_ADDRESS, DtlsTestTools.MAX_SEQUENCE_NO); // should succeed
 		try {
@@ -201,7 +221,7 @@ public class DTLSSessionTest {
 	public void testSessionWithServerNamesCanBeResumedFromSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
-		session.setVirtualHost("test");
+		session.setHostName("test");
 		SessionTicket ticket = session.getSessionTicket();
 
 		// WHEN creating a new session to be resumed from the ticket
@@ -228,7 +248,7 @@ public class DTLSSessionTest {
 	public void testSessionWithServerNamesCanBeResumedFromSerializedSessionTicket() throws GeneralSecurityException {
 		// GIVEN a session ticket for an established server session
 		session = newEstablishedServerSession(PEER_ADDRESS, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
-		session.setVirtualHost("test");
+		session.setHostName("test");
 		SessionTicket ticket = serialize(session.getSessionTicket());
 
 		// WHEN creating a new session to be resumed from the ticket
@@ -256,7 +276,7 @@ public class DTLSSessionTest {
 		session.setWriteState(currentState);
 		session.setReceiveCertificateType(type);
 		session.setSendCertificateType(type);
-		session.setMasterSecret(getRandomBytes(48));
+		session.setMasterSecret(new SecretKeySpec(getRandomBytes(48), "MAC"));
 		session.setPeerIdentity(new PreSharedKeyIdentity("client_identity"));
 		return session;
 	}
@@ -267,8 +287,8 @@ public class DTLSSessionTest {
 			macKey = new SecretKeySpec(getRandomBytes(cipherSuite.getMacKeyLength()), "AES");
 		}
 		SecretKey encryptionKey = new SecretKeySpec(getRandomBytes(cipherSuite.getEncKeyLength()), "AES");
-		IvParameterSpec iv = new IvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
-		return new DTLSConnectionState(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
+		SecretIvParameterSpec iv = new SecretIvParameterSpec(getRandomBytes(cipherSuite.getFixedIvLength()));
+		return DTLSConnectionState.create(cipherSuite, CompressionMethod.NULL, encryptionKey, iv, macKey);
 	}
 
 	private static byte[] getRandomBytes(int length) {
@@ -278,10 +298,14 @@ public class DTLSSessionTest {
 	}
 	
 	private static SessionTicket serialize(SessionTicket ticket) {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(true);
 		ticket.encode(writer);
-		DatagramReader reader = new DatagramReader(writer.toByteArray());
-		return SessionTicket.decode(reader);
+		byte[] ticketBytes = writer.toByteArray();
+		DatagramReader reader = new DatagramReader(ticketBytes);
+		SessionTicket result = SessionTicket.decode(reader);
+		Bytes.clear(ticketBytes);
+		writer.close();
+		return result;
 	}
 
 }

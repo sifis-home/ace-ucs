@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,7 +16,6 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
 
 /**
  * Generic handshake message.
@@ -32,21 +31,15 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 	 * Handshake type of message
 	 */
 	private final HandshakeType type;
-	/**
-	 * Fragment bytes.
-	 */
-	private final byte[] byteArray;
 
 	/**
 	 * Create generic handshake message.
 	 * 
 	 * @param type handshake type
-	 * @param byteArray fragment bytes
 	 * @param peerAddress address of peer
 	 */
-	private GenericHandshakeMessage(HandshakeType type, byte[] byteArray, InetSocketAddress peerAddress) {
+	private GenericHandshakeMessage(HandshakeType type, InetSocketAddress peerAddress) {
 		super(peerAddress);
-		this.byteArray = Arrays.copyOf(byteArray, byteArray.length);
 		this.type = type;
 	}
 
@@ -57,12 +50,12 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 
 	@Override
 	public int getMessageLength() {
-		return byteArray.length;
+		return getRawMessage().length;
 	}
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		return byteArray;
+		return getRawMessage();
 	}
 
 	/**
@@ -85,13 +78,11 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 	 * Read generic generic handshake message from bytes.
 	 * 
 	 * @param type handshake type
-	 * @param byteArray fragment bytes
 	 * @param peerAddress address of peer
 	 * @return generic handshake message
 	 */
-	public static GenericHandshakeMessage fromByteArray(HandshakeType type, byte[] byteArray,
-			InetSocketAddress peerAddress) {
-		return new GenericHandshakeMessage(type, byteArray, peerAddress);
+	public static GenericHandshakeMessage fromByteArray(HandshakeType type, InetSocketAddress peerAddress) {
+		return new GenericHandshakeMessage(type, peerAddress);
 	}
 
 }

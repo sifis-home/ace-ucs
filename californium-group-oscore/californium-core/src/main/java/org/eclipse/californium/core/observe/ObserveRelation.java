@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,8 +27,6 @@
 package org.eclipse.californium.core.observe;
 
 import java.net.InetSocketAddress;
-import java.util.Iterator;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +34,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.util.StringUtil;
 
 
 /**
@@ -45,7 +44,7 @@ import org.eclipse.californium.core.server.resources.Resource;
 public class ObserveRelation {
 
 	/** The logger. */
-	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(ObserveRelation.class);
 	
 	private final long checkIntervalTime;
 	private final int checkIntervalCount;
@@ -61,7 +60,7 @@ public class ObserveRelation {
 	private Response recentControlNotification;
 	private Response nextControlNotification;
 	
-	private String key = null;
+	private final String key;
 
 	/*
 	 * This value is false at first and must be set to true by the resource if
@@ -75,9 +74,6 @@ public class ObserveRelation {
 	private long interestCheckTimer = System.currentTimeMillis();
 	private int interestCheckCounter = 1;
 
-	/** The notifications that have been sent, so they can be removed from the Matcher */
-	private ConcurrentLinkedQueue<Response> notifications = new ConcurrentLinkedQueue<Response>();
-	
 	/**
 	 * Constructs a new observe relation.
 	 * 
@@ -98,8 +94,8 @@ public class ObserveRelation {
 		NetworkConfig config = exchange.getEndpoint().getConfig();
 		checkIntervalTime = config.getLong(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_TIME);
 		checkIntervalCount = config.getInt(NetworkConfig.Keys.NOTIFICATION_CHECK_INTERVAL_COUNT);
-		
-		this.key = getSource().toString() + "#" + exchange.getRequest().getTokenString();
+
+		this.key = StringUtil.toString(getSource()) + "#" + exchange.getRequest().getTokenString();
 	}
 	
 	/**
@@ -229,16 +225,7 @@ public class ObserveRelation {
 		}
 		this.nextControlNotification = nextControlNotification;
 	}
-	
-	public void addNotification(Response notification) {
-		notifications.add(notification);
-		LOGGER.trace("{} add notification MID {} (size {}).", resource.getURI(), notification.getMID(), notifications.size());
-	}
-	
-	public Iterator<Response> getNotificationIterator() {
-		return notifications.iterator();
-	}
-	
+
 	public String getKey() {
 		return this.key;
 	}

@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -34,10 +34,14 @@ import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.cert.Certificate;
 
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -49,6 +53,9 @@ import org.junit.experimental.categories.Category;
 public class ClientHandshakerTest {
 
 	final static int MAX_TRANSMISSION_UNIT = 1500;
+
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	final InetSocketAddress localPeer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
 	final SimpleRecordLayer recordLayer = new SimpleRecordLayer();
@@ -166,6 +173,34 @@ public class ClientHandshakerTest {
 		assertThat(
 				clientHello.getServerNameExtension().getServerNames().getServerName(NameType.HOST_NAME).getNameAsString(),
 				is(serverName));
+		
+	}
+
+	@Test
+	public void testClientReceivesBrokenServerHello() throws Exception {
+
+		givenAClientHandshaker(false);
+
+		// WHEN a handshake is started
+		handshaker.startHandshake();
+
+		// THEN assert that the sent client hello contains an SNI extension
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertNotNull(clientHello);
+		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
+		HelloExtensions extensions = new HelloExtensions();
+		extensions.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
+		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
+				cipherSuite, CompressionMethod.NULL, extensions, localPeer);
+		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello, localPeer);
+		record.applySession(handshaker.session);
+		try {
+			handshaker.processMessage(record);
+			fail("Broken SERVER_HELLO not detected!");
+		} catch (HandshakeException ex) {
+			assertThat(ex.getAlert().getLevel(), is(AlertLevel.FATAL));
+			assertThat(ex.getAlert().getDescription(), is(AlertDescription.UNSUPPORTED_EXTENSION));
+		}
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
@@ -206,12 +241,13 @@ public class ClientHandshakerTest {
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}
+		Connection connection = new Connection(peer, new SyncSerialExecutor());
 		DTLSSession session = new DTLSSession(peer);
-		session.setVirtualHost(virtualHost);
+		session.setHostName(virtualHost);
 		handshaker = new ClientHandshaker(
 				session,
 				recordLayer,
-				null,
+				connection,
 				builder.build(),
 				MAX_TRANSMISSION_UNIT);
 	}

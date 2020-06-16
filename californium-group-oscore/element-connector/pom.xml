@@ -5,16 +5,17 @@
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>parent</artifactId>
-		<version>2.0.0-M15</version>
+		<artifactId>cf-bom</artifactId>
+		<version>2.3.0-SNAPSHOT</version>
+		<relativePath>../bom</relativePath>
 	</parent>
 
 	<artifactId>element-connector</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>element-connector</name>
+	<name>Californium (Cf) Element Connector</name>
 	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -57,7 +58,6 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							eu.javaspecialists.tjsn.concurrency.stripedexecutor,
 							org.eclipse.californium.elements*
 						</Export-Package>
 						<Import-Package>
@@ -79,22 +79,11 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>animal-sniffer-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
 					</archive>

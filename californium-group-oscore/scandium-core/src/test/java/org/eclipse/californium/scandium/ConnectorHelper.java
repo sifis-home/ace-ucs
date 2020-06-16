@@ -1,12 +1,12 @@
 /*******************************************************************************
- * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
+ * Copyright (c) 2015, 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -32,6 +32,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.junit.Assert.*;
 
 import java.io.IOException;
@@ -40,12 +43,17 @@ import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
+import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
@@ -55,15 +63,25 @@ import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
+import org.eclipse.californium.elements.auth.ExtensiblePrincipal;
+import org.eclipse.californium.elements.util.TestThreadFactory;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
 import org.eclipse.californium.scandium.dtls.DtlsTestTools;
+import org.eclipse.californium.scandium.dtls.HandshakeException;
+import org.eclipse.californium.scandium.dtls.Handshaker;
 import org.eclipse.californium.scandium.dtls.InMemorySessionCache;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.eclipse.californium.scandium.dtls.ResumptionSupportingConnectionStore;
+import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.dtls.pskstore.AsyncInMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -75,11 +93,13 @@ public class ConnectorHelper {
 
 	static final String SERVERNAME							= "my.test.server";
 	static final String	SCOPED_CLIENT_IDENTITY				= "My_client_identity";
+	static final String	SCOPED_CLIENT_IDENTITY_SECRET		= "mySecretPSK";
 	static final String	CLIENT_IDENTITY						= "Client_identity";
 	static final String	CLIENT_IDENTITY_SECRET				= "secretPSK";
 	static final int	MAX_TIME_TO_WAIT_SECS				= 2;
 	static final int	SERVER_CONNECTION_STORE_CAPACITY	= 3;
 
+	static final ThreadFactory TEST_UDP_THREAD_FACTORY = new TestThreadFactory("TEST-UDP-");
 
 	DTLSConnector server;
 	InetSocketAddress serverEndpoint;
@@ -87,7 +107,9 @@ public class ConnectorHelper {
 	InMemorySessionCache serverSessionCache;
 	SimpleRawDataChannel serverRawDataChannel;
 	RawDataProcessor serverRawDataProcessor;
+	Map<InetSocketAddress, LatchSessionListener> sessionListenerMap = new ConcurrentHashMap<>();
 	DTLSSession establishedServerSession;
+	AsyncInMemoryPskStore aPskStore;
 
 	DtlsConnectorConfig serverConfig;
 
@@ -113,7 +135,6 @@ public class ConnectorHelper {
 		startServer(builder);
 	}
 
-
 	/**
 	 * Configures and starts a connector representing the <em>server side</em> of a DTLS connection.
 	 * <p>
@@ -132,14 +153,7 @@ public class ConnectorHelper {
 	 * @throws GeneralSecurityException if the keys cannot be read.
 	 */
 	public void startServer(DtlsConnectorConfig.Builder builder) throws IOException, GeneralSecurityException {
-
-		InMemoryPskStore pskStore = new InMemoryPskStore();
-		pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
-		pskStore.setKey(SCOPED_CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
-
 		builder.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
-				.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(), CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509)
-				.setPskStore(pskStore)
 				.setMaxConnections(SERVER_CONNECTION_STORE_CAPACITY)
 				.setMaxTransmissionUnit(1024)
 				.setReceiverThreadCount(1)
@@ -147,13 +161,30 @@ public class ConnectorHelper {
 				.setLoggingTag("server")
 				.setServerOnly(true);
 
-		if (builder.getIncompleteConfig().getSupportedCipherSuites() == null) {
-			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites());
-			list.addAll(CipherSuite.getPskCipherSuites(true));
+		DtlsConnectorConfig incompleteConfig = builder.getIncompleteConfig();
+
+		if (incompleteConfig.getAdvancedPskStore() == null && incompleteConfig.getPskStore() == null) {
+			InMemoryPskStore pskStore = new InMemoryPskStore();
+			pskStore.setKey(CLIENT_IDENTITY, CLIENT_IDENTITY_SECRET.getBytes());
+			pskStore.setKey(SCOPED_CLIENT_IDENTITY, SCOPED_CLIENT_IDENTITY_SECRET.getBytes(), SERVERNAME);
+			aPskStore = new AsyncInMemoryPskStore(pskStore);
+			builder.setAdvancedPskStore(aPskStore);
+		}
+
+		if (incompleteConfig.getPrivateKey() == null) {
+			builder.setIdentity(DtlsTestTools.getPrivateKey(), DtlsTestTools.getServerCertificateChain(),
+					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
+		}
+
+		if (incompleteConfig.getSupportedCipherSuites() == null) {
+			List<CipherSuite> list = new ArrayList<>(CipherSuite.getEcdsaCipherSuites(false));
+			list.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK,
+					KeyExchangeAlgorithm.PSK));
+			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setSupportedCipherSuites(list);
 		}
-		if (!Boolean.FALSE.equals(builder.getIncompleteConfig().isClientAuthenticationRequired()) ||
-				Boolean.TRUE.equals(builder.getIncompleteConfig().isClientAuthenticationWanted())) {
+		if (!Boolean.FALSE.equals(incompleteConfig.isClientAuthenticationRequired()) ||
+				Boolean.TRUE.equals(incompleteConfig.isClientAuthenticationWanted())) {
 			builder.setTrustStore(DtlsTestTools.getTrustedCertificates()).setRpkTrustAll();
 		}
 		serverConfig = builder.build();
@@ -162,10 +193,9 @@ public class ConnectorHelper {
 		serverConnectionStore = new DebugConnectionStore(SERVER_CONNECTION_STORE_CAPACITY, 5 * 60, serverSessionCache); // connection timeout 5mins
 		serverConnectionStore.setTag("server");
 
-		server = new DTLSConnector(serverConfig, serverConnectionStore);
+		server = new DtlsTestConnector(serverConfig, serverConnectionStore);
 		serverRawDataProcessor = new MessageCapturingProcessor();
-		serverRawDataChannel = new SimpleRawDataChannel(server);
-		serverRawDataChannel.setProcessor(serverRawDataProcessor);
+		serverRawDataChannel = new SimpleRawDataChannel(server, serverRawDataProcessor);
 		server.setRawDataReceiver(serverRawDataChannel);
 		server.start();
 		serverEndpoint = server.getAddress();
@@ -175,6 +205,11 @@ public class ConnectorHelper {
 	 * Shuts down and destroys the encapsulated server side connector.
 	 */
 	public void destroyServer() {
+		if (aPskStore != null) {
+			aPskStore.shutdown();
+			aPskStore = null;
+		}
+		cleanUpServer();
 		server.destroy();
 	}
 
@@ -193,6 +228,7 @@ public class ConnectorHelper {
 		serverRawDataProcessor.clear();
 		serverRawDataChannel.setProcessor(serverRawDataProcessor);
 		server.setAlertHandler(null);
+		sessionListenerMap.clear();
 	}
 
 	/**
@@ -207,6 +243,15 @@ public class ConnectorHelper {
 		if (connection != null) {
 			serverConnectionStore.remove(connection, removeFromSessionCache);
 		}
+	}
+
+	public DTLSConnector createClient(DtlsConnectorConfig configuration) {
+		return new DtlsTestConnector(configuration);
+	}
+
+	public DTLSConnector createClient(DtlsConnectorConfig configuration,
+			ResumptionSupportingConnectionStore connectionStore) {
+		return new DtlsTestConnector(configuration, connectionStore);
 	}
 
 	static DtlsConnectorConfig newStandardClientConfig(final InetSocketAddress bindAddress) throws IOException, GeneralSecurityException {
@@ -224,25 +269,23 @@ public class ConnectorHelper {
 				.setRpkTrustAll();
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client) throws Exception {
 		return givenAnEstablishedSession(client, true);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, boolean releaseSocket) throws Exception {
 		RawData raw = RawData.outbound("Hello World".getBytes(), new AddressEndpointContext(serverEndpoint), null, false);
 		return givenAnEstablishedSession(client, raw, releaseSocket);
 	}
 
-	LatchDecrementingRawDataChannel givenAnEstablishedSession(final DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
+	LatchDecrementingRawDataChannel givenAnEstablishedSession(DTLSConnector client, RawData msgToSend, boolean releaseSocket) throws Exception {
 
-		CountDownLatch latch = new CountDownLatch(1);
-		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(client);
-		clientChannel.setLatch(latch);
+		LatchDecrementingRawDataChannel clientChannel = new LatchDecrementingRawDataChannel(1);
 		client.setRawDataReceiver(clientChannel);
 		client.start();
-		client.send(msgToSend);
 		clientChannel.setAddress(client.getAddress());
-		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+		client.send(msgToSend);
+		assertTrue("DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds", clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 		Connection con = serverConnectionStore.get(client.getAddress());
 		assertNotNull(con);
 		establishedServerSession = con.getEstablishedSession();
@@ -258,40 +301,22 @@ public class ConnectorHelper {
 		return clientChannel;
 	}
 
-	static class LatchDecrementingRawDataChannel extends SimpleRawDataChannel {
-		private CountDownLatch latch;
-
-		public LatchDecrementingRawDataChannel(DTLSConnector server) {
-			super(server);
-		}
-
-		public synchronized void setLatch(CountDownLatch latchToDecrement) {
-			this.latch = latchToDecrement;
-		}
-
-		@Override
-		public void receiveData(RawData raw) {
-			super.receiveData(raw);
-			synchronized (this) {
-				if (latch != null) {
-					latch.countDown();
-				}
-			}
-		}
+	static void assertPrincipalHasAdditionalInfo(Principal peerIdentity, String key, String expectedValue) {
+		assertThat(peerIdentity, instanceOf(ExtensiblePrincipal.class));
+		@SuppressWarnings("unchecked")
+		ExtensiblePrincipal<? extends Principal> p = (ExtensiblePrincipal<? extends Principal>) peerIdentity;
+		assertThat(p.getExtendedInfo().get(key, String.class), is(expectedValue));
 	}
 
-	static class SimpleRawDataChannel implements RawDataChannel {
-
-		private RawDataProcessor processor;
-		private DTLSConnector connector;
+	static class LatchDecrementingRawDataChannel implements RawDataChannel {
 		private InetSocketAddress address;
-		
-		public SimpleRawDataChannel(DTLSConnector connector) {
-			this.connector = connector;
+		private CountDownLatch latch;
+
+		public LatchDecrementingRawDataChannel() {
 		}
 
-		public synchronized void setProcessor(final RawDataProcessor processor) {
-			this.processor = processor;
+		public LatchDecrementingRawDataChannel(int count) {
+			setLatchCount(count);
 		}
 
 		public synchronized InetSocketAddress getAddress() {
@@ -302,19 +327,68 @@ public class ConnectorHelper {
 			this.address = address;
 		}
 
+		public synchronized void setLatchCount(int count) {
+			this.latch = new CountDownLatch(count);
+		}
+
+		private synchronized CountDownLatch getLatch() {
+			return this.latch;
+		}
+
+		@Override
+		public void receiveData(RawData raw) {
+			CountDownLatch latch = getLatch();
+			if (latch != null) {
+				latch.countDown();
+			}
+		}
+
+		public boolean await(long timeout, TimeUnit unit) throws InterruptedException {
+			CountDownLatch latch = getLatch();
+			if (latch != null) {
+				return latch.await(timeout, unit);
+			} else {
+				return false;
+			}
+		}
+	}
+
+	static class SimpleRawDataChannel extends LatchDecrementingRawDataChannel {
+
+		private RawDataProcessor processor;
+		private DTLSConnector connector;
+
+		public SimpleRawDataChannel() {
+		}
+
+		public SimpleRawDataChannel(DTLSConnector connector, RawDataProcessor processor) {
+			if (connector == null) {
+				throw new NullPointerException("connector must not be null!");
+			}
+			this.connector = connector;
+			setProcessor(processor);
+		}
+
+		public synchronized void setProcessor(RawDataProcessor processor) {
+			if (processor != null && connector == null) {
+				throw new IllegalStateException("connector must be provided when creating the instance!");
+			}
+			this.processor = processor;
+		}
+
 		@Override
 		public void receiveData(final RawData raw) {
+			DTLSConnector connector;
 			RawDataProcessor processor;
 			synchronized (this) {
 				processor = this.processor;
+				connector = this.connector;
 			}
 			if (processor != null) {
 				RawData response = processor.process(raw);
-				if (response != null) {
+				if (response != null && connector != null) {
 					InetSocketAddress socketAddress = connector.getAddress();
-					synchronized (this) {
-						address = socketAddress;
-					}
+					setAddress(socketAddress);
 					connector.send(response);
 				}
 			}
@@ -407,52 +481,58 @@ public class ConnectorHelper {
 		void handleData(InetSocketAddress endpoint, byte[] data);
 	}
 
-	/**
-	 * A data handler that decrements a latch on successful processing of data.
-	 *
-	 */
-	abstract class LatchDecrementingDataHandler implements DataHandler {
+	static class RecordCollectorDataHandler implements DataHandler {
 
-		private CountDownLatch latch;
+		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
+		private Map<Integer, DTLSSession> apply = new HashMap<Integer, DTLSSession>(8);
+		private final ConnectionIdGenerator cidGenerator;
 
-		public LatchDecrementingDataHandler(final CountDownLatch latch){
-			this.setLatch(latch);
+		RecordCollectorDataHandler() {
+			this(null);
 		}
 
-		@Override
-		public void handleData(InetSocketAddress endpoint, byte[] data) {
-			if (process(data)) {
-				latch.countDown();
-			}
+		RecordCollectorDataHandler(ConnectionIdGenerator cidGenerator) {
+			this.cidGenerator = cidGenerator;
 		}
 
 		/**
-		 * Processes data in a context specific way.
+		 * Apply session to all collected records with matching epoch.
 		 * 
-		 * @param data The data.
-		 * @return {@code true} if the data has been processed successfully.
+		 * @param session session to be applied. {@code null} is applied to
+		 *            epoch 0.
 		 */
-		public abstract boolean process(final byte[] data);
-
-		public void setLatch(final CountDownLatch latch) {
-			this.latch = latch;
+		void applySession(DTLSSession session) {
+			if (session == null) {
+				apply.put(0, null);
+			} else {
+				apply.put(session.getReadEpoch(), session);
+			}
 		}
-	};
-
-	static class RecordCollectorDataHandler implements ConnectorHelper.DataHandler {
-
-		private BlockingQueue<List<Record>> records = new LinkedBlockingQueue<>();
 
 		@Override
 		public void handleData(InetSocketAddress endpoint, byte[] data) {
 			try {
-				records.put(Record.fromByteArray(data, endpoint, null));
+				records.put(Record.fromByteArray(data, endpoint, cidGenerator, ClockUtil.nanoRealtime()));
 			} catch (InterruptedException e) {
 			}
 		}
 
 		public List<Record> waitForRecords(long timeout, TimeUnit unit) throws InterruptedException {
-			return records.poll(timeout, unit);
+			List<Record> result = records.poll(timeout, unit);
+			if (result != null) {
+				for (Record record : result) {
+					if (apply.containsKey(record.getEpoch())) {
+						try {
+							record.applySession(apply.get(record.getEpoch()));
+						} catch (GeneralSecurityException e) {
+							throw new IllegalStateException(e);
+						} catch (HandshakeException e) {
+							throw new IllegalStateException(e);
+						}
+					}
+				}
+			}
+			return result;
 		}
 
 		public List<Record> waitForFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
@@ -471,6 +551,58 @@ public class ConnectorHelper {
 			}
 			return received;
 		}
+
+		public List<Record> assertFlight(int size, long timeout, TimeUnit unit) throws InterruptedException {
+			long timeoutNanos = unit.toNanos(timeout);
+			long time = System.nanoTime();
+			List<Record> received = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS);
+			if (null != received && received.size() < size) {
+				received = new ArrayList<Record>(received);
+				List<Record> next;
+				timeoutNanos -= (System.nanoTime() - time);
+				if (0 < timeoutNanos) {
+					if (null != (next = waitForRecords(timeoutNanos, TimeUnit.NANOSECONDS))) {
+						received.addAll(next);
+					}
+				}
+			}
+			assertThat("timeout: flight not received", received, is(notNullValue()));
+			int left = Math.max(size - received.size(), 0);
+			assertThat("timeout: flight missing records", left, is(0));
+			return received;
+		}
+
+	};
+
+	static class LatchSessionListener extends SessionAdapter {
+
+		private CountDownLatch finished = new CountDownLatch(1);
+		private AtomicBoolean established = new AtomicBoolean();
+		private AtomicReference<Throwable> error = new AtomicReference<Throwable>();
+
+		@Override
+		public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
+				throws HandshakeException {
+			established.set(true);
+			finished.countDown();
+		}
+
+		@Override
+		public void handshakeFailed(Handshaker handshaker, Throwable error) {
+			this.error.set(error);
+			finished.countDown();
+		}
+
+		public boolean waitForSessionEstablished(long timeout, TimeUnit unit) throws InterruptedException {
+			return finished.await(timeout, unit) && established.get();
+		}
+
+		public Throwable waitForSessionFailed(long timeout, TimeUnit unit) throws InterruptedException {
+			if (finished.await(timeout, unit)) {
+				return error.get();
+			}
+			return null;
+		}
 	};
 
 	static class UdpConnector {
@@ -478,8 +610,8 @@ public class ConnectorHelper {
 		final InetSocketAddress address;
 		final DataHandler handler;
 		final AtomicBoolean running = new AtomicBoolean();
-		DatagramSocket socket;
-		Thread receiver;
+		final Thread receiver;
+		volatile DatagramSocket socket;
 
 		public UdpConnector(final int port, final DataHandler dataHandler) {
 			this.address = new InetSocketAddress(InetAddress.getLoopbackAddress(), port);
@@ -492,10 +624,11 @@ public class ConnectorHelper {
 					DatagramPacket packet = new DatagramPacket(buf, buf.length);
 					while (running.get()) {
 						try {
+							DatagramSocket socket = getSocket();
 							socket.receive(packet);
 							if (packet.getLength() > 0) {
 								// handle data
-								handler.handleData(address, Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
+								handler.handleData((InetSocketAddress)packet.getSocketAddress(), Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength()));
 								packet.setLength(buf.length);
 							}
 						} catch (IOException e) {
@@ -504,40 +637,63 @@ public class ConnectorHelper {
 					}
 				}
 			};
-			receiver = new Thread(rec);
+			receiver = TEST_UDP_THREAD_FACTORY.newThread(rec);
 		}
 
-		public synchronized void start() throws IOException {
+		public void start() throws IOException {
 			if (running.compareAndSet(false, true)) {
 				socket = new DatagramSocket(address);
 				receiver.start();
 			}
 		}
 
-		public synchronized void stop() {
+		public void stop() {
 			if (running.compareAndSet(true, false)) {
 				socket.close();
+				receiver.interrupt();
+				try {
+					receiver.join(2000);
+				} catch (InterruptedException e) {
+				}
 			}
 		}
 
 		public void sendRecord(InetSocketAddress peerAddress, byte[] record) throws IOException {
 			DatagramPacket datagram = new DatagramPacket(record, record.length, peerAddress.getAddress(), peerAddress.getPort());
-
+			DatagramSocket socket = getSocket();
 			if (!socket.isClosed()) {
 				socket.send(datagram);
 			}
 		}
 
 		public final InetSocketAddress getAddress() {
-			DatagramSocket socket;
-			synchronized (this) {
-				socket = this.socket;
-			}
+			DatagramSocket socket = getSocket();
 			if (socket == null) {
 				return address;
 			} else {
 				return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
 			}
+		}
+
+		private DatagramSocket getSocket() {
+			return socket;
+		}
+	}
+
+	class DtlsTestConnector extends DTLSConnector {
+		DtlsTestConnector(DtlsConnectorConfig configuration) {
+			super(configuration);
+		}
+
+		DtlsTestConnector(DtlsConnectorConfig configuration, ResumptionSupportingConnectionStore connectionStore) {
+			super(configuration, connectionStore);
+		}
+
+		@Override
+		protected void onInitializeHandshaker(final Handshaker handshaker) {
+			LatchSessionListener listener = new LatchSessionListener();
+			handshaker.addSessionListener(listener);
+			sessionListenerMap.put(handshaker.getPeerAddress(), listener);
 		}
 	}
 }

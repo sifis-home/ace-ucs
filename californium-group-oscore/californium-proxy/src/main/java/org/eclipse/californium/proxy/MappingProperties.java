@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -240,24 +240,14 @@ public class MappingProperties extends java.util.Properties {
 		
 		/* Media types */
 		set("http.message.content-type.text/plain", MediaTypeRegistry.TEXT_PLAIN);
-		set("http.message.content-type.text/html", MediaTypeRegistry.TEXT_HTML);
 		set("http.message.content-type.application/link-format", MediaTypeRegistry.APPLICATION_LINK_FORMAT);
 		set("http.message.content-type.application/xml", MediaTypeRegistry.APPLICATION_XML);
 		set("http.message.content-type.application/json", MediaTypeRegistry.APPLICATION_JSON);
-		set("http.message.content-type.image/gif", MediaTypeRegistry.IMAGE_GIF);
-		set("http.message.content-type.image/jpeg", MediaTypeRegistry.IMAGE_JPEG);
-		set("http.message.content-type.image/png", MediaTypeRegistry.IMAGE_PNG);
-		set("http.message.content-type.image/tiff", MediaTypeRegistry.IMAGE_TIFF);
 		
 		set("coap.message.media."+MediaTypeRegistry.TEXT_PLAIN, "text/plain; charset=utf-8");
-		set("coap.message.media."+MediaTypeRegistry.TEXT_HTML, "text/html");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_LINK_FORMAT, "application/link-format");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_XML, "application/xml");
 		set("coap.message.media."+MediaTypeRegistry.APPLICATION_JSON, "application/json; charset=UTF-8");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_GIF, "image/gif");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_JPEG, "image/jpeg");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_PNG, "image/png");
-		set("coap.message.media."+MediaTypeRegistry.IMAGE_TIFF, "image/tiff");
 		
 	}
 

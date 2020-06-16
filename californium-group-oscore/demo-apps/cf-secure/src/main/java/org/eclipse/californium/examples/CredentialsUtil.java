@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -28,6 +28,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.SingleNodeConnectionIdGenerator;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 
 /**
@@ -64,6 +65,10 @@ public class CredentialsUtil {
 		 */
 		X509_TRUST,
 		/**
+		 * Client authentication wanted (server only).
+		 */
+		WANT_AUTH,
+		/**
 		 * No client authentication (server only).
 		 */
 		NO_AUTH,
@@ -74,14 +79,14 @@ public class CredentialsUtil {
 	 * 
 	 * Value is PSK, RPK, X509.
 	 */
-	public static final List<Mode> DEFAULT_CLIENT_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.RPK, Mode.X509 });
+	public static final List<Mode> DEFAULT_CLIENT_MODES = Arrays.asList(Mode.PSK, Mode.RPK, Mode.X509);
 
 	/**
 	 * Default list of modes for servers.
 	 * 
 	 * Value is PSK, ECDHE_PSK, RPK, X509.
 	 */
-	public static final List<Mode> DEFAULT_SERVER_MODES = Arrays.asList(new Mode[] { Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509 });
+	public static final List<Mode> DEFAULT_SERVER_MODES = Arrays.asList(Mode.PSK, Mode.ECDHE_PSK, Mode.RPK, Mode.X509);
 
 	// from ETSI Plugtest test spec
 	public static final String PSK_IDENTITY = "password";
@@ -169,7 +174,7 @@ public class CredentialsUtil {
 	public static List<Mode> parse(String[] args, List<Mode> defaults, List<Mode> supported) {
 		List<Mode> modes;
 		if (args.length == 0) {
-			modes = new ArrayList<>(defaults.size());
+			modes = new ArrayList<>();
 		} else {
 			modes = new ArrayList<>(args.length);
 			for (String mode : args) {
@@ -190,9 +195,12 @@ public class CredentialsUtil {
 				}
 			}
 		}
-		// adjust default for "NO_AUTH"
-		if (defaults != null && modes.size() == 1 && modes.contains(Mode.NO_AUTH)) {
-			modes.addAll(defaults);
+		if (defaults != null) {
+			if (modes.isEmpty()
+					|| (modes.size() == 1 && (modes.contains(Mode.NO_AUTH) || modes.contains(Mode.WANT_AUTH)))) {
+				// adjust defaults, also for only "NO_AUTH"
+				modes.addAll(defaults);
+			}
 		}
 		return modes;
 	}
@@ -263,6 +271,9 @@ public class CredentialsUtil {
 			}
 			config.setClientAuthenticationRequired(false);
 		}
+		else if (modes.contains(Mode.WANT_AUTH)) {
+			config.setClientAuthenticationWanted(true);
+		}
 
 		if (x509 >= 0 || rpk >= 0) {
 			try {
@@ -327,13 +338,13 @@ public class CredentialsUtil {
 		if (psk && config.getIncompleteConfig().getSupportedCipherSuites() == null) {
 			List<CipherSuite> suites = new ArrayList<>();
 			if (x509 >= 0 || rpk >= 0 || x509Trust || rpkTrust) {
-				suites.addAll(CipherSuite.getEcdsaCipherSuites());
+				suites.addAll(CipherSuite.getEcdsaCipherSuites(false));
 			}
 			if (ecdhePsk) {
-				suites.add(CipherSuite.TLS_ECDHE_PSK_WITH_AES_128_CBC_SHA256);
-			} 
+				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.ECDHE_PSK));
+			}
 			if (plainPsk) {
-				suites.addAll(CipherSuite.getPskCipherSuites(false));
+				suites.addAll(CipherSuite.getCipherSuitesByKeyExchangeAlgorithm(false, KeyExchangeAlgorithm.PSK));
 			}
 			config.setSupportedCipherSuites(suites);
 		}

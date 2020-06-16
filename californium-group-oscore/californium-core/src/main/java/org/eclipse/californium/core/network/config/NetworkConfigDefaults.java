@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -105,6 +105,20 @@ public class NetworkConfigDefaults {
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
 
+	public static final String DEFAULT_DEDUPLICATOR =  Keys.DEDUPLICATOR_MARK_AND_SWEEP;
+
+	/**
+	 * Default for message per peers mark and sweep.
+	 * @since 2.3 
+	 */
+	public static final int DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES = 64;
+
+	public static final long DEFAULT_MARK_AND_SWEEP_INTERVAL =  10 * 1000; // 10 secs
+
+	public static final int DEFAULT_CROP_ROTATION_PERIOD = (int) DEFAULT_EXCHANGE_LIFETIME;
+
+	public static final boolean DEFAULT_DEDUPLICATOR_AUTO_REPLACE = true;
+
 	/**
 	 * The default DTLS response matcher.
 	 * 
@@ -190,6 +204,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.NSTART, 1);
 		config.setInt(Keys.LEISURE, 5000);
 		config.setFloat(Keys.PROBING_RATE, 1f);
+		config.setBoolean(Keys.USE_MESSAGE_OFFLOADING, false);
 
 		config.setInt(Keys.MAX_LATENCY, 100 * 1000); //ms
 		config.setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
@@ -222,9 +237,11 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
-		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
-		config.setInt(Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setString(Keys.DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
+		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL);
+		config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
+		config.setInt(Keys.CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD);
+		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
 		config.setString(Keys.RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 
 		config.setInt(Keys.HTTP_PORT, 8080);

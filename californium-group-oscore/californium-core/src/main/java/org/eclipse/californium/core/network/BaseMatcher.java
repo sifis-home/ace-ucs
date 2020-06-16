@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -70,12 +70,13 @@ import org.slf4j.LoggerFactory;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import org.eclipse.californium.core.coap.InternalMessageObserverAdapter;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.TokenGenerator.Scope;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.observe.Observation;
@@ -88,7 +89,7 @@ import org.eclipse.californium.elements.EndpointContext;
  */
 public abstract class BaseMatcher implements Matcher {
 
-	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(BaseMatcher.class);
 	protected final NetworkConfig config;
 	protected final ObservationStore observationStore;
 	protected final MessageExchangeStore exchangeStore;
@@ -181,7 +182,7 @@ public abstract class BaseMatcher implements Matcher {
 			Token token = request.getToken();
 			if (token == null) {
 				do {
-					token = tokenGenerator.createToken(true);
+					token = tokenGenerator.createToken(Scope.LONG_TERM);
 					request.setToken(token);
 				} while (observationStore.putIfAbsent(token, new Observation(request, null)) != null);
 			} else {
@@ -257,11 +258,11 @@ public abstract class BaseMatcher implements Matcher {
 	}
 
 	/**
+	 * {@inheritDoc}
+	 * 
 	 * Cancels all pending blockwise requests that have been induced by a
 	 * notification we have received indicating a blockwise transfer of the
 	 * resource.
-	 * 
-	 * @param token the token of the observation.
 	 */
 	@Override
 	public void cancelObserve(Token token) {
@@ -293,7 +294,7 @@ public abstract class BaseMatcher implements Matcher {
 	 * Message observer removing observations. May be shared by multiple (block)
 	 * request and will call {@link ObservationStore#remove(Token)} only once.
 	 */
-	private class ObservationObserverAdapter extends MessageObserverAdapter {
+	private class ObservationObserverAdapter extends InternalMessageObserverAdapter {
 
 		/**
 		 * Flag to suppress multiple observation store remove calls.

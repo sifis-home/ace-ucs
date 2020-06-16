@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -63,8 +63,14 @@ public class Response extends Message {
 	 * @return the response
 	 * @throws IllegalArgumentException if request has no source endpoint
 	 *             context.
+	 * @throws NullPointerException if receivedRequest or code is {@code null}
+	 *             (since 2.3, before that this was thrown delayed, when
+	 *             accessing the code)
 	 */
 	public static Response createResponse(Request receivedRequest, ResponseCode code) {
+		if (receivedRequest == null) {
+			throw new NullPointerException("received request must not be null!");
+		}
 		if (receivedRequest.getSourceContext() == null) {
 			throw new IllegalArgumentException("received request must contain a source context.");
 		}
@@ -77,8 +83,13 @@ public class Response extends Message {
 	 * Instantiates a new response with the specified response code.
 	 *
 	 * @param code the response code
+	 * @throws NullPointerException if code is {@code null} (since 2.3, before
+	 *             that this was thrown delayed, when accessing the code)
 	 */
 	public Response(ResponseCode code) {
+		if (code == null) {
+			throw new NullPointerException("ResponseCode must not be null!");
+		}
 		this.code = code;
 	}
 
@@ -98,8 +109,7 @@ public class Response extends Message {
 
 	@Override
 	public String toString() {
-		String payload = getPayloadTracingString();
-		return String.format("%s-%-6s MID=%5d, Token=%s, OptionSet=%s, %s", getType(), getCode(), getMID(), getTokenString(), getOptions(), payload);
+		return toTracingString(code.toString());
 	}
 
 	/**
@@ -118,6 +128,21 @@ public class Response extends Message {
 	 */
 	public void setRTT(long rtt) {
 		this.rtt = rtt;
+	}
+
+	/**
+	 * Ensure, that the response uses the provided token.
+	 * 
+	 * @param token token to ensure to be used by the response.
+	 * @throws IllegalArgumentException if token differs
+	 */
+	public void ensureToken(Token token) {
+		Token current = getToken();
+		if (current == null) {
+			setToken(token);
+		} else if (!current.equals(token)) {
+			throw new IllegalArgumentException("token mismatch! (" + current + "!=" + token + ")");
+		}
 	}
 
 	/**

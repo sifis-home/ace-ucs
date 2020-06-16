@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * <p>
  * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
@@ -40,6 +40,7 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.ExchangeCompleteException;
 import org.eclipse.californium.core.network.Outbox;
 import org.eclipse.californium.core.network.stack.Layer.TopDownBuilder;
+import org.eclipse.californium.core.observe.ObservationStoreException;
 import org.eclipse.californium.core.server.MessageDeliverer;
 
 /**
@@ -48,7 +49,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
  */
 public abstract class BaseCoapStack implements CoapStack {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BaseCoapStack.class);
 
 	private List<Layer> layers;
 	private final Outbox outbox;
@@ -84,6 +85,9 @@ public abstract class BaseCoapStack implements CoapStack {
 		// delegate to top
 		try {
 			top.sendRequest(exchange, request);
+		} catch (ObservationStoreException ex) {
+			LOGGER.debug("error send request {} - {}", request, ex.getMessage());
+			request.setSendError(ex);
 		} catch (RuntimeException ex) {
 			LOGGER.warn("error send request {}", request, ex);
 			request.setSendError(ex);
@@ -146,9 +150,9 @@ public abstract class BaseCoapStack implements CoapStack {
 	}
 
 	@Override
-	public final void setExecutor(final ScheduledExecutorService executor) {
+	public final void setExecutors(ScheduledExecutorService mainExecutor, ScheduledExecutorService secondaryExecutor) {
 		for (Layer layer : layers) {
-			layer.setExecutor(executor);
+			layer.setExecutors(mainExecutor, secondaryExecutor);
 		}
 	}
 
@@ -160,6 +164,13 @@ public abstract class BaseCoapStack implements CoapStack {
 	@Override
 	public final boolean hasDeliverer() {
 		return deliverer != null;
+	}
+
+	@Override
+	public void start() {
+		for (Layer layer : layers) {
+			layer.start();
+		}
 	}
 
 	@Override

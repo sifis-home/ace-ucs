@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -34,7 +34,11 @@ import org.slf4j.LoggerFactory;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 
 /**
  * A tracker for the status of a blockwise transfer of a request or response body.
@@ -43,13 +47,14 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public abstract class BlockwiseStatus {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class);
 
 	private final int contentFormat;
 
 	protected boolean randomAccess;
 	protected final ByteBuffer buf;
 	protected Exchange exchange;
+	protected EndpointContext followUpEndpointContext;
 
 	private ScheduledFuture<?> cleanUpTask;
 	private Message first;
@@ -95,6 +100,7 @@ public abstract class BlockwiseStatus {
 	 */
 	final synchronized void setFirst(final Message first) {
 		this.first = first;
+		this.first.setProtectFromOffload();
 	}
 	
 	/**
@@ -229,6 +235,35 @@ public abstract class BlockwiseStatus {
 		byte[] body = new byte[buf.remaining()];
 		((Buffer)buf.get(body)).clear();
 		return body;
+	}
+
+	/**
+	 * Get the endpoint-context to be used for followup block requests.
+	 * 
+	 * Use the endpoint-context of the response to support notifies from
+	 * different addresses. Restores the
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, if the value is
+	 * {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}.
+	 * 
+	 * @param blockContext endpoint-context to be used/adapted for follow-up
+	 *            requests.
+	 * @return endpoint-context for follow-up-requests
+	 * @since 2.1
+	 */
+	synchronized EndpointContext getFollowUpEndpointContext(EndpointContext blockContext) {
+		if (followUpEndpointContext == null
+				|| !followUpEndpointContext.getPeerAddress().equals(blockContext.getPeerAddress())) {
+			// considering notifies with address changes,
+			// use the response's endpoint-context to compensate that
+			if (exchange != null) {
+				Request request = exchange.getRequest();
+				EndpointContext messageContext = request.getDestinationContext();
+				followUpEndpointContext = EndpointContextUtil.getFollowUpEndpointContext(messageContext, blockContext);
+			} else {
+				followUpEndpointContext = blockContext;
+			}
+		}
+		return followUpEndpointContext;
 	}
 
 	@Override

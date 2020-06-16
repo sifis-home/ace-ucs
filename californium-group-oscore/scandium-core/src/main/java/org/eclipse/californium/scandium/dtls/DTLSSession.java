@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -48,14 +48,17 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerName;
 import org.eclipse.californium.scandium.util.ServerNames;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
@@ -66,7 +69,7 @@ import org.slf4j.LoggerFactory;
  * Represents a DTLS session between two peers. Keeps track of the current and
  * pending read/write states, the current epoch and sequence number, etc.
  */
-public final class DTLSSession {
+public final class DTLSSession implements Destroyable {
 
 	/**
 	 * The overall length of all headers around a DTLS handshake message payload.
@@ -84,7 +87,7 @@ public final class DTLSSession {
 								+ 36 // bytes optional IP options
 								+ 8 // bytes UDP headers
 								+ 20; // bytes IP headers
-	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSSession.class);
 	private static final long RECEIVE_WINDOW_SIZE = 64;
 	private static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
 	private static final int MAX_FRAGMENT_LENGTH_DEFAULT = 16384; // 2^14 bytes as defined by DTLS 1.2 spec, Section 4.1
@@ -124,13 +127,21 @@ public final class DTLSSession {
 	 */
 	private CipherSuite cipherSuite = CipherSuite.TLS_NULL_WITH_NULL_NULL;
 
+	/**
+	 * Specifies the negotiated signature and hash algorithm to be used to sign
+	 * the server key exchange message.
+	 * 
+	 * @since 2.3
+	 */
+	private SignatureAndHashAlgorithm signatureAndHashAlgorithm;
+
 	private CompressionMethod compressionMethod = CompressionMethod.NULL;
 
 	/**
 	 * The 48-byte master secret shared by client and server to derive
 	 * key material from.
 	 */
-	private byte[] masterSecret = null;
+	private SecretKey masterSecret = null;
 
 	/**
 	 * Connection id used for all outbound records.
@@ -140,12 +151,12 @@ public final class DTLSSession {
 	/**
 	 * The <em>current read state</em> used for processing all inbound records.
 	 */
-	private DTLSConnectionState readState = new DTLSConnectionState();
+	private DTLSConnectionState readState = DTLSConnectionState.NULL;
 
 	/**
 	 * The <em>current write state</em> used for processing all outbound records.
 	 */
-	private DTLSConnectionState writeState = new DTLSConnectionState();
+	private DTLSConnectionState writeState = DTLSConnectionState.NULL;
 
 	/**
 	 * The current read epoch, incremented with every CHANGE_CIPHER_SPEC message received
@@ -159,7 +170,15 @@ public final class DTLSSession {
 	/**
 	 * The next record sequence number per epoch.
 	 */
-	private Map<Integer, Long> sequenceNumbers = new HashMap<>();
+	// We only need 2 values as we do not support DTLS re-negotiation.
+	private long[] sequenceNumbers = new long[2];
+
+	/**
+	 * Save close_notify
+	 */
+	private int readEpochClosed;
+	private long readSequenceNumberClosed;
+	private boolean markedAsclosed;
 
 	/**
 	 * Indicates the type of certificate to send to the peer in a CERTIFICATE message.
@@ -177,11 +196,11 @@ public final class DTLSSession {
 	 */
 	private boolean parameterAvailable = false;
 
-	private volatile long receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+	private volatile long receiveWindowUpperCurrent = -1;
 	private volatile long receiveWindowLowerBoundary = 0;
 	private volatile long receivedRecordsVector = 0;
 	private long creationTime;
-	private String virtualHost;
+	private String hostName;
 	private ServerNames serverNames;
 	private boolean peerSupportsSni;
 
@@ -224,12 +243,13 @@ public final class DTLSSession {
 	public DTLSSession(SessionId id, InetSocketAddress peerAddress, SessionTicket ticket, long initialSequenceNo) {
 		this(peerAddress, initialSequenceNo, ticket.getTimestamp());
 		sessionIdentifier = id;
-		masterSecret = ticket.getMasterSecret();
+		masterSecret = SecretUtil.create(ticket.getMasterSecret());
 		peerIdentity = ticket.getClientIdentity();
 		cipherSuite = ticket.getCipherSuite();
 		serverNames = ticket.getServerNames();
 		compressionMethod = ticket.getCompressionMethod();
 	}
+
 	/**
 	 * Creates a new session initialized with a given sequence number.
 	 *
@@ -270,11 +290,31 @@ public final class DTLSSession {
 			this.creationTime = creationTime;
 			this.handshakeTimeTag = Long.toString(System.currentTimeMillis());
 			this.peer = peerAddress;
-			this.sequenceNumbers.put(0, initialSequenceNo);
+			this.sequenceNumbers[0]= initialSequenceNo;
 		}
 	}
 
 	// Getters and Setters ////////////////////////////////////////////
+
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(masterSecret);
+		masterSecret = null;
+		if (readState != DTLSConnectionState.NULL) {
+			readState.destroy();
+			readState = DTLSConnectionState.NULL;
+		}
+		if (writeState != DTLSConnectionState.NULL) {
+			writeState.destroy();
+			writeState = DTLSConnectionState.NULL;
+		}
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(masterSecret) && SecretUtil.isDestroyed(readState)
+				&& SecretUtil.isDestroyed(writeState);
+	}
 
 	/**
 	 * Gets this session's identifier.
@@ -300,6 +340,7 @@ public final class DTLSSession {
 		}
 		if (!sessionIdentifier.equals(this.sessionIdentifier)) {
 			// reset master secret
+			SecretUtil.destroy(this.masterSecret);
 			this.masterSecret = null;
 			this.sessionIdentifier = sessionIdentifier;
 		}
@@ -349,21 +390,23 @@ public final class DTLSSession {
 	 * 
 	 * @return the host name or {@code null} if this session has not
 	 *         been established for a virtual host.
+	 * @see #getServerNames()
 	 */
-	public String getVirtualHost() {
-		return virtualHost;
+	public String getHostName() {
+		return hostName;
 	}
 
 	/**
 	 * Set the (virtual) host name for the server that this session has been
 	 * established for.
 	 * <p>
+	 * Sets the {@link #setServerNames(ServerNames)} accordingly.
 	 * 
 	 * @param hostname the virtual host name at the peer (may be {@code null}).
 	 */
-	public void setVirtualHost(String hostname) {
+	public void setHostName(String hostname) {
 		this.serverNames = null;
-		this.virtualHost = hostname;
+		this.hostName = hostname;
 		if (hostname != null) {
 			this.serverNames = ServerNames
 					.newInstance(ServerName.from(NameType.HOST_NAME, hostname.getBytes(ServerName.CHARSET)));
@@ -375,6 +418,7 @@ public final class DTLSSession {
 	 * has been established for.
 	 * 
 	 * @return server names, or {@code null}, if not used.
+	 * @see #getHostName()
 	 */
 	public ServerNames getServerNames() {
 		return serverNames;
@@ -384,16 +428,17 @@ public final class DTLSSession {
 	 * Set the server names for the server that this session has been
 	 * established for.
 	 * <p>
+	 * Sets the {@link #setHostName(String)} accordingly.
 	 * 
 	 * @param serverNames the server names (may be {@code null}).
 	 */
 	public void setServerNames(ServerNames serverNames) {
-		this.virtualHost = null;
+		this.hostName = null;
 		this.serverNames = serverNames;
 		if (serverNames != null) {
 			ServerName serverName = serverNames.getServerName(NameType.HOST_NAME);
 			if (serverName != null) {
-				virtualHost = serverName.getNameAsString();
+				hostName = serverName.getNameAsString();
 			}
 		}
 	}
@@ -416,13 +461,13 @@ public final class DTLSSession {
 
 	public DtlsEndpointContext getConnectionWriteContext() {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(writeEpoch),
+		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(writeEpoch),
 				cipherSuite.name(), handshakeTimeTag);
 	}
 
 	public DtlsEndpointContext getConnectionReadContext() {
 		String id = sessionIdentifier.isEmpty() ? "TIME:" + Long.toString(creationTime) : sessionIdentifier.toString();
-		return new DtlsEndpointContext(peer, virtualHost, peerIdentity, id, Integer.toString(readEpoch),
+		return new DtlsEndpointContext(peer, hostName, peerIdentity, id, Integer.toString(readEpoch),
 				cipherSuite.name(), handshakeTimeTag);
 	}
 
@@ -537,7 +582,7 @@ public final class DTLSSession {
 		this.writeEpoch++;
 		// Sequence numbers are maintained separately for each epoch, with each
 		// sequence_number initially being 0 for each epoch.
-		this.sequenceNumbers.put(writeEpoch, 0L);
+		this.sequenceNumbers[writeEpoch] =  0L;
 	}
 
 	/**
@@ -563,9 +608,9 @@ public final class DTLSSession {
 	 *     epoch has been reached (2^48 - 1)
 	 */
 	public long getSequenceNumber(int epoch) {
-		long sequenceNumber = this.sequenceNumbers.get(epoch);
+		long sequenceNumber = this.sequenceNumbers[epoch];
 		if (sequenceNumber < MAX_SEQUENCE_NO) {
-			this.sequenceNumbers.put(epoch, sequenceNumber + 1);
+			this.sequenceNumbers[epoch] =  sequenceNumber + 1;
 			return sequenceNumber;
 		} else {
 			// maximum sequence number has been reached
@@ -613,6 +658,7 @@ public final class DTLSSession {
 		if (readState == null) {
 			throw new NullPointerException("Read state must not be null");
 		}
+		SecretUtil.destroy(this.readState);
 		this.readState = readState;
 		incrementReadEpoch();
 		LOGGER.trace("Setting current read state to{}{}", StringUtil.lineSeparator(), readState);
@@ -666,6 +712,7 @@ public final class DTLSSession {
 		if (writeState == null) {
 			throw new NullPointerException("Write state must not be null");
 		}
+		SecretUtil.destroy(this.writeState);
 		this.writeState = writeState;
 		incrementWriteEpoch();
 		// re-calculate maximum fragment length based on cipher suite from updated write state
@@ -712,45 +759,50 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Gets the master secret used for encrypting application layer data
-	 * exchanged in this session.
+	 * Gets the master secret used for resumption handshakes.
 	 * 
-	 * @return the secret or <code>null</code> if it has not yet been
-	 * created
+	 * @return the secret, or {@code null}, if it has not yet been created or
+	 *         the session doesn't support resumption
 	 */
-	byte[] getMasterSecret() {
-		return masterSecret;
+	SecretKey getMasterSecret() {
+		return SecretUtil.create(masterSecret);
 	}
 
 	/**
-	 * Sets the master secret to use for encrypting application layer data
-	 * exchanged in this session.
+	 * Sets the master secret to be use on session resumptions.
 	 * 
 	 * Once the master secret has been set, it cannot be changed without
-	 * changing the session id ahead.
+	 * changing the session id ahead. If the session id is empty, the session
+	 * doesn't support resumption and therefore the master secret is not set.
 	 * 
-	 * @param masterSecret the secret
+	 * @param masterSecret the secret, copied on set
 	 * @throws NullPointerException if the master secret is {@code null}
 	 * @throws IllegalArgumentException if the secret is not exactly 48 bytes
-	 * (see <a href="http://tools.ietf.org/html/rfc5246#section-8.1">
-	 * RFC 5246 (TLS 1.2), section 8.1</a>) 
+	 *             (see
+	 *             <a href="http://tools.ietf.org/html/rfc5246#section-8.1"> RFC
+	 *             5246 (TLS 1.2), section 8.1</a>)
 	 * @throws IllegalStateException if the master secret is already set
 	 */
-	void setMasterSecret(final byte[] masterSecret) {
+	void setMasterSecret(SecretKey masterSecret) {
 		// don't overwrite the master secret, once it has been set in this session
 		if (this.masterSecret == null) {
-			if (masterSecret == null) {
-				throw new NullPointerException("Master secret must not be null");
-			} else if (masterSecret.length != MASTER_SECRET_LENGTH) {
-				throw new IllegalArgumentException(String.format(
-						"Master secret must consist of of exactly %d bytes but has %d bytes",
-						MASTER_SECRET_LENGTH, masterSecret.length));
-			} else {
-				this.masterSecret = Arrays.copyOf(masterSecret, masterSecret.length);
-				this.creationTime = System.currentTimeMillis();
+			if (!sessionIdentifier.isEmpty()) {
+				if (masterSecret == null) {
+					throw new NullPointerException("Master secret must not be null");
+				}
+				// get length
+				byte[] secret = masterSecret.getEncoded();
+				// clear secret immediately, only length is required
+				Bytes.clear(secret);
+				if (secret.length != MASTER_SECRET_LENGTH) {
+					throw new IllegalArgumentException(
+							String.format("Master secret must consist of of exactly %d bytes but has %d bytes",
+									MASTER_SECRET_LENGTH, secret.length));
+				}
+				this.masterSecret = SecretUtil.create(masterSecret);
 			}
-		}
-		else {
+			this.creationTime = System.currentTimeMillis();
+		} else {
 			throw new IllegalStateException("master secret already available!");
 		}
 	}
@@ -855,6 +907,30 @@ public final class DTLSSession {
 	}
 
 	/**
+	 * Gets the negotiated signature and hash algorithm to be used to sign the
+	 * server key exchange message.
+	 * 
+	 * @return negotiated signature and hash algorithm
+	 * 
+	 * @since 2.3
+	 */
+	public SignatureAndHashAlgorithm getSignatureAndHashAlgorithm() {
+		return signatureAndHashAlgorithm;
+	}
+
+	/**
+	 * Set the negotiated signature and hash algorithm to be used to sign the
+	 * server key exchange message.
+	 * 
+	 * @param signatureAndHashAlgorithm negotiated signature and hash algorithm
+	 * 
+	 * @since 2.3
+	 */
+	void setSignatureAndHashAlgorithm(SignatureAndHashAlgorithm signatureAndHashAlgorithm) {
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+	}
+
+	/**
 	 * Gets the IP address and socket of this session's peer.
 	 * 
 	 * @return The peer's address.
@@ -899,6 +975,8 @@ public final class DTLSSession {
 	 * <li>the record is from the same epoch as session's current read
 	 * epoch</li>
 	 * <li>the record has not been received before</li>
+	 * <li>if marked as closed, the record's sequence number is not after the
+	 * close notify's sequence number</li>
 	 * </ul>
 	 * 
 	 * @param epoch the record's epoch
@@ -907,6 +985,7 @@ public final class DTLSSession {
 	 *            message too old for the message window {@code true} is
 	 *            returned.
 	 * @return {@code true} if the record satisfies the conditions above
+	 * @since 2.3 support marked as closed
 	 */
 	public boolean isRecordProcessable(long epoch, long sequenceNo, boolean useWindowOnly) {
 		if (epoch < getReadEpoch()) {
@@ -923,9 +1002,17 @@ public final class DTLSSession {
 			// record lies out of receive window's "left" edge
 			// discard
 			return useWindowOnly;
-		} else {
-			return !isDuplicate(sequenceNo);
+		} else if (markedAsclosed) {
+			if (epoch > readEpochClosed) {
+				// record after close
+				return false;
+			} else if (epoch == readEpochClosed && sequenceNo >= readSequenceNumberClosed) {
+				// record after close
+				return false;
+			}
+			// otherwise, check for duplicate
 		}
+		return !isDuplicate(sequenceNo);
 	}
 
 	/**
@@ -940,7 +1027,7 @@ public final class DTLSSession {
 	 * @return <code>true</code> if the record has already been received
 	 */
 	boolean isDuplicate(long sequenceNo) {
-		if (sequenceNo > receiveWindowUpperBoundary) {
+		if (sequenceNo > receiveWindowUpperCurrent) {
 			return false;
 		} else {
 			
@@ -959,32 +1046,65 @@ public final class DTLSSession {
 	}
 
 	/**
-	 * Marks a record as having been received so that it can be detected
-	 * as a duplicate if it is received again, e.g. if a client re-transmits
-	 * the record because it runs into a timeout.
+	 * Marks a record as having been received so that it can be detected as a
+	 * duplicate if it is received again, e.g. if a client re-transmits the
+	 * record because it runs into a timeout.
 	 * 
-	 * The record is marked as received only if it belongs to this session's
+	 * The record is marked as received only, if it belongs to this session's
 	 * current read epoch as indicated by {@link #getReadEpoch()}.
 	 * 
 	 * @param epoch the record's epoch
 	 * @param sequenceNo the record's sequence number
+	 * @return {@code true}, if the epoch/sequenceNo is newer than the current
+	 *         newest. {@code false}, if not.
 	 */
-	public void markRecordAsRead(long epoch, long sequenceNo) {
-
+	public boolean markRecordAsRead(long epoch, long sequenceNo) {
 		if (epoch == getReadEpoch()) {
-			if (sequenceNo > receiveWindowUpperBoundary) {
-				long incr = sequenceNo - receiveWindowUpperBoundary;
-				receiveWindowUpperBoundary = sequenceNo;
-				// slide receive window to the right
-				receivedRecordsVector = receivedRecordsVector >>> incr;
-				receiveWindowLowerBoundary = Math.max(0, receiveWindowUpperBoundary - RECEIVE_WINDOW_SIZE + 1);
+			boolean newest = sequenceNo > receiveWindowUpperCurrent;
+			if (newest) {
+				receiveWindowUpperCurrent = sequenceNo;
+				long lowerBoundary = Math.max(0, sequenceNo - RECEIVE_WINDOW_SIZE + 1);
+				long incr = lowerBoundary - receiveWindowLowerBoundary;
+				if (incr > 0) {
+					// slide receive window to the right
+					receivedRecordsVector = receivedRecordsVector >>> incr;
+					receiveWindowLowerBoundary = lowerBoundary;
+				}
 			}
 			long bitMask = 1L << (sequenceNo - receiveWindowLowerBoundary);
 			// mark sequence number as "received" in receive window
 			receivedRecordsVector |= bitMask;
 			LOGGER.debug("Updated receive window with sequence number [{}]: new upper boundary [{}], new bit vector [{}]",
-					sequenceNo, receiveWindowUpperBoundary, Long.toBinaryString(receivedRecordsVector));
+					sequenceNo, receiveWindowUpperCurrent, Long.toBinaryString(receivedRecordsVector));
+			return newest;
+		} else {
+			return epoch > getReadEpoch();
 		}
+	}
+
+	/**
+	 * Session is marked as close.
+	 * 
+	 * @return {@code true}, if marked as closed, {@code false}, otherwise.
+	 * @since 2.3
+	 */
+	public boolean isMarkedAsClosed() {
+		return markedAsclosed;
+	}
+
+	/**
+	 * Mark as closed. If a session is makred as closed, no records should be
+	 * sent and no received newer records should be processed.
+	 * 
+	 * @param epoch epoch of close notify
+	 * @param sequenceNo sequence number of close notiy
+	 * @see #isMarkedAsClosed()
+	 * @since 2.3
+	 */
+	public void markCloseNotiy(int epoch, long sequenceNo) {
+		markedAsclosed = true;
+		readEpochClosed = epoch;
+		readSequenceNumberClosed = sequenceNo;
 	}
 
 	/**
@@ -995,28 +1115,33 @@ public final class DTLSSession {
 	 */
 	private void resetReceiveWindow() {
 		receivedRecordsVector = 0;
-		receiveWindowUpperBoundary = RECEIVE_WINDOW_SIZE - 1;
+		receiveWindowUpperCurrent = -1;
 		receiveWindowLowerBoundary = 0;
 	}
 
 	/**
-	 * Gets a session ticket representing this session's <em>current</em> connection state.
+	 * Get a session ticket representing this session's <em>current</em>
+	 * connection state.
 	 * 
-	 * @return The ticket.
-	 * @throws IllegalStateException if this session does not have its current connection state set yet.
+	 * @return The ticket. Or {@code null}, if the session id is empty and
+	 *         doesnt support resumption.
+	 * @throws IllegalStateException if this session does not have its current
+	 *             connection state set yet.
 	 */
 	public SessionTicket getSessionTicket() {
-		if (getWriteState().hasValidCipherSuite()) {
-			return new SessionTicket(
-					new ProtocolVersion(),
-					getWriteState().getCipherSuite(),
-					getWriteState().getCompressionMethod(),
-					getMasterSecret(),
-					getServerNames(),
-					getPeerIdentity(),
-					creationTime);
-		} else {
+		if (!getWriteState().hasValidCipherSuite()) {
 			throw new IllegalStateException("session has no valid crypto params, not fully negotiated yet?");
 		}
+		else if (sessionIdentifier.isEmpty()) {
+			return null;
+		}
+		return new SessionTicket(
+				new ProtocolVersion(),
+				getWriteState().getCipherSuite(),
+				getWriteState().getCompressionMethod(),
+				masterSecret,
+				getServerNames(),
+				getPeerIdentity(),
+				creationTime);
 	}
 }

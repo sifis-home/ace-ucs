@@ -20,7 +20,7 @@ Executable JARs of the examples with all dependencies can be found in the `demo-
 
 # Using Californium in Maven Projects
 
-We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:1.0.7).
+We are publishing Californium's artifacts for milestones and releases to [Maven Central](https://search.maven.org/search?q=g:org.eclipse.californium%20a:parent%20v:2.3.0-RC1).
 To use the latest released version as a library in your projects, add the following dependency
 to your `pom.xml` (without the dots):
 
@@ -30,20 +30,16 @@ to your `pom.xml` (without the dots):
     <dependency>
             <groupId>org.eclipse.californium</groupId>
             <artifactId>californium-core</artifactId>
-            <version>1.0.7</version>
+            <version>2.3.0-RC1</version>
     </dependency>
     ...
   </dependencies>
   ...
 ```
 
-If you want to give the most recent milestone a try, use version `2.0.0-M13` instead.
-
-Please Note: in the meantime, a lot of new bugfixes and improvements has been made in branch 2.0.x, which had affected the API and could not be back-ported to the other branches. Even if 2.0.x is still under development, we strongly recommend to focus on using the 2.0.x branch, especially for new projects or larger updates of projects.
-
 ##### Current Builds
 
-You can also be bold and try out the most recent build from `2.0.x`.
+You can also be bold and try out the most recent build from `master`.
 However, we are not publishing those to Maven Central but to Californium's project repository at Eclipse only.
 You will therefore need to add the Eclipse Repository to your `pom.xml` first:
 
@@ -58,7 +54,7 @@ You will therefore need to add the Eclipse Repository to your `pom.xml` first:
     ...
   </repositories>
 ```
-You can then simply depend on `2.0.0-SNAPSHOT`.
+You can then simply depend on `2.3.0-SNAPSHOT`.
  
 # Eclipse
 
@@ -80,7 +76,7 @@ In IntelliJ, choose *[File.. &raquo; Open]* then select the location of the clon
 # Interop Server
 
 A test server is running at <a href="coap://californium.eclipse.org:5683/">coap://californium.eclipse.org:5683/</a>.
-It is an instance of the `cf-plugtest-server` from the demo-apps.
+It is an instance of the [cf-plugtest-server](https://repo.eclipse.org/content/repositories/californium-releases/org/eclipse/californium/cf-plugtest-server/2.3.0-RC1/cf-plugtest-server-2.3.0-RC1.jar) from the demo-apps.
 The root resource responds with its current version.
 More information can be found at [http://californium.eclipse.org/](http://californium.eclipse.org/).
 

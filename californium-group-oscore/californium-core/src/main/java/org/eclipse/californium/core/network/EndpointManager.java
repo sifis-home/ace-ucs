@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -32,12 +32,8 @@ package org.eclipse.californium.core.network;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.NetworkInterface;
-import java.net.SocketException;
 import java.net.URI;
 import java.util.Collection;
-import java.util.Enumeration;
-import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
@@ -48,6 +44,7 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.server.MessageDeliverer;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 
 /**
  * A manager and coap-factory for {@link Endpoint}s that can be used by clients for sending
@@ -83,7 +80,7 @@ import org.eclipse.californium.core.server.MessageDeliverer;
 public class EndpointManager {
 
 	/** The logger */
-	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(EndpointManager.class);
 
 	/** The singleton manager instance */
 	private static final EndpointManager manager = new EndpointManager();
@@ -137,7 +134,7 @@ public class EndpointManager {
 			}
 			try {
 				endpoint.start();
-				LOGGER.info("created implicit endpoint {} for {}", new Object[] { endpoint.getUri(), uriScheme });
+				LOGGER.info("created implicit endpoint {} for {}", endpoint.getUri(), uriScheme);
 			} catch (IOException e) {
 				LOGGER.error("could not create {} endpoint", uriScheme, e);
 			}
@@ -203,20 +200,16 @@ public class EndpointManager {
 		return getDefaultEndpoint(CoAP.COAP_URI_SCHEME);
 	}
 
+	/**
+	 * Get collection of available local inet addresses of network interfaces.
+	 * 
+	 * @return collection of local inet addresses.
+	 * @deprecated use {@link NetworkInterfacesUtil#getNetworkInterfaces()}
+	 *             instead.
+	 */
+	@Deprecated
 	public Collection<InetAddress> getNetworkInterfaces() {
-		Collection<InetAddress> interfaces = new LinkedList<InetAddress>();
-		try {
-			Enumeration<NetworkInterface> nets = NetworkInterface.getNetworkInterfaces();
-			while (nets.hasMoreElements()) {
-				Enumeration<InetAddress> inetAddresses = nets.nextElement().getInetAddresses();
-				while (inetAddresses.hasMoreElements()) {
-					interfaces.add(inetAddresses.nextElement());
-				}
-			}
-		} catch (SocketException e) {
-			LOGGER.error("could not fetch all interface addresses", e);
-		}
-		return interfaces;
+		return NetworkInterfacesUtil.getNetworkInterfaces();
 	}
 
 	// Needed for JUnit Tests to remove state for deduplication
