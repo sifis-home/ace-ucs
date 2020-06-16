@@ -9,7 +9,7 @@ ace
 3. To "ace" add the following folders to the build path:
 californium-core
 element-connector
-oscore-cf
+cf-oscore
 scandium
 
 
