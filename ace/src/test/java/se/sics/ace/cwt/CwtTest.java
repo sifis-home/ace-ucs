@@ -36,6 +36,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -109,6 +110,7 @@ public class CwtTest {
      * @throws Exception 
      */
     @Test
+	@Ignore
     public void testRoundTripSign1() throws Exception {
         System.out.println("Round Trip Sign1");
         
@@ -152,6 +154,7 @@ public class CwtTest {
       * Test of MACed CWT for single recipient.
      * @throws Exception 
       */ @Test
+	@Ignore
       public void testRoundTripMAC0() throws Exception {
           System.out.println("Round Trip MAC0");
           CwtCryptoCtx ctx = CwtCryptoCtx.mac0(key256, AlgorithmID.HMAC_SHA_256_64.AsCBOR());
@@ -172,6 +175,7 @@ public class CwtTest {
        * Test of Signed CWT for multiple recipients.
      * @throws Exception 
        */ @Test
+	@Ignore
        public void testRoundTripSign() throws Exception {
            System.out.println("Round Trip Sign");
            Signer me = new Signer();
@@ -198,6 +202,7 @@ public class CwtTest {
         * Test of Encrypted CWT for multiple recipients.
         * @throws Exception 
         */ @Test
+	@Ignore
         public void testRoundTripEncrypt() throws Exception {
             System.out.println("Round Trip Encrypt");
             Recipient me = new Recipient();  
@@ -225,6 +230,7 @@ public class CwtTest {
          * Test of MACed CWT for multiple recipients.
          * @throws Exception 
          */ @Test
+	@Ignore
          public void testRoundTripMAC() throws Exception {
              System.out.println("Round Trip MAC");
              Recipient me = new Recipient();  

@@ -38,6 +38,7 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -120,6 +121,7 @@ public class TestOscorepClient2AS {
      * @throws Exception 
      */
     @Test
+	@Ignore
     public void testSuccess() throws Exception {
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),

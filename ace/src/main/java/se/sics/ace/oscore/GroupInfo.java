@@ -477,7 +477,7 @@ public class GroupInfo {
      */
     synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
     	
-    	if (csKeyEnc.getType() != CBORType.Number)
+    	if (csKeyEnc.getType() != CBORType.Integer)
     		return false;
     	
     	this.csKeyEnc = csKeyEnc;

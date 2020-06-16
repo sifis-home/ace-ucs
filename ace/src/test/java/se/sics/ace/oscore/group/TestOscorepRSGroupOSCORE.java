@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -35,6 +36,8 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.util.StringUtil;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -409,8 +412,13 @@ public class TestOscorepRSGroupOSCORE {
         	Request request = exchange.advanced().getCurrentRequest();
             if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
                 //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
-                if (exchange.advanced().getCryptographicContextID()!= null) {                
-                    subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);    
+				if (exchange.advanced().getCryptographicContextID() != null) {
+					byte[] clientSenderId = StringUtil.hex2ByteArray(
+							request.getSourceContext().get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
+					subject = new String(clientSenderId, Constants.charset);
+					// subject = new
+					// String(exchange.advanced().getCryptographicContextID(),
+					// Constants.charset);
                 } else {
                 	// At this point, this should not really happen, due to the earlier check at the Token Repository
                 	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");

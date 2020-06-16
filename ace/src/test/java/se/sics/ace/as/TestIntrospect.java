@@ -277,6 +277,7 @@ public class TestIntrospect {
      * @throws Exception
      */
     @Test
+	@org.junit.Ignore
     public void testSuccessCWT() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(

@@ -388,6 +388,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+	@Ignore
     public void testPostPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {

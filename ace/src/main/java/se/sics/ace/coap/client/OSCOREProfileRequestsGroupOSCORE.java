@@ -229,7 +229,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (askForPubKeyEnc) {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Number) {
+        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Integer) {
                    	throw new AceException(
                    			"Missing or malformed pub_key_enc in the RS response, although requested");
            	}

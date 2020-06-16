@@ -45,7 +45,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
@@ -81,7 +80,7 @@ public class CoAPClientGroupOSCORE {
     public static void main(String[] args) throws Exception {
     	
     	//Install needed cryptography providers
-    	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+		org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
      
     	//Perform token request to AS using PSK
     	groupOSCOREMultipleRolesCWT();

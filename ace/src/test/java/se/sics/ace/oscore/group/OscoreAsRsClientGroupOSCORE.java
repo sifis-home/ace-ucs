@@ -23,10 +23,8 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
 import org.eclipse.californium.oscore.OSException;
-import org.eclipse.californium.oscore.Utility;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -264,11 +262,13 @@ public class OscoreAsRsClientGroupOSCORE {
         byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
 
-        GroupOSCoreCtx groupOscoreCtx = OscorepClient2RSGroupOSCORE.generateGroupOSCOREContext(contextObject, coseKeySetArray);
+		// (Readd) GroupOSCoreCtx groupOscoreCtx =
+		// OscorepClient2RSGroupOSCORE.generateGroupOSCOREContext(contextObject,
+		// coseKeySetArray);
 
         System.out.println();
         //System.out.println("Generated Group OSCORE Context:");
-        Utility.printContextInfo(groupOscoreCtx);
+		// (Readd) Utility.printContextInfo(groupOscoreCtx);
 
     }
 }

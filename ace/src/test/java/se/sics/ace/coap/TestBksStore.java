@@ -40,6 +40,8 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.cert.CertificateException;
 
+import javax.crypto.SecretKey;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -141,7 +143,7 @@ public class TestBksStore {
     public void testGetKeySuccess() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         keystore.addKey(key, "identity1");
-        byte[] key2 = keystore.getKey(new PskPublicInformation("identity1"));
+		byte[] key2 = keystore.getKey(new PskPublicInformation("identity1")).getEncoded();
         Assert.assertArrayEquals(key, key2);
         keystore.removeKey("identity1");
     }
@@ -156,7 +158,7 @@ public class TestBksStore {
     public void testGetKeyFailId() throws Exception {
         byte[] key = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         keystore.addKey(key, "identity1");
-        byte[] key2 = keystore.getKey(new PskPublicInformation("wrongidentity"));
+		SecretKey key2 = keystore.getKey(new PskPublicInformation("wrongidentity"));
         Assert.assertNull(key2);
         keystore.removeKey("identity1");
     }

@@ -1,5 +1,7 @@
 package se.sics.ace.oscore.group;
 
+import static org.junit.Assert.assertNotNull;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -7,7 +9,6 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-import java.util.Base64;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
@@ -23,13 +24,11 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.oscore.GroupOSCoreCtx;
-import org.eclipse.californium.oscore.OSException;
-import org.eclipse.californium.oscore.Utility;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.postgresql.core.Utils;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -384,8 +383,8 @@ public class DtlsAsRsClientGroupOSCORE {
         }
 
         //System.out.println("Key string: " + cnfKey.toString());
-        System.out.println("Key ID bytes: " + Utility.arrayToString(cnfKey.get(KeyKeys.KeyId).GetByteString()));
-        System.out.println("Octet bytes: " + Utility.arrayToString(cnfKey.get(KeyKeys.Octet_K).GetByteString()));
+		System.out.println("Key ID bytes: " + Utils.toHexString((cnfKey.get(KeyKeys.KeyId).GetByteString())));
+        System.out.println("Octet bytes: " + Utils.toHexString(cnfKey.get(KeyKeys.Octet_K).GetByteString()));
         System.out.println("CNF: " + cnfFromAS.ToJSONString());
         
         System.out.println("Posting Token to GM at " + rsAddrC);
@@ -460,7 +459,7 @@ public class DtlsAsRsClientGroupOSCORE {
         CBORObject alg_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg);
         if(alg_param.getType() == CBORType.TextString) {
         	algo = AlgorithmID.valueOf(alg_param.AsString());
-        } else if(alg_param.getType() == CBORType.Number) {
+        } else if(alg_param.getType() == CBORType.Integer) {
         	algo = AlgorithmID.FromCBOR(alg_param);
         }
         
@@ -469,7 +468,7 @@ public class DtlsAsRsClientGroupOSCORE {
         CBORObject kdf_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.hkdf);
         if(kdf_param.getType() == CBORType.TextString) {
         	kdf = AlgorithmID.valueOf(kdf_param.AsString());
-        } else if(kdf_param.getType() == CBORType.Number) {
+        } else if(kdf_param.getType() == CBORType.Integer) {
         	kdf = AlgorithmID.FromCBOR(kdf_param);
         }
         
@@ -478,7 +477,7 @@ public class DtlsAsRsClientGroupOSCORE {
         CBORObject alg_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_alg);
         if(alg_countersign_param.getType() == CBORType.TextString) {
         	alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
-        } else if(alg_countersign_param.getType() == CBORType.Number) {
+        } else if(alg_countersign_param.getType() == CBORType.Integer) {
         	alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
         }
         
@@ -527,35 +526,49 @@ public class DtlsAsRsClientGroupOSCORE {
     	OneKey sid_private_key;
        	sid_private_key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
 
+		assertNotNull(master_secret);
+		assertNotNull(master_salt);
+		assertNotNull(sid_private_key);
+		assertNotNull(group_identifier);
+		assertNotNull(par_countersign);
+		assertNotNull(alg_countersign);
+		assertNotNull(rpl);
+		assertNotNull(sid);
+		assertNotNull(kdf);
+		assertNotNull(algo);
+
+
     	//Now derive the actual context
     	
-    	GroupOSCoreCtx groupOSCOREctx = null;
-		try {
-			groupOSCOREctx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, rpl, 
-					master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
-		} catch (OSException e) {
-			System.err.println("Failed to derive Group OSCORE Context!");
-			e.printStackTrace();
-		}
-		
-		//Finally add the recipient contexts from the coseKeySetArray
-		for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
-			
-			CBORObject key_param = coseKeySetArray.get(i);
-			
-	    	byte[] rid = null;
-	    	CBORObject rid_param = key_param.get(KeyKeys.KeyId.AsCBOR());
-	    	if(rid_param.getType() == CBORType.ByteString) {
-	    		rid = rid_param.GetByteString();
-	    	}
-			
-			OneKey recipient_key = new OneKey(key_param);
-			
-			groupOSCOREctx.addRecipientContext(rid, recipient_key);
-		}
+		// (Readd) GroupOSCoreCtx groupOSCOREctx = null;
+		// try {
+		// groupOSCOREctx = new GroupOSCoreCtx(master_secret, true, algo, sid,
+		// kdf, rpl,
+		// master_salt, group_identifier, alg_countersign, par_countersign,
+		// sid_private_key);
+		// } catch (OSException e) {
+		// System.err.println("Failed to derive Group OSCORE Context!");
+		// e.printStackTrace();
+		// }
+		//
+		// //Finally add the recipient contexts from the coseKeySetArray
+		// for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
+		//
+		// CBORObject key_param = coseKeySetArray.get(i);
+		//
+		// byte[] rid = null;
+		// CBORObject rid_param = key_param.get(KeyKeys.KeyId.AsCBOR());
+		// if(rid_param.getType() == CBORType.ByteString) {
+		// rid = rid_param.GetByteString();
+		// }
+		//
+		// OneKey recipient_key = new OneKey(key_param);
+		//
+		// groupOSCOREctx.addRecipientContext(rid, recipient_key);
+		// }
 		
 		//Print information about the created context
-		Utility.printContextInfo(groupOSCOREctx);
+		// (Readd) Utility.printContextInfo(groupOSCOREctx);
 		
 		
     }

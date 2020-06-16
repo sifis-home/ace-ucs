@@ -42,8 +42,11 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Base64;
+import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -116,7 +119,7 @@ public class CoapReq implements Message {
         if (ctx==null) {
             return null;
         }
-        //XXX: kludge since OSCORE doesn't set PeerIdentity
+
         if (ctx instanceof DtlsEndpointContext) {
             Principal p = ctx.getPeerIdentity();
             if (p==null) {
@@ -124,41 +127,28 @@ public class CoapReq implements Message {
             }
             return p.getName();
         } 
-       
-        OSCoreCtx osctx = OscoreCtxDbSingleton.getInstance()
-                .getContextByToken(this.request.getToken());
+		// If OSCORE is used, retrieve the sender ID the client used in the
+		// request by using the information in the endpoint context. Note that
+		// the sender ID the client used in the request is the local recipient
+		// ID.
+		else if (ctx instanceof MapBasedEndpointContext) {
+			MapBasedEndpointContext mapCtx = (MapBasedEndpointContext) ctx;
+
+			byte[] clientSenderId = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
+			byte[] idContext = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
         
-        //If retrieving the OSCORE context using the method above failed,
-        //instead take the Sender ID from the exchange and use that to get the context.
-        //Then extract the other parties recipient ID and return that.
-        if(osctx == null) {
-        	byte[] requestSenderID = exchange.advanced().getCryptographicContextID();
-        	osctx = OscoreCtxDbSingleton.getInstance()
-                    .getContext(requestSenderID);
-        	
-        	if(osctx != null) {
-	            String recipientId = "";
-	            if (osctx.getIdContext() != null) {
-	            	recipientId += Base64.encodeBytes(osctx.getIdContext());
-	            }
-	            recipientId += new String(osctx.getRecipientId(), Constants.charset);    
-	            return recipientId;
-        	}
+			if (clientSenderId == null) {
+				return null;
+			}
+			String senderId = "";
+			if (idContext != null) {
+				senderId += Base64.encodeBytes(idContext);
+			}
+			senderId += new String(clientSenderId, Constants.charset);
+			return senderId;
         }
         
-        //Code below is how it was before
-        
-        if (osctx == null) {
-            return null;
-        }
-        
-        String senderId = "";
-        if (osctx.getIdContext() != null) {
-            senderId += Base64.encodeBytes(osctx.getIdContext());
-        }
-        senderId += new String(osctx.getSenderId(), Constants.charset);    
-        return senderId;
-     
+		return null;
     }
 
     @Override

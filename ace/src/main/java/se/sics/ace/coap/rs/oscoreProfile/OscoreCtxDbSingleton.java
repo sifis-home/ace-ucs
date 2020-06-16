@@ -32,6 +32,7 @@
 package se.sics.ace.coap.rs.oscoreProfile;
 
 import org.eclipse.californium.oscore.HashMapCtxDB;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 /**
@@ -53,7 +54,8 @@ public class OscoreCtxDbSingleton {
      */
     public static OSCoreCtxDB getInstance() {
         if (singleton == null) {
-            singleton = HashMapCtxDB.getInstance();
+			singleton = new HashMapCtxDB();
+			OSCoreCoapStackFactory.useAsDefault(singleton);
         }
         return singleton;
     }

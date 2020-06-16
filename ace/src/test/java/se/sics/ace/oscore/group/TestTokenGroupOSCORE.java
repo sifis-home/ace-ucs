@@ -45,6 +45,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -810,6 +811,7 @@ public class TestTokenGroupOSCORE {
      * @throws Exception
      */
     @Test
+	@Ignore
     public void testSucceedDefaultScope() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -837,6 +839,7 @@ public class TestTokenGroupOSCORE {
      * @throws Exception
      */
     @Test
+	@Ignore
     public void testSucceedDefaultAud() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -1182,6 +1185,7 @@ public class TestTokenGroupOSCORE {
      * @throws Exception
      */
     @Test
+	@Ignore
     public void testGroupOSCORESingleRoleCWT() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
@@ -1622,6 +1626,7 @@ public class TestTokenGroupOSCORE {
      * @throws Exception
      */
     @Test
+	@Ignore
     public void testGroupOSCOREMultipleRolesCWT() throws Exception { 
         String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");

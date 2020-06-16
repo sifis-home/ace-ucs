@@ -555,7 +555,7 @@ public class Constants {
         }
         Map<Short, CBORObject> ret = new HashMap<>();
         for (CBORObject key : cbor.getKeys()) {
-            if (!key.getType().equals(CBORType.Number)) {
+            if (!key.getType().equals(CBORType.Integer)) {
                 throw new AceException("CBOR key was not a Short: "
                         + key.toString());
             }
@@ -764,10 +764,10 @@ public class Constants {
                 if (keyInt > 0 && keyInt < abbrev.length) {
                    keyStr = abbrev[keyInt];
                     if (keyInt == GRANT_TYPE
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
                     } else if (keyInt == ERROR
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
                     }                   
                 } else {
