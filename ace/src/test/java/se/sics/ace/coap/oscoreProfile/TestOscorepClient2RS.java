@@ -143,7 +143,7 @@ public class TestOscorepClient2RS {
      * @throws Exception 
      */
     @Test
-	@Ignore // FIXME
+	@Ignore
     public void testSuccess() throws Exception {
 
         //Generate a token

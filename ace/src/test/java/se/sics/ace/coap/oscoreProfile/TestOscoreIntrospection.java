@@ -36,6 +36,7 @@ import java.util.Map;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -112,7 +113,7 @@ public class TestOscoreIntrospection {
      * @throws Exception
      */
     @Test
-	@org.junit.Ignore
+	@Ignore
     public void testCoapIntrospect() throws Exception {
         byte[] senderId = "rs1".getBytes(Constants.charset);
         byte[] recipientId = "AS".getBytes(Constants.charset);

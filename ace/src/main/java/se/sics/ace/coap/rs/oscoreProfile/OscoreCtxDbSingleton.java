@@ -49,15 +49,19 @@ public class OscoreCtxDbSingleton {
     private static OSCoreCtxDB singleton;
     
     
-    /**
-     * @return  the singleton instance of the OSCORE context database
-     */
-    public static OSCoreCtxDB getInstance() {
-        if (singleton == null) {
+	/**
+	 * @return the singleton instance of the OSCORE context database
+	 */
+	public static OSCoreCtxDB getInstance() {
+		if (singleton == null) {
 			singleton = new HashMapCtxDB();
-			OSCoreCoapStackFactory.useAsDefault(singleton);
-        }
-        return singleton;
-    }
+			try {
+				OSCoreCoapStackFactory.useAsDefault(singleton);
+			} catch (IllegalStateException e) {
+				System.err.println("Warning attempting to set the OSCORE stack multiple times.");
+			}
+		}
+		return singleton;
+	}
 
 }

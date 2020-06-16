@@ -597,7 +597,6 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-	@Ignore // FIXME
     public void testSucceedDefaultScope() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
@@ -625,7 +624,6 @@ public class TestToken {
      * @throws Exception
      */
     @Test
-	@Ignore // FIXME
     public void testSucceedDefaultAud() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);

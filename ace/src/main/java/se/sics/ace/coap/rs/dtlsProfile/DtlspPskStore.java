@@ -90,7 +90,7 @@ public class DtlspPskStore implements PskStore {
     }
     
     @Override
-	public SecretKey getKey(PskPublicInformation identity) {
+    public SecretKey getKey(PskPublicInformation identity) {
         return getKey(identity.getPublicInfoAsString());
     }
    
@@ -101,7 +101,7 @@ public class DtlspPskStore implements PskStore {
      * @param identity  the String identity of the key
      * @return  the bytes of the key
      */
-	private SecretKey getKey(String identity) {
+    private SecretKey getKey(String identity) {
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
             return null;
@@ -111,7 +111,8 @@ public class DtlspPskStore implements PskStore {
         try {
             key = TokenRepository.getInstance().getKey(identity);
             if (key != null) {
-				return new SecretKeySpec(key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                return new SecretKeySpec(
+                        key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             }
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
@@ -146,7 +147,8 @@ public class DtlspPskStore implements PskStore {
                     cti.GetByteString());
             try {
                  key = TokenRepository.getInstance().getPoP(ctiStr);
-				return new SecretKeySpec(key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                 return new SecretKeySpec(
+                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;
@@ -164,7 +166,7 @@ public class DtlspPskStore implements PskStore {
 
 
     @Override
-	public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
+    public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
         //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }

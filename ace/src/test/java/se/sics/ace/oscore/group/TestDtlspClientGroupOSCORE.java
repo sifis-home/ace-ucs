@@ -1986,7 +1986,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-	@Ignore
     public void testPostPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -2036,7 +2035,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-	@Ignore
     public void testPostPSKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -2399,7 +2397,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-	@Ignore
     public void testPostPSKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -2770,7 +2767,6 @@ public class TestDtlspClientGroupOSCORE {
     * @throws ConnectorException 
     */
     @Test
-	@Ignore
     public void testPostPSKGroupOSCOREMultipleRolesContextDerivation() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -3256,7 +3252,6 @@ public class TestDtlspClientGroupOSCORE {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -3273,7 +3268,7 @@ public class TestDtlspClientGroupOSCORE {
         } catch (IOException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "java.lang.Exception: handshake flight 5 failed!")) {
+					"org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
                 //Everything ok
                 return;
             }

@@ -1124,7 +1124,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
-	@Ignore // FIXME
+	@Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));

@@ -388,7 +388,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-	@Ignore
     public void testPostPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {
@@ -433,7 +432,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -448,9 +446,9 @@ public class TestDtlspClient2RS {
         try {
             c.get();
         } catch (IOException ex) {
-            System.out.println(ex.getMessage());
+			System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "java.lang.Exception: handshake flight 5 failed!")) {
+					"org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
                 //Everything ok
                 return;
             }

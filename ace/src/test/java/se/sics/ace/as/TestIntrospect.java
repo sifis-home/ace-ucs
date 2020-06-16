@@ -43,6 +43,7 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -277,7 +278,6 @@ public class TestIntrospect {
      * @throws Exception
      */
     @Test
-	@org.junit.Ignore
     public void testSuccessCWT() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(
