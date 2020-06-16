@@ -121,6 +121,7 @@ public class TestOscoreIntrospection {
      * @throws Exception
      */
     @Test
+	@Ignore
     public void testCoapIntrospect() throws Exception {
 		byte[] senderId = "rs1".getBytes(Constants.charset);
         byte[] recipientId = "AS".getBytes(Constants.charset);
