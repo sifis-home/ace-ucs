@@ -10,7 +10,7 @@ After the joining procedure has been done communication with Group OSCORE can be
 **Related repositories**
 
 For the main ACE implementation see the master branch:  
-https://bitbucket.org/marco-tiloca-sics/ace-java/src/master/
+https://bitbucket.org/marco-tiloca-sics/ace-java/src/master
 
 For the standalone Group OSCORE implementation see:  
 https://github.com/rikard-sics/californium/tree/group_oscore
