@@ -48,7 +48,6 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
-import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
@@ -107,6 +106,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(asAddr);
         client.setEndpoint(clientEndpoint);  
@@ -126,6 +126,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
      *  (including scheme and hostname, and port if not default)
      * @param asResp  the response from the AS containing the token
      *      and the access information
+     * @param askForSignInfo  FIXME
+     * @param askForPubKeyEnc  FIXME
      * 
      * @return  the response 
      *
@@ -177,6 +179,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         CoapClient client = new CoapClient(rsAddr);
 
         LOGGER.finest("Sending request payload: " + payload);
+        
         Response r = null;
         try {
             r = client.post(
@@ -210,29 +213,19 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject rsNoncePoP = rsPayload.get(
-                CBORObject.FromObject(Constants.RSNONCE));
+                CBORObject.FromObject(Constants.KDCCHALLENGE));
         if (rsNoncePoP == null || !rsNoncePoP.getType().equals(CBORType.ByteString)) {
             throw new AceException(
                     "Missing or malformed PoP rsnonce in RS response");
         }
         
-        if (askForSignInfo) {
+        if (askForSignInfo || askForPubKeyEnc) {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
         		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
                 	throw new AceException(
                 			"Missing or malformed sign_info in the RS response, although requested");
         	}
-
-        }
-        
-        if (askForPubKeyEnc) {
-        	
-        	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).getType() != CBORType.Integer) {
-                   	throw new AceException(
-                   			"Missing or malformed pub_key_enc in the RS response, although requested");
-           	}
 
         }
         
@@ -250,6 +243,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         db.addContext(rsAddr, ctx);
         
         return r;
+        
     }
     
     
@@ -280,6 +274,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(clientEndpoint);

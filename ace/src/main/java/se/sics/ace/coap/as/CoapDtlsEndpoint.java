@@ -106,7 +106,7 @@ public class CoapDtlsEndpoint extends CoapResource implements AutoCloseable {
     public void handlePOST(CoapExchange exchange) {
         CoapReq req = null;
         try {
-            req = CoapReq.getInstance(exchange.advanced().getRequest(), exchange);
+            req = CoapReq.getInstance(exchange.advanced().getRequest());
         } catch (AceException e) {//Message didn't have CBOR payload
             LOGGER.info(e.getMessage());
             exchange.respond(ResponseCode.BAD_REQUEST);

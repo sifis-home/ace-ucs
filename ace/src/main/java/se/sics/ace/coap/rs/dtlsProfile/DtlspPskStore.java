@@ -46,8 +46,8 @@ import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.KeyKeys;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;

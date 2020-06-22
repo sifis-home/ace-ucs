@@ -5,9 +5,9 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 ### What is this repository for? ###
 
 * This is a Java library for the functions necessary to run a client, resource
-  server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://tools.ietf.org/html/draft-ietf-ace-oauth-authz). 
-  The base libraries do not include network functionality, since it tries to be
-  protocol agnostic. However we provide [CoAP](https://tools.ietf.org/html/rfc7252) client and server support as an example of a protocol specific adaptation based on [Californium](https://www.eclipse.org/californium).
+  server, and authorization server as specified in [draft-ietf-ace-oauth-authz](https://datatracker.ietf.org/doc/draft-ietf-ace-oauth-authz). 
+*  The library also implements the [DTLS](https://datatracker.ietf.org/doc/draft-ietf-ace-dtls-authorize) and [OSCORE](https://datatracker.ietf.org/doc/draft-ietf-ace-oscore-profile/) profiles. 
+*  The base libraries do not include network functionality, since they are supposed to be protocol agnostic. However we provide [CoAP](https://tools.ietf.org/html/rfc7252) client and server support as an example of a protocol specific adaptation based on [Californium](https://www.eclipse.org/californium).
 * Since this is a Java library, it is not intended for resource constrained devices, rather it is intended to be used on the "other end", by the resource rich nodes
   talking to the resource constrained ones. We are planning to release code for constrained devices as well in the future.
 * Version: beta
@@ -50,5 +50,5 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 * Please contact ludwig dot seitz at ri dot se if you have questions or suggestions.
 
 ### Acknowledgments ###
-This code is in the framework of the [CelticPlus](https://www.celticplus.eu/) project [CyberWI](http://www.cyberwi.eu/), with funding from [Vinnova](http://www.vinnova.se/sv/).
+This code is maintained in the framework of the [CelticNext](https://www.celticnext.eu/) project CRITISEC, with funding from [Vinnova](http://www.vinnova.se/sv/).
 The PostgresSQL adapter code and many useful debug comments were supplied by Sebastian Echeverria from the [SEI lab](https://www.sei.cmu.edu) at CMU.

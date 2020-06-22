@@ -53,14 +53,14 @@ import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.Attribute;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.Encrypt0Message;
-import org.eclipse.californium.cose.HeaderKeys;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.Attribute;
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -91,7 +91,9 @@ public class TestTokenRepositoryGroupOSCORE {
     private static String ourKey = "ourKey";
     private static String rpk = "ni:///sha-256;-QCjSk6ojWX8-YaHwQMOkewLD7p89aFF2eh8shWDmKE";
     
-    private static final String rootGroupMembershipResource = "group-oscore";
+	private static final String rootGroupMembershipResource = "group-oscore";
+	
+	private static Map<String, Short> rolesToInt = new HashMap<>();
     
     /**
      * Converter for generating byte arrays from int
@@ -144,11 +146,11 @@ public class TestTokenRepositoryGroupOSCORE {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        final String groupName = "feedca570000";
+    	final String groupName = "feedca570000";
         
         // M.T.
-        // Adding the group-membership resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with name "feedca570000".
+        // Adding the group-membership resource, as one scope for each different
+        // combinations of roles admitted in the OSCORE Group wiht name "feedca570000".
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
@@ -157,7 +159,15 @@ public class TestTokenRepositoryGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource2);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -173,6 +183,11 @@ public class TestTokenRepositoryGroupOSCORE {
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        
+        // M.T.
+    	rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
+    	rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
+    	rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
         
         createTR(valid);
         tr = TokenRepository.getInstance();
@@ -510,11 +525,12 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -544,7 +560,7 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
- // M.T.
+    // M.T.
     /**
      * Test add token with cnf containing COSE_Key, to access a
      * group-membership resource for joining an OSCORE group with multiple roles
@@ -559,15 +575,15 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
 
@@ -653,11 +669,12 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -692,7 +709,7 @@ public class TestTokenRepositoryGroupOSCORE {
     // M.T.
     /**
      * Test add token with cnf containing known kid, to access a
-     * join resource for joining an OSCORE group with multiple roles
+     * group-membership resource for joining an OSCORE group with multiple roles
      *
      * @throws AceException 
      * @throws IntrospectionException 
@@ -702,15 +719,15 @@ public class TestTokenRepositoryGroupOSCORE {
     	Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -786,7 +803,7 @@ public class TestTokenRepositoryGroupOSCORE {
     // M.T.
     /**
      * Test add token with cnf containing valid Encrypt0, to access a
-     * join resource for joining an OSCORE group with a single role
+     * group-membership resource for joining an OSCORE group with a single role
      *
      * @throws AceException 
      * @throws CoseException 
@@ -801,11 +818,12 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
@@ -850,15 +868,15 @@ public class TestTokenRepositoryGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("responder");
     	
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));

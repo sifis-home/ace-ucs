@@ -39,13 +39,11 @@ import java.util.Set;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
 import org.eclipse.californium.elements.util.Base64;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 
 import com.upokecenter.cbor.CBORException;
@@ -55,7 +53,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 
 /**
  * A CoAP request implementing the Message interface for the ACE library.
@@ -75,24 +72,17 @@ public class CoapReq implements Message {
      * The underlying Request from Californium
      */
     private Request request;
-
-    /**
-     * The underlying CoapExchange from Californium
-     * Used for retrieving the Sender ID when OSCORE is used
-     */
-    private CoapExchange exchange;
+    
     
     /**
      * Create a request from an underlying Californium request.
      * Payload if any MUST be in CBOR.
      * 
      * @param req  the underlying Californium request
-     * @param exchange  the underlying Californium CoapExchange
      * @throws AceException 
      */
-    protected CoapReq(Request req, CoapExchange exchange) throws AceException {
+    protected CoapReq(Request req) throws AceException {
         this.request = req;
-        this.exchange = exchange;
         CBORObject cborPayload = null;
         if (req.getPayload() != null) {
             try {
@@ -127,28 +117,27 @@ public class CoapReq implements Message {
             }
             return p.getName();
         } 
-		// If OSCORE is used, retrieve the sender ID the client used in the
-		// request by using the information in the endpoint context. Note that
-		// the sender ID the client used in the request is the local recipient
-		// ID.
-		else if (ctx instanceof MapBasedEndpointContext) {
-			MapBasedEndpointContext mapCtx = (MapBasedEndpointContext) ctx;
-
-			byte[] clientSenderId = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
-			byte[] idContext = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+        // If OSCORE is used, retrieve the sender ID the client used in the
+        // request by using the information in the endpoint context. Note that
+        // the sender ID the client used in the request is the local recipient ID.
+        else if (ctx instanceof MapBasedEndpointContext) {
+            MapBasedEndpointContext mapCtx = (MapBasedEndpointContext)ctx;
+            
+            byte[] clientSenderId = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
+            byte[] idContext = StringUtil.hex2ByteArray(mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
         
-			if (clientSenderId == null) {
-				return null;
-			}
-			String senderId = "";
-			if (idContext != null) {
-				senderId += Base64.encodeBytes(idContext);
-			}
-			senderId += new String(clientSenderId, Constants.charset);
-			return senderId;
+            if (clientSenderId == null) {
+                return null;
+            }
+            String senderId = "";
+            if (idContext != null) {
+                senderId += Base64.encodeBytes(idContext);
+            }
+            senderId += new String(clientSenderId, Constants.charset);    
+            return senderId;
         }
         
-		return null;
+        return null;
     }
 
     @Override
@@ -195,12 +184,11 @@ public class CoapReq implements Message {
      * Create a CoAPRequest from a Californium <code>Request</code>.
      * 
      * @param req  the Californium Request
-     * @param exchange the Californium CoapExchange
      * @return  the ACE CoAP request
      * @throws AceException 
      */
-    public static CoapReq getInstance(Request req, CoapExchange exchange) throws AceException {
-        return new CoapReq(req, exchange);
+    public static CoapReq getInstance(Request req) throws AceException {
+        return new CoapReq(req);
     }
 
     @Override

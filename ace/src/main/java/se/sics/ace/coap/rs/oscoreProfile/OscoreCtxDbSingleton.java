@@ -32,7 +32,6 @@
 package se.sics.ace.coap.rs.oscoreProfile;
 
 import org.eclipse.californium.oscore.HashMapCtxDB;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 /**
@@ -49,19 +48,14 @@ public class OscoreCtxDbSingleton {
     private static OSCoreCtxDB singleton;
     
     
-	/**
-	 * @return the singleton instance of the OSCORE context database
-	 */
-	public static OSCoreCtxDB getInstance() {
-		if (singleton == null) {
-			singleton = new HashMapCtxDB();
-			try {
-				OSCoreCoapStackFactory.useAsDefault(singleton);
-			} catch (IllegalStateException e) {
-				System.err.println("Warning attempting to set the OSCORE stack multiple times.");
-			}
-		}
-		return singleton;
-	}
+    /**
+     * @return  the singleton instance of the OSCORE context database
+     */
+    public static OSCoreCtxDB getInstance() {
+        if (singleton == null) {
+            singleton = new HashMapCtxDB();
+        }
+        return singleton;
+    }
 
 }

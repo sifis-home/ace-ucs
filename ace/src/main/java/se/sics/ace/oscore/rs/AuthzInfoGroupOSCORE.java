@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,6 +121,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 		this.audience = (GroupOSCOREJoinValidator) audience;
 		
 		this.rootGroupMembershipResource = this.audience.getRootGroupMembershipResource();
+		
 	}
 
 	@Override
@@ -238,7 +240,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     		
     		byte[] rawScope = scope.GetByteString();
     		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
-    		String groupName = cborScope.get(0).AsString();
+    		Set<String> groupNames = new HashSet<>();
 
     		// Check that the audience is in fact a Group Manager
     		for (String foo : auds) {
@@ -248,26 +250,30 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    	}
     	    }
     		
-    		// Check that the scope refers to a group membership resource
+      	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++)
+      	  		groupNames.add(cborScope.get(entryIndex).get(0).AsString());
+    		
+    		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
-    			if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false)
-    				error = true;
+    			for (String groupName : groupNames) {
+    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    					error = true;
+    					break;
+    				}
+    			}
     		}
     		
     		if (error == true) {
-                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for group-membership resources at a Group Manager");
+                LOGGER.info("The audience must be a Group Manager; group name must point at group-membership resources of that Group Manager");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
-    		
-        	// Retrieve the entry for the target group, using the name of the OSCORE Group
-        	GroupInfo myGroup = activeGroups.get(groupName);
-    		
+        	
         	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
-            rep.Add(Constants.RSNONCE, rsnonce);
+            rep.Add(Constants.KDCCHALLENGE, rsnonce);
             
     	    CBORObject sid = responseMap.get(CBORObject.FromObject(Constants.SUB));
     	    
@@ -287,42 +293,68 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
-        	
-		    if (provideSignInfo) {
-		    	
-		    	CBORObject signInfo = CBORObject.NewArray();
-		    	
-		    	signInfo.Add(myGroup.getCsAlg().AsCBOR());
-		    	
-		    	CBORObject arrayElem = myGroup.getCsParams();
-		    	if (arrayElem == null)
-		    		signInfo.Add(CBORObject.Null);
-		    	else
-		    		signInfo.Add(arrayElem);
-		    	
-		    	arrayElem = myGroup.getCsKeyParams();
-		    	if (arrayElem == null)
-		    		signInfo.Add(CBORObject.Null);
-		    	else
-		    		signInfo.Add(arrayElem);
-		    	
+    		
+			    		
+	    	if (provideSignInfo || providePubKeyEnc) {
+    	    
+	    		CBORObject signInfo = CBORObject.NewArray();
+	    	
+				for (String groupName : groupNames) {
+					
+		        	// Retrieve the entry for the target group, using the name of the OSCORE group
+		        	GroupInfo myGroup = this.activeGroups.get(groupName);
+					
+					CBORObject signInfoEntry = CBORObject.NewArray();
+					
+					signInfoEntry.Add(CBORObject.FromObject(groupName)); // 'id' element
+					
+				    if (provideSignInfo) {
+					
+						signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
+				    	
+				    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
+				    	if (arrayElem == null)
+				    		signInfoEntry.Add(CBORObject.Null);
+				    	else
+				    		signInfoEntry.Add(arrayElem);
+				    	
+				    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
+				    	if (arrayElem == null)
+				    		signInfoEntry.Add(CBORObject.Null);
+				    	else
+				    		signInfoEntry.Add(arrayElem);
+			    
+				    }
+				    else {
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_alg' element
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_parameters' element
+				    	signInfoEntry.Add(CBORObject.Null); // 'sign_key_parameters' element
+				    }
+			    	
+				    if (providePubKeyEnc) {
+				    	
+				    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
+				    	
+				    }
+			    	
+				    signInfo.Add(signInfoEntry);
+				    
+				}
+
 		    	rep.Add(Constants.SIGN_INFO, signInfo);
-		    	
-		    }
-	    
-		    if (providePubKeyEnc) {
-		    	
-		    	rep.Add(Constants.PUB_KEY_ENC, myGroup.getCsKeyEnc());
-		    	
-		    }
+		    
+	    	}
     		
     	}
 	    
 	    
-	    LOGGER.info("Successfully processed DTLS token");
+	    LOGGER.info("Successfully processed token");
         return msg.successReply(reply.getMessageCode(), rep);
 	}
     
+	/**
+	 * @param activeGroups
+	 */
 	public synchronized void setActiveGroups(Map<String, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
 	}

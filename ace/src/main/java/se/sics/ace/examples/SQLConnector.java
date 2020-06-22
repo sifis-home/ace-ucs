@@ -44,8 +44,8 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;

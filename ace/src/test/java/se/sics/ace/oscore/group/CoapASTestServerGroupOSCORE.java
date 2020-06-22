@@ -40,11 +40,10 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -66,19 +65,9 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  */
 public class CoapASTestServerGroupOSCORE
 {
-    //Name of the AS (the AS will use this as the issuer of a Token)
-    private static final String AS_NAME = "TestAS";
-
-    //Sets the secure port to use
-    private static int SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT + 100;
-	
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
     static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
-    
-    //Shared symmetric key between AS and RS (for RS4 only)
-    static byte[] AsRsKey 
-        = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
     private static CoapDBConnector db = null;
     private static DtlsAS as = null;
@@ -91,11 +80,6 @@ public class CoapASTestServerGroupOSCORE
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-        //If the input argument is null use the default secure port
-        //This will allow the JUnit tests to work since they call main with null
-    	if(args == null) {
-                SECURE_PORT = CoAP.DEFAULT_COAP_SECURE_PORT;
-        }
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
@@ -108,17 +92,13 @@ public class CoapASTestServerGroupOSCORE
                 CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
         
-        CBORObject keyDataRS4 = CBORObject.NewMap();
-        keyDataRS4.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyDataRS4.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(AsRsKey));
-        OneKey tokenPskRS4 = new OneKey(keyDataRS4);
-        
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
+        
+    	final String groupName = "feedca570000";
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
@@ -141,8 +121,6 @@ public class CoapASTestServerGroupOSCORE
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, akey);
         
-        final String groupName = "feedca570000";
-        
         // M.T.
         // Add a further resource server "rs2" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
@@ -150,10 +128,9 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_dtls");
         scopes.clear();
         scopes.add(groupName + "_requester");
-        scopes.add(groupName + "_feedca570000_responder");
-        scopes.add(groupName + "_feedca570000_monitor");
-        scopes.add(groupName + "_feedca570000_requester_responder");
-        scopes.add(groupName + "_feedca570000_requester_monitor");
+        scopes.add(groupName + "_responder");
+        scopes.add(groupName + "_monitor");
+        scopes.add(groupName + "_requester_responder");
         auds.clear();
         auds.add("rs2");
         keyTypes.clear();
@@ -169,12 +146,13 @@ public class CoapASTestServerGroupOSCORE
                 expiration, authPsk, tokenPsk, akey);
         
         // M.T.
-        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
+        
         
         // M.T.
         // Add a further resource server "rs3" acting as OSCORE Group Manager
-        // This resource server uses only CWT Tokens
+        // This resource server uses only REF Tokens
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
@@ -182,13 +160,12 @@ public class CoapASTestServerGroupOSCORE
         scopes.add(groupName + "_responder");
         scopes.add(groupName + "_monitor");
         scopes.add(groupName + "_requester_responder");
-        scopes.add(groupName + "_requester_monitor");
         auds.clear();
         auds.add("rs3");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
-        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
         coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
@@ -198,8 +175,9 @@ public class CoapASTestServerGroupOSCORE
                 expiration, authPsk, tokenPsk, akey);
         
         // M.T.
-        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
+        
         
         // M.T.
         // Add a further resource server "rs4" acting as OSCORE Group Manager
@@ -211,7 +189,6 @@ public class CoapASTestServerGroupOSCORE
         scopes.add(groupName + "_responder");
         scopes.add(groupName + "_monitor");
         scopes.add(groupName + "_requester_responder");
-        scopes.add(groupName + "_requester_monitor");
         auds.clear();
         auds.add("rs4");
         keyTypes.clear();
@@ -219,18 +196,17 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         cose.clear();
-        //coseP = new COSEparams(MessageTag.Sign1, 
-        //        AlgorithmID.ECDSA_256, AlgorithmID.Direct);
-        coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPskRS4, akey);
+                expiration, authPsk, tokenPsk, akey);
         
         // M.T.
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
+        
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -245,16 +221,8 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        
-        //clientF RPK support //Rikard
-        OneKey clientF_publicKey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey))).PublicKey();
-        keyTypes.add("RPK");    
-        
         db.addClient("clientF", profiles, null, null, 
-                keyTypes, authPsk, clientF_publicKey);
-        db.addClient("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, null, null,
-                keyTypes, authPsk, clientF_publicKey); //Rikard: RPK clientF
+                keyTypes, authPsk, null);
         
         // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
@@ -277,112 +245,6 @@ public class CoapASTestServerGroupOSCORE
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
         
-        // M.T.
-        // Setup additional tokens to access a group-membership resource at an OSCORE Group Manager.
-        // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
-        cti = Base64.getEncoder().encodeToString(new byte[]{0x01});
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        CBORObject cborArrayScope = CBORObject.NewArray();
-        String gName = new String(groupName);
-    	String role1 = new String("requester");
-    	cborArrayScope.Add(gName);
-    	cborArrayScope.Add(role1);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti, claims);
-        db.addCti2Client(cti, "clientF");
-        
-        
-        cti = Base64.getEncoder().encodeToString(new byte[]{0x02});
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gName = new String(groupName);
-    	role1 = new String("responder");
-    	cborArrayScope.Add(gName);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti, claims);
-        db.addCti2Client(cti, "clientF");
-        
-        
-        cti = Base64.getEncoder().encodeToString(new byte[]{0x03});
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gName = new String(groupName);
-    	role1 = new String("monitor");
-    	cborArrayScope.Add(gName);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti, claims);
-        db.addCti2Client(cti, "clientF");
-        
-        
-        cti = Base64.getEncoder().encodeToString(new byte[]{0x04});
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gName = new String(groupName);
-    	role1 = new String("requester");
-    	String role2 = new String("responder");
-    	cborArrayScope.Add(gName);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti, claims);
-        db.addCti2Client(cti, "clientF");
-        
-        
-        cti = Base64.getEncoder().encodeToString(new byte[]{0x05});
-        claims = new HashMap<>();
-        
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-        cborArrayScope = CBORObject.NewArray();
-        gName = new String(groupName);
-    	role1 = new String("requester");
-    	role2 = new String("monitor");
-    	cborArrayScope.Add(gName);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs2"));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti, claims);
-        db.addCti2Client(cti, "clientF");
-        
-        
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new GroupOSCOREJoinPDP(db);
         
@@ -398,9 +260,7 @@ public class CoapASTestServerGroupOSCORE
         pdp.addIntrospectAccess("rs2");
         pdp.addIntrospectAccess("rs3");
         pdp.addIntrospectAccess("rs4");
-        pdp.addIntrospectAccess("rs5");
-        pdp.addIntrospectAccess("rs6");
-        pdp.addIntrospectAccess("rs7");
+        
         
         // M.T.
         // Add also client "clientF" as a joining node of an OSCORE group.
@@ -411,7 +271,6 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
         pdp.addAccess("clientA", "rs2", "r_light");
-        pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
         
         pdp.addAccess("clientB", "rs1", "r_temp");
         pdp.addAccess("clientB", "rs1", "co2");
@@ -422,24 +281,13 @@ public class CoapASTestServerGroupOSCORE
         pdp.addAccess("clientB", "rs3", "r_pressure");
         pdp.addAccess("clientB", "rs3", "failTokenType");
         pdp.addAccess("clientB", "rs3", "failProfile");
-        pdp.addAccess("clientB", "rs4", "failProfile");
-        pdp.addAccess("clientB", "rs4", "rw_valve");
-        pdp.addAccess("clientB", "rs4", "r_pressure");
-        pdp.addAccess("clientB", "rs4", "failTokenType");
-        pdp.addAccess("clientB", "rs6", "co2");
-        pdp.addAccess("clientB", "rs7", "co2");
         
         pdp.addAccess("clientC", "rs3", "r_valve");
-        pdp.addAccess("clientC", "rs4", "r_valve");
         pdp.addAccess("clientC", "rs3", "r_pressure");
-        pdp.addAccess("clientC", "rs4", "r_pressure");
-        pdp.addAccess("clientC", "rs6", "r_valve");
 
         pdp.addAccess("clientD", "rs1", "r_temp");
         pdp.addAccess("clientD", "rs1", "rw_config");
         pdp.addAccess("clientD", "rs2", "r_light");
-        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
-        pdp.addAccess("clientD", "rs1", "r_temp");
         
 
         pdp.addAccess("clientE", "rs3", "rw_valve");
@@ -449,40 +297,27 @@ public class CoapASTestServerGroupOSCORE
         
         // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
-        // This client is allowed to be requester and/or monitor, but not responder.
-        pdp.addAccess("clientF", "rs2", groupName + "_requester_monitor");
+        // On this Group Manager, this client is allowed to be requester, responder, requester+responder or monitor.
+        pdp.addAccess("clientF", "rs2", groupName + "_requester_monitor_responder");
+        // On this Group Manager, this client is allowed to be requester or monitor.
         pdp.addAccess("clientF", "rs3", groupName + "_requester_monitor");
-        pdp.addAccess("clientF", "rs4", groupName + "_requester_monitor");
-        
-        //Rikard: Adding clientF when connecting with RPK
-        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs2", "feedca570000_requester_monitor");
-        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs3", "feedca570000_requester_monitor");
-        pdp.addAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", "rs4", "feedca570000_requester_monitor");
-        //Rikard: Name that clientF will have getSenderId() in Token when using RPK:
-        // ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w
         
         // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-        // This client is allowed to be only requester.
+        // On this Group Manager, this client is allowed to be requester.
         pdp.addAccess("clientG", "rs2", groupName + "_requester");
-        pdp.addAccess("clientG", "rs3", groupName + "_requester");
-        pdp.addAccess("clientG", "rs4", groupName + "_requester");
         
         // M.T.
-        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
+        // Add the resource servers rs2  and rs3 and their OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs2 = Collections.singleton("rs2");
         pdp.addOSCOREGroupManagers("rs2", rs2);
-        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs3 = Collections.singleton("rs3");
         pdp.addOSCOREGroupManagers("rs3", rs3);
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
-        Set<String> rs4 = Collections.singleton("rs4");
-        pdp.addOSCOREGroupManagers("rs4", rs4);
         
-        //as = new DtlsAS(AS_NAME, db, pdp, time, asymmKey);
-        as = new DtlsAS(AS_NAME, db, pdp, time, asymmKey, "token", "introspect", SECURE_PORT, null, false);
+        
+        as = new DtlsAS("AS", db, pdp, time, asymmKey);
         as.start();
-        System.out.println("AS Server starting on port " + SECURE_PORT  + " (DTLS)");
+        System.out.println("Server starting");
     }
     
     /**

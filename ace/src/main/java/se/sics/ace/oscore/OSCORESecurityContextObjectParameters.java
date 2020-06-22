@@ -82,13 +82,13 @@ import se.sics.ace.AceException;
 		 *  'contextId' - OSCORE ID Context Value
 		 */
 		public static final short contextId = 7; // Major type 2 (byte string)
-
+		
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
 	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf", 
-	            "alg", "salt", "contextId" };
+	            "alg", "salt", "contextId"};
 	    
 	    /**
 	     * Takes a CBORObject that is a map and transforms it

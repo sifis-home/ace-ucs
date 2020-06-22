@@ -42,7 +42,7 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.OneKey;
+import COSE.OneKey;
 
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;

@@ -1,6 +1,8 @@
 A short overview of the newly implemented standalone applications.
 And their corresponding servers.
 
+TODO: These standalone applications need updating after import of code from the master branch. Things have been changed there, for instance regarding the scope now being encoded as integers.
+
 #Pair 1 (GM Client and GM Server for Group OSCORE Joining with DTLS profile)
 
 *Client->GM Application (DTLS):

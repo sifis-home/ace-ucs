@@ -54,8 +54,8 @@ import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.BksStore;

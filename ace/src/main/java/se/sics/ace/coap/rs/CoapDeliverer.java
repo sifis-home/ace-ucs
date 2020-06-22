@@ -35,10 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -53,10 +50,12 @@ import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.KeyKeys;
+import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Message;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -120,34 +119,7 @@ public class CoapDeliverer implements MessageDeliverer {
         this.d = new ServerMessageDeliverer(root);
         this.asRCH = asRCHM; 
     }
-    
-    /**
-     * Special method to allow communication from a specific OSCORE Sender ID. 
-     * (For testing)
-     *  
-     * @param senderId The OSCORE Sender ID to allow communication for.
-     */
-    public void allowForSubject(byte[] senderId) {
-    	allowedSenders.add(senderId);
-    }
-    private List<byte[]> allowedSenders = new ArrayList<byte[]>();
-    
-    /**
-     * Check if a particular subject is added to the list of allowed OSCORE senders.
-     * (For testing)
-     * 
-     * @param subject of OSCORE client to check
-     * @return if it is allowed access
-     */
-    private boolean isAllowedSender(byte[] subject) {
-    	for(byte[] senderId : allowedSenders) {
-    		if(Arrays.equals(senderId, subject)) {
-    			return true;
-    		}
-    	}
-    	return false;
-    }
-    
+  
     //Really the TokenRepository _should not_ be closed here
     @SuppressWarnings("resource") 
     @Override
@@ -171,18 +143,30 @@ public class CoapDeliverer implements MessageDeliverer {
         }      
        
        
-        String subject;
+        String subject = null;
+        
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
             //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
+        	
+        	// Old way for retrieving only the OSCORE Sender ID of the message originator
+        	/*
             if (ex.getCryptographicContextID()!= null) {                
                 subject = new String(ex.getCryptographicContextID(),
                         Constants.charset);    
-            } else {
-                LOGGER.warning("Unauthenticated client tried to get access");
-                failUnauthz(null, ex);
-                return;
-            }
+            }*/
+            
+        	Request req = ex.getRequest();
+            try {
+				subject = CoapReq.getInstance(req).getSenderId();
+				if (subject == null) {
+				    LOGGER.warning("Unauthenticated client tried to get access");
+				    failUnauthz(null, ex);
+				    return;
+				}
+			} catch (AceException e) {
+	            LOGGER.severe("Error while retrieving the client identity: " + e.getMessage());
+			}
         } else  {
             subject = request.getSourceContext().getPeerIdentity().getName();
         }
@@ -195,13 +179,6 @@ public class CoapDeliverer implements MessageDeliverer {
         }
         String kid = TokenRepository.getInstance().getKid(subject);
        
-        //Check if this client has been allowed communication
-        //(For testing).
-        if(isAllowedSender(ex.getCryptographicContextID())) {
-        	this.d.deliverRequest(ex);
-        	return;
-        }
-        
         if (kid == null) {//Check if this was the Base64 encoded kid map
             try {
                 CBORObject cbor = CBORObject.DecodeFromBytes(

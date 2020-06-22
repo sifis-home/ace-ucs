@@ -3,12 +3,15 @@ package se.sics.ace.oscore.group;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -17,13 +20,14 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.oscore.InstallCryptoProviders;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.Assert;
 
@@ -38,15 +42,16 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 
 /**
- * A stand-alone application for Client->AS followed by Client->GM
- * communication using the OSCORE profile.
+ * FIXME: Needs updating after import of master code
  * 
- * First the client will request a Token from the AS,
- * it will then post it to the GM and then proceed with
- * the Group Joining procedure.
+ * A stand-alone application for Client->AS followed by Client->GM communication
+ * using the OSCORE profile.
+ * 
+ * First the client will request a Token from the AS, it will then post it to
+ * the GM and then proceed with the Group Joining procedure.
  * 
  * @author Rikard Höglund
  *
@@ -68,17 +73,17 @@ public class OscoreAsRsClientGroupOSCORE {
 	
 	// M.T. & Rikard
     /**
-     * Post to Authz-Info, then perform join request using multiple roles.
-     * Uses the ACE OSCORE Profile.
-     * 
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws OSException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
+	 * Post to Authz-Info, then perform join request using multiple roles. Uses
+	 * the ACE OSCORE Profile.
+	 * 
+	 * @throws AceException if ACE processing fails
+	 * @throws CoseException if COSE processing fails
+	 * @throws InvalidCipherTextException if cipher processing fails
+	 * @throws IllegalStateException on failure
+	 * @throws OSException if OSCORE processing fails
+	 * @throws IOException on failure
+	 * @throws ConnectorException if connection fails
+	 */
     public static void postTokenAndJoin() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
@@ -89,8 +94,13 @@ public class OscoreAsRsClientGroupOSCORE {
         boolean providePublicKey = true;
 
         // Generate private and public key to be used in the OSCORE group by the joining client (EDDSA)
-        InstallCryptoProviders.installProvider();
-        String groupKeyPair = InstallCryptoProviders.getCounterSignKey(); //"pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+		// Install needed cryptography providers
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
+
+		String groupKeyPair = getCounterSignKey(); // "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
 
         // Set EDDSA with curve Ed25519 for countersignatures
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
@@ -175,7 +185,7 @@ public class OscoreAsRsClientGroupOSCORE {
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
 
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+		byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
 
         @SuppressWarnings("unused")
         CBORObject signInfo = null;
@@ -245,11 +255,11 @@ public class OscoreAsRsClientGroupOSCORE {
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
-        CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
 
-        //The following two lines are useful for generating the Group OSCORE context
-        Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(keyMap));
-        GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
+        //The following three lines were useful for generating the Group OSCORE context
+        //CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+		//Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(keyMap));
+        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
 
         System.out.println("Receved response from GM to Join request: " + joinResponse.toString());
 
@@ -259,16 +269,15 @@ public class OscoreAsRsClientGroupOSCORE {
 
         /* Generate a Group OSCORE security context from the Join response */
 
-        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-
-		// (Readd) GroupOSCoreCtx groupOscoreCtx =
-		// OscorepClient2RSGroupOSCORE.generateGroupOSCOREContext(contextObject,
-		// coseKeySetArray);
-
-        System.out.println();
-        //System.out.println("Generated Group OSCORE Context:");
-		// (Readd) Utility.printContextInfo(groupOscoreCtx);
+		// Add checking of the derived context
+		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
 
     }
+
+	public static String getCounterSignKey() throws CoseException {
+		OneKey myKey = OneKey.generateKey(AlgorithmID.EDDSA);
+		byte[] keyObjectBytes = myKey.AsCBOR().EncodeToBytes();
+		String base64_encoded = Base64.getEncoder().encodeToString(keyObjectBytes);
+		return base64_encoded;
+	}
 }

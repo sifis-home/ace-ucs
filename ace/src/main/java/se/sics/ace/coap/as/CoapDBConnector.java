@@ -45,8 +45,8 @@ import org.eclipse.californium.scandium.util.ServerNames;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.examples.SQLDBAdapter;
@@ -84,7 +84,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
 
 
     @Override
-	public SecretKey getKey(PskPublicInformation identity) {
+    public SecretKey getKey(PskPublicInformation identity) {
         return getKey(identity.getPublicInfoAsString());
     }
 
@@ -94,7 +94,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
      * @param identity  the identity of the key
      * @return  the key
      */
-	private SecretKey getKey(String identity) {
+    private SecretKey getKey(String identity) {
         OneKey key = null;
         try {
             key = super.getCPSK(identity);
@@ -119,13 +119,12 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
             if ((val== null) || (val.getType() != CBORType.ByteString)) {
                 return null; //Malformed key
             }
-			return new SecretKeySpec(val.GetByteString(), "AES");
+            return new SecretKeySpec(val.GetByteString(), "AES");  
         }
         return null; //Wrong KeyType
           
         
     }
-
 
    /**
     * Gets the singleton instance of this connector.
@@ -162,7 +161,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     }
 
     @Override
-	public SecretKey getKey(ServerNames serverName,
+    public SecretKey getKey(ServerNames serverName,
             PskPublicInformation identity) {
         // XXX: We don't support the server names extension.
         return getKey(identity);

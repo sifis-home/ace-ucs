@@ -50,11 +50,11 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -102,7 +102,7 @@ public class TestAuthzInfoGroupOSCORE {
     
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
-    private static final String rootGroupMembershipResource = "group-oscore";
+	private static final String rootGroupMembershipResource = "group-oscore";
     
     /**
      * Set up tests.
@@ -118,10 +118,10 @@ public class TestAuthzInfoGroupOSCORE {
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
+    	final String groupName = "feedca570000";
+        
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = key.PublicKey();
-
-        final String groupName ="feedca570000";
         
         OneKey sharedKey = new OneKey();
         sharedKey.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -149,7 +149,7 @@ public class TestAuthzInfoGroupOSCORE {
         myScopes.put("r_co2", myResource2);
         
         // M.T.
-        // Adding the join resource, as one scope for each different combinations of
+        // Adding the group-membership resource, as one scope for each different combinations of
         // roles admitted in the OSCORE Group, with group name "feedca570000".
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
@@ -159,7 +159,15 @@ public class TestAuthzInfoGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource3);
         
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
@@ -175,7 +183,7 @@ public class TestAuthzInfoGroupOSCORE {
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
-     // Create the OSCORE group
+        // Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                 					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
                 					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
@@ -226,7 +234,7 @@ public class TestAuthzInfoGroupOSCORE {
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
     	GroupInfo myGroup = new GroupInfo(groupName,
-    								      masterSecret,
+    									  masterSecret,
     			                          masterSalt,
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
@@ -275,7 +283,7 @@ public class TestAuthzInfoGroupOSCORE {
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
                 valid, ctx, tokenFile, valid, false);
-
+        
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
         
@@ -753,10 +761,11 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x12}));
@@ -820,14 +829,14 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x13}));

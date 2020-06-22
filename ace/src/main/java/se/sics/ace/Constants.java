@@ -38,7 +38,7 @@ import java.util.Map;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.AlgorithmID;
+import COSE.AlgorithmID;
 
 /**
  * Constants for use with the ACE framework.
@@ -440,7 +440,7 @@ public class Constants {
 	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(2);
 
 	/**
-	 * The Id Context
+	 * The server Id
 	 */
 	public static final CBORObject OS_SERVERID = CBORObject.FromObject(3);
 
@@ -460,9 +460,10 @@ public class Constants {
     public static final CBORObject OS_SALT = CBORObject.FromObject(6);
     
     /**
-     * The server Id
+     * The Id Context
      */
     public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(7);
+
 
     /**
      * Default value for alg
@@ -475,7 +476,7 @@ public class Constants {
      * Default value for hkdf
      */
     public static final short OS_DEFAULT_HKDF 
-        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();
+        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();    
     
 	/**
 	 * RESTful action names ===================================================
@@ -822,91 +823,86 @@ public class Constants {
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
+
     
-    // TODO: Remove when the latest RESTification of the Group Manager is completed.
-//    /**
-//	 * ACE Groupcomm Request Type "Key Distribution" (1)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Leave" (2)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Update Key" (3)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "New" (4)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Pub Keys" (5)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
+    /**
+     * Requester role
+     */
+    public static final short GROUP_OSCORE_REQUESTER = 1;
     
-     /*
+    /**
+     * Responder role
+     */
+    public static final short GROUP_OSCORE_RESPONDER = 2;
+    
+    /**
+     * Monitor role
+     */
+    public static final short GROUP_OSCORE_MONITOR = 3;
+    
+    /**
+     * Verifier role
+     */
+    public static final short GROUP_OSCORE_VERIFIER = 4;
+    
+    /**
+     * Roles as strings
+     */
+    public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
+    
+     /**
       * Value for the label "get_pub_keys" in the Join Request message
       */
      public static final short GET_PUB_KEYS = 101;
      
-     /*
+     /**
       * Value for the label "client_cred" in the Join Request message
       */
      public static final short CLIENT_CRED = 102;
      
-     /*
+     /**
       * Value for the label "client_cred_verify" in the Join Request message
       */
      public static final short CLIENT_CRED_VERIFY = 103;
      
-     /*
-      * Value for the label "kty" in the Join Response message
+     /**
+      * Value for the label "gkty" in the Join Response message
       */
      public static final short GKTY = 1;
      
-     /*
+     /**
       * Value for the label "key" in the Join Response message
       */
      public static final short KEY = 2;
      
-     /*
+     /**
       * Value for the label "pub_keys" in the Join Response message
       */
      public static final short PUB_KEYS = 3;
      
-     /*
+     /**
       * Value for the label "ace-groupcomm-profile" in the Join Response message
       */
      public static final short ACE_GROUPCOMM_PROFILE = 38;
      
-     /*
+     /**
       * Value for the label "sign_info" in the Token POST request and in the Join Response message
       */
      public static final short SIGN_INFO = 201;
      
-     /*
+     /**
       * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
       */
      public static final short PUB_KEY_ENC = 202;
      
-     /*
+     /**
       * Value for the label "rs_nonce" in the Token POST response
       */
-     public static final short RSNONCE = 203;
+     public static final short KDCCHALLENGE = 203;
      
-     /*
-     * Value for the label "num" in the Join Response message
-     */
+     /**
+      * Value for the label "num" in the Join Response message
+      */
      public static final short NUM = 204;
-
+     
 }

@@ -43,9 +43,9 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;

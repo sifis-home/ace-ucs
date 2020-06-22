@@ -97,7 +97,7 @@ public class OSCOREProfileRequests {
      */
     public static Response getToken(String asAddr, CBORObject payload, 
             OSCoreCtx ctx) throws AceException, OSException {
-    	
+
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
         r.setPayload(payload.EncodeToBytes());
@@ -106,6 +106,7 @@ public class OSCOREProfileRequests {
         
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(asAddr);
         client.setEndpoint(clientEndpoint);  
@@ -204,17 +205,13 @@ public class OSCOREProfileRequests {
         }
         
         byte[] n2 = n2C.GetByteString();
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
-        
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-       OSCoreCtx ctx = osc.getContext(true, n1, n2);
-       OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-       db.addContext(ctx);
-       db.addContext(rsAddr, ctx);
+        OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        db.addContext(ctx);
+        db.addContext(rsAddr, ctx);
         
         return r;
     }
@@ -240,7 +237,6 @@ public class OSCOREProfileRequests {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
         }
-        
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         if (db.getContext(serverAddress.getHostName()) == null) {
             throw new AceException("OSCORE context not set for address: " 
@@ -248,6 +244,7 @@ public class OSCOREProfileRequests {
         }
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
         builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+        builder.setCustomCoapStackArgument(db);
         Endpoint clientEndpoint = builder.build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(clientEndpoint);

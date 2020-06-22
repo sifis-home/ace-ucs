@@ -50,12 +50,11 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.OneKey;
+import COSE.OneKey;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.Token;
@@ -214,7 +213,6 @@ public class TestDtlsClient2AS {
      * @throws Exception
      */
     @Test
-	@Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));

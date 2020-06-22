@@ -55,13 +55,11 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.junit.Assert;
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
-
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSException;
 
@@ -73,21 +71,22 @@ import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 
 /**
+ * FIXME: Needs updating after import of master code
+ * 
  * An application for the OSCORE profile interactions between client and server.
  * Using the OSCORE ACE profile.
  * 
- * Posts a token to the GM and then proceeds to send a join request followed
- * by printing the received join response.
+ * Posts a token to the GM and then proceeds to send a join request followed by
+ * printing the received join response.
  * 
  * Use this client with the server TestOscorepRSGroupOSCORE
  * 
- * If a Group OSCORE context should be derived that can be done by using code from
- * the JUnit test testSuccessGroupOSCOREMultipleRolesContextDerivation in
+ * If a Group OSCORE context should be derived that can be done by using code
+ * from the JUnit test testSuccessGroupOSCOREMultipleRolesContextDerivation in
  * TestOscorepClient2RSGroupOSCORE.
  * 
  * @author Ludwig Seitz, Marco Tiloca & Rikard Hoeglund
@@ -123,17 +122,17 @@ public class OscorepClient2RSGroupOSCORE {
 
     // M.T. & Rikard
     /**
-     * Post to Authz-Info, then perform join request using multiple roles.
-     * Uses the ACE OSCORE Profile.
-     * 
-     * @throws AceException 
-     * @throws CoseException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws OSException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
+	 * Post to Authz-Info, then perform join request using multiple roles. Uses
+	 * the ACE OSCORE Profile.
+	 * 
+	 * @throws AceException if ACE processing fails
+	 * @throws CoseException if COSE processing fails
+	 * @throws InvalidCipherTextException if cipher processing fails
+	 * @throws IllegalStateException on illegal state
+	 * @throws OSException if OSCORE processing fails
+	 * @throws IOException on input/output error
+	 * @throws ConnectorException if connection has an issue
+	 */
     public static void performJoinOSCOREProfile() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
@@ -217,7 +216,7 @@ public class OscorepClient2RSGroupOSCORE {
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
 
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+		byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
 
         @SuppressWarnings("unused")
         CBORObject signInfo = null;
@@ -287,13 +286,12 @@ public class OscorepClient2RSGroupOSCORE {
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
-        CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        //The following three lines were useful for generating the Group OSCORE context
+        // CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        // Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(keyMap));
+        // GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
 
-        //The following two lines are useful for generating the Group OSCORE context
-        Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(keyMap));
-        GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
-
-        System.out.println("Receved response from GM to Join request: " + joinResponse.toString());
+        System.out.println("Received response from GM to Join request: " + joinResponse.toString());
 
         /* Parse the Join response in detail */
 
@@ -304,23 +302,21 @@ public class OscorepClient2RSGroupOSCORE {
         byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
 
-		// (Readd)GroupOSCoreCtx groupOscoreCtx =
-		// generateGroupOSCOREContext(contextObject, coseKeySetArray);
-
-        System.out.println();
-        //System.out.println("Generated Group OSCORE Context:");
-		// (Readd)Utility.printContextInfo(groupOscoreCtx);
-
+		// Add checking of the derived context
+		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
     }
     
 
     /**
-     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
-     * 
-     * @param privKey  private key used to sign
-     * @param dataToSign  content to sign
-
-     */
+	 * Compute a signature, using the same algorithm and private key used in the
+	 * OSCORE group to join
+	 * 
+	 * @param privKey private key used to sign
+	 * @param dataToSign content to sign
+	 * @param countersignKeyCurve the countersignature curve to use
+	 * @return the computed signature
+	 * 
+	 */
     public static byte[] computeSignature(PrivateKey privKey, byte[] dataToSign, int countersignKeyCurve) {
 
         Signature mySignature = null;
@@ -458,139 +454,4 @@ public class OscorepClient2RSGroupOSCORE {
         }
     }
 
-	// /**
-	// * Generate a Group OSCORE Security context from material
-	// * received in a Join response.
-	// *
-	// * @param contextObject holds the information in the Join response
-	// * @param CBORObject coseKeySetArray holds information about public keys
-	// from the Join response
-	// *
-	// * @throws CoseException
-	// */
-	// public static GroupOSCoreCtx
-	// generateGroupOSCOREContext(GroupOSCORESecurityContextObject
-	// contextObject, CBORObject coseKeySetArray) throws CoseException {
-	// //Defining variables to hold the information before derivation
-	//
-	// //Algorithm
-	// AlgorithmID algo = null;
-	// CBORObject alg_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg);
-	// if(alg_param.getType() == CBORType.TextString) {
-	// algo = AlgorithmID.valueOf(alg_param.AsString());
-	// } else if(alg_param.getType() == CBORType.Integer) {
-	// algo = AlgorithmID.FromCBOR(alg_param);
-	// }
-	//
-	// //KDF
-	// AlgorithmID kdf = null;
-	// CBORObject kdf_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.hkdf);
-	// if(kdf_param.getType() == CBORType.TextString) {
-	// kdf = AlgorithmID.valueOf(kdf_param.AsString());
-	// } else if(kdf_param.getType() == CBORType.Integer) {
-	// kdf = AlgorithmID.FromCBOR(kdf_param);
-	// }
-	//
-	// //Algorithm for the countersignature
-	// AlgorithmID alg_countersign = null;
-	// CBORObject alg_countersign_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_alg);
-	// if(alg_countersign_param.getType() == CBORType.TextString) {
-	// alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
-	// } else if(alg_countersign_param.getType() == CBORType.Integer) {
-	// alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
-	// }
-	//
-	// //Parameter for the countersignature
-	// Integer par_countersign = null;
-	// CBORObject par_countersign_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_params);
-	// if(par_countersign_param.getType() == CBORType.Map) {
-	// par_countersign =
-	// par_countersign_param.get(KeyKeys.OKP_Curve.AsCBOR()).AsInt32();
-	// //TODO: Change like this in other places too?
-	// } else {
-	// System.err.println("Unknown par_countersign value!");
-	// }
-	//
-	// //Master secret
-	// CBORObject master_secret_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.ms);
-	// byte[] master_secret = null;
-	// if(master_secret_param.getType() == CBORType.ByteString) {
-	// master_secret = master_secret_param.GetByteString();
-	// }
-	//
-	// //Master salt
-	// CBORObject master_salt_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.salt);
-	// byte[] master_salt = null;
-	// if(master_salt_param.getType() == CBORType.ByteString) {
-	// master_salt = master_salt_param.GetByteString();
-	// }
-	//
-	// //Sender ID
-	// byte[] sid = null;
-	// CBORObject sid_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.clientId);
-	// if(sid_param.getType() == CBORType.ByteString) {
-	// sid = sid_param.GetByteString();
-	// }
-	//
-	// //Group ID / Context ID
-	// CBORObject group_identifier_param =
-	// contextObject.getParam(GroupOSCORESecurityContextObjectParameters.contextId);
-	// byte[] group_identifier = null;
-	// if(group_identifier_param.getType() == CBORType.ByteString) {
-	// group_identifier = group_identifier_param.GetByteString();
-	// }
-	//
-	// //RPL (replay window information)
-	// int rpl = 32; //Default value
-	//
-	// //Set up private & public keys for sender (not from response but set by
-	// client)
-	// String sid_private_key_string = groupKeyPair;
-	// OneKey sid_private_key;
-	// sid_private_key = new
-	// OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(sid_private_key_string)));
-	//
-	// // (readd) Now derive the actual context
-	//
-	// // GroupOSCoreCtx groupOscoreCtx = null;
-	// // try {
-	// // groupOscoreCtx = new GroupOSCoreCtx(master_secret, true, algo, sid,
-	// // kdf, rpl,
-	// // master_salt, group_identifier, alg_countersign, par_countersign,
-	// // sid_private_key);
-	// // } catch (OSException e) {
-	// // System.err.println("Failed to derive Group OSCORE Context!");
-	// // e.printStackTrace();
-	// // }
-	// //
-	// // Assert.assertNotNull(groupOscoreCtx);
-	// //
-	// // //Finally add the recipient contexts from the coseKeySetArray
-	// // for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
-	// //
-	// // CBORObject key_param = coseKeySetArray.get(i);
-	// //
-	// // byte[] rid = null;
-	// // CBORObject rid_param = key_param.get(KeyKeys.KeyId.AsCBOR());
-	// // if(rid_param.getType() == CBORType.ByteString) {
-	// // rid = rid_param.GetByteString();
-	// // }
-	// //
-	// // OneKey recipient_key = new OneKey(key_param);
-	// //
-	// // groupOscoreCtx.addRecipientContext(rid, recipient_key);
-	// // }
-	// //Assert.assertEquals(groupOscoreCtx.getRecipientContexts().size(), 2);
-	// //System.out.println("Generated Group OSCORE Context:");
-	// //Utility.printContextInfo(groupOscoreCtx);
-	//
-	// return null;
-	// }
 }

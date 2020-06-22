@@ -36,21 +36,20 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.Attribute;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.cose.HeaderKeys;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.Recipient;
-import org.eclipse.californium.cose.Signer;
+import COSE.AlgorithmID;
+import COSE.Attribute;
+import COSE.CoseException;
+import COSE.OneKey;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.Recipient;
+import COSE.Signer;
 import se.sics.ace.Constants;
 
 /**

@@ -33,9 +33,9 @@ package se.sics.ace;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.MessageTag;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.MessageTag;
 
 /**
  * General parameters of a COSE Message (i.e. not including message specific

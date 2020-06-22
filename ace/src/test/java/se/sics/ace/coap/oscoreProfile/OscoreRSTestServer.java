@@ -49,10 +49,10 @@ import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -138,13 +138,6 @@ public class OscoreRSTestServer {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-    	
-		try {
-			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
-		} catch (IllegalStateException e) {
-			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
-		}
-
       //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -226,6 +219,8 @@ public class OscoreRSTestServer {
       rs.addEndpoint(new CoapEndpoint.Builder()
               .setCoapStackFactory(new OSCoreCoapStackFactory())
               .setPort(CoAP.DEFAULT_COAP_PORT)
+              .setCustomCoapStackArgument(
+                      OscoreCtxDbSingleton.getInstance())
               .build());
 
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 

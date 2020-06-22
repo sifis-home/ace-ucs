@@ -52,11 +52,11 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.Encrypt0Message;
-import org.eclipse.californium.cose.HeaderKeys;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.OneKey;
 
 import se.sics.ace.AccessToken;
 import se.sics.ace.AceException;
@@ -1068,6 +1068,7 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public void removeToken(String cti) throws AceException {
 	    this.db.deleteToken(cti);
+	    //FIXME: Add the token to the TRL
 	}
 
     @Override

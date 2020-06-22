@@ -39,7 +39,7 @@ import java.util.Set;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.AlgorithmID;
+import COSE.AlgorithmID;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -52,6 +52,7 @@ public class GroupInfo {
 	/**
 	 * Information element for the OSCORE group
 	 */
+	
 	private String groupName;
 	
 	private byte[] masterSecret;
@@ -80,12 +81,12 @@ public class GroupInfo {
 	private CBORObject csKeyEnc = null;
 	
 	private int version; // Version of the current symmetric keying material
-
+	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
 	 * 
+	 * @param groupName           the invariant name of the OSCORE group.
 	 * @param masterSecret        the OSCORE Master Secret.
-	 * @param groupName			  the invariant name of the OSCORE group.
 	 * @param masterSalt          the OSCORE Master Salt.
 	 * @param groupIdPrefixSize   the size in bytes of the Prefix part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
@@ -114,10 +115,10 @@ public class GroupInfo {
     		         final CBORObject csKeyParams,
     		         final CBORObject csKeyEnc) {
     	
-        this.version = 0;
-        
-        setGroupName(groupName);
-
+    	this.version = 0;
+    	
+    	setGroupName(groupName);
+    	
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
     	
@@ -424,7 +425,7 @@ public class GroupInfo {
      */
     synchronized public boolean setCsParams(final CBORObject csParams) {
 
-    	if (csParams.getType() != CBORType.Map)
+    	if (csParams.getType() != CBORType.Array)
     		return false;
     	
     	this.csParams = csParams;
@@ -434,7 +435,7 @@ public class GroupInfo {
     }
     
     /**
-     * @return parameters of the key of the countersignature algorithm 
+     * @return parameters of the key of the countersignature key 
      *      used in the group
      */
     synchronized public final CBORObject getCsKeyParams() {
@@ -444,14 +445,14 @@ public class GroupInfo {
     }
     
     /**
-     *  Set the parameters of the key of the countersignature algorithm used
+     *  Set the parameters of the key of the countersignature key used
      *   in the group
      * @param csKeyParams  the parameters
      * @return  true if the parameters were successfully set, false otherwise
      */
     synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
     
-    	if (csKeyParams.getType() != CBORType.Map)
+    	if (csKeyParams.getType() != CBORType.Array)
     		return false;
     	
     	this.csKeyParams = csKeyParams;
@@ -477,6 +478,7 @@ public class GroupInfo {
      */
     synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
     	
+        //XXX: Is this Integer or SimpleValue?
     	if (csKeyEnc.getType() != CBORType.Integer)
     		return false;
     	
@@ -648,23 +650,23 @@ public class GroupInfo {
     
     /**
      *  Return the current version of the symmetric keying material
-     *
-     *  @return  an integer indicating the current version of the symmetric keying material
+	 *
+	 *  @return  an integer indicating the current version of the symmetric keying material
      */
     synchronized public int getVersion() {
-        
-        return this.version;
-        
+    	
+    	return this.version;
+    	
     }
     
     /**
      *  Increment the version of the symmetric keying material 
-     *
+	 *
      */
     synchronized public void incrementVersion() {
-        
-        this.version++;
-        
+    	
+    	this.version++;
+    	
     }
     
     /**

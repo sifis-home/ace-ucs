@@ -7,10 +7,7 @@ californium-group-oscore
 ace
 
 3. To "ace" add the following folders to the build path:
-californium-core
-element-connector
 cf-oscore
-scandium
 
 
 To add dependencies:

@@ -50,10 +50,10 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -137,7 +137,8 @@ public class TestDtlspPskStore {
      */
     @Test
     public void testInvalidPskId() throws Exception {
-		SecretKey key = store.getKey(new PskPublicInformation("blah"));
+        SecretKey key = store.getKey(
+                new PskPublicInformation("blah"));
         Assert.assertNull(key);
     }
     
@@ -177,7 +178,8 @@ public class TestDtlspPskStore {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenAsBytes.EncodeToBytes()); 
 
-		SecretKey psk = store.getKey(new PskPublicInformation(psk_identity));
+        SecretKey psk = store.getKey(
+                new PskPublicInformation(psk_identity));
         Assert.assertNull(psk);
     }
 
@@ -216,7 +218,8 @@ public class TestDtlspPskStore {
         String psk_identity = Base64.getEncoder().encodeToString(
                 tokenCB.EncodeToBytes()); 
 
-		byte[] psk = store.getKey(new PskPublicInformation(psk_identity)).getEncoded();
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -250,7 +253,8 @@ public class TestDtlspPskStore {
         TokenRepository.getInstance().addToken(claims, ctx, null);
         String psk_identity = "ourKey"; 
 
-		byte[] psk = store.getKey(new PskPublicInformation(psk_identity)).getEncoded();
+        byte[] psk = store.getKey(
+                new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
 

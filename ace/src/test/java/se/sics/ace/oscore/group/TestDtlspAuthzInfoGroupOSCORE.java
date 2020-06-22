@@ -60,11 +60,11 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -103,7 +103,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
-    private static final String rootGroupMembershipResource = "group-oscore";
+	private static final String rootGroupMembershipResource = "group-oscore";
     
     /**
      * Set up the necessary objects.
@@ -134,20 +134,24 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myResource.put("co2", actions2);
         myScopes.put("rw_co2", myResource2);
         
+        // M.T.
+        
         final String groupName = "feedca570000";
         
-        // M.T.
         // Adding the group-membership resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with Group name "feedca570000".
+        // roles admitted in the OSCORE Group, with group name "feedca570000".
+        
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
+        
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
         
         // M.T.
         Set<String> auds = new HashSet<>();
@@ -245,7 +249,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, valid, ctx, tokenFile, valid, false);
-
+        
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
@@ -286,10 +290,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with a single role
         Map<Short, CBORObject> params2 = new HashMap<>();
-    	String role1 = new String("requester");
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -309,14 +314,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         //Set up a token to use, for joining an OSCORE group with multiple roles
         Map<Short, CBORObject> params3 = new HashMap<>();
-    	String role2 = new String("responder");
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(groupName);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(groupName);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -371,7 +376,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai.handlePOST(ex);
       
         String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
@@ -420,13 +427,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai2.handlePOST(ex);
       
         String kid = new String(new byte[]{0x03, 0x04}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
                
-      
-       // Test that the token is there
+        // Test that the token is there
         String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                TokenRepository.getInstance().canAccess(
@@ -470,13 +478,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         dai2.handlePOST(ex);
       
         String kid = new String(new byte[]{0x05, 0x06}, Constants.charset);
+        
         //Test that the PoP key was stored
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
                
-      
-       // Test that the token is there
+        //Test that the token is there
         String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(

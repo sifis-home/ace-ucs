@@ -35,12 +35,15 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -50,11 +53,13 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 
 import com.upokecenter.cbor.CBORObject;
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.Assert;
@@ -65,12 +70,12 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 
 /**
- * A client running the DTLS profile.
- * Post a Token to the GM followed by the group join procedure.
+ * FIXME: Needs updating after import of master code
+ * 
+ * A client running the DTLS profile. Post a Token to the GM followed by the
+ * group join procedure.
  * 
  * This should be run with TestDtlspRSGroupOSCORE as server.
  * 
@@ -96,7 +101,10 @@ public class DtlspClientGroupOSCORE {
     public static void main(String[] args) throws Exception {
     	
     	//Install needed cryptography providers
-    	org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
 
     	COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -110,19 +118,19 @@ public class DtlspClientGroupOSCORE {
     }
     
     // M.T. & Rikard
-    /** 
-    * Test post to authz-info with PSK then request
-    * for joining an OSCORE Group with multiple roles.
-    * This will then be followed by derivation of a
-    * Group OSCORE context based on the information
-    * received from the GM.
-    * @throws CoseException 
-    * @throws AceException 
-    * @throws InvalidCipherTextException 
-    * @throws IllegalStateException 
-    * @throws IOException 
-    * @throws ConnectorException 
-    */
+    /**
+	 * Test post to authz-info with PSK then request for joining an OSCORE Group
+	 * with multiple roles. This will then be followed by derivation of a Group
+	 * OSCORE context based on the information received from the GM.
+	 * 
+	 * @throws CoseException if COSE processing fails
+	 * @throws AceException if ACE processing fails
+	 * @throws InvalidCipherTextException if cipher operations
+	 * @throws IllegalStateException on failure
+	 * @throws OSException on failure related to OSCORE
+	 * @throws IOException on failure
+	 * @throws ConnectorException on issue with communicaton
+	 */
     public static void performJoinDTLSProfile() throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
@@ -205,7 +213,7 @@ public class DtlspClientGroupOSCORE {
         System.out.println("Receved response from GM to Token post: " + rsPayload.toString());
 
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+		byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
 
         @SuppressWarnings("unused")
         CBORObject signInfo = null;
@@ -275,12 +283,6 @@ public class DtlspClientGroupOSCORE {
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
-        CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
-
-        //The following two lines are useful for generating the Group OSCORE context
-        Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(keyMap));
-        GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
-
         System.out.println("Receved response from GM to Join request: " + joinResponse.toString());
 
         /* Parse the Join response in detail */
@@ -289,16 +291,8 @@ public class DtlspClientGroupOSCORE {
 
         /* Generate a Group OSCORE security context from the Join response */
 
-        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-
-		// (Readd) GroupOSCoreCtx groupOscoreCtx =
-		// OscorepClient2RSGroupOSCORE.generateGroupOSCOREContext(contextObject,
-		// coseKeySetArray);
-
-        System.out.println();
-        //System.out.println("Generated Group OSCORE Context:");
-		// (Readd) Utility.printContextInfo(groupOscoreCtx);
+		// Add checking of the derived context
+		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
 
     }
 }

@@ -49,11 +49,11 @@ import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -202,7 +202,7 @@ public class TestGroupOSCOREJoinPDP {
         // audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
         
-        
+
         //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
@@ -235,78 +235,6 @@ public class TestGroupOSCOREJoinPDP {
         keyTypes.add("PSK");        
         db.addClient("clientH", profiles, null, null, 
                 keyTypes, skey, null);
-        
-        
-        //Setup token entries
-        byte[] cti = new byte[]{0x01};
-        String ctiStr = Base64.getEncoder().encodeToString(cti);
-        Map<Short, CBORObject> claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
-        claims.put(Constants.CTI, CBORObject.FromObject("token1"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        cti = new byte[]{0x02};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims.clear();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        // M.T.
-        // Setup additional tokens to access a group-membership resource at an OSCORE Group Manager.
-        // Each combination of Group OSCORE roles results in a different scope, hence in a different Token.
-        cti = new byte[]{0x03};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        cti = new byte[]{0x04};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_responder"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        cti = new byte[]{0x05};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_monitor"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        cti = new byte[]{0x06};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_responder"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
-        cti = new byte[]{0x07};
-        ctiStr = Base64.getEncoder().encodeToString(cti);
-        claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("feedca570000_requester_monitor"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("rs4"));
-        claims.put(Constants.EXP, CBORObject.FromObject(1000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(ctiStr, claims);
-        
         
        pdp =  new GroupOSCOREJoinPDP(db);
        
@@ -360,22 +288,21 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
        pdp.addAccess("clientD", "rs1", "r_temp");
        
-
        pdp.addAccess("clientE", "rs3", "rw_valve");
        pdp.addAccess("clientE", "rs3", "r_pressure");
        pdp.addAccess("clientE", "rs3", "failTokenType");
        pdp.addAccess("clientE", "rs3", "failProfile");
        
+       pdp.addAccess("clientG", "rs2", "r_light");
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // This client is allowed to be requester and/or monitor, but not responder.
-       pdp.addAccess("clientG", "rs2", "r_light");
-       pdp.addAccess("clientG", "rs4", "feedca570000_requester_monitor");
+       // On this Group Manager, this client is allowed to be requester, responder, requester+responder, or monitor.
+       pdp.addAccess("clientG", "rs4", "feedca570000_requester_monitor_responder");
        
        // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
        // This client is allowed to be requester.
-       pdp.addAccess("clientH", "rs4", "feedca570000_requester");
+       pdp.addAccess("clientH", "rs4", "feedca570000_monitor");
        
        // M.T.
        // Add the resource server rs4 and its OSCORE Group Manager
@@ -443,59 +370,61 @@ public class TestGroupOSCOREJoinPDP {
     	
     	String gid = new String("feedca570000");
     	String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	// Tests for joining with a single role
     	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
     	
     	// The requested role is allowed in the specified group
     	CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+    	CBORObject cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), byteStringScope));
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid2);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
-    	
-    	// The requested role is not allowed in the specified group
-    	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add((short)10);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
     	
@@ -505,20 +434,24 @@ public class TestGroupOSCOREJoinPDP {
     	
     	// Both requested roles are allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	byte[] bysteStringScope2;
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role1);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope) ||
@@ -527,62 +460,34 @@ public class TestGroupOSCOREJoinPDP {
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid2);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
-    	
-    	
+    	    	
+
     	// Only one role out of the two requested ones is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	bysteStringScope2 = cborArrayScope.EncodeToBytes();
-    	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), bysteStringScope2));
-    	
-    	
-    	// Only one role out of the two requested ones is allowed in the specified group
-    	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	
-    	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
-    	bysteStringScope2 = cborArrayScope.EncodeToBytes();
-    	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), bysteStringScope2));
-    	
-    	
-    	// Only one role out of the two requested ones is allowed in the specified group
-    	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	
-    	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
+    	cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
     	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), bysteStringScope2));
@@ -590,11 +495,13 @@ public class TestGroupOSCOREJoinPDP {
     	
     	// None of the requested ones is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
+    	cborArrayEntry = CBORObject.NewArray();
+    	cborArrayEntry.Add(gid);
     	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(cborArrayRoles);
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	    	
     	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);

@@ -39,14 +39,14 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.Attribute;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.HeaderKeys;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.cose.Recipient;
+import COSE.AlgorithmID;
+import COSE.Attribute;
+import COSE.CoseException;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Recipient;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.cwt.CwtCryptoCtx;

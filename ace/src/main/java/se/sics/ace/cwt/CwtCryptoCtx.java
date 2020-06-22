@@ -38,10 +38,10 @@ import java.util.List;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.cose.Recipient;
-import org.eclipse.californium.cose.Signer;
+import COSE.MessageTag;
+import COSE.OneKey;
+import COSE.Recipient;
+import COSE.Signer;
 
 /**
  * This class holds the singing/mac-ing/encrypting context for a CWT or COSE message.

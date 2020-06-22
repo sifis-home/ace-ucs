@@ -53,11 +53,11 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -183,7 +183,7 @@ public class TestOscoreAuthzInfo {
     public void testInvalidPayload() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Request r = Request.newPost();
-        CoapReq request = CoapReq.getInstance(r, null);        
+        CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
@@ -207,7 +207,7 @@ public class TestOscoreAuthzInfo {
         Request r = Request.newPost();
         CBORObject foo = CBORObject.FromObject("bar");
         r.setPayload(foo.EncodeToBytes());
-        CoapReq request = CoapReq.getInstance(r, null);        
+        CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
@@ -232,7 +232,7 @@ public class TestOscoreAuthzInfo {
         CBORObject foo = CBORObject.NewMap();
         foo.Add(Constants.OSCORE_Security_Context, "bar");
         r.setPayload(foo.EncodeToBytes());
-        CoapReq request = CoapReq.getInstance(r, null);        
+        CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();

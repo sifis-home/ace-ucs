@@ -40,20 +40,18 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.MessageTag;
+import COSE.AlgorithmID;
+import COSE.MessageTag;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -118,12 +116,6 @@ public class TestOscorepClient2RS {
      */
     @BeforeClass
     public static void setUp() throws OSException {
-		try {
-			OSCoreCoapStackFactory.useAsDefault(OscoreCtxDbSingleton.getInstance());
-		} catch (IllegalStateException e) {
-			System.err.println("Warning attempting to set the OSCORE stack multiple times.");
-		}
-
         srv = new RunTestServer();
         srv.run();
         //Initialize a fake context
@@ -131,7 +123,6 @@ public class TestOscorepClient2RS {
                 "clientA".getBytes(Constants.charset),
                 "rs1".getBytes(Constants.charset),
                 null, null, null, null);
-
     }
     
     /**
@@ -150,9 +141,7 @@ public class TestOscorepClient2RS {
      * @throws Exception 
      */
     @Test
-	@Ignore
     public void testSuccess() throws Exception {
-
         //Generate a token
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -162,7 +151,7 @@ public class TestOscorepClient2RS {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.CTI, CBORObject.FromObject(
-				"token3".getBytes(Constants.charset)));
+                "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -219,7 +208,6 @@ public class TestOscorepClient2RS {
      */
     @Test
     public void testNoAccess() throws Exception {
-
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         db.addContext("coap://localhost/helloWorld", osctx);
         CoapClient c = OSCOREProfileRequests.getClient(

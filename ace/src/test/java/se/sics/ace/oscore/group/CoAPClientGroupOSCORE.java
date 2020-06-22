@@ -33,10 +33,13 @@ package se.sics.ace.oscore.group;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -44,8 +47,10 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.OneKey;
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -58,8 +63,10 @@ import se.sics.ace.Constants;
 import se.sics.ace.as.Token;
 
 /**
- * A client requesting a Token from the AS to post to
- * an RS acting as Group OSCORE Group Manager.
+ * FIXME: Needs updating after import of master code
+ * 
+ * A client requesting a Token from the AS to post to an RS acting as Group
+ * OSCORE Group Manager.
  * 
  * This should be run with as CoapASTestServerGroupOSCORE server.
  * 
@@ -80,7 +87,10 @@ public class CoAPClientGroupOSCORE {
     public static void main(String[] args) throws Exception {
     	
     	//Install needed cryptography providers
-		org.eclipse.californium.oscore.InstallCryptoProviders.installProvider();
+		Provider PROVIDER = new BouncyCastleProvider();
+		Provider EdDSA = new EdDSASecurityProvider();
+		Security.insertProviderAt(PROVIDER, 1);
+		Security.insertProviderAt(EdDSA, 0);
      
     	//Perform token request to AS using PSK
     	groupOSCOREMultipleRolesCWT();
@@ -162,15 +172,15 @@ public class CoAPClientGroupOSCORE {
     
     // M.T.
     /**
-     * Request a CoapToken using RPK, for asking access to an
-     * OSCORE group with multiple roles, using a CWT.
-     * 
-     * @throws IOException if communication fails
-     * @throws ConnectorException if communication fails
-     * @throws AceException if ACE processing fails
-     * @throws CoseException 
-     * 
-     */
+	 * Request a CoapToken using RPK, for asking access to an OSCORE group with
+	 * multiple roles, using a CWT.
+	 * 
+	 * @throws IOException if communication fails
+	 * @throws ConnectorException if communication fails
+	 * @throws AceException if ACE processing fails
+	 * @throws CoseException if COSE processing fails
+	 * 
+	 */
     public static void groupOSCOREMultipleRolesCWT_RPK() throws IOException, ConnectorException, AceException, CoseException { 
 
     	//Rikard: Name that clientF will have getSenderId() in Token when using RPK:

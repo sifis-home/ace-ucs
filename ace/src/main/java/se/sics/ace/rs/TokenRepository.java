@@ -54,10 +54,10 @@ import org.json.JSONObject;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.Encrypt0Message;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.KeyKeys;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -311,7 +311,7 @@ public class TokenRepository implements AutoCloseable {
 		}
 		
 		//Check for duplicate cti
-		if (this.cti2claims.containsKey(cti)) {
+		if (this.cti2claims.containsKey(cti) && !ignoreDuplicateCti) {
 		    throw new AceException("Duplicate cti");
 		}
 
@@ -701,7 +701,7 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
-	 * @param   the kid this subject uses
+	 * @param kid the kid this subject uses
 	 * 
 	 * @return  sid  the subject id
 	 */
@@ -709,27 +709,29 @@ public class TokenRepository implements AutoCloseable {
 	    if (kid != null) {
 	    	for (String foo : this.sid2kid.keySet()) {
     			if (this.sid2kid.get(foo).equals(kid)) {
-    				// TODO: REMOVE DEBUG PRINT
-    				// System.out.println("getSid() foo " + foo);
     				return foo;
     			}
     		}
 	    }
-	    LOGGER.finest("Subject-Id for Key-Id: " + kid + " not found");
-	    System.out.println("getSid() kid " + kid);
-	    for (String foo : this.sid2kid.keySet()) {
-	    	// TODO: REMOVE DEBUG PRINT
-			// System.out.println("getSid()  foo " + foo + " " + this.sid2kid.get(foo));
-		}
 	    return null;
 	}
 	
+	/**
+	 * FIXME 
+	 * @param sid  FIXME
+	 * @param rsNonce  FIXME
+	 */
 	public synchronized void setRsnonce(String sid, String rsNonce) {
 		if (sid != null && rsNonce != null) {
 	        this.sid2rsnonce.put(sid, rsNonce);
 	    }
 	}
 	
+	/**
+	 * FIXME
+	 * @param sid  FIXME
+	 * @return  FIXME
+	 */
 	public synchronized String getRsnonce(String sid) {
 		if (sid != null) {
 	        return this.sid2rsnonce.get(sid);
@@ -798,6 +800,17 @@ public class TokenRepository implements AutoCloseable {
 	 */
     public Map<Short, CBORObject> getClaims(String cti) {
     	return this.cti2claims.get(cti);
+    }
+
+	private static boolean ignoreDuplicateCti = false;
+	
+	/**
+	 * Rikard: Allow ignoring duplicate CTI errors.
+	 * 
+	 * @param b Whether to ignore duplicate CTI errors
+	 */
+	public static void ignoreDuplicateCtis(boolean b) {
+		ignoreDuplicateCti = b;
     }
 }
 

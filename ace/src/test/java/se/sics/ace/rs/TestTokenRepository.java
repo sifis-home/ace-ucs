@@ -53,14 +53,14 @@ import org.junit.rules.ExpectedException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.Attribute;
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.Encrypt0Message;
-import org.eclipse.californium.cose.HeaderKeys;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.MessageTag;
-import org.eclipse.californium.cose.OneKey;
+import COSE.AlgorithmID;
+import COSE.Attribute;
+import COSE.CoseException;
+import COSE.Encrypt0Message;
+import COSE.HeaderKeys;
+import COSE.KeyKeys;
+import COSE.MessageTag;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;

@@ -42,7 +42,7 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 
-import org.eclipse.californium.cose.OneKey;
+import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -160,7 +160,6 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
             boolean setAudHeader) throws AceException, OSException {
-    	
         this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
@@ -177,6 +176,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         this.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
+                .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
                 .build());  
         loadOscoreCtx(db, asId);        
 
@@ -196,7 +196,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         ids.addAll(db.getClients());
         
         for (String id : ids) {
-			byte[] key = db.getKey(new PskPublicInformation(id)).getEncoded();
+            byte[] key = db.getKey(new PskPublicInformation(id)).getEncoded();
             OSCoreCtx ctx = new OSCoreCtx(key, false, null, asId.getBytes(Constants.charset), 
                     id.getBytes(Constants.charset), null, null, null, null);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);

@@ -167,7 +167,7 @@ public class BksStore implements PskStore {
     }
     
     @Override
-	public SecretKey getKey(PskPublicInformation info) {
+    public SecretKey getKey(PskPublicInformation info) {
         String identity = info.getPublicInfoAsString();
         try {
             if (!this.keystore.containsAlias(identity)) {
@@ -187,7 +187,7 @@ public class BksStore implements PskStore {
             LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
             return null;
         }
-		return (SecretKey) key;
+       return (SecretKey)key;
     }
           
     @Override
@@ -301,7 +301,7 @@ public class BksStore implements PskStore {
     }
 
     @Override
-	public SecretKey getKey(ServerNames serverName,
+    public SecretKey getKey(ServerNames serverName,
             PskPublicInformation identity) {
         //XXX SNI not implemented
         return getKey(identity);

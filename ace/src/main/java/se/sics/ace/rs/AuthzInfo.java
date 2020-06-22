@@ -46,9 +46,9 @@ import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
-import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
+import COSE.CoseException;
+import COSE.KeyKeys;
+import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
@@ -408,10 +408,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        }
 	    	
 	    	assignedSid = TokenRepository.getInstance().getSid(assignedKid);
-	    	
-	    	// TODO: REMOVE DEBUG PRINT
-	    	// System.out.println("AuthzInfo assignedKid " + assignedKid);
-	    	// System.out.println("AuthzInfo assignedSid " + assignedSid);
 	    }
 	    catch (Exception e) {
 	    	LOGGER.info("Unable to retrieve kid after token addition: " + e.getMessage());

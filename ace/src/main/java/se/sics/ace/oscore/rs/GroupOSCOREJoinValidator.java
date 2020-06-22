@@ -291,9 +291,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	}
     	
     	else if (scope.getType().equals(CBORType.ByteString) && isJoinResource) {
-        	
-    		if ((short)actionId != Constants.POST)
-    			throw new AceException("Invalid action on a group-membership resource to access an OSCORE group");
     		
         	byte[] rawScope = scope.GetByteString();
         	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
@@ -302,47 +299,63 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
-      	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
-      	  	
-      	  	// scopeStr is either "<group name>_role1>" or "<group name>_role1_role2>"
-      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
-      	  	
-      	  	if (resources == null)
-      	  		return false;
-      	  	
-      	  	// resourceId is the name of the OSCORE group
-      	  	if (resources.containsKey(resourceId)) {
-      	  		if (resources.get(resourceId).contains(actionId)) {
-      	  			return true;
-      	  		}
-      	  	}
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+	        	
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
+	        	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);	      	  	
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
+	      	  		// Only one role is specified
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+	      	  	}
+	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
+	      	  		// Multiple roles are specified
+	      	  		if (scopeElement.size() < 2) {
+	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
+	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
+	      	  	}
+	      	  	else {throw new AceException("Invalid format of roles");}
+	      	  	
+	      	  	// scopeStr is either "<group name>_role1>" or "<group name>_role1_role2>"
+	      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
+	      	  		      	  	
+	      	  	// resourceId is the name of the OSCORE group
+	      	  	if (resources != null && resources.containsKey(resourceId)) {
+	      	  		if (resources.get(resourceId).contains(actionId)) {
+	      	  			return true;
+	      	  		}
+	      	  	}
+	      	  	
+        	}
       	  	
       	  	return false;
       	  	
@@ -404,46 +417,60 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
-      	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
-      	  	
-      	  	// scopeStr is either "<group name>_role1>" or "<group name>_role1_role2>"
-      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
-      	  	
-      	  	if (resources == null)
-      	  		return false;
-      	  	
-      	  	// resourceId is the name of the OSCORE group
-      	  	if (resources.containsKey(resourceId))
-      	  			return true;
-      	  	
-      	  	System.out.println("return " + resources.containsKey(resourceId));
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+        		
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
+	        	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
+	      	  		// Only one role is specified
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+	      	  	}
+	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
+	      	  		// Multiple roles are specified
+	      	  		if (scopeElement.size() < 2) {
+	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
+	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
+	      	  	}
+	      	  	else {throw new AceException("Invalid format of roles");}
+	      	  	
+	      	  	// scopeStr is either "<group name>_role1>" or "<group name>_role1_role2>"
+	      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
+	      	  	
+	      	  	// resourceId is the name of the OSCORE group
+	      	  	if (resources != null && resources.containsKey(resourceId))
+	      	  			return true;
+	      	  	
+        	}
       	  	
       	  	return false;
       	  	
@@ -502,36 +529,58 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+      	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
+      	  		CBORObject scopeEntry = cborScope.get(entryIndex);
+      	  		
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("A scope entry must have two elements, i.e. group name and list of roles");
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The group name must be a CBOR Text String");}
+	      	  	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
+	      	  		// Only one role is specified
+	        		  int index = scopeElement.AsInt32();
+	        		  if (index < 0)
+	        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+	  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+	        		  else
+	        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+	      	  	}
+	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
+	      	  		// Multiple roles are specified
+	      	  		if (scopeElement.size() < 2) {
+	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
+	      	  		}
+		      	  		for (int i=0; i<scopeElement.size(); i++) {
+		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
+		        				  int index = scopeElement.get(i).AsInt32();
+				        		  if (index < 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
+					  	      	  		scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[index]);
+				        		  else
+				        			  scopeStr = scopeStr + "_" + (Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
+		      	  			}
+		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
+		      	  		}
+	      	  	}
+	      	  	else {throw new AceException("Invalid format of roles");}
+	      	  	
+	        	if (this.myScopes.containsKey(rootGroupMembershipResource + "/" + scopeStr) == false)
+	        		return false;
       	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
       	  	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
+      	  	return true;
       	  	
-        	return this.myScopes.containsKey(rootGroupMembershipResource + "/" + scopeStr);
         }
         
     	// This includes the case where the scope is encoded as a CBOR Byte String,

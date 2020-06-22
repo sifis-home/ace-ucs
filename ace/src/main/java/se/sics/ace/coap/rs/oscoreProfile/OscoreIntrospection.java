@@ -50,7 +50,7 @@ import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
 
-import org.eclipse.californium.cose.CoseException;
+import COSE.CoseException;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
@@ -92,13 +92,13 @@ public class OscoreIntrospection implements IntrospectionHandler {
      */
     public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress) 
             throws CoseException, IOException, OSException {
-    	
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         db.addContext(ctx);
         db.addContext(introspectAddress, ctx);
         this.client = new CoapClient(introspectAddress);
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setCoapStackFactory(new OSCoreCoapStackFactory());
+        ceb.setCustomCoapStackArgument(db);
         this.client.setEndpoint(ceb.build());
     }
       
