@@ -253,6 +253,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
         rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
         rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
+        rolesToInt.put("verifier", Constants.GROUP_OSCORE_VERIFIER);
 	}
 	
 	@Override
@@ -469,22 +470,43 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         		  CBORObject scopeEntry = scopeCBOR.get(entryIndex);
         		  
         		  if (scopeEntry.getType().equals(CBORType.Array)) {
-        		
-		        	  String groupID = "";
-		        	  Set<String> roles = new HashSet<>();
 		        		
 		        	  if (scopeEntry.size() != 2)
 		        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
 		        	  
-		        	  // Retrieve the Group ID of the OSCORE group
+		        	  String groupName = "";
+		        	  Set<String> roles = new HashSet<>();
+		        	  
+		        	  // Retrieve the group name of the OSCORE group
 		        	  CBORObject scopeElement = scopeEntry.get(0);
 		        	  if (scopeElement.getType().equals(CBORType.TextString)) {
-		        		  groupID = scopeElement.AsString();
+		        		  groupName = scopeElement.AsString();
 		        	  }
-		        	  else {throw new AceException("The Group ID must be a CBOR Text String");}
+		        	  else {throw new AceException("The group name must be a CBOR Text String");}
 		        	  
 		        	  // Retrieve the role or list of roles
 		        	  scopeElement = scopeEntry.get(1);
+		        	  
+		          	  // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
+		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
+		        		  int roleSet = scopeElement.AsInt32();
+		        		  if (roleSet < 0)
+		        			  throw new AceException("The roles must be encoded as a CBOR Unsigned Integer");
+		        		  Set<Integer> roleIdSet = Constants.getGroupOSCORERoles(roleSet);
+		        		  short[] roleIdArray = new short[roleIdSet.size()];
+		        		  int index = 0;
+		        		  for (Integer elem : roleIdSet)
+		        			  roleIdArray[index++] = elem.shortValue(); 
+		        		  for (int i=0; i<roleIdArray.length; i++) {
+		        			  short roleIdentifier = roleIdArray[i];
+		        			  // Silently ignore unrecognized roles
+		        			  if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
+			        			  roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
+		        		  }
+		        	  }
+		        	  
+		        	  // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+		        	  /*
 		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
 		        		  // Only one role is specified
 		        		  int index = scopeElement.AsInt32();
@@ -513,16 +535,18 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        			  else {throw new AceException("The roles must be a CBOR Unsigned Integer");}
 		        		  }
 		        	  }
+		        	  */
+		        	  
 		        	  else {throw new AceException("Invalid format of roles");}
 		        	  
-		        	  // Check if the client can access the specified Group ID on the RS with the specified roles
+		        	  // Check if the client can access the specified group on the RS with the specified roles
 		        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
 		        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
 		        	  boolean canJoin = false;
 		        	  Set<String> allowedRoles = new HashSet<>();
 		        	  for (String foo : scopes) {
 		        		  String[] scopeParts = foo.split("_");
-		        		  if(groupID.equals(scopeParts[0])) {
+		        		  if(groupName.equals(scopeParts[0])) {
 		        			  canJoin = true;
 		        			  for (int i=1; i<scopeParts.length; i++) {
 		        				  if (roles.contains(scopeParts[i]))
@@ -535,8 +559,18 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        		  
 		        		  CBORObject cborArrayScopeEntry = CBORObject.NewArray();
 		        	      
-		        		  cborArrayScopeEntry.Add(groupID);
+		        		  cborArrayScopeEntry.Add(groupName);
 		        	      
+		        		  
+		        		  // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
+		        		  int grantedRoles = 0;
+	        	    	  for (String foo : allowedRoles)
+	        	    		  grantedRoles = Constants.addGroupOSCORERole(grantedRoles, rolesToInt.get(foo));
+	        	    	  cborArrayScopeEntry.Add(grantedRoles);
+	        	    	  
+		        		  
+			        	  // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+			        	  /*
 		        	      if (allowedRoles.size() == 1) {
 		        	    	  for (String foo : allowedRoles) {
 		        	    		  cborArrayScopeEntry.Add(rolesToInt.get(foo));
@@ -553,6 +587,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	    	  
 		        	    	  cborArrayScopeEntry.Add(cborArrayRoles);
 		        	      }
+		        	      */
 		        	      
 		        	      cborArrayScope.Add(cborArrayScopeEntry);
 		        	     

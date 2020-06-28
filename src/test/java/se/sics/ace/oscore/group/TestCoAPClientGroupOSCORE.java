@@ -245,7 +245,14 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -274,7 +281,14 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+        
+    	myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, 
@@ -302,8 +316,15 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+    	myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	
+        byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
@@ -330,7 +351,14 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
+        
+    	myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -359,7 +387,14 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add((short)10);
+        
+    	myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add((short)10);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -420,10 +455,18 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayEntry.Add(cborArrayRoles);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -453,10 +496,18 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid2);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
-    	cborArrayEntry.Add(cborArrayRoles);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
+    	// cborArrayEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -485,10 +536,18 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayEntry.Add(cborArrayRoles);
+    	
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -521,7 +580,14 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+        int expectedRoles = 0;
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(expectedRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
@@ -566,7 +632,14 @@ public class TestCoAPClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -594,10 +667,18 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayEntry.Add(cborArrayRoles);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -630,7 +711,14 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayScope = CBORObject.NewArray();
         cborArrayEntry = CBORObject.NewArray();
         cborArrayEntry.Add(gid);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+        int expectedRoles = 0;
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(expectedRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);

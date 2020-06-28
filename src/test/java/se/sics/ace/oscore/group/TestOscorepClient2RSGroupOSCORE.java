@@ -282,13 +282,20 @@ public class TestOscorepClient2RSGroupOSCORE {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         
-        //Create a byte string scope for use later
-        String groupName = new String("feedca570000");
-        
+        //Create the scope        
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
+        
+        String groupName = new String("feedca570000");
         cborArrayEntry.Add(groupName);
-        cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -418,7 +425,14 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(myRoles);
+        
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        
@@ -676,16 +690,24 @@ public class TestOscorepClient2RSGroupOSCORE {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         
-        //Create a byte string scope for use later
-        String groupName = new String("feedca570000");
-        
+        // Create the scope
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject cborArrayEntry = CBORObject.NewArray();
+        
+        String groupName = new String("feedca570000");
         cborArrayEntry.Add(groupName);
-        CBORObject cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-        cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-        cborArrayEntry.Add(cborArrayRoles);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // CBORObject cborArrayRoles = CBORObject.NewArray();
+        // cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+        // cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+        // cborArrayEntry.Add(cborArrayRoles);
+        
         cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -814,10 +836,18 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-        cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-        cborArrayScope.Add(cborArrayRoles);
+        
+    	myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayRoles = CBORObject.NewArray();
+        // cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+        // cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+        // cborArrayScope.Add(cborArrayRoles);
+        
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        

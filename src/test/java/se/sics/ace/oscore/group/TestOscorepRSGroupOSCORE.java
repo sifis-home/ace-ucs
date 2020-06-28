@@ -396,6 +396,8 @@ public class TestOscorepRSGroupOSCORE {
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
 
+    	private Set<Integer> validRoleCombinations = new HashSet<Integer>();
+    	
 		/**
          * Constructor
          * @param resId  the resource identifier
@@ -407,6 +409,13 @@ public class TestOscorepRSGroupOSCORE {
             
             // set display name
             getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
+            
+            // Set the valid cambinations of roles in a Joining Request
+            // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
+            validRoleCombinations.add(2); // Requester
+            validRoleCombinations.add(4); // Responder
+            validRoleCombinations.add(8); // Monitor
+            validRoleCombinations.add(6); // Requester+Responder
             
         }
 
@@ -517,6 +526,54 @@ public class TestOscorepRSGroupOSCORE {
       	  	
       	  	// Retrieve the role or list of roles
       	  	scopeElement = cborScope.get(1);
+      	  	
+      	  	
+          	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
+        	if (scopeElement.getType().equals(CBORType.Integer)) {
+        		int roleSet = scopeElement.AsInt32();
+        		if (roleSet < 0) {
+      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+	        		return;
+        		}
+     	  		// Check for illegal combinations of roles
+        		if(!validRoleCombinations.contains(roleSet)) {
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+  					return;
+        		}
+        		Set<Integer> roleIdSet = new HashSet<Integer>();
+        		try {
+            		roleIdSet = Constants.getGroupOSCORERoles(roleSet);
+        		}
+        		catch(AceException e) {
+        			System.err.println(e.getMessage());
+        		}
+        		short[] roleIdArray = new short[roleIdSet.size()];
+        		int index = 0;
+        		for (Integer elem : roleIdSet)
+        		    roleIdArray[index++] = elem.shortValue(); 
+        		for (int i=0; i<roleIdArray.length; i++) {
+        			short roleIdentifier = roleIdArray[i];
+        			// Silently ignore unrecognized roles
+        			if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
+        				roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
+        		}
+            	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        		/*
+      	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
+      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
+      	  				||
+      	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
+      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
+      	  		   ) {
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+  					return;
+      	  		}
+      	  		*/
+        		  
+        	}
+      	  	
+        	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+      	  	/*
       	  	if (scopeElement.getType().equals(CBORType.Integer)) {
       	  		// Only one role is specified
       	  		int index = scopeElement.AsInt32();
@@ -562,7 +619,10 @@ public class TestOscorepRSGroupOSCORE {
   					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
   					return;
       	  		}
+      	  		
       	  	}
+      	  	*/
+      	  	
       	  	else {
       	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
         		return;

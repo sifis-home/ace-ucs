@@ -287,7 +287,14 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-        scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -413,7 +420,14 @@ public class TestDtlspClientGroupOSCORE {
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -669,10 +683,18 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	scopeEntry.Add(cborArrayRoles);
+    	
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// scopeEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -798,10 +820,18 @@ public class TestDtlspClientGroupOSCORE {
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayScope.Add(cborArrayRoles);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayScope.Add(cborArrayRoles);
+    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1176,7 +1206,14 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
-    	scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	//scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1298,8 +1335,15 @@ public class TestDtlspClientGroupOSCORE {
 
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	
+        byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         if (askForPubKeys) {
@@ -1559,10 +1603,18 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	scopeEntry.Add(cborArrayRoles);
+    	
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// scopeEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1684,10 +1736,18 @@ public class TestDtlspClientGroupOSCORE {
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayScope.Add(cborArrayRoles);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayScope.Add(cborArrayRoles);
+    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1996,11 +2056,18 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         
         String groupName = new String("feedca570000");
-    	String role1 = new String("requester");
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-        scopeEntry.Add(role1);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// String role1 = new String("requester");
+        // scopeEntry.Add(role1);
+        
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2066,10 +2133,18 @@ public class TestDtlspClientGroupOSCORE {
     	CBORObject cborArrayScope = CBORObject.NewArray();
     	CBORObject scopeEntry = CBORObject.NewArray();
     	scopeEntry.Add(groupName);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	scopeEntry.Add(cborArrayRoles);
+    	
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// scopeEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2193,9 +2268,16 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-        scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+        int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         cborArrayScope.Add(scopeEntry);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
+        byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("rs2"));
         params.put(Constants.CTI, CBORObject.FromObject(
@@ -2319,7 +2401,14 @@ public class TestDtlspClientGroupOSCORE {
 
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-        cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
+        
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -2588,10 +2677,18 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	scopeEntry.Add(cborArrayRoles);
+        
+    	int myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	scopeEntry.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+        // CBORObject cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// scopeEntry.Add(cborArrayRoles);
+    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2717,10 +2814,18 @@ public class TestDtlspClientGroupOSCORE {
 
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	cborArrayScope.Add(cborArrayRoles);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayScope.Add(myRoles);
+    	
+    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
+    	// cborArrayRoles = CBORObject.NewArray();
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
+    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
+    	// cborArrayScope.Add(cborArrayRoles);
+    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
