@@ -990,17 +990,6 @@ public class Constants {
     	 	 }
     	 }
     	 
-    	 // short[] roles = new short[counter];
-    	 
-    	 /*
-    	 System.out.println(mySet.size());
-    	 System.out.println(roles.length);
-    	 System.out.println(counter);
-    	 System.out.println(mySet.toArray()[0]);
-    	 */
-    	 
-    	 // System.arraycopy(mySet.toArray(), 0, roles, 0, counter);
-    	 // return roles;
     	 return mySet;
     	 
      }   
