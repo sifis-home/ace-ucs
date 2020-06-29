@@ -267,7 +267,7 @@ public class TestOscoreAuthzInfo {
     }
     
     /**
-     * Test cnonce != byte string
+     * Test nonce1 != byte string
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
@@ -275,7 +275,7 @@ public class TestOscoreAuthzInfo {
      * @throws AceException  
      */
     @Test
-    public void testFailCnonceNotByteString() throws IllegalStateException, 
+    public void testFailNonce1NotByteString() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
@@ -309,7 +309,7 @@ public class TestOscoreAuthzInfo {
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        payload.Add(Constants.CNONCE, "blah");
+        payload.Add(Constants.NONCE1, "blah");
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
                 
@@ -317,12 +317,12 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, "Malformed or missing parameter cnonce");
+        map.Add(Constants.ERROR_DESCRIPTION, "Malformed or missing parameter 'nonce1'");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
-     * Test cnonce  == null
+     * Test nonce1  == null
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
@@ -330,7 +330,7 @@ public class TestOscoreAuthzInfo {
      * @throws AceException  
      */
     @Test
-    public void testFailNullCnonce() throws IllegalStateException, 
+    public void testFailNullNonce1() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x02}));
@@ -364,7 +364,7 @@ public class TestOscoreAuthzInfo {
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        payload.Add(Constants.CNONCE, null);
+        payload.Add(Constants.NONCE1, null);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
                 
@@ -372,7 +372,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, "Malformed or missing parameter cnonce");
+        map.Add(Constants.ERROR_DESCRIPTION, "Malformed or missing parameter 'nonce1'");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
   
@@ -413,8 +413,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -463,8 +463,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -515,8 +515,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -567,8 +567,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -621,8 +621,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -675,8 +675,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -729,8 +729,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -786,8 +786,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -841,8 +841,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -896,8 +896,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -953,8 +953,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1014,8 +1014,8 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] cnonce = {0x01, 0x02, 0x03};
-        payload.Add(Constants.CNONCE, cnonce);
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 

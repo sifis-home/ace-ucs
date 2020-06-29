@@ -599,6 +599,16 @@ public class Constants {
     public static final short COAP_OSCORE = 2;
     
     /**
+     * Value for the label "nonce1" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE1 = 201;
+    
+    /**
+     * Value for the label "nonce2" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE2 = 202;
+    
+    /**
      * Return the abbreviated profile id for the full profile name.
      * 
      * @param profileStr  profile name
@@ -826,7 +836,6 @@ public class Constants {
 	 * Group OSCORE abbreviations =================================
 	 */
 
-    
     /**
      * Requester role
      */
@@ -888,24 +897,24 @@ public class Constants {
      public static final short ACE_GROUPCOMM_PROFILE = 38;
      
      /**
-      * Value for the label "sign_info" in the Token POST request and in the Join Response message
+      * Value for the label "sign_info" in the Token POST request/response and in the Join Response message
       */
-     public static final short SIGN_INFO = 201;
+     public static final short SIGN_INFO = 203;
      
      /**
-      * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
+      * Value for the label "pub_key_enc" in the Token POST request/response and in the Join Response message
       */
-     public static final short PUB_KEY_ENC = 202;
+     public static final short PUB_KEY_ENC = 204;
      
      /**
       * Value for the label "rs_nonce" in the Token POST response
       */
-     public static final short KDCCHALLENGE = 203;
+     public static final short KDCCHALLENGE = 205;
      
      /**
       * Value for the label "num" in the Join Response message
       */
-     public static final short NUM = 204;
+     public static final short NUM = 206;
      
      
      /**

@@ -147,14 +147,14 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
 
-        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.CNONCE));
+        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.NONCE1));
         if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
             LOGGER.info("Missing or invalid parameter type for:"
-                    + "'cnonce', must be present and byte-string");
+                    + "'nonce1', must be present and byte-string");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Malformed or missing parameter cnonce");
+                    "Malformed or missing parameter 'nonce1'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         byte[] n1 = nonce.GetByteString();
@@ -187,7 +187,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.CNONCE, n2);
+        payload.Add(Constants.NONCE2, n2);
         LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);
 	}

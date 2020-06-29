@@ -200,7 +200,7 @@ public class OscoreRSTestServer {
       payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
       byte[] n1 = new byte[8];
       new SecureRandom().nextBytes(n1);
-      payload.Add(Constants.CNONCE, n1);
+      payload.Add(Constants.NONCE1, n1);
       
       ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
