@@ -225,13 +225,13 @@ public class OneKey {
             result = (thisObj == null);
         } else {
             result = false;
-			if (thisObj.getType() == CBORType.Integer) {
+			if (thisObj.getType() == CBORType.Number) {
                 if (thisObj.AsInt32() == that) {
                     result = true;
                 }
             } else if (thisObj.getType() == CBORType.Array) {
                 for (int i = 0; i < thisObj.size(); i++) {
-					if ((thisObj.get(i).getType() == CBORType.Integer) && (thisObj.get(i).AsInt32() == that)) {
+					if ((thisObj.get(i).getType() == CBORType.Number) && (thisObj.get(i).AsInt32() == that)) {
                         result = true;
                         break;
                     }
@@ -647,7 +647,7 @@ public class OneKey {
 
         for (CBORObject obj : keyMap.getKeys()) {
             val = keyMap.get(obj);
-			if (obj.getType() == CBORType.Integer) {
+			if (obj.getType() == CBORType.Number) {
                 if (obj.AsInt32() > 0) {
                     newKey.add(obj, val);
                 }

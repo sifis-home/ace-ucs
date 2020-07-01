@@ -17,6 +17,11 @@
  ******************************************************************************/
 package org.eclipse.californium.groscore;
 
+import org.eclipse.californium.groscore.group.CountersignAlgorithmsTest;
+import org.eclipse.californium.groscore.group.GroupDecryptorTest;
+import org.eclipse.californium.groscore.group.GroupEncryptorTest;
+import org.eclipse.californium.groscore.group.GroupModesTest;
+import org.eclipse.californium.groscore.group.GroupModesTestAlt;
 import org.eclipse.californium.groscore.group.GroupOSCoreServerClientTest;
 import org.eclipse.californium.groscore.group.KeyRemappingTest;
 import org.eclipse.californium.groscore.group.SharedSecretCalculationTest;
@@ -33,7 +38,9 @@ import org.junit.runners.Suite.SuiteClasses;
 		OSSerializerTest.class, OSCoreServerClientTest.class, OSCoreObserveTest.class, EncryptorTest.class,
 		DecryptorTest.class, EndpointContextInfoTest.class, ContextRederivationTest.class,
 		OSCoreInnerBlockwiseTest.class, OSCoreOuterBlockwiseTest.class, OSCoreAlgorithmsTest.class,
-		GroupOSCoreServerClientTest.class, KeyRemappingTest.class, SharedSecretCalculationTest.class })
+		GroupOSCoreServerClientTest.class, KeyRemappingTest.class, SharedSecretCalculationTest.class,
+		GroupEncryptorTest.class, GroupDecryptorTest.class, CountersignAlgorithmsTest.class, GroupModesTest.class,
+		GroupModesTestAlt.class })
 public class AllJUnitTests {
 
 }

@@ -20,6 +20,7 @@ package org.eclipse.californium.groscore;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
@@ -28,11 +29,13 @@ import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
+
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.stack.AbstractLayer;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.groscore.ContextRederivation.PHASE;
+import org.eclipse.californium.groscore.group.OptionEncoder;
 
 /**
  * 
@@ -72,6 +75,7 @@ public class ObjectSecurityLayer extends AbstractLayer {
 	/**
 	 * Encrypt an outgoing response using the OSCore context.
 	 * 
+	 * @param ctxDb the context database used
 	 * @param message the message
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
@@ -132,13 +136,20 @@ public class ObjectSecurityLayer extends AbstractLayer {
 				}
 
 				String uri = request.getURI();
-
+				
+				// Check if parameters in the option was set by the application
+				if (request.getOptions().getOscore().length != 0) {
+					// Use the URI from the option to find the correct context
+					uri = OptionEncoder.getContextUri(request.getOptions().getOscore());
+				}
+				
 				if (uri == null) {
 					LOGGER.error(ErrorDescriptions.URI_NULL);
 					throw new OSException(ErrorDescriptions.URI_NULL);
 				}
 
 				OSCoreCtx ctx = ctxDb.getContext(uri);
+
 				if (ctx == null) {
 					LOGGER.error(ErrorDescriptions.CTX_NULL);
 					throw new OSException(ErrorDescriptions.CTX_NULL);

@@ -9,6 +9,12 @@ import org.eclipse.californium.groscore.OSException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Class implementing functionality for Group OSCORE dynamic context derivation.
+ * If a request is received where there is no matching recipient context one may
+ * be derived dynamically.
+ *
+ */
 public class GroupDynamicContextDerivation {
 
 	/**
@@ -19,10 +25,10 @@ public class GroupDynamicContextDerivation {
 	/**
 	 * Perform dynamic context derivation for Group OSCORE.
 	 * 
-	 * @param db
-	 * @param request
-	 * @param rid
-	 * @param kidContext
+	 * @param db the context database used
+	 * @param rid the RID of the sender of the request
+	 * @param contextID the context ID in the request
+	 * @return a newly derived recipient context
 	 */
 	public static OSCoreCtx derive(OSCoreCtxDB db, byte[] rid, byte[] contextID) {
 		// Check if we have a public key for this RID
@@ -32,7 +38,6 @@ public class GroupDynamicContextDerivation {
 	
 		// Abort the procedure for non Group OSCORE sender contexts
 		if (ctx == null || ctx instanceof GroupSenderCtx == false) {
-			System.out.println("ABORTING1");
 			return null;
 		}
 

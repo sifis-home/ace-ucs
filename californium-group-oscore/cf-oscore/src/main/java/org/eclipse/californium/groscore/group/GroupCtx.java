@@ -26,6 +26,7 @@ import javax.crypto.KeyAgreement;
 
 import org.eclipse.californium.grcose.AlgorithmID;
 import org.eclipse.californium.grcose.CoseException;
+import org.eclipse.californium.grcose.KeyKeys;
 import org.eclipse.californium.grcose.OneKey;
 import org.eclipse.californium.groscore.ByteId;
 import org.eclipse.californium.groscore.HashMapCtxDB;
@@ -34,6 +35,11 @@ import org.eclipse.californium.groscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
 
+/**
+ * Class implementing a Group OSCORE context. It has one sender context and
+ * multiple recipient contexts.
+ *
+ */
 public class GroupCtx {
 
 	// Parameters in common context
@@ -60,6 +66,49 @@ public class GroupCtx {
 	boolean pairwiseModeResponses = false;
 	boolean pairwiseModeRequests = false;
 
+	/**
+	 * Construct a Group OSCORE context.
+	 * 
+	 * @param masterSecret
+	 * @param masterSalt
+	 * @param aeadAlg
+	 * @param hkdfAlg
+	 * @param idContext
+	 * @param algCountersign
+	 */
+	public GroupCtx(byte[] masterSecret, byte[] masterSalt, AlgorithmID aeadAlg, AlgorithmID hkdfAlg, byte[] idContext,
+			AlgorithmID algCountersign) {
+
+		this.masterSecret = masterSecret;
+		this.masterSalt = masterSalt;
+		this.aeadAlg = aeadAlg;
+		this.hkdfAlg = hkdfAlg;
+		this.idContext = idContext;
+		this.algCountersign = algCountersign;
+
+		recipientCtxMap = new HashMap<ByteId, GroupRecipientCtx>();
+		publicKeysMap = new HashMap<ByteId, OneKey>();
+
+		// Set the par countersign and par countersign key values
+		int[] countersign_alg_capab = getCountersignAlgCapab(algCountersign);
+		int[] countersign_key_type_capab = getCountersignKeyTypeCapab(algCountersign);
+		this.parCountersign = new int[][] { countersign_alg_capab, countersign_key_type_capab };
+		this.parCountersignKey = countersign_key_type_capab;
+	}
+
+	/**
+	 * Construct a Group OSCORE context allowing to explicitly set the
+	 * parCountersign and parCountersignKey.
+	 * 
+	 * @param masterSecret
+	 * @param masterSalt
+	 * @param aeadAlg
+	 * @param hkdfAlg
+	 * @param idContext
+	 * @param algCountersign
+	 * @param parCountersign
+	 * @param parCountersignKey
+	 */
 	public GroupCtx(byte[] masterSecret, byte[] masterSalt, AlgorithmID aeadAlg, AlgorithmID hkdfAlg, byte[] idContext,
 			AlgorithmID algCountersign, int[][] parCountersign, int[] parCountersignKey) {
 
@@ -74,8 +123,18 @@ public class GroupCtx {
 
 		recipientCtxMap = new HashMap<ByteId, GroupRecipientCtx>();
 		publicKeysMap = new HashMap<ByteId, OneKey>();
+
 	}
 
+
+	/**
+	 * Add a recipient context.
+	 * 
+	 * @param recipientId
+	 * @param replayWindow
+	 * @param otherEndpointPubKey
+	 * @throws OSException
+	 */
 	public void addRecipientCtx(byte[] recipientId, int replayWindow, OneKey otherEndpointPubKey) throws OSException {
 		GroupRecipientCtx recipientCtx = new GroupRecipientCtx(masterSecret, false, aeadAlg, null, recipientId, hkdfAlg,
 				replayWindow, masterSalt, idContext, otherEndpointPubKey, this);
@@ -84,6 +143,13 @@ public class GroupCtx {
 
 	}
 
+	/**
+	 * Add a sender context.
+	 * 
+	 * @param senderId
+	 * @param ownPrivateKey
+	 * @throws OSException
+	 */
 	public void addSenderCtx(byte[] senderId, OneKey ownPrivateKey) throws OSException {
 
 		if (senderCtx != null) {
@@ -100,9 +166,57 @@ public class GroupCtx {
 		case EDDSA:
 		case ECDSA_256:
 			return 64;
+		case ECDSA_384:
+			return 96;
+		case ECDSA_512:
+			return 132; // Why 132 and not 128?
 		default:
-			return -1;
+			throw new RuntimeException("Unsupported countersignature algorithm!");
 
+		}
+	}
+
+	/**
+	 * Get the countersign_alg_capab array for an algorithm.
+	 * 
+	 * See Draft section 4.3.1 & Appendix H.
+	 * 
+	 * @param alg the countersignature algorithm
+	 * @return the array countersign_alg_capab
+	 */
+	private int[] getCountersignAlgCapab(AlgorithmID alg) {
+		switch (alg) {
+		case EDDSA:
+			return new int[] { KeyKeys.KeyType_OKP.AsInt32() };
+		case ECDSA_256:
+		case ECDSA_384:
+		case ECDSA_512:
+			return new int[] { KeyKeys.KeyType_EC2.AsInt32() };
+		default:
+			return null;
+		}
+	}
+
+	/**
+	 * Get the countersign_key_type_capab array for an algorithm.
+	 * 
+	 * See Draft section 4.3.1 & Appendix H.
+	 * 
+	 * @param alg the countersignature algorithm
+	 * @return the array countersign_key_type_capab
+	 */
+	private int[] getCountersignKeyTypeCapab(AlgorithmID alg) {
+		switch (alg) {
+		case EDDSA:
+			return new int[] { KeyKeys.KeyType_OKP.AsInt32(), KeyKeys.OKP_Ed25519.AsInt32() };
+		case ECDSA_256:
+			return new int[] { KeyKeys.KeyType_EC2.AsInt32(), KeyKeys.EC2_P256.AsInt32() };
+		case ECDSA_384:
+			return new int[] { KeyKeys.KeyType_EC2.AsInt32(), KeyKeys.EC2_P384.AsInt32() };
+		case ECDSA_512:
+			return new int[] { KeyKeys.KeyType_EC2.AsInt32(), KeyKeys.EC2_P521.AsInt32() };
+		default:
+			return null;
 		}
 	}
 
@@ -126,26 +240,39 @@ public class GroupCtx {
 		return publicKeysMap.get(new ByteId(rid));
 	}
 
-	// TODO: Implement elsewhere to avoid cast?
+	/**
+	 * Enable or disable using pairwise responses. TODO: Implement elsewhere to
+	 * avoid cast?
+	 * 
+	 * @param b Whether pairwise responses should be used
+	 */
 	public void setPairwiseModeResponses(boolean b) {
 		this.pairwiseModeResponses = b;
 	}
 
-	// TODO: Implement elsewhere to avoid cast?
+	@Deprecated
 	void setPairwiseModeRequests(boolean b) {
 		this.pairwiseModeRequests = b;
 	}
 
+	/**
+	 * Enable or disable using including a Partial IV in responses.
+	 * 
+	 * @param b Whether responses should include a PIV
+	 */
 	public void setResponsesIncludePartialIV(boolean b) {
-		// Why do I need to set it in both?
-		for (Entry<ByteId, GroupRecipientCtx> entry : recipientCtxMap.entrySet()) {
-			GroupRecipientCtx recipientCtx = entry.getValue();
-			recipientCtx.setResponsesIncludePartialIV(b);
-		}
 		senderCtx.setResponsesIncludePartialIV(b);
 	}
 
-	// TODO: Move to HashMapCtxDB?
+	/**
+	 * Add this Group context to the context database. In essence it will its
+	 * sender context and all its recipient context to the database. // TODO:
+	 * Move to HashMapCtxDB?
+	 * 
+	 * @param uri
+	 * @param db
+	 * @throws OSException
+	 */
 	public void addToDb(String uri, HashMapCtxDB db) throws OSException {
 
 		// Add the sender context and derive its pairwise keys
@@ -178,7 +305,8 @@ public class GroupCtx {
 
 		if (this.algCountersign == AlgorithmID.EDDSA) {
 			sharedSecret = generateSharedSecretEdDSA(senderCtx.getPrivateKey(), recipientPublicKey);
-		} else if (this.algCountersign == AlgorithmID.ECDSA_256) {
+		} else if (this.algCountersign == AlgorithmID.ECDSA_256 || this.algCountersign == AlgorithmID.ECDSA_384
+				|| this.algCountersign == AlgorithmID.ECDSA_512) {
 			sharedSecret = generateSharedSecretECDSA(senderCtx.getPrivateKey(), recipientPublicKey);
 		} else {
 			System.err.println("Error: Unknown countersignature!");
@@ -228,7 +356,8 @@ public class GroupCtx {
 
 		if (this.algCountersign == AlgorithmID.EDDSA) {
 			sharedSecret = generateSharedSecretEdDSA(senderCtx.getPrivateKey(), recipientPublicKey);
-		} else if (this.algCountersign == AlgorithmID.ECDSA_256) {
+		} else if (this.algCountersign == AlgorithmID.ECDSA_256 || this.algCountersign == AlgorithmID.ECDSA_384
+				|| this.algCountersign == AlgorithmID.ECDSA_512) {
 			sharedSecret = generateSharedSecretECDSA(senderCtx.getPrivateKey(), recipientPublicKey);
 		} else {
 			System.err.println("Error: Unknown countersignature!");
@@ -244,7 +373,6 @@ public class GroupCtx {
 
 		return pairwiseRecipientKey;
 	}
-
 
 	/**
 	 * Generate a shared secret when using ECDSA.

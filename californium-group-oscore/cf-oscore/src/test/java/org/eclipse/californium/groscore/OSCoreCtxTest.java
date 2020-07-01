@@ -21,14 +21,14 @@ import static org.junit.Assert.*;
 
 import java.util.Arrays;
 
+import org.eclipse.californium.grcose.AlgorithmID;
+import org.eclipse.californium.groscore.OSCoreCtx;
+import org.eclipse.californium.groscore.OSException;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
-import org.eclipse.californium.grcose.AlgorithmID;
-import org.eclipse.californium.groscore.OSCoreCtx;
-import org.eclipse.californium.groscore.OSException;
 
 /**
  * Test generation of values in an OSCORE Context.

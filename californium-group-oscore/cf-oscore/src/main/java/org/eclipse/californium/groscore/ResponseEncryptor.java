@@ -40,6 +40,7 @@ public class ResponseEncryptor extends Encryptor {
 	private static final Logger LOGGER = LoggerFactory.getLogger(ResponseEncryptor.class);
 
 	/**
+	 * @param db the context db used
 	 * @param response the response
 	 * @param ctx the OSCore context
 	 * @param newPartialIV boolean to indicate whether to use a new partial IV or not
@@ -50,7 +51,7 @@ public class ResponseEncryptor extends Encryptor {
 	 * 
 	 * @throws OSException when encryption fails
 	 */
-	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, final boolean newPartialIV,
+	public static Response encrypt(OSCoreCtxDB db, Response response, OSCoreCtx ctx, boolean newPartialIV,
 			boolean outerBlockwise, byte[] requestOption) throws OSException {
 
 		/*
@@ -59,7 +60,10 @@ public class ResponseEncryptor extends Encryptor {
 		 */
 		if (ctx != null && ctx.isGroupContext()) {
 			ctx = ctx.getSenderCtx();
+			// Update this parameter from the now retrieved sender context
+			newPartialIV |= ctx.getResponsesIncludePartialIV();
 			assert (ctx instanceof GroupSenderCtx);
+
 		}
 
 		if (ctx == null) {

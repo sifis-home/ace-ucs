@@ -24,8 +24,6 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
-import java.security.Provider;
-import java.security.Security;
 import java.util.Arrays;
 import java.util.Random;
 
@@ -55,7 +53,6 @@ import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.grcose.AlgorithmID;
 import org.eclipse.californium.grcose.CoseException;
-import org.eclipse.californium.grcose.KeyKeys;
 import org.eclipse.californium.grcose.OneKey;
 import org.eclipse.californium.groscore.HashMapCtxDB;
 import org.eclipse.californium.groscore.OSCoreCoapStackFactory;
@@ -64,18 +61,16 @@ import org.eclipse.californium.groscore.OSException;
 import org.eclipse.californium.groscore.group.GroupCtx;
 import org.eclipse.californium.groscore.group.GroupRecipientCtx;
 import org.eclipse.californium.groscore.group.GroupSenderCtx;
+import org.eclipse.californium.groscore.group.OptionEncoder;
 import org.eclipse.californium.rule.CoapNetworkRule;
 import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
-
-import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 
 /**
  * Performs tests of Group OSCORE message exchanges between a Group OSCORE
@@ -136,11 +131,6 @@ public class GroupOSCoreServerClientTest {
 
 	// Group OSCORE specific values for the countersignature (ECDSA 256)
 	private final static AlgorithmID algCountersign = AlgorithmID.ECDSA_256;
-	private final static int[] countersign_key_type_capab = new int[] { KeyKeys.KeyType_EC2.AsInt32(),
-			KeyKeys.EC2_P256.AsInt32() };
-	private final static int[] countersign_alg_capab = new int[] { KeyKeys.KeyType_EC2.AsInt32() };
-	private final static int[][] parCountersign = new int[][] { countersign_alg_capab, countersign_key_type_capab };
-	private final static int[] parCountersignKey = countersign_key_type_capab;
 
 	// Keys for client and server (ECDSA full private and public keys)
 	private static String clientKeyString = "pgECI1gg2qPzgLjNqAaJWnjh9trtVjX2Gp2mbzyAQLSJt9LD2j8iWCDe8qCLkQ59ZOIwmFVk2oGtfoz4epMe/Fg2nvKQwkQ+XiFYIKb0PXRXX/6hU45EpcXUAQPufU03fkYA+W6gPoiZ+d0YIAEDJg==";
@@ -161,16 +151,14 @@ public class GroupOSCoreServerClientTest {
 	public static void setStackFactory() {
 		OSCoreCoapStackFactory.useAsDefault(null); // TODO: Better way?
 		rand = new Random();
-
-		// Install cryptographic providers
-		Provider EdDSA = new EdDSASecurityProvider();
-		Security.insertProviderAt(EdDSA, 0);
 	}
 
 	/* --- Client tests follow --- */
 
 	/**
 	 * Tests working OSCORE non-confirmable request and response.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testNonConfirmable() throws Exception {
@@ -181,13 +169,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		// TODO: Move to method (same for other tests)
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// create request
@@ -221,6 +203,8 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * Tests OSCORE non-confirmable request where the decryption fails and the
 	 * response indicates this.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testDecryptionFail() throws Exception {
@@ -231,13 +215,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		// TODO: Move to method (same for other tests)
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// Modify sender key to be incorrect
@@ -273,6 +251,8 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * Tests OSCORE non-confirmable request where the signature verification
 	 * fails and the response indicates this.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testSignatureVerificationFail() throws Exception {
@@ -283,13 +263,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		// TODO: Move to method (same for other tests)
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// Modify sender private key to be incorrect
@@ -325,6 +299,8 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * Tests working OSCORE non-confirmable request where the recipient does not
 	 * yet have a recipient context for that RID and dynamically generates it.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testDynamicContextDerivation() throws Exception {
@@ -340,13 +316,7 @@ public class GroupOSCoreServerClientTest {
 		dbServer.removeContext(serverRecipientCtx);
 
 		// Create client endpoint with OSCORE context DB
-		// TODO: Move to method (same for other tests)
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// create request
@@ -402,6 +372,8 @@ public class GroupOSCoreServerClientTest {
 
 	/**
 	 * Tests working OSCORE non-confirmable request and pairwise response.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testPairwiseResponse() throws Exception {
@@ -412,12 +384,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// create request
@@ -450,9 +417,10 @@ public class GroupOSCoreServerClientTest {
 
 	/**
 	 * Tests working OSCORE non-confirmable pairwise request and group response.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
-	@Ignore
 	public void testPairwiseRequest() throws Exception {
 
 		createServer(false, false); // No PIV, no pairwise resp.
@@ -460,17 +428,8 @@ public class GroupOSCoreServerClientTest {
 		// Set up OSCORE context information for request (client)
 		setClientContext();
 
-		// Enable pairwise requests
-		GroupSenderCtx clientCtx = (GroupSenderCtx) dbClient.getContext(uri);
-		clientCtx.commonCtx.setPairwiseModeRequests(true);
-
 		// Create client endpoint with OSCORE context DB
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// create request
@@ -482,7 +441,9 @@ public class GroupOSCoreServerClientTest {
 		request.setType(Type.NON);
 		byte[] token = Bytes.createBytes(rand, 8);
 		request.setToken(token);
-		request.getOptions().setOscore(new byte[] { 0x20 });
+
+		// Enable pairwise requests by setting the OSCORE option
+		request.getOptions().setOscore(OptionEncoder.set(true, uri, new byte[] { 0x77 }));
 
 		// send a request
 		CoapResponse response = client.advanced(request);
@@ -503,6 +464,8 @@ public class GroupOSCoreServerClientTest {
 
 	/**
 	 * Tests OSCORE request replayed message.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testRequestReplay() throws Exception {
@@ -513,12 +476,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		// create request
@@ -562,6 +520,8 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * Tests working OSCORE non-confirmable request and response. The server
 	 * includes PIV in responses.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testResponsePIV() throws Exception {
@@ -572,12 +532,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		int responseCount = 0;
@@ -617,6 +572,8 @@ public class GroupOSCoreServerClientTest {
 
 	/**
 	 * Tests working multiple OSCORE non-confirmable request and response.
+	 * 
+	 * @throws Exception on test failure
 	 */
 	@Test
 	public void testMultipleNonConfirmable() throws Exception {
@@ -627,12 +584,7 @@ public class GroupOSCoreServerClientTest {
 		setClientContext();
 
 		// Create client endpoint with OSCORE context DB
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
-		builder.setCustomCoapStackArgument(dbClient);
-		builder.setNetworkConfig(config);
-		CoapEndpoint clientEndpoint = builder.build();
+		CoapEndpoint clientEndpoint = createClientEndpoint();
 		cleanup.add(clientEndpoint);
 
 		int responseCount = 0;
@@ -667,20 +619,34 @@ public class GroupOSCoreServerClientTest {
 	/* --- End of client tests --- */
 
 	/**
+	 * Creates an endpoint for a client. This endpoint will have the OSCORE CoAP
+	 * stack factory enabled.
+	 * 
+	 * @return an endpoint for a client
+	 */
+	private CoapEndpoint createClientEndpoint() {
+		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
+		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+		builder.setCoapStackFactory(new OSCoreCoapStackFactory());
+		builder.setCustomCoapStackArgument(dbClient);
+		builder.setNetworkConfig(config);
+		CoapEndpoint clientEndpoint = builder.build();
+		return clientEndpoint;
+	}
+
+	/**
 	 * Set OSCORE context information for clients
 	 * 
-	 * @throws OSException
-	 * @throws CoseException
+	 * @throws OSException on failure to create the contexts
+	 * @throws CoseException on failure to create the contexts
 	 */
-	@Before
 	public void setClientContext() throws OSException, CoseException {
 		// Set up OSCORE context information for request (client)
 		byte[] sid = new byte[] { 0x25 };
 		byte[] rid1 = new byte[] { 0x77 };
 		byte[] rid2 = new byte[] { 0x66 };
 
-		GroupCtx commonCtx = new GroupCtx(master_secret, master_salt, alg, kdf, context_id, algCountersign,
-				parCountersign, parCountersignKey);
+		GroupCtx commonCtx = new GroupCtx(master_secret, master_salt, alg, kdf, context_id, algCountersign);
 
 		OneKey clientFullKey = new OneKey(
 				CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(clientKeyString)));
@@ -699,8 +665,11 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * (Re)sets the OSCORE context information for the server
 	 * 
-	 * @throws OSException
-	 * @throws CoseException
+	 * @param responsePartialIV if responses should include a Partial IV
+	 * @param pairwiseResponse if responses should be in pairwise mode
+	 * 
+	 * @throws OSException on failure to create the contexts
+	 * @throws CoseException on failure to create the contexts
 	 */
 	public void setServerContext(boolean responsePartialIV, boolean pairwiseResponse)
 			throws OSException, CoseException {
@@ -709,8 +678,7 @@ public class GroupOSCoreServerClientTest {
 		byte[] sid = new byte[] { 0x77 };
 		byte[] rid = new byte[] { 0x25 };
 
-		GroupCtx commonCtx = new GroupCtx(master_secret, master_salt, alg, kdf, context_id, algCountersign,
-				parCountersign, parCountersignKey);
+		GroupCtx commonCtx = new GroupCtx(master_secret, master_salt, alg, kdf, context_id, algCountersign);
 
 		OneKey serverFullKey = new OneKey(
 				CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(serverKeyString)));
@@ -720,13 +688,8 @@ public class GroupOSCoreServerClientTest {
 				CBORObject.DecodeFromBytes(DatatypeConverter.parseBase64Binary(clientKeyString))).PublicKey();
 		commonCtx.addRecipientCtx(rid, REPLAY_WINDOW, clientPublicKey);
 
-		if (responsePartialIV) {
-			commonCtx.setResponsesIncludePartialIV(true);
-		}
-
-		if (pairwiseResponse) {
-			commonCtx.setPairwiseModeResponses(true);
-		}
+		commonCtx.setResponsesIncludePartialIV(responsePartialIV);
+		commonCtx.setPairwiseModeResponses(pairwiseResponse);
 
 		dbServer.addContext(clientHostAdd, commonCtx);
 	}
@@ -738,9 +701,12 @@ public class GroupOSCoreServerClientTest {
 	/**
 	 * Creates server with resources to test Group OSCORE functionality
 	 * 
+	 * @param responsePartialIV if responses should include a Partial IV
+	 * @param pairwiseResponse if responses should be in pairwise mode
+	 * 
 	 * @throws InterruptedException if resource update task fails
-	 * @throws OSException
-	 * @throws CoseException
+	 * @throws OSException on test failure
+	 * @throws CoseException on test failure
 	 */
 	public void createServer(boolean responsePartialIV, boolean pairwiseResponse)
 			throws InterruptedException, OSException, CoseException {
@@ -803,7 +769,7 @@ public class GroupOSCoreServerClientTest {
 		byte[] requestIdContext = null;
 		EndpointContext endpointContext = request.getSourceContext();
 		if (endpointContext instanceof MapBasedEndpointContext) {
-			EndpointContext mapEndpointContext = (MapBasedEndpointContext) endpointContext;
+			EndpointContext mapEndpointContext = endpointContext;
 			requestIdContext = StringUtil
 					.hex2ByteArray(mapEndpointContext.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
 		}

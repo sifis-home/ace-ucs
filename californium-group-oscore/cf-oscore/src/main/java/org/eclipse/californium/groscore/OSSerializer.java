@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.OptionSet;
@@ -34,6 +33,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.grcose.AlgorithmID;
 import org.eclipse.californium.groscore.group.GroupRecipientCtx;
 import org.eclipse.californium.groscore.group.GroupSenderCtx;
+import org.eclipse.californium.groscore.group.OptionEncoder;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -265,6 +265,14 @@ public class OSSerializer {
 		}
 	}
 
+	/**
+	 * Update the external AAD for Group OSCORE encryption by adding further
+	 * parameters to the algorithms array.
+	 * 
+	 * @param ctx the context used
+	 * @param aadBytes the current external AAD value
+	 * @return the updated external AAD
+	 */
 	public static byte[] updateAADForGroupEnc(OSCoreCtx ctx, byte[] aadBytes) {
 
 		CBORObject algCountersign;
@@ -296,19 +304,29 @@ public class OSSerializer {
 		return groupAadEnc.EncodeToBytes();
 	}
 
+	/**
+	 * Update the external AAD for Group OSCORE signing by adding the value of
+	 * the OSCORE option.
+	 * 
+	 * @param ctx the context used
+	 * @param aadBytes the current external AAD value
+	 * @param message the CoAP message being processed
+	 * @return the updated external AAD
+	 */
 	public static byte[] updateAADForGroupSign(OSCoreCtx ctx, byte[] aadBytes, Message message) {
 
 		CBORObject groupAadSign = CBORObject.DecodeFromBytes(aadBytes);
 
 		byte[] oscoreOption = message.getOptions().getOscore();
 
-		// Build the option for outgoing messages (they do not have it)
-		boolean outgoing = oscoreOption == null || oscoreOption.length == 0;
-		// boolean outgoing = ctx instanceof GroupSenderCtx;
+		// Check if this is an outgoing message //TODO: Check with option null?
+		boolean outgoing = message.getSourceContext() == null;
+
 		if (outgoing) {
 
 			if (message instanceof Request) {
-				oscoreOption = Encryptor.encodeOSCoreRequest(ctx);
+				boolean groupModeRequest = OptionEncoder.getPairwiseMode(oscoreOption) == false;
+				oscoreOption = Encryptor.encodeOSCoreRequest(ctx, groupModeRequest);
 			} else {
 				boolean newPartialIV = ctx.getResponsesIncludePartialIV() || message.getOptions().hasObserve();
 				oscoreOption = Encryptor.encodeOSCoreResponse(ctx, newPartialIV);

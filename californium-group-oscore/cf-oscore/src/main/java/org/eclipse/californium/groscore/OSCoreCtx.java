@@ -19,7 +19,6 @@
  ******************************************************************************/
 package org.eclipse.californium.groscore;
 
-import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
