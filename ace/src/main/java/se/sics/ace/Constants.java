@@ -33,7 +33,9 @@ package se.sics.ace;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -597,6 +599,16 @@ public class Constants {
     public static final short COAP_OSCORE = 2;
     
     /**
+     * Value for the label "nonce1" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE1 = 201;
+    
+    /**
+     * Value for the label "nonce2" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE2 = 202;
+    
+    /**
      * Return the abbreviated profile id for the full profile name.
      * 
      * @param profileStr  profile name
@@ -824,7 +836,6 @@ public class Constants {
 	 * Group OSCORE abbreviations =================================
 	 */
 
-    
     /**
      * Requester role
      */
@@ -886,23 +897,110 @@ public class Constants {
      public static final short ACE_GROUPCOMM_PROFILE = 38;
      
      /**
-      * Value for the label "sign_info" in the Token POST request and in the Join Response message
+      * Value for the label "sign_info" in the Token POST request/response and in the Join Response message
       */
-     public static final short SIGN_INFO = 201;
+     public static final short SIGN_INFO = 203;
      
      /**
-      * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
+      * Value for the label "pub_key_enc" in the Token POST request/response and in the Join Response message
       */
-     public static final short PUB_KEY_ENC = 202;
+     public static final short PUB_KEY_ENC = 204;
      
      /**
       * Value for the label "rs_nonce" in the Token POST response
       */
-     public static final short KDCCHALLENGE = 203;
+     public static final short KDCCHALLENGE = 205;
      
      /**
       * Value for the label "num" in the Join Response message
       */
-     public static final short NUM = 204;
+     public static final short NUM = 206;
+     
+     
+     /**
+      * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+      * 
+      * @param currentRoleSet  the current set of roles
+      * @param newRole  the role to add to the current set
+      * 
+       * @return  the updated role set
+       * @throws AceException  if the role identifier is less than 1
+      */
+     public static int addGroupOSCORERole (int currentRoleSet, short newRole) throws AceException{
+
+    	 if (newRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+    	 
+    	 int updatedRoleSet = 0;
+    	 updatedRoleSet = currentRoleSet | (1 << newRole);
+    	 
+    	 return updatedRoleSet; 
+    	 
+     }     
+     
+     /**
+      * Remove 'oldRole' from the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+      * 
+      * @param currentRoleSet  the current set of roles
+      * @param oldRole  the role to remove from the current set
+      * 
+       * @return  the updated role set
+       * @throws AceException  if the role identifier is less than 1
+      */
+     public static int removeGroupOSCORERole (int currentRoleSet, short oldRole) throws AceException{
+
+    	 if (oldRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+    	 
+    	 int updatedRoleSet = 0;
+    	 updatedRoleSet = currentRoleSet & (~(1 << oldRole));
+    	 
+    	 return updatedRoleSet; 
+    	 
+     }
+        
+     /**
+      * Check if a role set includes a specified role, encoded using the AIF-OSCORE-GROUPCOMM data model
+      * 
+      * @param roleSet  the set of roles
+      * @param role  the role to remove from the current set
+      * 
+       * @return  true if the role set includes the specified role, false otherwise
+       * @throws AceException  if the role identifier is less than 1
+      */
+     public static boolean checkGroupOSCORERole (int roleSet, short role) throws AceException {
+
+    	 if (role < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+    	 
+    	 return ((roleSet & (1 << role)) != 0);
+    	 
+     }
+     
+     /**
+      * Return the array of roles included in the specified role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+      * 
+      * @param roleSet  the set of roles, encoded using the AIF-OSCORE-GROUPCOMM data model
+      * 
+       * @return  The set of role identifiers specified in the role set
+       * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
+      */
+     public static Set<Integer> getGroupOSCORERoles (int roleSet) throws AceException {
+    	 
+    	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
+    	 
+    	 Set<Integer> mySet = new HashSet<Integer>();
+    	 // int counter = 0;
+    	 int roleIdentifier = 0;
+    	 
+    	 while (roleSet != 0) {
+    		 roleSet = roleSet >>> 1;
+    	 	 roleIdentifier++;
+    	 	 if ((roleSet & 1) != 0) {
+    	 		 // counter++;
+    	 		 mySet.add(Integer.valueOf(roleIdentifier));
+    	 	 }
+    	 }
+    	 
+    	 return mySet;
+    	 
+     }   
      
 }

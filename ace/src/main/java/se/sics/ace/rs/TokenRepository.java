@@ -803,7 +803,7 @@ public class TokenRepository implements AutoCloseable {
     }
 
 	private static boolean ignoreDuplicateCti = false;
-	
+
 	/**
 	 * Rikard: Allow ignoring duplicate CTI errors.
 	 * 
@@ -811,6 +811,7 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	public static void ignoreDuplicateCtis(boolean b) {
 		ignoreDuplicateCti = b;
-    }
+	}
+
 }
 

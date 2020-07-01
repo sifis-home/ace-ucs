@@ -167,7 +167,7 @@ public class OSCOREProfileRequests {
         payload.Add(Constants.ACCESS_TOKEN, token);
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
-        payload.Add(Constants.CNONCE, n1);
+        payload.Add(Constants.NONCE1, n1);
         
         CoapClient client = new CoapClient(rsAddr);
 
@@ -198,10 +198,10 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject n2C = rsPayload.get(
-                CBORObject.FromObject(Constants.CNONCE));
+                CBORObject.FromObject(Constants.NONCE2));
         if (n2C == null || !n2C.getType().equals(CBORType.ByteString)) {
             throw new AceException(
-                    "Missing or malformed cnonce in RS response");
+                    "Missing or malformed 'nonce2' in RS response");
         }
         
         byte[] n2 = n2C.GetByteString();

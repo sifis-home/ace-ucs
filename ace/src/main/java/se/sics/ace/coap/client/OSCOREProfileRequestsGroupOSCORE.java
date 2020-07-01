@@ -169,7 +169,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         payload.Add(Constants.ACCESS_TOKEN, token);
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
-        payload.Add(Constants.CNONCE, n1);
+        payload.Add(Constants.NONCE1, n1);
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
@@ -206,10 +206,10 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject n2C = rsPayload.get(
-                CBORObject.FromObject(Constants.CNONCE));
+                CBORObject.FromObject(Constants.NONCE2));
         if (n2C == null || !n2C.getType().equals(CBORType.ByteString)) {
             throw new AceException(
-                    "Missing or malformed cnonce in RS response");
+                    "Missing or malformed 'nonce2' in RS response");
         }
         
         CBORObject rsNoncePoP = rsPayload.get(
