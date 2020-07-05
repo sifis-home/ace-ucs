@@ -79,8 +79,9 @@ public class TestDtlspClient2RS {
     private static byte[] key128a 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
+    // ECDSA_256 asymmetric key
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-
+    
     private static OneKey rsRPK;
     
     private static String rsAddrC;
