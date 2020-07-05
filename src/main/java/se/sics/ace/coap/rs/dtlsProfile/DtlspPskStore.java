@@ -109,7 +109,38 @@ public class DtlspPskStore implements PskStore {
         //First try if we have that key
         OneKey key = null;
         try {
-            key = TokenRepository.getInstance().getKey(identity);
+        	
+        	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
+        	byte[] identityStructureByte = Base64.getDecoder().decode(identity);
+        	CBORObject identityStructure = CBORObject.DecodeFromBytes(identityStructureByte);
+
+        	if (identityStructure != null && identityStructure.getType() == CBORType.Map && identityStructure.size() == 1) {
+
+        		CBORObject cnfStructure = identityStructure.get(CBORObject.FromObject(Constants.CNF));
+        		if (cnfStructure != null && cnfStructure.getType() == CBORType.Map && cnfStructure.size() == 1) {
+
+        			CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
+        			if (COSEKeyStructure != null && COSEKeyStructure.getType() == CBORType.Map && COSEKeyStructure.size() == 2) {
+        		
+        				if(COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyType)) == KeyKeys.KeyType_Octet &&
+        				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)) != null) {
+
+        				    byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
+        				    String kidString = new String(kid, Constants.charset);
+        				    
+        					key = TokenRepository.getInstance().getKey(kidString);
+        					
+        				}
+        				
+        			}
+        		
+        		}
+        	
+        	}
+        	
+        	// OLD WAY, with only the kid used as "psk_identity"
+            // key = TokenRepository.getInstance().getKey(identity);
+            
             if (key != null) {
                 return new SecretKeySpec(
                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
