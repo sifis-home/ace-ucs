@@ -45,12 +45,12 @@ import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -125,12 +125,14 @@ public class TestCoAPClientGroupOSCORE {
         srv.stop();
     }
     
+    // @Ignore
     /**
      * Test connecting with RPK without authenticating the client.
      * The Server should reject that.
      * 
      * @throws Exception 
      */
+    /*
     @Test
     public void testNoClientAuthN() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
@@ -168,6 +170,7 @@ public class TestCoAPClientGroupOSCORE {
         Assert.fail("Server should not accept DTLS connection");
   
     }
+    */
     
     /**
      * Test CoapToken using PSK

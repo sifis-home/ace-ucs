@@ -68,7 +68,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Tests a client running the DTLS profile.
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestDtlspClient2RS {
@@ -448,7 +448,7 @@ public class TestDtlspClient2RS {
         } catch (IOException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "java.lang.Exception: handshake flight 5 failed!")) {
+                    "org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
                 //Everything ok
                 return;
             }

@@ -70,7 +70,7 @@ import se.sics.ace.rs.TokenRepository;
  * Test the DTLSProfilePskStore class that implements fetching the access token from the
  * psk-identity in the DTLS handshake.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestDtlspPskStore {

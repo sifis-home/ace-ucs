@@ -81,7 +81,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * the same repository (and yes I know that parameterized singletons are bad 
  * style, go ahead and suggest a better solution).
  *  
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TokenRepository implements AutoCloseable {

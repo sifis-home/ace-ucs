@@ -55,7 +55,6 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -69,7 +68,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OSCOREProfileRequestsGroupOSCORE {
@@ -96,12 +95,12 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws OSException 
      */
     public static Response getToken(String asAddr, CBORObject payload, 
-            OSCoreCtx ctx) throws AceException, OSException {
+            OSCoreCtx ctx, OSCoreCtxDB db) throws AceException, OSException {
 
         Request r = new Request(Code.POST);
         r.getOptions().setOscore(new byte[0]);
         r.setPayload(payload.EncodeToBytes());
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        
         db.addContext(asAddr, ctx);
         
         CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
@@ -134,7 +133,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc) 
+    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc, OSCoreCtxDB db) 
             throws AceException, OSException {
         if (asResp == null) {
             throw new AceException(
@@ -215,6 +214,10 @@ public class OSCOREProfileRequestsGroupOSCORE {
         CBORObject rsNoncePoP = rsPayload.get(
                 CBORObject.FromObject(Constants.KDCCHALLENGE));
         if (rsNoncePoP == null || !rsNoncePoP.getType().equals(CBORType.ByteString)) {
+        	if (rsNoncePoP == null) {
+        		System.out.println("it's null");
+        	}
+        	else  System.out.println("it's NOT null");
             throw new AceException(
                     "Missing or malformed PoP rsnonce in RS response");
         }
@@ -238,7 +241,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
         OSCoreCtx ctx = osc.getContext(true, n1, n2);
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        
         db.addContext(ctx);
         db.addContext(rsAddr, ctx);
         
@@ -261,13 +264,13 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws OSException 
      * @throws URISyntaxException 
      */
-    public static CoapClient getClient(InetSocketAddress serverAddress) 
+    public static CoapClient getClient(InetSocketAddress serverAddress, OSCoreCtxDB db) 
             throws AceException, OSException {
         if (serverAddress == null || serverAddress.getHostString() == null) {
             throw new IllegalArgumentException(
                     "Client requires a non-null server address");
         }
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+
         if (db.getContext(serverAddress.getHostName()) == null) {
             throw new AceException("OSCORE context not set for address: " 
                     + serverAddress);

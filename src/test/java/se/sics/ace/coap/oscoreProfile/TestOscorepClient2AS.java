@@ -35,6 +35,7 @@ import java.util.Map;
 
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -51,7 +52,7 @@ import se.sics.ace.coap.client.OSCOREProfileRequests;
  *  
  * NOTE: This will automatically start an AS in another thread 
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestOscorepClient2AS {
@@ -60,6 +61,8 @@ public class TestOscorepClient2AS {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static RunTestServer srv = null;
     private static OSCoreCtx ctx;
+    
+    private static OSCoreCtxDB ctxDB;
     
     private static class RunTestServer implements Runnable {
         
@@ -101,6 +104,9 @@ public class TestOscorepClient2AS {
                 "clientA".getBytes(Constants.charset),
                 "AS".getBytes(Constants.charset),
                 null, null, null, null);
+        
+        ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
+        
         srv = new RunTestServer();
         srv.run();
     }
@@ -124,8 +130,10 @@ public class TestOscorepClient2AS {
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp rw_config foobar"), null);
+        
         Response response = OSCOREProfileRequests.getToken(
-                "coap://localhost/token", params, ctx);
+                "coap://localhost/token", params, ctx, ctxDB);
+        
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
