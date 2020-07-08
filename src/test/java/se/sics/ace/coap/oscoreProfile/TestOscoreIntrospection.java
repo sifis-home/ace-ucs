@@ -58,7 +58,6 @@ public class TestOscoreIntrospection {
 
     static RunTestServer srv = null;
     
-    // NEW
     private static OSCoreCtxDB ctxDB;
 
     private static class RunTestServer implements Runnable {

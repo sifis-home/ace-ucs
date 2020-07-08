@@ -79,7 +79,6 @@ public class TestOscorepClient2RS {
     private static RunTestServer srv = null;
     private static OSCoreCtx osctx;
     
-    // NEW
     private static OSCoreCtxDB ctxDB;
     
     private static class RunTestServer implements Runnable {
@@ -126,7 +125,6 @@ public class TestOscorepClient2RS {
                 "rs1".getBytes(Constants.charset),
                 null, null, null, null);
         
-        // NEW
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
     }
     
@@ -175,35 +173,20 @@ public class TestOscorepClient2RS {
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
-        
-        // NEW
+
         Response rsRes = OSCOREProfileRequests.postToken(
               "coap://localhost/authz-info", asRes, ctxDB);
-        
-        // OLD
-        // Response rsRes = OSCOREProfileRequests.postToken(
-        //      "coap://localhost/authz-info", asRes);
-        
+
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         
-       // NEW
        Assert.assertNotNull(ctxDB.getContext(
                 "coap://localhost/helloWorld"));
-        
-       // OLD
-       // Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(
-       //      "coap://localhost/helloWorld"));
-       
+
        //Submit a request
        
-       // NEW
        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
                "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
-       
-       // OLD
-       //CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-       //      "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT));
        
        Request helloReq = new Request(CoAP.Code.GET);
        helloReq.getOptions().setOscore(new byte[0]);
@@ -214,10 +197,6 @@ public class TestOscorepClient2RS {
        
        CoapClient c2 = OSCOREProfileRequests.getClient(new InetSocketAddress(
                "coap://localhost/temp", CoAP.DEFAULT_COAP_PORT), ctxDB);
-       
-       // OLD
-       // CoapClient c2 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-       //      "coap://localhost/temp", CoAP.DEFAULT_COAP_PORT));
        
        Request getTemp = new Request(CoAP.Code.GET);
        getTemp.getOptions().setOscore(new byte[0]);
@@ -240,23 +219,12 @@ public class TestOscorepClient2RS {
     @Test
     public void testNoAccess() throws Exception {
     	
-    	// NEW
     	ctxDB.addContext("coap://localhost/helloWorld", osctx);
-    	
-    	// OLD
-        // OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-        // db.addContext("coap://localhost/helloWorld", osctx);
-        
-        // NEW
+
         CoapClient c = OSCOREProfileRequests.getClient(
                  new InetSocketAddress(
                         "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
-        
-        // OLD
-        // CoapClient c = OSCOREProfileRequests.getClient(
-        //         new InetSocketAddress(
-        //                "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT));
-        
+
         CoapResponse res = c.get();
         assert(res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED));
     }
