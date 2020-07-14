@@ -429,7 +429,7 @@ public class Constants {
 	 * XXX: not specified yet
 	 */
 	public static final CBORObject OSCORE_Security_Context 
-	    = CBORObject.FromObject(4);
+	    = CBORObject.FromObject(99);
 
 	/**
 	 * The master secret
@@ -587,26 +587,26 @@ public class Constants {
     public static final String[] GRANT_TYPES = {"password", 
             "authorization_code", "client_credentials", "refresh_token"};
 
-
-    /**
-     * The abbreviation code for the DTLS profile
-     */
-    public static final short COAP_DTLS = 1;
     
     /**
      * The abbreviation code for the OSCORE profile
      */
     public static final short COAP_OSCORE = 2;
+
+    /**
+     * The abbreviation code for the DTLS profile
+     */
+    public static final short COAP_DTLS = 4;
     
     /**
      * Value for the label "nonce1" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE1 = 201;
+    public static final short NONCE1 = 65;
     
     /**
      * Value for the label "nonce2" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE2 = 202;
+    public static final short NONCE2 = 66;
     
     /**
      * Return the abbreviated profile id for the full profile name.
