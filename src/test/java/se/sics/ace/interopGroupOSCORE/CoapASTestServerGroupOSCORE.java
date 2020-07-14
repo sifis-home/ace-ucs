@@ -38,6 +38,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
@@ -65,13 +67,69 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  */
 public class CoapASTestServerGroupOSCORE
 {
-    static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-    static byte[] key256 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
-    static String aKey = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+	
+	/* START LIST OF KEYS */
+	
+	// For old tests
+    static byte[] key128_client1 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    static byte[] key128_rs1 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0};
+    static byte[] key256_token_rs1 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+	
+    // For group joining tests (rs2, rs3 and rs4 are Group Managers)
+    private static byte[] key128_client_F = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+    private static byte[] key128_client_G = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+    private static byte[] key128_rs2 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
+    
+    private static byte[] key128_rs3 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x13};
+    
+    private static byte[] key128_rs4 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
+            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x14};
+    
+    private static byte[] key256_token_rs2 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10};
+    
+    private static byte[] key256_token_rs3 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x10};
+    
+    private static byte[] key256_token_rs4 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
+            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+            0x11};
+    
+    // Asymmetric keys of the AS
+    private static String asX = "058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781";
+    private static String asY = "364269649744067D4600A529AE12076750D90C5EFCD9835137DB1AE2B4BACCB8";
+	private static String asD = "0089A92D07B34F1D806FABFF444AF6507C5F18F47BB2CCFAA7FBEC447303790D53";
+    
+	// Public key of a RS
+    private static String rsX = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
+    private static String rsY = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
+
+	// Public key of a Client
+    private static String cX = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
+    private static String cY = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
+    /* END LIST OF KEYS */
+	
+	// OLD SETUP
+	/*
+    static byte[] key128_client1 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    static byte[] key256_gm = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,28, 29, 30, 31, 32};
+    static String publicKey_gm = "piJYICg7PY0o/6Wf5ctUBBKnUPqN+jT22mm82mhADWecE0foI1ghAKQ7qn7SL/Jpm6YspJmTWbFG8GWpXE5GAXzSXrialK0pAyYBAiFYIBLW6MTSj4MRClfSUzc8rVLwG8RH5Ak1QfZDs4XhecEQIAE=";
+    */
+    
     
     private static CoapDBConnector db = null;
     private static DtlsAS as = null;
     private static GroupOSCOREJoinPDP pdp = null;
+    
+    private static int portNumber = 5689;
   
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -83,20 +141,115 @@ public class CoapASTestServerGroupOSCORE
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
-        OneKey akey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-
+        // Setup PSKs for Clients
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
-        OneKey tokenPsk = new OneKey(keyData);
+                CBORObject.FromObject(key128_client1));
+        OneKey authPsk_client1 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
-        OneKey authPsk = new OneKey(keyData);
+                CBORObject.FromObject(key128_client_F));
+        OneKey authPsk_clientF = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128_client_G));
+        OneKey authPsk_clientG = new OneKey(keyData);
+        
+        // Setup PSKs for RSs
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128_rs1));
+        OneKey authPsk_rs1 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128_rs2));
+        OneKey authPsk_rs2 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128_rs3));
+        OneKey authPsk_rs3 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128_rs4));
+        OneKey authPsk_rs4 = new OneKey(keyData);
+        
+        // Setup symmetric keys to protect the Access Tokens
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256_token_rs1));
+        OneKey tokenPsk_rs1 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256_token_rs2));
+        OneKey tokenPsk_rs2 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256_token_rs3));
+        OneKey tokenPsk_rs3 = new OneKey(keyData);
+        
+        keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key256_token_rs4));
+        OneKey tokenPsk_rs4 = new OneKey(keyData);
+
+        // Build the Client public key (the same one for all the Clients)
+        // Ready for possibly consider clients using the RPK mode
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        CBORObject C_x = CBORObject.FromObject(hexString2byteArray(cX));
+        CBORObject C_y = CBORObject.FromObject(hexString2byteArray(cY));
+        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), C_x);
+        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), C_y);
+        OneKey akey_c = new OneKey(rpkData);
+        String clientId = new RawPublicKeyIdentity(akey_c.AsPublicKey()).getName();
+        
+        // Build the RS public key (the same one for all the RSs)
+        rpkData = CBORObject.NewMap();
+        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        CBORObject rs_x = CBORObject.FromObject(hexString2byteArray(rsX));
+        CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
+        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), rs_x);
+        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), rs_y);
+        OneKey akey_rs = new OneKey(rpkData);
+        
+        // Build the AS asymmetric key pair
+        rpkData = CBORObject.NewMap();
+        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        CBORObject as_x = CBORObject.FromObject(hexString2byteArray(asX));
+        CBORObject as_y = CBORObject.FromObject(hexString2byteArray(asY));
+        CBORObject as_d = CBORObject.FromObject(hexString2byteArray(asD));
+        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), as_x);
+        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), as_y);
+        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), as_d);
+        OneKey asRPK = new OneKey(rpkData);  
+
         
     	final String groupName = "feedca570000";
         
@@ -119,7 +272,7 @@ public class CoapASTestServerGroupOSCORE
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                expiration, authPsk_rs1, tokenPsk_rs1, akey_rs);
         
         // M.T.
         // Add a further resource server "rs2" acting as OSCORE Group Manager
@@ -143,7 +296,7 @@ public class CoapASTestServerGroupOSCORE
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
         
         // M.T.
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
@@ -172,7 +325,7 @@ public class CoapASTestServerGroupOSCORE
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                expiration, authPsk_rs3, tokenPsk_rs3, akey_rs);
         
         // M.T.
         // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
@@ -201,7 +354,7 @@ public class CoapASTestServerGroupOSCORE
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                expiration, authPsk_rs4, tokenPsk_rs4, akey_rs);
         
         // M.T.
         // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
@@ -213,7 +366,7 @@ public class CoapASTestServerGroupOSCORE
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+                keyTypes, authPsk_client1, null);        
         
         // M.T.
         // Add a further client "clientF" as a joining node of an OSCORE group
@@ -222,7 +375,7 @@ public class CoapASTestServerGroupOSCORE
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientF", profiles, null, null, 
-                keyTypes, authPsk, null);
+                keyTypes, authPsk_clientF, null);
         
         // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
@@ -231,7 +384,7 @@ public class CoapASTestServerGroupOSCORE
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientG", profiles, null, null, 
-                keyTypes, authPsk, null);
+                keyTypes, authPsk_clientG, null);
         
         
         KissTime time = new KissTime();
@@ -245,7 +398,9 @@ public class CoapASTestServerGroupOSCORE
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
         
-        OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        // OLD SETUP
+        //OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+        
         pdp = new GroupOSCOREJoinPDP(db);
         
         //Initialize data in PDP
@@ -314,8 +469,10 @@ public class CoapASTestServerGroupOSCORE
         Set<String> rs3 = Collections.singleton("rs3");
         pdp.addOSCOREGroupManagers("rs3", rs3);
         
+        // OLD SETUP
+        // as = new DtlsAS("AS", db, pdp, time, asymmKey, portNumber);
         
-        as = new DtlsAS("AS", db, pdp, time, asymmKey);
+        as = new DtlsAS("AS", db, pdp, time, asRPK, portNumber);
         as.start();
         System.out.println("Server starting");
     }
@@ -328,6 +485,22 @@ public class CoapASTestServerGroupOSCORE
         as.stop();
         pdp.close();
         DBHelper.tearDownDB();
+    }
+    
+    /**
+     * Reads the keys and transforms to bytes from Strings.
+     * 
+     * @param hex  the hex String representation of a key
+     * @return  the byte array representation
+     */
+    public static byte[] hexString2byteArray(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i+1), 16));
+        }
+        return data;
     }
     
 }
