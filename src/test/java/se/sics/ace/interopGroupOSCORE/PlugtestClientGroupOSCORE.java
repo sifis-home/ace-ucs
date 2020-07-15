@@ -301,7 +301,7 @@ public class PlugtestClientGroupOSCORE {
 
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         ctx1 = CwtCryptoCtx.encrypt0(key128_token_rs1, coseP.getAlg().AsCBOR());
         ctx2 = CwtCryptoCtx.encrypt0(key128_token_rs2, coseP.getAlg().AsCBOR());
         ctx3 = CwtCryptoCtx.encrypt0(key128_token_rs3, coseP.getAlg().AsCBOR());

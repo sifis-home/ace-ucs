@@ -48,7 +48,12 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Handler;
+import java.util.logging.Level;
+import java.util.logging.LogManager;
+import java.util.logging.Logger;
 
+import org.apache.log4j.BasicConfigurator;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
@@ -61,6 +66,7 @@ import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -106,21 +112,10 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class PlugtestRSGroupOSCORE {
 
-	// For old tests - PSK to encrypt the token
-    private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
+	// For old tests - PSK to encrypt the token (used for both audiences rs1 and rs2)
+    private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
-    
-    // For group joining tests - PSK to encrypt the token (rs2, rs3 and rs4 are Group Managers)
-    private static byte[] key128_token_rs2 = {(byte)0xb1, (byte)0xa2, (byte)0xa3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x10};
-    private static byte[] key128_token_rs3 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x11};
-    private static byte[] key128_token_rs4 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x12};
 	
     // Asymmetric key of the RS (the same for all the RSs)
     private static String rsX = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
@@ -718,7 +713,8 @@ public class PlugtestRSGroupOSCORE {
     
     private static CoapDeliverer dpd = null;
     
-    private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
+    // OLD WAY with the Base 64 encoding
+    // private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
     
     
     /**
@@ -728,6 +724,19 @@ public class PlugtestRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+    	
+        //Set logging for slf4/blah
+        BasicConfigurator.configure();
+    	
+        //Set java.util.logging
+        Logger rootLogger = LogManager.getLogManager().getLogger("");
+        rootLogger.setLevel(Level.FINEST);
+        for (Handler h : rootLogger.getHandlers()) {
+            h.setLevel(Level.FINEST);
+        }
+    	
+    	new File(TestConfig.testFilePath + "tokens.json").delete();
+    	
     	final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
     	Security.insertProviderAt(PROVIDER, 1);
@@ -952,18 +961,36 @@ public class PlugtestRSGroupOSCORE {
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
     	new File(tokenFile).delete();
-              
-        byte[] key128a 
-            = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      
+
+        // OLD WAY with the Base 64 encoding
+        /*
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
                 Base64.getDecoder().decode(rpk)));
+        */
+        
+        //Setup the Group Manager RPK
+        CBORObject rpkData = CBORObject.NewMap();
+        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        CBORObject x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsX));
+        CBORObject y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsY));
+        CBORObject d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsD));
+        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
+        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
+        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
+        OneKey asymmetric = new OneKey(rpkData);
+        String keyId = new RawPublicKeyIdentity(
+        		asymmetric.AsPublicKey()).getName();
+        asymmetric.add(KeyKeys.KeyId, CBORObject.FromObject(
+                keyId.getBytes(Constants.charset)));
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+            = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
 
         
         // Set up the inner Authz-Info library
