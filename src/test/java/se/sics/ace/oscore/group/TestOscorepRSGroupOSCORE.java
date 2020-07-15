@@ -633,11 +633,20 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
         	if (getPubKeys != null) {
         		
-        		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
+        		if (!getPubKeys.getType().equals(CBORType.Array) ||
+        			 getPubKeys.size() != 2 ||
+        			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
+        			!getPubKeys.get(1).getType().equals(CBORType.Array) || 
+        			 getPubKeys.get(1).size() != 0) {
+            		
+        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
             		return;
+            		
         		}
         		
+        		// TODO: cover also the case where the first array is not empty
+        		
+        		// This is currently assuming the first array to be emtpy, so asking for all public keys
         		providePublicKeys = true;
         		
         	}

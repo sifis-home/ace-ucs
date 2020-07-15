@@ -426,6 +426,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -822,6 +824,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -1325,6 +1329,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -1722,6 +1728,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -2375,6 +2383,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -2784,6 +2794,8 @@ public class TestDtlspClientGroupOSCORE {
         if (askForPubKeys) {
         	
         	CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
