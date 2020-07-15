@@ -170,10 +170,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapClient client = new CoapClient(rsAddr);
 

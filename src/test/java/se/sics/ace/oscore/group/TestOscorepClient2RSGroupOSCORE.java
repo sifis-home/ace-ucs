@@ -394,31 +394,25 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -807,31 +801,25 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 

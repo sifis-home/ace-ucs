@@ -130,7 +130,6 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject token = null;
 	    CBORObject cbor = null;
 	    boolean provideSignInfo = false;
-	    boolean providePubKeyEnc = false;
 	    boolean invalid = false;
 	    
 	    try {
@@ -158,13 +157,6 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    		else invalid = true;
 	    	}
 	    	
-	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC))) {
-	    		if (cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).equals(CBORObject.Null)) {
-	    			providePubKeyEnc = true;
-	    		}
-	    		else invalid = true;
-	    	}
-	    	
 	    }
 	    // The payload of the Token POST message consists of the Access Token only.
 	    // This is the expected usual case, when the client does not include additional parameters.
@@ -184,11 +176,11 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
         }
         
         if (invalid) {
-            LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
+            LOGGER.info("Invalid format for 'sign_info'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Invalid format for 'sign_info' and 'pub_key_enc'");
+                    "Invalid format for 'sign_info'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 	    
@@ -295,7 +287,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
     		
 			    		
-	    	if (provideSignInfo || providePubKeyEnc) {
+	    	if (provideSignInfo) {
     	    
 	    		CBORObject signInfo = CBORObject.NewArray();
 	    	
@@ -308,34 +300,21 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 					
 					signInfoEntry.Add(CBORObject.FromObject(groupName)); // 'id' element
 					
-				    if (provideSignInfo) {
-					
-						signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
-				    	
-				    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
-				    	if (arrayElem == null)
-				    		signInfoEntry.Add(CBORObject.Null);
-				    	else
-				    		signInfoEntry.Add(arrayElem);
-				    	
-				    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
-				    	if (arrayElem == null)
-				    		signInfoEntry.Add(CBORObject.Null);
-				    	else
-				    		signInfoEntry.Add(arrayElem);
-			    
-				    }
-				    else {
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_alg' element
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_parameters' element
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_key_parameters' element
-				    }
+					signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
 			    	
-				    if (providePubKeyEnc) {
-				    	
-				    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
-				    	
-				    }
+			    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
+			    	if (arrayElem == null)
+			    		signInfoEntry.Add(CBORObject.Null);
+			    	else
+			    		signInfoEntry.Add(arrayElem);
+			    	
+			    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
+			    	if (arrayElem == null)
+			    		signInfoEntry.Add(CBORObject.Null);
+			    	else
+			    		signInfoEntry.Add(arrayElem);
+			    	
+			    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
 			    	
 				    signInfo.Add(signInfoEntry);
 				    

@@ -132,7 +132,6 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject token = null;
 	    CBORObject cbor = null;
 	    boolean provideSignInfo = false;
-	    boolean providePubKeyEnc = false;
 	    boolean invalid = false;
 	    
         try {
@@ -170,19 +169,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		else invalid = true;
     	}
     	
-    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC))) {
-    		if (cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).equals(CBORObject.Null)) {
-    			providePubKeyEnc = true;
-    		}
-    		else invalid = true;
-    	}
-    	
         if (invalid) {
-            LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
+            LOGGER.info("Invalid format for 'sign_info'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Invalid format for 'sign_info' and 'pub_key_enc'");
+                    "Invalid format for 'sign_info'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
@@ -331,7 +323,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
     	    
-	    	if (provideSignInfo || providePubKeyEnc) {
+	    	if (provideSignInfo) {
 	    	    
 	    		CBORObject signInfo = CBORObject.NewArray();
 	    	
@@ -343,35 +335,23 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 					CBORObject signInfoEntry = CBORObject.NewArray();
 					
 					signInfoEntry.Add(CBORObject.FromObject(groupName)); // 'id' element
-					
-				    if (provideSignInfo) {
-					
-						signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
-				    	
-				    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
-				    	if (arrayElem == null)
-				    		signInfoEntry.Add(CBORObject.Null);
-				    	else
-				    		signInfoEntry.Add(arrayElem);
-				    	
-				    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
-				    	if (arrayElem == null)
-				    		signInfoEntry.Add(CBORObject.Null);
-				    	else
-				    		signInfoEntry.Add(arrayElem);
-			    
-				    }
-				    else {
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_alg' element
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_parameters' element
-				    	signInfoEntry.Add(CBORObject.Null); // 'sign_key_parameters' element
-				    }
+									
+					signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
 			    	
-				    if (providePubKeyEnc) {
-				    	
-				    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
-				    	
-				    }
+			    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
+			    	if (arrayElem == null)
+			    		signInfoEntry.Add(CBORObject.Null);
+			    	else
+			    		signInfoEntry.Add(arrayElem);
+			    	
+			    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
+			    	if (arrayElem == null)
+			    		signInfoEntry.Add(CBORObject.Null);
+			    	else
+			    		signInfoEntry.Add(arrayElem);
+			    	
+			    	signInfoEntry.Add(myGroup.getCsKeyEnc()); // 'pub_key_enc' element
+
 			    	
 				    signInfo.Add(signInfoEntry);
 				    

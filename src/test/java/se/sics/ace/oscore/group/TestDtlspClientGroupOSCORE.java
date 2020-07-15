@@ -316,10 +316,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -382,31 +380,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-	    		
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	        
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -716,10 +708,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -782,31 +772,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -1231,10 +1215,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);   
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -1297,31 +1279,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -1632,10 +1608,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -1698,31 +1672,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -2293,10 +2261,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -2359,31 +2325,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -2706,10 +2666,8 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo)
+        if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
-        if (askForPubKeyEnc)
-        	payload.Add(Constants.PUB_KEY_ENC, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
@@ -2772,31 +2730,25 @@ public class TestDtlspClientGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
