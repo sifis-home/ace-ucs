@@ -1152,8 +1152,8 @@ public class TestDtlspClientGroupOSCORE {
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = token.encode(ctx);    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CBORObject payload = token.encode(ctx);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
               
@@ -1222,7 +1222,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
@@ -1617,7 +1617,7 @@ public class TestDtlspClientGroupOSCORE {
         if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));

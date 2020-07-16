@@ -129,6 +129,15 @@ public class PlugtestRSGroupOSCORE {
 	private static int portNumberNoSec = 5690;
 	private static int portNumberSec = 5691;
 	
+	// Sender ID 0x52 for an already present group member
+	private static final byte[] idClient2 = new byte[] { (byte) 0x52 };
+	
+	// Sender ID 0x77 for an already present group member
+	private static final byte[] idClient3 = new byte[] { (byte) 0x77 };
+	
+	// For the sake of testing, a particular Sender ID is used as known to be available.
+    static byte[] senderId = new byte[] { (byte) 0x25 };
+	
     /**
      * Definition of the Hello-World Resource
      */
@@ -457,8 +466,6 @@ public class PlugtestRSGroupOSCORE {
         	GroupInfo myGroup = activeGroups.get(groupName);
         	
         	// Assign a new Sender ID to the joining node.
-        	// For the sake of testing, a particular Sender ID is used as known to be available.
-            byte[] senderId = new byte[] { (byte) 0x25 };
         	myGroup.allocateSenderId(senderId);        	
         	
         	// Retrieve 'client_cred'
@@ -912,17 +919,17 @@ public class PlugtestRSGroupOSCORE {
     	*/
     	
     	
-    	// Add a group member with Sender ID 0x52
-    	mySid = new byte[] { (byte) 0x52 };
+    	// Add a group member
+    	mySid = idClient2;
     	myGroup.allocateSenderId(mySid);	
     	
     	String rpkStr1 = "";
     	
-    	// Store the public key of the group member with Sender ID 0x52 (ECDSA_256)
+    	// Store the public key of the group member with Sender ID 'idClient2' (ECDSA_256)
     	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
     		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
     	
-    	// Store the public key of the group member with Sender ID 0x52 (EDDSA - Ed25519)
+    	// Store the public key of the group member with Sender ID 'idClient2' (EDDSA - Ed25519)
     	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
     		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
     	
@@ -932,18 +939,17 @@ public class PlugtestRSGroupOSCORE {
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
     	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
     	
-    	
-    	// Add a group member with Sender ID 0x77
-    	mySid = new byte[] { (byte) 0x77 };
+    	// Add a group member
+    	mySid = idClient3;
     	myGroup.allocateSenderId(mySid);
     	
     	String rpkStr2 = "";
     	
-    	// Store the public key of the group member with Sender ID 0x77 (ECDSA_256)
+    	// Store the public key of the group member with Sender ID 'idClient3' (ECDSA_256)
     	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
     		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     	
-    	// Store the public key of the group member with Sender ID 0x77 (EDDSA - Ed25519)
+    	// Store the public key of the group member with Sender ID 'idClient3' (EDDSA - Ed25519)
     	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
     		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     	

@@ -310,7 +310,7 @@ public class TestDtlspClient2RS {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
               
