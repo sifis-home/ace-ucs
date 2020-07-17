@@ -702,6 +702,9 @@ public class TestDtlspRSGroupOSCORE {
         		
         	}
         	
+        	// Group Policies
+        	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
+        	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
         	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         	
@@ -878,7 +881,8 @@ public class TestDtlspRSGroupOSCORE {
     			                          csAlg,
     			                          csParams,
     			                          csKeyParams,
-    			                          csKeyEnc);
+    			                          csKeyEnc,
+    			                          null);
         
     	byte[] mySid;
     	OneKey myKey;

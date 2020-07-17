@@ -928,6 +928,11 @@ public class Constants {
       */
      public static final short NUM = 206;
      
+     /**
+      * Value for the label "group_plicies" in the Join Response message
+      */
+     public static final short GROUP_POLICIES = 207;
+     
      
      /**
       * Value for the group key type "Group_OSCORE_Security_Context object"
@@ -939,6 +944,38 @@ public class Constants {
       */
      public static final short COAP_GROUP_OSCORE_APP = 1;
      
+     
+     /* Values for labels of group policies */
+     /**
+      * Value for the label of "Sequence Number Synchronization Method"
+      * 
+      * Possible values for the policy are:
+      * 1: "Best effort" (default)
+      * 2: "Baseline"
+      * 3: "Echo challenge-response"
+      */
+     public static final short POLICY_SN_SYNCH = 1;
+     
+     /**
+      * Value for the label of "Key Update Check Interval"
+      * 
+      * Default: 3600 s
+      */
+     public static final short POLICY_KEY_CHECK_INTERVAL = 2;
+     
+     /**
+      * Value for the label of "Expiration delta"
+      * 
+      * Default: 0 s
+      */
+     public static final short POLICY_EXP_DELTA = 3;
+     
+     /**
+      * Value for the label of "Group OSCORE Pairwise Mode"
+      * 
+      * Default: False
+      */
+     public static final short POLICY_PAIRWISE_MODE = 4;
      
      /**
       * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model

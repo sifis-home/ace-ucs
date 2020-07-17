@@ -213,7 +213,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     			                          csAlg,
     			                          csParams,
     			                          csKeyParams,
-    			                          csKeyEnc);
+    			                          csKeyEnc,
+    			                          null);
         
     	// Add this OSCORE group to the set of active groups
 

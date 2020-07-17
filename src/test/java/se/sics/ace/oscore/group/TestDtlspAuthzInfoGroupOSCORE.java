@@ -232,7 +232,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     			                          csAlg,
     			                          csParams,
     			                          csKeyParams,
-    			                          csKeyEnc);
+    			                          csKeyEnc,
+    			                          null);
         
     	// Add this OSCORE group to the set of active OSCORE groups
     	activeGroups.put(groupName, myGroup);
