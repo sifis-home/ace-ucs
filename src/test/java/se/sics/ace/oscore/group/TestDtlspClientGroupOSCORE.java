@@ -2229,13 +2229,6 @@ public class TestDtlspClientGroupOSCORE {
     	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
-        
-    	// Client's asymmetric key pair
-    	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        String asymmetricKidStr = "ClientKeyPair";
-        CBORObject asymmetricKid = CBORObject.FromObject(
-        		asymmetricKidStr.getBytes(Constants.charset));
-        asymmetric.add(KeyKeys.KeyId, asymmetricKid);
     	
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
@@ -2632,13 +2625,6 @@ public class TestDtlspClientGroupOSCORE {
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
-    	// Client's asymmetric key pair
-    	OneKey asymmetric = OneKey.generateKey(AlgorithmID.ECDSA_256);
-        String asymmetricKidStr = "ClientKeyPair";
-        CBORObject asymmetricKid = CBORObject.FromObject(
-        		asymmetricKidStr.getBytes(Constants.charset));
-        asymmetric.add(KeyKeys.KeyId, asymmetricKid);
-    	
         CBORObject cborArrayScope = CBORObject.NewArray();
         CBORObject scopeEntry = CBORObject.NewArray();
         scopeEntry.Add(groupName);

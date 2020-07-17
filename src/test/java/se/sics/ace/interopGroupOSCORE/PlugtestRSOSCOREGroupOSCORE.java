@@ -67,6 +67,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -86,7 +87,9 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.CoapReq;
+import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
@@ -98,6 +101,7 @@ import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
+import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.TokenRepository;
 
@@ -110,18 +114,13 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
-public class PlugtestRSGroupOSCORE {
+public class PlugtestRSOSCOREGroupOSCORE {
 
 	// For old tests - PSK to encrypt the token (used for both audiences rs1 and rs2)
     private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
-	
-    // Asymmetric key of the RS (the same for all the RSs)
-    private static String rsX = "73B7D755827D5D59D73FD4015D47B445762F7CDB59799CD966714AB2727F1BA5";
-    private static String rsY = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
-    private static String rsD = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
-	
+    
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
 	static Map<String, GroupInfo> activeGroups = new HashMap<>();
@@ -137,6 +136,8 @@ public class PlugtestRSGroupOSCORE {
 	
 	// For the sake of testing, a particular Sender ID is used as known to be available.
     static byte[] senderId = new byte[] { (byte) 0x25 };
+    
+    
 	
     /**
      * Definition of the Hello-World Resource
@@ -712,15 +713,12 @@ public class PlugtestRSGroupOSCORE {
         }
     }
     
-    private static AuthzInfoGroupOSCORE ai = null; // M.T.
+    private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
     
     private static CoapDeliverer dpd = null;
-    
-    // OLD WAY with the Base 64 encoding
-    // private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-    
+   
     
     /**
      * The CoAPs server for testing, run this before running the Junit tests.
@@ -965,30 +963,6 @@ public class PlugtestRSGroupOSCORE {
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
     	new File(tokenFile).delete();
-
-        // OLD WAY with the Base 64 encoding
-        /*
-        OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
-                Base64.getDecoder().decode(rpk)));
-        */
-        
-        //Setup the Group Manager RPK
-        CBORObject rpkData = CBORObject.NewMap();
-        rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
-        rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        CBORObject x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsX));
-        CBORObject y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsY));
-        CBORObject d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsD));
-        rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
-        rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-        rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
-        OneKey asymmetric = new OneKey(rpkData);
-        String keyId = new RawPublicKeyIdentity(
-        		asymmetric.AsPublicKey()).getName();
-        asymmetric.add(KeyKeys.KeyId, CBORObject.FromObject(
-                keyId.getBytes(Constants.charset)));
         
         //Set up COSE parameters
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -998,7 +972,7 @@ public class PlugtestRSGroupOSCORE {
 
         
         // Set up the inner Authz-Info library
-        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+        ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
         	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
@@ -1041,7 +1015,7 @@ public class PlugtestRSGroupOSCORE {
   	    Resource temp = new TempResource();
   	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource); // M.T.
   	    Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
-  	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
+  	    Resource authzInfo = new CoapAuthzInfo(ai);
       
   	    rs = new CoapServer();
   	    rs.add(hello);
@@ -1052,38 +1026,12 @@ public class PlugtestRSGroupOSCORE {
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
 
-      
-  	    /*
-  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-              .setAddress(
-                      new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-  	    */
-  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-                .setAddress(
-                        new InetSocketAddress(portNumberSec));
-  	    
-  	    config.setSupportedCipherSuites(new CipherSuite[]{
-               CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-               CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-  	    config.setRpkTrustAll();
-  	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-  	    config.setPskStore(psk);
-  	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-  	    config.setClientAuthenticationRequired(true);
-  	    DTLSConnector connector = new DTLSConnector(config.build());
-  	    CoapEndpoint cep = new Builder().setConnector(connector)
-               .setNetworkConfig(NetworkConfig.getStandard()).build();
-  	    rs.addEndpoint(cep);
-  	    //Add a CoAP (no 's') endpoint for authz-info
-  	    
-  	    /*
-  	    CoapEndpoint aiep = new Builder().setInetSocketAddress(
-               new InetSocketAddress(CoAP.DEFAULT_COAP_PORT)).build();
-  	    */  
-  	    CoapEndpoint aiep = new Builder().setInetSocketAddress(
-                new InetSocketAddress(portNumberNoSec)).build();
-  	    
-  	    rs.addEndpoint(aiep);
+  	    rs.addEndpoint(new CoapEndpoint.Builder()
+                .setCoapStackFactory(new OSCoreCoapStackFactory())
+                .setPort(portNumberNoSec)
+                .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
+                .build());
+
   	    rs.setMessageDeliverer(dpd);
   	    rs.start();
   	    System.out.println("Server starting");

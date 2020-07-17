@@ -919,7 +919,7 @@ public class Constants {
      public static final short PUB_KEY_ENC = 204;
      
      /**
-      * Value for the label "rs_nonce" in the Token POST response
+      * Value for the label "kdcchallenge" in the Token POST response
       */
      public static final short KDCCHALLENGE = 205;
      
