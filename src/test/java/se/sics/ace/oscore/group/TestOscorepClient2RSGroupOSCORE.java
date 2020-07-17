@@ -66,7 +66,7 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
@@ -482,7 +482,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         joinReq.getOptions().setOscore(new byte[0]);
         joinReq.setPayload(requestPayload.EncodeToBytes());
         joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
-       
+        
         // Submit the request
         System.out.println("");
         System.out.println("Sent Join request to GM: " + requestPayload.toString());
@@ -490,6 +490,16 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
+    	final byte[] senderId = new byte[] { (byte) 0x25 };
+        String nodeName = Utils.bytesToHex(senderId);
+        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
+        
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
        
@@ -537,7 +547,6 @@ public class TestOscorepClient2RSGroupOSCORE {
                                       (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-        final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
         final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -903,6 +912,16 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
+    	final byte[] senderId = new byte[] { (byte) 0x25 };
+        String nodeName = Utils.bytesToHex(senderId);
+        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
+        
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
        
@@ -950,7 +969,6 @@ public class TestOscorepClient2RSGroupOSCORE {
                                       (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-        final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
         final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;

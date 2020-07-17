@@ -59,6 +59,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
@@ -74,6 +75,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -109,6 +111,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     private static byte[] key128_token = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
+    
+    private final static String rootGroupMembershipResource = "group-oscore";
     
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
@@ -455,7 +459,9 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	GroupInfo myGroup = activeGroups.get(groupName);
         	
         	// Assign a new Sender ID to the joining node.
-        	myGroup.allocateSenderId(senderId);        	
+        	myGroup.allocateSenderId(senderId);
+        	
+        	String nodeName = Utils.bytesToHex(senderId);
         	
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
@@ -696,7 +702,14 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	}
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
-        	exchange.respond(ResponseCode.CREATED, responsePayload, Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        	
+        	Response coapJoinResponse = new Response(CoAP.ResponseCode.CREATED);
+        	coapJoinResponse.setPayload(responsePayload);
+        	coapJoinResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	coapJoinResponse.getOptions().setLocationPath(uriNodeResource);
+
+        	exchange.respond(coapJoinResponse);
         	
         }
     }
@@ -733,7 +746,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
     	
-    	final String rootGroupMembershipResource = "group-oscore";
     	final String groupName = "feedca570000";
     	
         //Set up DTLSProfileTokenRepository

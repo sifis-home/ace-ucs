@@ -23,6 +23,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -39,6 +40,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -77,6 +79,8 @@ public class TestOscorepRSGroupOSCORE {
 	
 	//Sets the port to use
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT;
+	
+    private final static String rootGroupMembershipResource = "group-oscore";
 	
 	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4; 
@@ -208,8 +212,6 @@ public class TestOscorepRSGroupOSCORE {
     	final Provider EdDSA = new EdDSASecurityProvider();
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
-    	
-    	final String rootGroupMembershipResource = "group-oscore";
     	
     	final String groupName = "feedca570000";
     	
@@ -659,6 +661,8 @@ public class TestOscorepRSGroupOSCORE {
             byte[] senderId = new byte[] { (byte) 0x25 };
         	myGroup.allocateSenderId(senderId);        	
         	
+        	String nodeName = Utils.bytesToHex(senderId);
+        	
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
@@ -895,7 +899,14 @@ public class TestOscorepRSGroupOSCORE {
         	}
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
-        	exchange.respond(ResponseCode.CREATED, responsePayload, Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        	
+        	Response coapJoinResponse = new Response(CoAP.ResponseCode.CREATED);
+        	coapJoinResponse.setPayload(responsePayload);
+        	coapJoinResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	coapJoinResponse.getOptions().setLocationPath(uriNodeResource);
+
+        	exchange.respond(coapJoinResponse);
         	
         }
     }

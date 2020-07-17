@@ -1470,6 +1470,11 @@ public class PlugtestClientGroupOSCORE {
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
         printResponseFromRS(r2);
         
         /*
@@ -1874,6 +1879,11 @@ public class PlugtestClientGroupOSCORE {
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
         printResponseFromRS(r2);
         
         /*
@@ -2272,6 +2282,11 @@ public class PlugtestClientGroupOSCORE {
         printMapPayload(requestPayload);
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
         
         printResponseFromRS(r2);
         
@@ -2683,6 +2698,11 @@ public class PlugtestClientGroupOSCORE {
         printMapPayload(requestPayload);
         
         CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
         
         printResponseFromRS(r2);
         

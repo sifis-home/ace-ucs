@@ -545,6 +545,11 @@ public class PlugtestClientOSCOREGroupOSCORE {
         printMapPayload(requestPayload);
         
         CoapResponse r2 = c.advanced(joinReq);
+
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
         
         printResponseFromRS(r2.advanced());
        
@@ -966,6 +971,11 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         CoapResponse r2 = c.advanced(joinReq);
        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
         printResponseFromRS(r2.advanced());
         
         /*
