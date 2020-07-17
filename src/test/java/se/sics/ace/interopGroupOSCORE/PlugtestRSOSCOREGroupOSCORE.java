@@ -33,7 +33,6 @@ package se.sics.ace.interopGroupOSCORE;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -59,18 +58,11 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapEndpoint.Builder;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -97,9 +89,6 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
-import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
-import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
-import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
@@ -126,7 +115,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 	
 	private static int portNumberNoSec = 5690;
-	private static int portNumberSec = 5691;
 	
 	// Sender ID 0x52 for an already present group member
 	private static final byte[] idClient2 = new byte[] { (byte) 0x52 };

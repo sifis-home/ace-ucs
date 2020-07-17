@@ -42,10 +42,8 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -54,25 +52,11 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.CoapEndpoint.Builder;
-import org.eclipse.californium.core.network.config.NetworkConfig;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
-import org.eclipse.californium.scandium.DTLSConnector;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -86,13 +70,9 @@ import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.ReferenceToken;
-import se.sics.ace.as.Token;
-import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.cwt.CWT;
-// import se.sics.ace.interopGroupOSCORE.TestCoAPClientGroupOSCORE.RunTestServer;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
@@ -161,7 +141,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // The cnf key (OSCORE Master Secret) used in these tests
     private static byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
-    private static OSCoreCtx osctx;
     private static OSCoreCtxDB ctxDB;
     
     //Needed to show token content
@@ -171,7 +150,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     private static int portNumberRSnosec = 5690;
     
     private static String rsAddr = "";
-    private static String rsAuthzInfo = "";
     private static final String rootGroupMembershipResource = "group-oscore";
     private static final String groupName = new String("feedca570000");
     
@@ -180,12 +158,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
     private static int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
-    
-    /**
-     * The logger
-     */
-    private static final Logger LOGGER 
-        = Logger.getLogger(PlugtestClientGroupOSCORE.class.getName() ); 
     
     /**
      * @param args
@@ -324,24 +296,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	    break;
         }
         
-    }
-    
-    private static void printResponseFromAS(CoapResponse res) throws Exception {
-        if (res != null) {
-        	System.out.println("*** Response from the AS *** ");
-            System.out.print(res.getCode().codeClass + "." 
-                    + "0" + res.getCode().codeDetail);
-            System.out.println(" " + res.getCode().name());
-
-            if (res.getPayload() != null) {
-            	CBORObject resCBOR = CBORObject.DecodeFromBytes(res.getPayload());
-                Map<Short, CBORObject> map = Constants.getParams(resCBOR);
-                System.out.println(map);
-            }
-        } else {
-        	System.out.println("*** The response from the AS is null!");
-            System.out.print("No response received");
-        }
     }
 
     private static void printMapPayload(CBORObject obj) throws Exception {

@@ -73,10 +73,14 @@ public class PlugtestASGroupOSCORE
 	// For old tests
     private static byte[] key128_client_A = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    
+    // More PSKs if needed
+    /*
     private static byte[] key128_client_B = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     private static byte[] key128_client_D = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    */
     
     // For group joining tests (rs2, rs3 and rs4 are Group Managers)
     private static byte[] key128_client_F = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
@@ -157,6 +161,8 @@ public class PlugtestASGroupOSCORE
                 CBORObject.FromObject(key128_client_A));
         OneKey authPsk_clientA = new OneKey(keyData);
         
+        // More PSKs if needed
+        /*
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
@@ -168,6 +174,7 @@ public class PlugtestASGroupOSCORE
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
                 CBORObject.FromObject(key128_client_D));
         OneKey authPsk_clientD = new OneKey(keyData);
+        */
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
@@ -231,9 +238,11 @@ public class PlugtestASGroupOSCORE
                 CBORObject.FromObject(key128_token_rs4));
         OneKey tokenPsk_rs4 = new OneKey(keyData);
 
+        CBORObject rpkData = null;
+        
         // Build the Client public key (for clientC)
         // Ready for possibly consider clients using the RPK mode
-        CBORObject rpkData = CBORObject.NewMap();
+        rpkData = CBORObject.NewMap();
         rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
         rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
                 AlgorithmID.ECDSA_256.AsCBOR());

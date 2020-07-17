@@ -42,7 +42,6 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -63,11 +62,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.junit.AfterClass;
 import org.junit.Assert;
-import org.junit.BeforeClass;
-import org.junit.Ignore;
-import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -105,6 +100,8 @@ public class PlugtestClientGroupOSCORE {
 	// For old tests
     private static byte[] key128_client_A = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+	// More PSKs if needed
+	/*
     private static byte[] key128_client_B = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     private static byte[] key128_client_C = {0x41, 0x42, 0x43, 0x04, 0x05, 0x06, 0x07,
@@ -115,26 +112,15 @@ public class PlugtestClientGroupOSCORE {
     private static OneKey clientB_PSK = null;
     private static OneKey clientC_PSK = null;
     private static OneKey clientD_PSK = null;
+    */
     
     // For group joining tests
     private static byte[] key128_client_F = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
+    private static OneKey clientF_PSK = null;
     private static byte[] key128_client_G = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
             0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
-    private static OneKey clientF_PSK = null;
     private static OneKey clientG_PSK = null;
-    
-	// For old tests
-    private static byte[] key128_rs1 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
-    
-    // For group joining tests (rs2, rs3 and rs4 are Group Managers)
-    private static byte[] key128_rs2 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
-    private static byte[] key128_rs3 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
-    private static byte[] key128_rs4 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x13};
 
 	// For old tests - PSK to encrypt the token
     private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
@@ -214,6 +200,7 @@ public class PlugtestClientGroupOSCORE {
     /* END LIST OF KEYS */
     
     // For old tests
+    /*
     private static byte[] kid1 = 
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBC};
     private static byte[] kid2 = 
@@ -222,6 +209,7 @@ public class PlugtestClientGroupOSCORE {
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBE};
     private static byte[] kid4 =
         {(byte)0x91, (byte)0xEC, (byte)0xB5, (byte)0xCB, 0x5D, (byte)0xBF};
+	*/
 
     // For group joining tests
     private static byte[] kid6 =
@@ -231,9 +219,6 @@ public class PlugtestClientGroupOSCORE {
     
     //Needed to show token content
     private static CwtCryptoCtx ctx1 = null;
-    private static CwtCryptoCtx ctx2 = null;
-    private static CwtCryptoCtx ctx3 = null;
-    private static CwtCryptoCtx ctx4 = null;
     
 	// OLD SETUP
 	/*
@@ -405,6 +390,9 @@ public class PlugtestClientGroupOSCORE {
         //
         
         //Setup PSKs
+    	
+    	// More PSKs if needed
+    	/*
         CBORObject pskData = CBORObject.NewMap();
         pskData.Add(KeyKeys.KeyType.AsCBOR(), 
                 KeyKeys.KeyType_Octet);
@@ -436,6 +424,7 @@ public class PlugtestClientGroupOSCORE {
                 CBORObject.FromObject(key128_client_D));
         pskData4.Add(KeyKeys.KeyId.AsCBOR(), kid4);
         clientD_PSK = new OneKey(pskData4);
+        */
         
         CBORObject pskData6 = CBORObject.NewMap();
         pskData6.Add(KeyKeys.KeyType.AsCBOR(), 
@@ -470,9 +459,6 @@ public class PlugtestClientGroupOSCORE {
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         ctx1 = CwtCryptoCtx.encrypt0(key128_token_rs1, coseP.getAlg().AsCBOR());
-        ctx2 = CwtCryptoCtx.encrypt0(key128_token_rs2, coseP.getAlg().AsCBOR());
-        ctx3 = CwtCryptoCtx.encrypt0(key128_token_rs3, coseP.getAlg().AsCBOR());
-        ctx4 = CwtCryptoCtx.encrypt0(key128_token_rs4, coseP.getAlg().AsCBOR());
         
         switch (testcase) {
         
