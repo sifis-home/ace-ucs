@@ -605,8 +605,7 @@ public class TestDtlspRSGroupOSCORE {
         	CBORObject joinResponse = CBORObject.NewMap();
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
-        	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -639,7 +638,7 @@ public class TestDtlspRSGroupOSCORE {
         	
         	// CBOR Value assigned to the "coap_group_oscore_app" profile.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
@@ -683,7 +682,7 @@ public class TestDtlspRSGroupOSCORE {
         	}
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
-        	exchange.respond(ResponseCode.CREATED, responsePayload, MediaTypeRegistry.APPLICATION_CBOR);
+        	exchange.respond(ResponseCode.CREATED, responsePayload, Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         	
         }
     }

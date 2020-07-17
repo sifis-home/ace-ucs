@@ -832,6 +832,18 @@ public class Constants {
     public static final short iPATCH = 7;
     
     
+
+    /**
+     * Content-Format ace+cbor
+     */
+    public static final int APPLICATION_ACE_CBOR = 65000;
+    
+    /**
+     * Content-Format ace-groupcomm+cbor
+     */
+    public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 66000;
+    
+    
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
@@ -915,6 +927,17 @@ public class Constants {
       * Value for the label "num" in the Join Response message
       */
      public static final short NUM = 206;
+     
+     
+     /**
+      * Value for the group key type "Group_OSCORE_Security_Context object"
+      */
+     public static final short GROUP_OSCORE_SECURITY_CONTEXT_OBJECT = 1;
+     
+     /**
+      * Value for the application profile "coap_group_oscore_app"
+      */
+     public static final short COAP_GROUP_OSCORE_APP = 1;
      
      
      /**
