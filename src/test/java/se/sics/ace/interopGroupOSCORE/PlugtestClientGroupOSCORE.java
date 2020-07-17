@@ -633,7 +633,7 @@ public class PlugtestClientGroupOSCORE {
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
 
     }
@@ -693,7 +693,7 @@ public class PlugtestClientGroupOSCORE {
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -732,7 +732,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -771,7 +771,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -810,7 +810,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -849,7 +849,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -926,7 +926,7 @@ public class PlugtestClientGroupOSCORE {
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -970,7 +970,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -1014,7 +1014,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -1110,7 +1110,7 @@ public class PlugtestClientGroupOSCORE {
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -1155,7 +1155,7 @@ public class PlugtestClientGroupOSCORE {
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*
@@ -1242,7 +1242,7 @@ public class PlugtestClientGroupOSCORE {
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
         /*

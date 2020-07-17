@@ -39,6 +39,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.Provider;
 import java.security.PublicKey;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
@@ -239,7 +240,7 @@ public class TestDtlspRSGroupOSCORE {
                 if (subject == null) {
 	            	// At this point, this should not really happen, due to the earlier check at the Token Repository
 	            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
-  				return;
+	            	return;
                 }
             } else  {
                 subject = request.getSourceContext().getPeerIdentity().getName();
@@ -253,13 +254,27 @@ public class TestDtlspRSGroupOSCORE {
             // TODO: REMOVE DEBUG PRINT
             // System.out.println("xxx @GM rsnonce " + rsNonceString);
                         
+            if(rsNonceString == null) {
+            	// Return an error response, with a new nonce for PoP of the Client's private key in the next Join Request
+        	    CBORObject responseMap = CBORObject.NewMap();
+                byte[] rsnonce = new byte[8];
+                new SecureRandom().nextBytes(rsnonce);
+                responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
+                TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
+                byte[] responsePayload = responseMap.EncodeToBytes();
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+            	return;
+            }
+            
             byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
             
         	byte[] requestPayload = exchange.getRequestPayload();
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
             
-        	if (!joinRequest.getType().equals(CBORType.Map))
+        	if (!joinRequest.getType().equals(CBORType.Map)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        		return;
+        	}
         		
         	// More steps follow:
         	//

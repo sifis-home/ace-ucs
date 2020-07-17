@@ -39,7 +39,6 @@ import java.util.Map;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -158,7 +157,7 @@ public class TestDtlsClient2AS {
         try {
             client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
@@ -202,7 +201,7 @@ public class TestDtlsClient2AS {
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+                Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
@@ -244,7 +243,7 @@ public class TestDtlsClient2AS {
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);

@@ -175,7 +175,7 @@ public class OSCOREProfileRequests {
         try {
             r = client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR).advanced();
+                    Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());

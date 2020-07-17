@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.CoapRes;
@@ -86,7 +87,7 @@ public class CoapAuthzInfo extends CoapResource {
             //Safe to cast, since CoapReq only ever renders a CoapRes
             CoapRes response = (CoapRes)reply; 
             exchange.respond(response.getCode(), response.getRawPayload(),
-                    MediaTypeRegistry.APPLICATION_CBOR);
+            		Constants.APPLICATION_ACE_CBOR);
         } catch (AceException e) {
             LOGGER.severe("Error while handling incoming POST: " 
                     + e.getMessage());

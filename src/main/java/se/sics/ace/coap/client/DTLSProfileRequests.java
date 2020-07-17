@@ -145,7 +145,7 @@ public class DTLSProfileRequests {
         try {
             return client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("DTLSConnector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -209,7 +209,7 @@ public class DTLSProfileRequests {
         try {
             r = client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("DTLSConnector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
