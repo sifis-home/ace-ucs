@@ -149,7 +149,7 @@ public class PlugtestClientGroupOSCORE {
     private static String asY = "364269649744067D4600A529AE12076750D90C5EFCD9835137DB1AE2B4BACCB8";
     static OneKey asRPK = null;
     
-	// Public key of a Client (client3) for DTLS handshakes only
+	// Asymmetric key pair of a Client (client3) for DTLS handshakes only
     private static String cX = "12D6E8C4D28F83110A57D253373CAD52F01BC447E4093541F643B385E179C110";
     private static String cY = "283B3D8D28FFA59FE5CB540412A750FA8DFA34F6DA69BCDA68400D679C1347E8";
     private static String cD = "00A43BAA7ED22FF2699BA62CA4999359B146F065A95C4E46017CD25EB89A94AD29";

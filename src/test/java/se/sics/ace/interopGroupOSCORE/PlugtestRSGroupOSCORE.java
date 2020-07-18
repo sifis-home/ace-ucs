@@ -805,14 +805,6 @@ public class PlugtestRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource3);
         
         // M.T.
         // Adding another group-membership resource, as one scope for each different combinations of
@@ -827,14 +819,6 @@ public class PlugtestRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_monitor_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_responder_requester", myResource4);
         
         // M.T.
         Set<String> auds = new HashSet<>();

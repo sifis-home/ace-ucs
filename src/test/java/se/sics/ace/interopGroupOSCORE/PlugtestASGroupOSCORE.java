@@ -313,10 +313,7 @@ public class PlugtestASGroupOSCORE
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add(groupName + "_requester");
-        scopes.add(groupName + "_responder");
-        scopes.add(groupName + "_monitor");
-        scopes.add(groupName + "_requester_responder");
+        scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
         auds.add("rs2");
         keyTypes.clear();
@@ -338,10 +335,7 @@ public class PlugtestASGroupOSCORE
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add(groupName + "_requester");
-        scopes.add(groupName + "_responder");
-        scopes.add(groupName + "_monitor");
-        scopes.add(groupName + "_requester_responder");
+        scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
         auds.add("rs3");
         keyTypes.clear();
@@ -363,10 +357,7 @@ public class PlugtestASGroupOSCORE
         profiles.clear();
         profiles.add("coap_dtls");
         scopes.clear();
-        scopes.add(groupName + "_requester");
-        scopes.add(groupName + "_responder");
-        scopes.add(groupName + "_monitor");
-        scopes.add(groupName + "_requester_responder");
+        scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
         auds.add("rs4");
         keyTypes.clear();
