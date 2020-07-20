@@ -287,12 +287,12 @@ public class DtlspClientGroupOSCORE {
 
         /* Parse the Join response in detail */
 
-        OscorepClient2RSGroupOSCORE.printJoinResponse(joinResponse);
+        GroupOSCOREUtils.printJoinResponse(joinResponse);
 
         /* Generate a Group OSCORE security context from the Join response */
 
 		// Add checking of the derived context
-		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
+		GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, groupKeyPair);
 
     }
 }

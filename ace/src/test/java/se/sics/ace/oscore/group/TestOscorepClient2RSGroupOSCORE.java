@@ -73,12 +73,11 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
@@ -116,6 +115,8 @@ public class TestOscorepClient2RSGroupOSCORE {
     private static byte[] keyASRS = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static RunTestServer srv = null;
     private static OSCoreCtx osctx;
+    
+    private static OSCoreCtxDB ctxDB;
     
     private static class RunTestServer implements Runnable {
         
@@ -188,6 +189,8 @@ public class TestOscorepClient2RSGroupOSCORE {
     	    strPublicKeyPeer2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     		
     	}
+    	
+        ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
     }
     
     /**
@@ -236,24 +239,31 @@ public class TestOscorepClient2RSGroupOSCORE {
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
+        
         Response rsRes = OSCOREProfileRequests.postToken(
-                "coap://localhost/authz-info", asRes);
+                "coap://localhost/authz-info", asRes, ctxDB);
+        
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
-       Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(
-               "coap://localhost/helloWorld"));
+        
+        Assert.assertNotNull(ctxDB.getContext(
+        	     "coap://localhost/helloWorld"));
        
        //Submit a request
-       CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT));
+
+       CoapClient c = OSCOREProfileRequestsGroupOSCORE.getClient(new InetSocketAddress(
+               "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
+       
        Request helloReq = new Request(CoAP.Code.GET);
        helloReq.getOptions().setOscore(new byte[0]);
        CoapResponse helloRes = c.advanced(helloReq);
        Assert.assertEquals("Hello World!", helloRes.getResponseText());
        
        //Submit a forbidden request
-       CoapClient c2 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-               "coap://localhost/temp", CoAP.DEFAULT_COAP_PORT));
+       
+       CoapClient c2 = OSCOREProfileRequestsGroupOSCORE.getClient(new InetSocketAddress(
+               "coap://localhost/temp", CoAP.DEFAULT_COAP_PORT), ctxDB);
+       
        Request getTemp = new Request(CoAP.Code.GET);
        getTemp.getOptions().setOscore(new byte[0]);
        CoapResponse getTempRes = c2.advanced(getTemp);
@@ -330,10 +340,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc);
+                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
-        Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(
+        
+        Assert.assertNotNull(ctxDB.getContext(
                 "coap://localhost/" + rootGroupMembershipResource + "/" + groupName));
         
         CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
@@ -391,31 +402,25 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -424,10 +429,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         
         // Now proceed with the Join request
+        
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
-       
-        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+        
+        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/group-oscore/feedca570000");
        
         CBORObject requestPayload = CBORObject.NewMap();
        
@@ -447,6 +453,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (askForPubKeys) {
            
             CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
             requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
            
         }
@@ -481,8 +489,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         Request joinReq = new Request(Code.POST, Type.CON);
         joinReq.getOptions().setOscore(new byte[0]);
         joinReq.setPayload(requestPayload.EncodeToBytes());
-        joinReq.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_CBOR);
-       
+        joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        
         // Submit the request
         System.out.println("");
         System.out.println("Sent Join request to GM: " + requestPayload.toString());
@@ -490,6 +498,16 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
+    	final byte[] senderId = new byte[] { (byte) 0x25 };
+        String nodeName = Utils.bytesToHex(senderId);
+        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
+        
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
        
@@ -498,7 +516,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
+        Assert.assertEquals(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
@@ -537,7 +555,6 @@ public class TestOscorepClient2RSGroupOSCORE {
                                       (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-        final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
         final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -595,7 +612,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
+        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
@@ -673,7 +690,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         else {
             Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
-
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
     }
     
     // M.T.
@@ -742,12 +764,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc);
+                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
-        Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(
+        
+        Assert.assertNotNull(ctxDB.getContext(
                 "coap://localhost/feedca570000"));
-
+        
         CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
         
@@ -802,31 +825,25 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
 	    	
-	    	if (askForSignInfo) {
-		    	
-		    	if (csAlgExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csAlgExpected);
-		    	if (csParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csParamsExpected);
-		    	if (csKeyParamsExpected == null)
-		    		signInfoEntry.Add(CBORObject.Null);
-		    	else
-		    		signInfoEntry.Add(csKeyParamsExpected);
-
-	    	}
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
 	    	
-	        if (askForPubKeyEnc) {
-	        	
-	        	if (csKeyEncExpected == null)
-	        		signInfoEntry.Add(CBORObject.Null);
-	        	else
-	        		signInfoEntry.Add(csKeyEncExpected);
-	        	
-	        }
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -834,11 +851,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
         
-        // Now proceed with the Join request        
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
+        // Now proceed with the Join request
         
-        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
+        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+        
+        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/group-oscore/feedca570000");
        
         CBORObject requestPayload = CBORObject.NewMap();
        
@@ -862,6 +880,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (askForPubKeys) {
            
             CBORObject getPubKeys = CBORObject.NewArray();
+            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
             requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
            
         }
@@ -896,7 +916,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Request joinReq = new Request(Code.POST, Type.CON);
         joinReq.getOptions().setOscore(new byte[0]);
         joinReq.setPayload(requestPayload.EncodeToBytes());
-        joinReq.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_CBOR);
+        joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
        
         //Submit the request
         System.out.println("");
@@ -905,6 +925,16 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
+        if (r2.getOptions().getLocationPath().size() != 0) {
+	        System.out.print("Location-Path: ");
+	        System.out.println(r2.getOptions().getLocationPathString());
+        }
+        
+    	final byte[] senderId = new byte[] { (byte) 0x25 };
+        String nodeName = Utils.bytesToHex(senderId);
+        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
+        
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
        
@@ -913,7 +943,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
         // Assume that "Group_OSCORE_Security_Context object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
+        Assert.assertEquals(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
@@ -952,7 +982,6 @@ public class TestOscorepClient2RSGroupOSCORE {
                                       (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-        final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
         final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
@@ -1010,7 +1039,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
         // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
+        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
@@ -1088,9 +1117,15 @@ public class TestOscorepClient2RSGroupOSCORE {
         else {
             Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         }
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
 
     }
-    
+
 	// M.T. & Rikard
 	/**
 	 * Test post to Authz-Info, then join using multiple roles. Uses the ACE
@@ -1114,10 +1149,11 @@ public class TestOscorepClient2RSGroupOSCORE {
 		CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
 		Map<Short, CBORObject> params = new HashMap<>();
 
-		// Create a byte string scope for use later
-		String groupName = new String("feedca570000");
+		// Create the scope
 		CBORObject cborArrayScope = CBORObject.NewArray();
 		CBORObject cborArrayEntry = CBORObject.NewArray();
+
+		String groupName = new String("feedca570000");
 		cborArrayEntry.Add(groupName);
 
 		int myRoles = 0;
@@ -1160,10 +1196,11 @@ public class TestOscorepClient2RSGroupOSCORE {
 		Response asRes = new Response(CoAP.ResponseCode.CREATED);
 		asRes.setPayload(payload.EncodeToBytes());
 		Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken("coap://localhost/authz-info", asRes,
-				askForSignInfo, askForPubKeyEnc);
+				askForSignInfo, askForPubKeyEnc, ctxDB);
 		assert (rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
 		// Check that the OSCORE context has been created:
-		Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext("coap://localhost/feedca570000"));
+
+		Assert.assertNotNull(ctxDB.getContext("coap://localhost/feedca570000"));
 
 		CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
 		// Sanity checks already occurred in
@@ -1221,31 +1258,25 @@ public class TestOscorepClient2RSGroupOSCORE {
 
 			signInfoEntry.Add(CBORObject.FromObject(groupName));
 
-			if (askForSignInfo) {
+			if (csAlgExpected == null)
+				signInfoEntry.Add(CBORObject.Null);
+			else
+				signInfoEntry.Add(csAlgExpected);
 
-				if (csAlgExpected == null)
-					signInfoEntry.Add(CBORObject.Null);
-				else
-					signInfoEntry.Add(csAlgExpected);
-				if (csParamsExpected == null)
-					signInfoEntry.Add(CBORObject.Null);
-				else
-					signInfoEntry.Add(csParamsExpected);
-				if (csKeyParamsExpected == null)
-					signInfoEntry.Add(CBORObject.Null);
-				else
-					signInfoEntry.Add(csKeyParamsExpected);
+			if (csParamsExpected == null)
+				signInfoEntry.Add(CBORObject.Null);
+			else
+				signInfoEntry.Add(csParamsExpected);
 
-			}
+			if (csKeyParamsExpected == null)
+				signInfoEntry.Add(CBORObject.Null);
+			else
+				signInfoEntry.Add(csKeyParamsExpected);
 
-			if (askForPubKeyEnc) {
-
-				if (csKeyEncExpected == null)
-					signInfoEntry.Add(CBORObject.Null);
-				else
-					signInfoEntry.Add(csKeyEncExpected);
-
-			}
+			if (csKeyEncExpected == null)
+				signInfoEntry.Add(CBORObject.Null);
+			else
+				signInfoEntry.Add(csKeyEncExpected);
 
 			signInfoExpected.Add(signInfoEntry);
 
@@ -1253,10 +1284,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		}
 
 		// Now proceed with the Join request
-		CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-				"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT));
 
-		System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
+		CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
+				"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+
+		System.out.println(
+				"Performing Join request using OSCORE to GM at " + "coap://localhost/group-oscore/feedca570000");
 
 		CBORObject requestPayload = CBORObject.NewMap();
 
@@ -1280,6 +1313,9 @@ public class TestOscorepClient2RSGroupOSCORE {
 		if (askForPubKeys) {
 
 			CBORObject getPubKeys = CBORObject.NewArray();
+			getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for
+													// all possible roles
+			getPubKeys.Add(CBORObject.NewArray()); // This must be empty
 			requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
 
 		}
@@ -1318,7 +1354,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 		Request joinReq = new Request(Code.POST, Type.CON);
 		joinReq.getOptions().setOscore(new byte[0]);
 		joinReq.setPayload(requestPayload.EncodeToBytes());
-		joinReq.getOptions().setContentFormat(MediaTypeRegistry.APPLICATION_CBOR);
+		joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
 
 		// Submit the request
 		System.out.println("");
@@ -1326,6 +1362,16 @@ public class TestOscorepClient2RSGroupOSCORE {
 		CoapResponse r2 = c.advanced(joinReq);
 
 		Assert.assertEquals("CREATED", r2.getCode().name());
+
+		if (r2.getOptions().getLocationPath().size() != 0) {
+			System.out.print("Location-Path: ");
+			System.out.println(r2.getOptions().getLocationPathString());
+		}
+
+		final byte[] senderId = new byte[] { (byte) 0x25 };
+		String nodeName = Utils.bytesToHex(senderId);
+		String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+		Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
 
 		byte[] responsePayload = r2.getPayload();
 		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
@@ -1337,7 +1383,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		// Assume that "Group_OSCORE_Security_Context object" is registered with
 		// value 0 in the "ACE Groupcomm Key" Registry of
 		// draft-ietf-ace-key-groupcomm
-		Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
+		Assert.assertEquals(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT,
+				joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
 
 		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
 		Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
@@ -1385,7 +1432,6 @@ public class TestOscorepClient2RSGroupOSCORE {
 				(byte) 0x0F, (byte) 0x10 };
 		final byte[] masterSalt = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22, (byte) 0x23, (byte) 0x78,
 				(byte) 0x63, (byte) 0x40 };
-		final byte[] senderId = new byte[] { (byte) 0x25 };
 		final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0,
 				(byte) 0x5c };
 		final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
@@ -1456,7 +1502,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 				joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
 		// Assume that "coap_group_oscore" is registered with value 0 in the
 		// "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-		Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
+		Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP,
+				joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
 
 		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
 		Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
@@ -1547,6 +1594,16 @@ public class TestOscorepClient2RSGroupOSCORE {
 		} else {
 			Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
 		}
+
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+		Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES))
+				.get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+		Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES))
+				.get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+		Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES))
+				.get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+		Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES))
+				.get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
 
 		/* Group OSCORE Context derivation below */
 
@@ -1748,7 +1805,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 		assertArrayEquals(recipientCtx.getParCountersignKey(), par_countersign_key);
 		assertArrayEquals(new byte[] { (byte) 0x77 }, recipientCtx.getRecipientId());
 	}
-
+    
     /**
      * Test unauthorized access to the RS
      * 
@@ -1756,12 +1813,12 @@ public class TestOscorepClient2RSGroupOSCORE {
      */
     @Test
     public void testNoAccess() throws Exception {
-
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-        db.addContext("coap://localhost/helloWorld", osctx);
+        
+        ctxDB.addContext("coap://localhost/helloWorld", osctx);
         CoapClient c = OSCOREProfileRequests.getClient(
                 new InetSocketAddress(
-                        "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT));
+                        "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        
         CoapResponse res = c.get();
         assert(res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED));
     }

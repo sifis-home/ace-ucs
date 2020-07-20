@@ -60,7 +60,7 @@ import se.sics.ace.rs.IntrospectionHandler;
 /**
  * An introspection handler using CoAPS (i.e. CoAP over DTLS) to connect to an AS.
  *
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreIntrospection implements IntrospectionHandler {
@@ -90,9 +90,9 @@ public class OscoreIntrospection implements IntrospectionHandler {
      * @throws OSException 
      * 
      */
-    public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress) 
+    public OscoreIntrospection(OSCoreCtx ctx, String introspectAddress, OSCoreCtxDB db) 
             throws CoseException, IOException, OSException {
-        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+        
         db.addContext(ctx);
         db.addContext(introspectAddress, ctx);
         this.client = new CoapClient(introspectAddress);

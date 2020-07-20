@@ -71,7 +71,7 @@ import se.sics.ace.Constants;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class DTLSProfileRequests {
@@ -115,7 +115,7 @@ public class DTLSProfileRequests {
                     keyId, key.get(KeyKeys.Octet_K).GetByteString()));
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        } else if (type.equals(KeyKeys.KeyType_EC2)){
+        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
             try {
                 builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
             } catch (CoseException e) {
@@ -145,7 +145,7 @@ public class DTLSProfileRequests {
         try {
             return client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("DTLSConnector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -209,7 +209,7 @@ public class DTLSProfileRequests {
         try {
             r = client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("DTLSConnector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
@@ -308,7 +308,19 @@ public class DTLSProfileRequests {
         
         InMemoryPskStore store = new InMemoryPskStore();
 
-        String identity = new String(kid, Constants.charset);
+        // NEW WAY, where a structure with "cnf" is used as "psk_identity"
+        CBORObject identityStructure = CBORObject.NewMap();
+        CBORObject cnfStructure = CBORObject.NewMap();
+        CBORObject COSEKeyStructure = CBORObject.NewMap();
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType), KeyKeys.KeyType_Octet);
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId), kid);
+        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
+        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
+        String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());      
+        
+        // OLD WAY, with only the kid used as "psk_identity"
+        // String identity = new String(kid, Constants.charset);
+        
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());

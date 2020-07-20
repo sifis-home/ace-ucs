@@ -429,7 +429,7 @@ public class Constants {
 	 * XXX: not specified yet
 	 */
 	public static final CBORObject OSCORE_Security_Context 
-	    = CBORObject.FromObject(4);
+	    = CBORObject.FromObject(99);
 
 	/**
 	 * The master secret
@@ -587,26 +587,26 @@ public class Constants {
     public static final String[] GRANT_TYPES = {"password", 
             "authorization_code", "client_credentials", "refresh_token"};
 
-
-    /**
-     * The abbreviation code for the DTLS profile
-     */
-    public static final short COAP_DTLS = 1;
     
     /**
      * The abbreviation code for the OSCORE profile
      */
     public static final short COAP_OSCORE = 2;
+
+    /**
+     * The abbreviation code for the DTLS profile
+     */
+    public static final short COAP_DTLS = 4;
     
     /**
      * Value for the label "nonce1" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE1 = 201;
+    public static final short NONCE1 = 65;
     
     /**
      * Value for the label "nonce2" in the Token POST request for the OSCORE profile
      */
-    public static final short NONCE2 = 202;
+    public static final short NONCE2 = 66;
     
     /**
      * Return the abbreviated profile id for the full profile name.
@@ -832,6 +832,18 @@ public class Constants {
     public static final short iPATCH = 7;
     
     
+
+    /**
+     * Content-Format ace+cbor
+     */
+    public static final int APPLICATION_ACE_CBOR = 65000;
+    
+    /**
+     * Content-Format ace-groupcomm+cbor
+     */
+    public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 66000;
+    
+    
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
@@ -907,7 +919,7 @@ public class Constants {
      public static final short PUB_KEY_ENC = 204;
      
      /**
-      * Value for the label "rs_nonce" in the Token POST response
+      * Value for the label "kdcchallenge" in the Token POST response
       */
      public static final short KDCCHALLENGE = 205;
      
@@ -916,6 +928,54 @@ public class Constants {
       */
      public static final short NUM = 206;
      
+     /**
+      * Value for the label "group_plicies" in the Join Response message
+      */
+     public static final short GROUP_POLICIES = 207;
+     
+     
+     /**
+      * Value for the group key type "Group_OSCORE_Security_Context object"
+      */
+     public static final short GROUP_OSCORE_SECURITY_CONTEXT_OBJECT = 1;
+     
+     /**
+      * Value for the application profile "coap_group_oscore_app"
+      */
+     public static final short COAP_GROUP_OSCORE_APP = 1;
+     
+     
+     /* Values for labels of group policies */
+     /**
+      * Value for the label of "Sequence Number Synchronization Method"
+      * 
+      * Possible values for the policy are:
+      * 1: "Best effort" (default)
+      * 2: "Baseline"
+      * 3: "Echo challenge-response"
+      */
+     public static final short POLICY_SN_SYNCH = 1;
+     
+     /**
+      * Value for the label of "Key Update Check Interval"
+      * 
+      * Default: 3600 s
+      */
+     public static final short POLICY_KEY_CHECK_INTERVAL = 2;
+     
+     /**
+      * Value for the label of "Expiration delta"
+      * 
+      * Default: 0 s
+      */
+     public static final short POLICY_EXP_DELTA = 3;
+     
+     /**
+      * Value for the label of "Group OSCORE Pairwise Mode"
+      * 
+      * Default: False
+      */
+     public static final short POLICY_PAIRWISE_MODE = 4;
      
      /**
       * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model

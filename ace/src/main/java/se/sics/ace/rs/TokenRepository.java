@@ -81,7 +81,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * the same repository (and yes I know that parameterized singletons are bad 
  * style, go ahead and suggest a better solution).
  *  
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TokenRepository implements AutoCloseable {
@@ -311,7 +311,7 @@ public class TokenRepository implements AutoCloseable {
 		}
 		
 		//Check for duplicate cti
-		if (this.cti2claims.containsKey(cti) && !ignoreDuplicateCti) {
+		if (this.cti2claims.containsKey(cti)) {
 		    throw new AceException("Duplicate cti");
 		}
 
@@ -433,7 +433,20 @@ public class TokenRepository implements AutoCloseable {
                 = new RawPublicKeyIdentity(key.AsPublicKey());
             this.sid2kid.put(rpk.getName(), kid);
         } else { //Take the kid as sid
-            this.sid2kid.put(kid, kid);
+        	
+        	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
+            CBORObject identityStructure = CBORObject.NewMap();
+            CBORObject cnfStructure = CBORObject.NewMap();
+            CBORObject COSEKeyStructure = CBORObject.NewMap();
+            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType), KeyKeys.KeyType_Octet);
+            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId), key.get(KeyKeys.KeyId));
+            cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
+            identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
+            String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
+            this.sid2kid.put(identity, kid);
+            
+            // OLD WAY, with only the kid used as "psk_identity"
+            //this.sid2kid.put(kid, kid);
         }        
     }
 
@@ -801,17 +814,5 @@ public class TokenRepository implements AutoCloseable {
     public Map<Short, CBORObject> getClaims(String cti) {
     	return this.cti2claims.get(cti);
     }
-
-	private static boolean ignoreDuplicateCti = false;
-
-	/**
-	 * Rikard: Allow ignoring duplicate CTI errors.
-	 * 
-	 * @param b Whether to ignore duplicate CTI errors
-	 */
-	public static void ignoreDuplicateCtis(boolean b) {
-		ignoreDuplicateCti = b;
-	}
-
 }
 

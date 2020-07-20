@@ -40,6 +40,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
+import se.sics.ace.Constants;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -79,6 +80,7 @@ public class GroupInfo {
 	private CBORObject csParams = null;
 	private CBORObject csKeyParams = null;
 	private CBORObject csKeyEnc = null;
+	private CBORObject groupPolicies = null;
 	
 	private int version; // Version of the current symmetric keying material
 	
@@ -99,6 +101,7 @@ public class GroupInfo {
 	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
 	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
 	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
+	 * @param groupPolicies		  the map of group policies used in the OSCORE group, or Null for building one with default values
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -113,7 +116,8 @@ public class GroupInfo {
     		         final AlgorithmID csAlg,
     		         final CBORObject csParams,
     		         final CBORObject csKeyParams,
-    		         final CBORObject csKeyEnc) {
+    		         final CBORObject csKeyEnc,
+    		         final CBORObject groupPolicies) {
     	
     	this.version = 0;
     	
@@ -144,6 +148,18 @@ public class GroupInfo {
     		this.maxSenderIdValue = (2 << 31) - 1;
     	else
     		this.maxSenderIdValue = (2 << (senderIdSize * 8)) - 1;
+    	
+    	this.groupPolicies = groupPolicies;
+    	
+    	if (groupPolicies == null) {
+    		// Set default policy values
+        	CBORObject defaultGroupPolicies = CBORObject.NewMap();
+        	defaultGroupPolicies.Add(Constants.POLICY_SN_SYNCH, CBORObject.FromObject(1));
+        	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
+        	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
+        	defaultGroupPolicies.Add(Constants.POLICY_PAIRWISE_MODE, CBORObject.False);
+        	this.groupPolicies = defaultGroupPolicies;
+    	}
     	
     }
     
@@ -668,6 +684,18 @@ public class GroupInfo {
     	this.version++;
     	
     }
+    
+    /**
+     *  Return the group policies
+	 *
+	 *  @return  a CBOR map including the group policies
+     */
+    synchronized public CBORObject getGroupPolicies() {
+    	
+    	return this.groupPolicies;
+    	
+    }
+    
     
     /**
      *  Convert a positive integer into a byte array of minimal size.

@@ -23,6 +23,7 @@ import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
@@ -39,6 +40,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -77,6 +79,8 @@ public class TestOscorepRSGroupOSCORE {
 	
 	//Sets the port to use
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT;
+	
+    private final static String rootGroupMembershipResource = "group-oscore";
 	
 	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4; 
@@ -209,8 +213,6 @@ public class TestOscorepRSGroupOSCORE {
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
     	
-    	final String rootGroupMembershipResource = "group-oscore";
-    	
     	final String groupName = "feedca570000";
     	
     	// Uncomment to set ECDSA with curve P-256 for countersignatures
@@ -245,14 +247,6 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource3);
         
         // M.T.
         // Adding another group-membership resource, as one scope for each different combinations of
@@ -267,14 +261,6 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder", myResource4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_monitor_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_monitor_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_requester_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor_responder_requester", myResource4);
         
         //Create the OSCORE Group(s)
         if (!OSCOREGroupCreation(groupName, countersignKeyCurve))
@@ -450,7 +436,7 @@ public class TestOscorepRSGroupOSCORE {
                 if (subject == null) {
 	            	// At this point, this should not really happen, due to the earlier check at the Token Repository
 	            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
-  				return;
+	            	return;
                 }
             } else  {
                 subject = request.getSourceContext().getPeerIdentity().getName();
@@ -463,6 +449,18 @@ public class TestOscorepRSGroupOSCORE {
             
             // TODO: REMOVE DEBUG PRINT
             // System.out.println("xxx @GM rsnonce " + rsNonceString);
+            
+            if(rsNonceString == null) {
+            	// Return an error response, with a new nonce for PoP of the Client's private key in the next Join Request
+        	    CBORObject responseMap = CBORObject.NewMap();
+                byte[] rsnonce = new byte[8];
+                new SecureRandom().nextBytes(rsnonce);
+                responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
+                TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
+                byte[] responsePayload = responseMap.EncodeToBytes();
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+            	return;
+            }
                         
             byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
         	
@@ -470,8 +468,10 @@ public class TestOscorepRSGroupOSCORE {
         	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
         	
-        	if (!joinRequest.getType().equals(CBORType.Map))
+        	if (!joinRequest.getType().equals(CBORType.Map)) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        		return;
+        	}
         		
         	// More steps follow:
         	//
@@ -633,11 +633,20 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
         	if (getPubKeys != null) {
         		
-        		if (!getPubKeys.getType().equals(CBORType.Array) && getPubKeys.size() != 0) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
+        		if (!getPubKeys.getType().equals(CBORType.Array) ||
+        			 getPubKeys.size() != 2 ||
+        			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
+        			!getPubKeys.get(1).getType().equals(CBORType.Array) || 
+        			 getPubKeys.get(1).size() != 0) {
+            		
+        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
             		return;
+            		
         		}
         		
+        		// TODO: cover also the case where the first array is not empty
+        		
+        		// This is currently assuming the first array to be emtpy, so asking for all public keys
         		providePublicKeys = true;
         		
         	}
@@ -649,6 +658,8 @@ public class TestOscorepRSGroupOSCORE {
         	// For the sake of testing, a particular Sender ID is used as known to be available.
             byte[] senderId = new byte[] { (byte) 0x25 };
         	myGroup.allocateSenderId(senderId);        	
+        	
+        	String nodeName = Utils.bytesToHex(senderId);
         	
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
@@ -810,8 +821,7 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject joinResponse = CBORObject.NewMap();
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
-        	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT));
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -843,8 +853,7 @@ public class TestOscorepRSGroupOSCORE {
         	joinResponse.Add(Constants.NUM, CBORObject.FromObject(myGroup.getVersion()));
         	
         	// CBOR Value assigned to the coap_group_oscore profile.
-        	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(0));
+        	joinResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
         	
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
@@ -887,8 +896,18 @@ public class TestOscorepRSGroupOSCORE {
         		
         	}
         	
+        	// Group Policies
+        	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
+        	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
-        	exchange.respond(ResponseCode.CREATED, responsePayload, MediaTypeRegistry.APPLICATION_CBOR);
+        	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        	
+        	Response coapJoinResponse = new Response(CoAP.ResponseCode.CREATED);
+        	coapJoinResponse.setPayload(responsePayload);
+        	coapJoinResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	coapJoinResponse.getOptions().setLocationPath(uriNodeResource);
+
+        	exchange.respond(coapJoinResponse);
         	
         }
     }
@@ -994,7 +1013,8 @@ public class TestOscorepRSGroupOSCORE {
     			                          csAlg,
     			                          csParams,
     			                          csKeyParams,
-    			                          csKeyEnc);
+    			                          csKeyEnc,
+    			                          null);
         
     	byte[] mySid;
     	OneKey myKey;

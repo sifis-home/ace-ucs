@@ -68,7 +68,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Tests a client running the DTLS profile.
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestDtlspClient2RS {
@@ -79,8 +79,9 @@ public class TestDtlspClient2RS {
     private static byte[] key128a 
         = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
+    // ECDSA_256 asymmetric key
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-
+    
     private static OneKey rsRPK;
     
     private static String rsAddrC;
@@ -309,7 +310,7 @@ public class TestDtlspClient2RS {
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = token.encode(ctx);    
-        CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
               
@@ -447,7 +448,7 @@ public class TestDtlspClient2RS {
         } catch (IOException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "java.lang.Exception: handshake flight 5 failed!")) {
+                    "org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
                 //Everything ok
                 return;
             }

@@ -71,8 +71,6 @@ import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
-import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 
 /**
  * FIXME: Needs updating after import of master code
@@ -201,7 +199,9 @@ public class OscorepClient2RSGroupOSCORE {
 
         System.out.println("Performing Token request to GM. Assuming response from AS was: " + payload.toString());
 
-        Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, asRes, askForSignInfo, askForPubKeyEnc);
+		// FIXME: Add OSCORE db
+		Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, asRes, askForSignInfo,
+				askForPubKeyEnc, null);
 
         /* Check response from GM to Token post */
 
@@ -233,7 +233,9 @@ public class OscorepClient2RSGroupOSCORE {
 
         /* Now proceed to build join request to GM */
 
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(joinResourceURI, CoAP.DEFAULT_COAP_PORT));
+		// FIXME: Add OSCORE db
+		CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(joinResourceURI, CoAP.DEFAULT_COAP_PORT),
+				null);
 
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -295,7 +297,7 @@ public class OscorepClient2RSGroupOSCORE {
 
         /* Parse the Join response in detail */
 
-        printJoinResponse(joinResponse);
+        GroupOSCOREUtils.printJoinResponse(joinResponse);
 
         /* Generate a Group OSCORE security context from the Join response */
 
@@ -303,7 +305,7 @@ public class OscorepClient2RSGroupOSCORE {
         CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
 
 		// Add checking of the derived context
-		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
+		GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, groupKeyPair);
     }
     
 
@@ -365,93 +367,6 @@ public class OscorepClient2RSGroupOSCORE {
 
         return clientSignature;
 
-    }
-    
-    /**
-     * Parse a received Group OSCORE join response and print the information in it.
-     * 
-     * @param joinResponse the join response
-     */
-    public static void printJoinResponse(CBORObject joinResponse) {
-        
-        //Parse the join response generally
-
-        System.out.println();
-        System.out.println("Join response contents: ");
-
-        System.out.print("KTY: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.GKTY)));
-
-        System.out.print("KEY: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KEY)));
-
-        System.out.print("PROFILE: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.PROFILE)));
-
-        System.out.print("EXP: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.EXP)));
-
-        System.out.print("PUB_KEYS: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)));
-
-        System.out.print("NUM: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.NUM)));
-
-        //Parse the KEY parameter
-
-        CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
-        
-        System.out.println();
-        System.out.println("KEY map contents: ");
-
-        System.out.print("ms: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
-
-        System.out.print("clientId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)));
-
-        System.out.print("serverId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.serverId)));
-
-        System.out.print("hkdf: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
-
-        System.out.print("alg: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
-
-        System.out.print("salt: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
-
-        System.out.print("contextId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
-
-
-        System.out.print("cs_alg: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
-
-        System.out.print("cs_params: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
-
-        System.out.print("cs_key_params: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
-
-        System.out.print("cs_key_enc: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
-
-        //Parse the PUB_KEYS parameter
-
-        System.out.println();
-        System.out.println("PUB_KEYS contents: ");
-
-        byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        CBORObject coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-
-        for(int i = 0 ; i < coseKeySetArray.size() ; i++) {
-
-            CBORObject key_param = coseKeySetArray.get(i);
-
-            System.out.println("Key " + i + ": " + key_param.toString());
-        }
     }
 
 }

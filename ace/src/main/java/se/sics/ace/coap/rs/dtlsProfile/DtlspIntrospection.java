@@ -169,7 +169,7 @@ public class DtlspIntrospection implements IntrospectionHandler {
         try {
             response = this.client.post(
                     Constants.getCBOR(params).EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             throw new AceException("Connector/IO Error: " + e.getMessage());
         }    

@@ -40,6 +40,7 @@ import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.as.Introspect;
@@ -120,7 +121,7 @@ public class CoapDtlsEndpoint extends CoapResource implements AutoCloseable {
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
             //XXX: Should the profile set the content format here?
             exchange.respond(res.getCode(), res.getRawPayload(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
             return;
         }
         if (m == null) {//Wasn't a CoAP message

@@ -54,7 +54,6 @@ import COSE.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.Message;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;

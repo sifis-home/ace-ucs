@@ -141,8 +141,8 @@ public class DtlspRSTestServer {
     
     private static CoapDeliverer dpd = null;
     
+    // ECDSA_256 asymmetric key
     private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
-    
     
     /**
      * The CoAPs server for testing, run this before running the Junit tests.

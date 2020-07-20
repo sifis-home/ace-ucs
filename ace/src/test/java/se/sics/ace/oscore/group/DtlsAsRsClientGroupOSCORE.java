@@ -463,7 +463,7 @@ public class DtlsAsRsClientGroupOSCORE {
         /* Group OSCORE Context derivation below */
         
 		// Add checking of the derived context
-		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
+		GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, groupKeyPair);
 		
 		
     }

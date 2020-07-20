@@ -170,7 +170,9 @@ public class OscoreAsRsClientGroupOSCORE {
 
         System.out.println("Performing Token request to GM. Assuming response from AS was: " + payload.toString());
 
-        Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, asRes, askForSignInfo, askForPubKeyEnc);
+		// FIXME: Add OSCORE db
+		Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, asRes, askForSignInfo,
+				askForPubKeyEnc, null);
 
         /* Check response from GM to Token post */
 
@@ -202,7 +204,9 @@ public class OscoreAsRsClientGroupOSCORE {
 
         /* Now proceed to build join request to GM */
 
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(joinResourceURI, CoAP.DEFAULT_COAP_PORT));
+		// FIXME: Add OSCORE db
+		CoapClient c = OSCOREProfileRequests
+				.getClient(new InetSocketAddress(joinResourceURI, CoAP.DEFAULT_COAP_PORT), null);
 
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -265,12 +269,12 @@ public class OscoreAsRsClientGroupOSCORE {
 
         /* Parse the Join response in detail */
 
-        OscorepClient2RSGroupOSCORE.printJoinResponse(joinResponse);
+        GroupOSCOREUtils.printJoinResponse(joinResponse);
 
         /* Generate a Group OSCORE security context from the Join response */
 
 		// Add checking of the derived context
-		TestDtlspClientGroupOSCORE.groupOSCOREContextDeriver(joinResponse);
+		GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, groupKeyPair);
 
     }
 
