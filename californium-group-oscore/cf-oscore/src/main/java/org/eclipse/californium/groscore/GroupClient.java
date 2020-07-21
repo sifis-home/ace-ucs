@@ -46,34 +46,30 @@ import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
  */
 public class GroupClient {
 
-	//
-	// === Values to change ===
-	//
-
 	/**
 	 * Destination address to send to
 	 */
-	static final InetAddress destinationIP = new InetSocketAddress("127.0.0.1", 0).getAddress();
+	// static InetAddress destinationIP = new InetSocketAddress("127.0.0.1",
+	// 0).getAddress();
+	static InetAddress destinationIP;
 
 	/**
 	 * Port to send to.
 	 */
-	private static final int destinationPort = CoAP.DEFAULT_COAP_PORT;
+	// private static int destinationPort = CoAP.DEFAULT_COAP_PORT;
+	private static int destinationPort;
 
 	/**
 	 * Resource to perform request against.
 	 */
 	// static final String requestResource = "/helloWorld";
-	static final String requestResource = "/oscore/hello/1";
+	// static String requestResource = "/oscore/hello/1";
+	static String requestResource;
 
 	/**
 	 * The method to use for the request.
 	 */
 	static final CoAP.Code requestMethod = CoAP.Code.GET;
-
-	//
-	// === End: Values to change ===
-	//
 
 	/**
 	 * File name for network configuration.
@@ -115,7 +111,11 @@ public class GroupClient {
 	 */
 	static final String requestPayload = "Posting";
 
-	public static void start(GroupCtx ctx) throws Exception {
+	public static void start(GroupCtx ctx, String hostname, String URIPath, int portNumber) throws Exception {
+
+		destinationIP = new InetSocketAddress(hostname, 0).getAddress();
+		destinationPort = portNumber;
+		requestResource = URIPath;
 
 		// Wait 1 second before sending
 		Thread.sleep(1000);

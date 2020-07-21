@@ -152,6 +152,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
     
     private static String uri = "";
     private static int portNumberRSnosec = 5690;
+
+	private static int portGroupOSCORE = 5692;
+	private static String hostGroupOSCORE = "127.0.0.1";
+	private static String pathGroupOSCORE = "/oscore/hello/1";
     
     private static String rsAddr = "";
     private static final String rootGroupMembershipResource = "group-oscore";
@@ -315,14 +319,13 @@ public class PlugtestClientOSCOREGroupOSCORE {
 		if (startClient) {
 			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
 			System.out.println("Starting Group OSCORE client");
-			GroupClient.start(groupCtx);
+			GroupClient.start(groupCtx, hostGroupOSCORE, pathGroupOSCORE, portGroupOSCORE);
 		} else {
 			// FIXME: We need its private key?
 			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
 			System.out.println("Starting Group OSCORE server");
 
-			int serverPort = 5683;
-			GroupServer.start(groupCtx, serverPort);
+			GroupServer.start(groupCtx, portGroupOSCORE);
 		}
 
 
