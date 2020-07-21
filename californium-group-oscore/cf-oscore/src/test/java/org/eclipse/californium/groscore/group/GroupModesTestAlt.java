@@ -125,7 +125,7 @@ public class GroupModesTestAlt {
 	 */
 	// static final InetAddress multicastIP = new
 	// InetSocketAddress("FF01:0:0:0:0:0:0:FD", 0).getAddress();
-	static final InetAddress multicastIP = CoAP.MULTICAST_IPV4;
+	static final InetAddress multicastIP = new InetSocketAddress("224.0.1.188", 0).getAddress();
 
 	private Endpoint serverEndpoint;
 

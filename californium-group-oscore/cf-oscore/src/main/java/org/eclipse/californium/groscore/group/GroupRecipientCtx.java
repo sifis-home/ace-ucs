@@ -29,7 +29,7 @@ import org.junit.Assert;
 public class GroupRecipientCtx extends OSCoreCtx {
 
 	GroupCtx commonCtx;
-	OneKey otherEndpointPubKey;
+	public OneKey otherEndpointPubKey;
 
 	byte[] pairwiseRecipientKey;
 

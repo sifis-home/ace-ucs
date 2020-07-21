@@ -54,6 +54,9 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.groscore.GroupClient;
+import org.eclipse.californium.groscore.GroupServer;
+import org.eclipse.californium.groscore.group.GroupCtx;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.Assert;
@@ -76,6 +79,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.group.GroupOSCOREUtils;
 
 /**
  * Test the coap classes.
@@ -280,15 +284,18 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
         
+		CBORObject joinResponse = null;
+		GroupCtx groupCtx = null;
+
         switch (testcase) {
         
         /* Client and AS */
         case 1: // Test post to Authz-Info, then join using a single role.
-        	testSuccessGroupOSCORESingleRole();
+			joinResponse = testSuccessGroupOSCORESingleRole();
         	break;
         	
         case 2: // Test post to Authz-Info, then join using multiple roles.
-        	testSuccessGroupOSCOREMultipleRoles();
+			joinResponse = testSuccessGroupOSCOREMultipleRoles();
         	break;
         	
         default:
@@ -296,7 +303,34 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	    break;
         }
         
+		if (joinResponse == null) {
+			return;
+		}
+
+		System.out.println("Join response was received, deriving group context");
+
+		// Choose to start Group OSCORE client or server after joining
+		boolean startClient = true;
+
+		if (startClient) {
+			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
+			System.out.println("Starting Group OSCORE client");
+			GroupClient.start(groupCtx);
+		} else {
+			// FIXME: We need its private key?
+			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
+			System.out.println("Starting Group OSCORE server");
+
+			int serverPort = 5683;
+			GroupServer.start(groupCtx, serverPort);
+		}
+
+
     }
+
+	static byte[] keyBytes(OneKey key) {
+		return key.AsCBOR().EncodeToBytes();
+	}
 
     private static void printMapPayload(CBORObject obj) throws Exception {
         if (obj != null) {
@@ -331,12 +365,14 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // === Case 1 ===
     // M.T.
     /**
-     * Test post to Authz-Info, then join using a single role.
-     * Uses the ACE OSCORE Profile.
-     * 
-     * @throws Exception 
-     */
-    public static void testSuccessGroupOSCORESingleRole() throws Exception {
+	 * Test post to Authz-Info, then join using a single role. Uses the ACE
+	 * OSCORE Profile.
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws Exception
+	 */
+	public static CBORObject testSuccessGroupOSCORESingleRole() throws Exception {
 
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
@@ -552,6 +588,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
         }
         
         printResponseFromRS(r2.advanced());
+
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
        
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
@@ -752,12 +792,14 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // === Case 2 ===
     // M.T.
     /**
-     * Test post to Authz-Info, then join using multiple roles.
-     * Uses the ACE OSCORE Profile.
-     * 
-     * @throws Exception 
-     */
-    public static void testSuccessGroupOSCOREMultipleRoles() throws Exception {
+	 * Test post to Authz-Info, then join using multiple roles. Uses the ACE
+	 * OSCORE Profile.
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws Exception
+	 */
+	public static CBORObject testSuccessGroupOSCOREMultipleRoles() throws Exception {
 
     	boolean askForSignInfo = true;
     	boolean askForPubKeyEnc = true;
@@ -984,6 +1026,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         printResponseFromRS(r2.advanced());
         
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
+
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
        

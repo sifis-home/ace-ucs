@@ -58,6 +58,9 @@ import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.groscore.GroupClient;
+import org.eclipse.californium.groscore.GroupServer;
+import org.eclipse.californium.groscore.group.GroupCtx;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
@@ -84,6 +87,7 @@ import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.group.GroupOSCOREUtils;
 
 /**
  * Test the coap classes.
@@ -460,6 +464,9 @@ public class PlugtestClientGroupOSCORE {
                 AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         ctx1 = CwtCryptoCtx.encrypt0(key128_token_rs1, coseP.getAlg().AsCBOR());
         
+		CBORObject joinResponse = null;
+		GroupCtx groupCtx;
+
         switch (testcase) {
         
         /* Client and AS */
@@ -520,19 +527,19 @@ public class PlugtestClientGroupOSCORE {
         /* Client and Group Manager */
         	
         case 6: // Test post to authz-info with RPK then request for accessing an OSCORE Group with single role
-        	testPostRPKGroupOSCORESingleRole();
+			joinResponse = testPostRPKGroupOSCORESingleRole();
         	break;
         	
         case 7: // Test post to authz-info with RPK then request for accessing an OSCORE Group with multiple roles
-        	testPostRPKGroupOSCOREMultipleRoles();
+			joinResponse = testPostRPKGroupOSCOREMultipleRoles();
         	break;
         	
         case 8: // Test post to authz-info with PSK then request for accessing an OSCORE Group with single role
-        	testPostPSKGroupOSCORESingleRole();
+			joinResponse = testPostPSKGroupOSCORESingleRole();
         	break;
         	
         case 9: // Test post to authz-info with PSK then request for accessing an OSCORE Group with multiple roles
-        	testPostPSKGroupOSCOREMultipleRoles();
+			joinResponse = testPostPSKGroupOSCOREMultipleRoles();
         	break;
         	
         default:
@@ -556,9 +563,35 @@ public class PlugtestClientGroupOSCORE {
     	    */
     	    break;
         }
-        
+
+		if (testcase < 6 || joinResponse == null) {
+			return;
+		}
+
+		System.out.println("Join response was received, deriving group context");
+
+		// Choose to start Group OSCORE client or server after joining
+		boolean startClient = true;
+
+		if (startClient) {
+			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
+			System.out.println("Starting Group OSCORE client");
+			GroupClient.start(groupCtx);
+		} else {
+			// FIXME: We need its private key?
+			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
+			System.out.println("Starting Group OSCORE server");
+
+			int serverPort = 5683;
+			GroupServer.start(groupCtx, serverPort);
+		}
+
     }
     
+	static byte[] keyBytes(OneKey key) {
+		return key.AsCBOR().EncodeToBytes();
+	}
+
     private static void printResponseFromAS(CoapResponse res) throws Exception {
         if (res != null) {
         	System.out.println("*** Response from the AS *** ");
@@ -646,7 +679,7 @@ public class PlugtestClientGroupOSCORE {
      * 
      * @throws Exception
      */
-    public static void testGroupOSCORESingleRoleREFToken() throws Exception { 
+	public static void testGroupOSCORESingleRoleREFToken() throws Exception {
         
     	String gid = groupName;
         String gid2 = new String("feedca570001");
@@ -852,16 +885,18 @@ public class PlugtestClientGroupOSCORE {
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
         
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        */
-        
+		/*
+		 * 
+		 * CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+		 * 
+		 * map = Constants.getParams(res);
+		 * 
+		 * assert(map.size() == 1); assert(map.containsKey(Constants.ERROR));
+		 * assert(map.get(Constants.ERROR).AsInt16() ==
+		 * Constants.INVALID_SCOPE);
+		 */
+
     }
     
     
@@ -873,7 +908,7 @@ public class PlugtestClientGroupOSCORE {
      * 
      * @throws Exception
      */
-    public static void testGroupOSCOREMultipleRolesREFToken() throws Exception { 
+	public static void testGroupOSCOREMultipleRolesREFToken() throws Exception {
         
     	String gid = groupName;
         String gid2 = new String("feedca570001");
@@ -1017,39 +1052,43 @@ public class PlugtestClientGroupOSCORE {
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
+
         /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 1);
-        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
-        assert(receivedArrayScope.get(0).size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayEntry = CBORObject.NewArray();
-        cborArrayEntry.Add(gid);
-        
-        int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayEntry.Add(expectedRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
-        cborArrayScope.Add(cborArrayEntry);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	*/
+		 * 
+		 * CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+		 * 
+		 * map = Constants.getParams(res);
+		 * 
+		 * assert(map.containsKey(Constants.ACCESS_TOKEN));
+		 * assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+		 * assert(map.containsKey(Constants.CNF));
+		 * assert(map.containsKey(Constants.SCOPE)); // The granted scope
+		 * differs from the original requested one
+		 * assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString)
+		 * );
+		 * 
+		 * byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
+		 * CBORObject receivedArrayScope =
+		 * CBORObject.DecodeFromBytes(receivedScope);
+		 * assert(receivedArrayScope.getType().equals(CBORType.Array));
+		 * assert(receivedArrayScope.size() == 1);
+		 * assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+		 * assert(receivedArrayScope.get(0).size() == 2);
+		 * 
+		 * cborArrayScope = CBORObject.NewArray(); cborArrayEntry =
+		 * CBORObject.NewArray(); cborArrayEntry.Add(gid);
+		 * 
+		 * int expectedRoles = 0; expectedRoles =
+		 * Constants.addGroupOSCORERole(expectedRoles,
+		 * Constants.GROUP_OSCORE_REQUESTER); cborArrayEntry.Add(expectedRoles);
+		 * 
+		 * // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES //
+		 * cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+		 * 
+		 * cborArrayScope.Add(cborArrayEntry); byteStringScope =
+		 * cborArrayScope.EncodeToBytes();
+		 * Assert.assertArrayEquals(receivedScope, byteStringScope);
+		 */
         
     }
 
@@ -1063,7 +1102,7 @@ public class PlugtestClientGroupOSCORE {
      * 
      * @throws Exception
      */
-    public static void testGroupOSCOREAltClientREFToken() throws Exception { 
+	public static void testGroupOSCOREAltClientREFToken() throws Exception {
         
     	String gid = groupName;
     	
@@ -1157,40 +1196,43 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
+
         /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 1);
-        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
-        assert(receivedArrayScope.get(0).size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayEntry = CBORObject.NewArray();
-        cborArrayEntry.Add(gid);
-        
-        int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayEntry.Add(expectedRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
-        cborArrayScope.Add(cborArrayEntry);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	*/
+		 * 
+		 * CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+		 * 
+		 * map = Constants.getParams(res);
+		 * 
+		 * assert(map.containsKey(Constants.ACCESS_TOKEN));
+		 * assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+		 * assert(map.containsKey(Constants.CNF));
+		 * assert(map.containsKey(Constants.SCOPE)); // The granted scope
+		 * differs from the original requested one
+		 * assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString)
+		 * );
+		 * 
+		 * byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
+		 * CBORObject receivedArrayScope =
+		 * CBORObject.DecodeFromBytes(receivedScope);
+		 * assert(receivedArrayScope.getType().equals(CBORType.Array));
+		 * assert(receivedArrayScope.size() == 1);
+		 * assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+		 * assert(receivedArrayScope.get(0).size() == 2);
+		 * 
+		 * cborArrayScope = CBORObject.NewArray(); cborArrayEntry =
+		 * CBORObject.NewArray(); cborArrayEntry.Add(gid);
+		 * 
+		 * int expectedRoles = 0; expectedRoles =
+		 * Constants.addGroupOSCORERole(expectedRoles,
+		 * Constants.GROUP_OSCORE_REQUESTER); cborArrayEntry.Add(expectedRoles);
+		 * 
+		 * // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES //
+		 * cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
+		 * 
+		 * cborArrayScope.Add(cborArrayEntry); byteStringScope =
+		 * cborArrayScope.EncodeToBytes();
+		 * Assert.assertArrayEquals(receivedScope, byteStringScope);
+		 */
             	
     }
     
@@ -1266,17 +1308,20 @@ public class PlugtestClientGroupOSCORE {
     
     // === Case 6 ===
     // M.T.
-    /** 
-     * Test post to authz-info with RPK then request
-     * for accessing an OSCORE Group with single role
-     * @throws CoseException 
-     * @throws AceException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
-    public static void testPostRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
+    /**
+	 * Test post to authz-info with RPK then request for accessing an OSCORE
+	 * Group with single role
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws CoseException
+	 * @throws AceException
+	 * @throws InvalidCipherTextException
+	 * @throws IllegalStateException
+	 * @throws IOException
+	 * @throws ConnectorException
+	 */
+	public static CBORObject testPostRPKGroupOSCORESingleRole() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {
         Map<Short, CBORObject> params = new HashMap<>();
     	boolean askForSignInfo = true;
@@ -1476,12 +1521,13 @@ public class PlugtestClientGroupOSCORE {
         }
         
         printResponseFromRS(r2);
+
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
         
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
-        
-        byte[] responsePayload = r2.getPayload();
-        CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
         
@@ -1675,17 +1721,20 @@ public class PlugtestClientGroupOSCORE {
     
     // === Case 7 ===
     // M.T.
-    /** 
-     * Test post to authz-info with RPK then request
-     * for accessing an OSCORE Group with multiple roles
-     * @throws CoseException 
-     * @throws AceException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
-    public static void testPostRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
+    /**
+	 * Test post to authz-info with RPK then request for accessing an OSCORE
+	 * Group with multiple roles
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws CoseException
+	 * @throws AceException
+	 * @throws InvalidCipherTextException
+	 * @throws IllegalStateException
+	 * @throws IOException
+	 * @throws ConnectorException
+	 */
+	public static CBORObject testPostRPKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {
         Map<Short, CBORObject> params = new HashMap<>();
     	boolean askForSignInfo = true;
@@ -1892,6 +1941,10 @@ public class PlugtestClientGroupOSCORE {
         
         printResponseFromRS(r2);
         
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
+
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
 
@@ -2087,17 +2140,20 @@ public class PlugtestClientGroupOSCORE {
     
     // === Case 8 ===
     // M.T.
-    /** 
-     * Test post to authz-info with PSK then request
-     * for joining an OSCORE Group with a single role
-     * @throws CoseException 
-     * @throws AceException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
-    public static void testPostPSKGroupOSCORESingleRole() throws CoseException, IllegalStateException, 
+    /**
+	 * Test post to authz-info with PSK then request for joining an OSCORE Group
+	 * with a single role
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws CoseException
+	 * @throws AceException
+	 * @throws InvalidCipherTextException
+	 * @throws IllegalStateException
+	 * @throws IOException
+	 * @throws ConnectorException
+	 */
+	public static CBORObject testPostPSKGroupOSCORESingleRole() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {               
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
@@ -2302,6 +2358,10 @@ public class PlugtestClientGroupOSCORE {
         
         printResponseFromRS(r2);
         
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
+
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
         
@@ -2501,17 +2561,20 @@ public class PlugtestClientGroupOSCORE {
     
     // === Case 9 ===
     // M.T.
-    /** 
-     * Test post to authz-info with PSK then request
-     * for joining an OSCORE Group with multiple roles
-     * @throws CoseException 
-     * @throws AceException 
-     * @throws InvalidCipherTextException 
-     * @throws IllegalStateException 
-     * @throws IOException 
-     * @throws ConnectorException 
-     */
-    public static void testPostPSKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException, 
+    /**
+	 * Test post to authz-info with PSK then request for joining an OSCORE Group
+	 * with multiple roles
+	 * 
+	 * @return the join response
+	 * 
+	 * @throws CoseException
+	 * @throws AceException
+	 * @throws InvalidCipherTextException
+	 * @throws IllegalStateException
+	 * @throws IOException
+	 * @throws ConnectorException
+	 */
+	public static CBORObject testPostPSKGroupOSCOREMultipleRoles() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
@@ -2724,6 +2787,10 @@ public class PlugtestClientGroupOSCORE {
         
         printResponseFromRS(r2);
         
+		byte[] responsePayload = r2.getPayload();
+		CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+		return joinResponse;
+
         /*
         Assert.assertEquals("CREATED", r2.getCode().name());
         

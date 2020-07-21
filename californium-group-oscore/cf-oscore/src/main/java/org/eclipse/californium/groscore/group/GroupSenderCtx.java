@@ -36,7 +36,7 @@ import org.junit.Assert;
 public class GroupSenderCtx extends OSCoreCtx {
 
 	GroupCtx commonCtx;
-	OneKey ownPrivateKey;
+	public OneKey ownPrivateKey;
 
 	HashMap<ByteId, byte[]> pairwiseSenderKeys;
 
