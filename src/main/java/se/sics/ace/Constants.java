@@ -914,11 +914,6 @@ public class Constants {
      public static final short SIGN_INFO = 203;
      
      /**
-      * Value for the label "pub_key_enc" in the Token POST request/response and in the Join Response message
-      */
-     public static final short PUB_KEY_ENC = 204;
-     
-     /**
       * Value for the label "kdcchallenge" in the Token POST response
       */
      public static final short KDCCHALLENGE = 205;

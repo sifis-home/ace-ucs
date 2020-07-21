@@ -288,8 +288,33 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	byte[] requestPayload = exchange.getRequestPayload();
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
             
+        	// Prepare a 'sign_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
+    		CBORObject signInfo = CBORObject.NewArray();
+				
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getName());
+			
+			CBORObject signInfoEntry = CBORObject.NewArray();
+			CBORObject errorResponseMap = CBORObject.NewMap();
+			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
+			signInfoEntry.Add(targetedGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
+	    	CBORObject arrayElem = targetedGroup.getCsParams(); // 'sign_parameters' element
+	    	if (arrayElem == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(arrayElem);
+	    	arrayElem = targetedGroup.getCsKeyParams(); // 'sign_key_parameters' element
+	    	if (arrayElem == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(arrayElem);
+	    	signInfoEntry.Add(targetedGroup.getCsKeyEnc()); // 'pub_key_enc' element
+		    signInfo.Add(signInfoEntry);
+		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
+        	
         	if (!joinRequest.getType().equals(CBORType.Map)) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload of the join request must be a CBOR Map");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
         	}
         		
@@ -307,26 +332,34 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	// Retrieve scope
         	CBORObject scope = joinRequest.get(CBORObject.FromObject(Constants.SCOPE));
         	
+        	// Scope must be included for joining OSCORE groups
         	if (scope == null) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be included for joining OSCORE groups");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
         	}
 
+        	// Scope must be wrapped in a binary string for joining OSCORE groups
         	if (!scope.getType().equals(CBORType.ByteString)) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Scope must be wrapped in a binary string for joining OSCORE groups");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
             }
         	
         	byte[] rawScope = scope.GetByteString();
         	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
         	
+        	// Invalid scope format for joining OSCORE groups
         	if (!cborScope.getType().equals(CBORType.Array)) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
             }
         	
+        	// Invalid scope format for joining OSCORE groups
         	if (cborScope.size() != 2) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
             }
         	
@@ -336,13 +369,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
       	  	if (scopeElement.getType().equals(CBORType.TextString)) {
       	  	groupName = scopeElement.AsString();
 
+      	  		// The group name in 'scope' is not pertinent for this group-membership resource
           	  	if (!groupName.equals(this.getName())) {
-	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The group name in 'scope' is not pertinent for this group-membership resource");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
 	  				return;
 	  			}      	  		
       	  	}
+      	  	// Invalid scope format for joining OSCORE groups
       	  	else {
-      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid scope format for joining OSCORE groups");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
       	  	}
       	  	
@@ -352,13 +389,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
           	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
         	if (scopeElement.getType().equals(CBORType.Integer)) {
         		int roleSet = scopeElement.AsInt32();
+        		
+        		// Invalid format of roles
         		if (roleSet < 0) {
-      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
 	        		return;
         		}
-     	  		// Check for illegal combinations of roles
+        		// Invalid combination of roles
         		if(!validRoleCombinations.contains(roleSet)) {
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
   					return;
         		}
         		Set<Integer> roleIdSet = new HashSet<Integer>();
@@ -380,13 +421,15 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		}
             	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
         		/*
+      	  		// Invalid combination of roles
       	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
       	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
       	  				||
       	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
       	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
       	  		   ) {
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
+  					byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
   					return;
       	  		}
       	  		*/
@@ -397,8 +440,11 @@ public class PlugtestRSOSCOREGroupOSCORE {
       	  	if (scopeElement.getType().equals(CBORType.Integer)) {
       	  		// Only one role is specified
       	  		int index = scopeElement.AsInt32();
+      	  		
+      	  		// Invalid format of roles
       	  		if (index < 0) {
-      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
 	        		return;
       	  		}
       	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
@@ -408,42 +454,54 @@ public class PlugtestRSOSCOREGroupOSCORE {
       	  	}
       	  	else if (scopeElement.getType().equals(CBORType.Array)) {
       	  		// Multiple roles are specified
+      	  		
+      	  		// The CBOR Array of roles must include at least two roles
       	  		if (scopeElement.size() != 2) {
-      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The CBOR Array of roles must include at least two roles");
+      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
       	  		}
       	  		for (int i=0; i<scopeElement.size(); i++) {
       	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
       	      	  		int index = scopeElement.get(i).AsInt32();
+      	      	  		
+      	      	  		// Invalid format of roles
       	      	  		if (index < 0) {
-      	      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+      	      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  							exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
       		        		return;
       	      	  		}
       	      	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
       	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[index]);
       	      	  		else
       	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
-      	  		}
+      	  			}
+      	  			// Invalid format of roles
       	  			else {
-      	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+						byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+  						exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
       	        		return;
       	  			}
       	  		}
-      	  		// Check for illegal combinations of roles
+      	  		// Invalid format of roles
       	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
       	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
       	  				||
       	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
       	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
       	  		   ) {
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid combination of roles");
-  					return;
+  	  				byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+  	  				
+  	        		return;
       	  		}
       	  	}
       	  	*/
       	  	
+        	// Invalid format of roles
       	  	else {
-      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of roles");
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
       	  	}
         	
@@ -458,7 +516,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         			!getPubKeys.get(1).getType().equals(CBORType.Array) || 
         			 getPubKeys.get(1).size() != 0) {
             		
-        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "get_pub_keys must be an empty array");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
             		
         		}
@@ -490,18 +549,22 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	}
         	else {
         		
+        		// client_cred must be byte string
         		if (!clientCred.getType().equals(CBORType.ByteString)) {
             		myGroup.deallocateSenderId(senderId);
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "client_cred must be byte string");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
 
         		// This assumes that the public key is a COSE Key
         		CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
         		
+        		// The public key must be a COSE key
         		if (!coseKey.getType().equals(CBORType.Map)) {
             		myGroup.deallocateSenderId(senderId);
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "the public key must be a COSE key");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
         		
@@ -512,17 +575,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
 				} catch (CoseException e) {
 				    System.err.println(e.getMessage());
 					myGroup.deallocateSenderId(senderId);
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
 				}
         		        		
         		// Sanity check on the type of public key
-        		// TODO: The "Bad Request" response should actually tell the joining node the exact algorithm and parameters
-        		
+
         		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
             		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
             		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
             			
+        				// Invalid public key format
             			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
                        		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
                        		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
@@ -532,7 +596,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
                     			myGroup.deallocateSenderId(senderId);
 
-                    			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+                        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
                     			return;
                             		
                     	}
@@ -541,6 +606,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		
             		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
             			
+            			// Invalid public key format
             			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
                    			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
                    			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
@@ -550,7 +616,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
 
                         			myGroup.deallocateSenderId(senderId);
 
-                        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
+                            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+                            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
                         			return;
                         		
                 		}
@@ -560,13 +627,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		// Retrieve the proof-of-possession nonce and signature from the Client
         		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
             	
+        		// A client nonce must be included for proof-of-possession for joining OSCORE groups
             	if (cnonce == null) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client nonce must be included for proof-of-possession for joining OSCORE groups");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
             	}
 
+            	// The client nonce must be wrapped in a binary string for joining OSCORE groups
             	if (!cnonce.getType().equals(CBORType.ByteString)) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client nonce must be wrapped in a binary string for joining OSCORE groups");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
             	
@@ -575,13 +646,17 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
             	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
+            	// A client signature must be included for proof-of-possession for joining OSCORE groups
             	if (clientSignature == null) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A client signature must be included for proof-of-possession for joining OSCORE groups");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
             	}
 
+            	// The client signature must be wrapped in a binary string for joining OSCORE groups
             	if (!cnonce.getType().equals(CBORType.ByteString)) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The client signature must be wrapped in a binary string for joining OSCORE groups");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
             	
@@ -617,8 +692,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		return;
            	    }
            	    
+           	    // Invalid Client's PoP signature
            	    if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid Client's PoP signature");
+            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
            	    }
             	
