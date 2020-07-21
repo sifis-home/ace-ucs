@@ -166,18 +166,25 @@ public class GroupOSCOREUtils {
 
 	}
 
+	public static GroupCtx groupOSCOREContextDeriver(CBORObject joinResponse, byte[] senderFullKeyBytes)
+			throws CoseException, AceException {
+		return groupOSCOREContextDeriver(joinResponse, senderFullKeyBytes, null, null);
+	}
+
 	/**
 	 * Standalone method for deriving a Group OSCORE context from a join
 	 * response.
 	 * 
 	 * @param joinResponse the CBORObject with the join response
 	 * @param senderFullKeyBytes the full key of the node
+	 * @param existingNodeId ID for existing node in group
+	 * @param existingNodeKeyBytes key bytes for existing node in group
 	 * @return the created Group OSCORE context
 	 * @throws CoseException on derivation failure
 	 * @throws AceException on ACE failure
 	 */
 	public static GroupCtx groupOSCOREContextDeriver(CBORObject joinResponse,
-			byte[] senderFullKeyBytes)
+			byte[] senderFullKeyBytes, byte[] existingNodeId, byte[] existingNodeKeyBytes)
 			throws CoseException, AceException {
 
 		boolean printJoinResponse = true;
@@ -359,6 +366,20 @@ public class GroupOSCOREUtils {
 			// TODO Auto-generated catch block
 			System.out.println("Failed to decode sender key!");
 			e1.printStackTrace();
+		}
+
+		// Set up existing node in group
+		if (existingNodeKeyBytes != null && existingNodeId != null) {
+			org.eclipse.californium.grcose.OneKey existingNodeKey = null;
+			try {
+				existingNodeKey = new org.eclipse.californium.grcose.OneKey(
+						CBORObject.DecodeFromBytes(existingNodeKeyBytes));
+				groupCtx.addRecipientCtx(existingNodeId, rpl, existingNodeKey);
+			} catch (org.eclipse.californium.grcose.CoseException | OSException e1) {
+				// TODO Auto-generated catch block
+				System.out.println("Failed to decode or add existing node key!");
+				e1.printStackTrace();
+			}
 		}
 
 		// Add the sender context

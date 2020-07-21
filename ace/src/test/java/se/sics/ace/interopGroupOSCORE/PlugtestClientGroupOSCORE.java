@@ -58,6 +58,7 @@ import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.groscore.GroupClient;
 import org.eclipse.californium.groscore.GroupServer;
 import org.eclipse.californium.groscore.group.GroupCtx;
@@ -582,8 +583,10 @@ public class PlugtestClientGroupOSCORE {
 			System.out.println("Starting Group OSCORE client");
 			GroupClient.start(groupCtx, hostGroupOSCORE, pathGroupOSCORE, portGroupOSCORE);
 		} else {
-			// FIXME: We need its private key?
-			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair));
+			byte[] existingNodeId = Bytes.EMPTY;
+			OneKey existingNodeKey = null;
+			groupCtx = GroupOSCOREUtils.groupOSCOREContextDeriver(joinResponse, keyBytes(C1keyPair), existingNodeId,
+					keyBytes(existingNodeKey));
 			System.out.println("Starting Group OSCORE server");
 
 			GroupServer.start(groupCtx, portGroupOSCORE);
