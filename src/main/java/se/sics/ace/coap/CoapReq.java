@@ -34,6 +34,7 @@ package se.sics.ace.coap;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -117,9 +118,10 @@ public class CoapReq implements Message {
             }
             return p.getName();
         } 
-        // If OSCORE is used, retrieve the sender ID the client used in the
-        // request by using the information in the endpoint context. Note that
-        // the sender ID the client used in the request is the local recipient ID.
+        // If OSCORE is used, retrieve the OSCORE SenderID and ContextID that the client
+        // used in the request, by using the information in the endpoint context.
+        // The OSCORE Sender ID that the client used in the request is the local OSCORE Recipient ID.
+        // The returned SenderId has format ["ContextID:" +] "SenderID", depending on the presence of the OSCORE Context ID.
         else if (ctx instanceof MapBasedEndpointContext) {
             MapBasedEndpointContext mapCtx = (MapBasedEndpointContext)ctx;
             
@@ -131,9 +133,11 @@ public class CoapReq implements Message {
             }
             String senderId = "";
             if (idContext != null) {
-                senderId += Base64.encodeBytes(idContext);
+                senderId += new String(idContext, Constants.charset);
             }
-            senderId += new String(clientSenderId, Constants.charset);    
+            if (!Objects.equals("", senderId))
+            	senderId += ":";
+            senderId += new String(clientSenderId, Constants.charset);
             return senderId;
         }
         
