@@ -43,9 +43,13 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.AlgorithmID;
+import COSE.MessageTag;
+import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
+import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Test the DTLSProfileRequests class C->AS
@@ -57,8 +61,11 @@ import se.sics.ace.coap.client.OSCOREProfileRequests;
  */
 public class TestOscorepClient2AS {
     
-
-    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+	
+    /**
+     * The Master Secret of the AS <-> C OSCORE Security Context
+     */
+    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};    
     private static RunTestServer srv = null;
     private static OSCoreCtx ctx;
     
@@ -126,7 +133,7 @@ public class TestOscorepClient2AS {
      * @throws Exception 
      */
     @Test
-    public void testSuccess() throws Exception {
+    public void testSuccess() throws Exception { 	
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp rw_config foobar"), null);

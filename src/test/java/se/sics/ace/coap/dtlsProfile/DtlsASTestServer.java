@@ -111,8 +111,8 @@ public class DtlsASTestServer
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,

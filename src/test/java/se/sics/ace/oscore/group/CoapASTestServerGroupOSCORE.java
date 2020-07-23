@@ -114,8 +114,8 @@ public class CoapASTestServerGroupOSCORE
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
@@ -138,8 +138,8 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
@@ -167,8 +167,8 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
@@ -196,8 +196,8 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
