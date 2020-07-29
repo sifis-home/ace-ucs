@@ -519,11 +519,15 @@ public class PlugtestClientOSCOREGroupOSCORE {
             new SecureRandom().nextBytes(cnonce);
             requestPayload.Add(Constants.CNONCE, cnonce);
             
-            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
-       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+            offset += byteStringScope.length;
+            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+            offset += gm_sign_nonce.length;
+            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -950,11 +954,15 @@ public class PlugtestClientOSCOREGroupOSCORE {
             new SecureRandom().nextBytes(cnonce);
             requestPayload.Add(Constants.CNONCE, cnonce);
             
-            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
-       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+            offset += byteStringScope.length;
+            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+            offset += gm_sign_nonce.length;
+            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             

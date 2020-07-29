@@ -43,13 +43,9 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
-import COSE.AlgorithmID;
-import COSE.MessageTag;
-import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
-import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Test the DTLSProfileRequests class C->AS

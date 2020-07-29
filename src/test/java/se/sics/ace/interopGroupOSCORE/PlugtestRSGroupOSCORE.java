@@ -685,9 +685,13 @@ public class PlugtestRSGroupOSCORE {
             		return;
                 }
                 
-            	byte[] dataToSign = new byte [rsnonce.length + rawCnonce.length];
-           	    System.arraycopy(rsnonce, 0, dataToSign, 0, rsnonce.length);
-           	    System.arraycopy(rawCnonce, 0, dataToSign, rsnonce.length, rawCnonce.length);
+                int offset = 0;
+                byte[] dataToSign = new byte [rawScope.length + rsnonce.length + rawCnonce.length];
+                System.arraycopy(rawScope, 0, dataToSign, offset, rawScope.length);
+                offset += rawScope.length;
+                System.arraycopy(rsnonce, 0, dataToSign, offset, rsnonce.length);
+                offset += rsnonce.length;
+                System.arraycopy(rawCnonce, 0, dataToSign, offset, rawCnonce.length);
            	    
            	    int countersignKeyCurve = 0;
            	    

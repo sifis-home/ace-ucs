@@ -43,7 +43,6 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
-import org.eclipse.californium.elements.util.Base64;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 

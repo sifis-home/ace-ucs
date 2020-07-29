@@ -46,7 +46,6 @@ import java.util.Map;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -463,11 +462,15 @@ public class TestOscorepClient2RSGroupOSCORE {
             new SecureRandom().nextBytes(cnonce);
             requestPayload.Add(Constants.CNONCE, cnonce);
             
-            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            int offset = 0;
             PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
-       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
-       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -890,11 +893,15 @@ public class TestOscorepClient2RSGroupOSCORE {
             new SecureRandom().nextBytes(cnonce);
             requestPayload.Add(Constants.CNONCE, cnonce);
             
-            // Add the signature computed over (rsnonce | cnonce), using the Client's private key
+            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            int offset = 0;
             PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
-       	    byte [] dataToSign = new byte [gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, 0, gm_sign_nonce.length);
-       	    System.arraycopy(cnonce, 0, dataToSign, gm_sign_nonce.length, cnonce.length);
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
