@@ -47,7 +47,8 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 ### Who do I talk to? ###
 
 * This code is owned by RISE and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
-* If you have questions or suggestions, please contact
+* If you have questions or suggestions, please contact:
+
    - ludwig dot seitz at combitech dot se
    - marco dot tiloca at ri dot se
 
