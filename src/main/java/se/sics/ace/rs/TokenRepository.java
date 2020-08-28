@@ -375,7 +375,26 @@ public class TokenRepository implements AutoCloseable {
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             String kid = new String(osc.getClientId(), Constants.charset);
             this.cti2kid.put(cti, kid);
-            this.sid2kid.put(kid, kid);       
+            
+            // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
+            // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object
+            if (sid != null) {
+                this.sid2kid.put(sid, kid);
+            }
+            else {
+            	String subjectId = "";
+            	String kid_context = null;
+            	
+            	if (cnf.get(Constants.OSCORE_Security_Context).getKeys().contains(Constants.OS_CONTEXTID)) {
+            		kid_context = cnf.get(Constants.OSCORE_Security_Context).get(Constants.OS_CONTEXTID).toString();
+            	}
+            	
+            	if (kid_context != null) {
+            		subjectId = kid_context + ":";
+            	}
+            	subjectId += kid;
+            	this.sid2kid.put(subjectId, kid);
+            }
         } else {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");

@@ -243,25 +243,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	
         	String subject = null;
         	Request request = exchange.advanced().getCurrentRequest();
-            if (request.getSourceContext() == null || request.getSourceContext().getPeerIdentity() == null) {
-                //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
-                	
-            	// Old way for retrieving only the OSCORE Sender ID of the message originator
-                // subject = new String(exchange.advanced().getCryptographicContextID(), Constants.charset);
-            	
-                try {
-					subject = CoapReq.getInstance(request).getSenderId();
-				} catch (AceException e) {
-				    System.err.println("Error while retrieving the client identity: " + e.getMessage());
-				}
-                if (subject == null) {
-	            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-	            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
-	            	return;
-                }
-            } else  {
-                subject = request.getSourceContext().getPeerIdentity().getName();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
             }
+            
             // TODO: REMOVE DEBUG PRINT
             // System.out.println("xxx @GM sid " + subject);
             // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));

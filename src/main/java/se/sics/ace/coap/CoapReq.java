@@ -120,7 +120,7 @@ public class CoapReq implements Message {
         // If OSCORE is used, retrieve the OSCORE SenderID and ContextID that the client
         // used in the request, by using the information in the endpoint context.
         // The OSCORE Sender ID that the client used in the request is the local OSCORE Recipient ID.
-        // The returned SenderId has format ["ContextID:" +] "SenderID", depending on the presence of the OSCORE Context ID.
+        // The returned string has format ["ContextID:" +] "SenderID", depending on the presence of the OSCORE Context ID.
         else if (ctx instanceof MapBasedEndpointContext) {
             MapBasedEndpointContext mapCtx = (MapBasedEndpointContext)ctx;
             
