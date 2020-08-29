@@ -78,7 +78,7 @@ public class TestOscorepRSGroupOSCORE {
 	//Sets the port to use
 	private final static int PORT = CoAP.DEFAULT_COAP_PORT;
 	
-    private final static String rootGroupMembershipResource = "group-oscore";
+    private final static String rootGroupMembershipResource = "ace-group";
 	
 	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4; 

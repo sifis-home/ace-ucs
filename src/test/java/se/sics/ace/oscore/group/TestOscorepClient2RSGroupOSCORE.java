@@ -83,7 +83,7 @@ import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
  */
 public class TestOscorepClient2RSGroupOSCORE {
 
-	private final String rootGroupMembershipResource = "group-oscore";
+	private final String rootGroupMembershipResource = "ace-group";
 	
     private static String groupKeyPair;
     private static String strPublicKeyPeer1;
@@ -424,7 +424,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
         
-        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/group-oscore/feedca570000");
+        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
        
         CBORObject requestPayload = CBORObject.NewMap();
        
@@ -851,7 +851,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
         
-        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/group-oscore/feedca570000");
+        System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
        
         CBORObject requestPayload = CBORObject.NewMap();
        

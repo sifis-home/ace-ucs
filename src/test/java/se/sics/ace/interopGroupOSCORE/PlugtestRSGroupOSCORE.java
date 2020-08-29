@@ -124,7 +124,7 @@ public class PlugtestRSGroupOSCORE {
     private static String rsY = "1A84F5C82797643D33F7E6E6AFCF016522238CE430E1BF21A218E6B4DEEAC37A";
     private static String rsD = "00EA086573C683477D74EB7A0C63A6D031D5DEB10F3CC2876FDA6D3400CAA4E507";
 	
-	private final static String rootGroupMembershipResource = "group-oscore";
+	private final static String rootGroupMembershipResource = "ace-group";
     
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	

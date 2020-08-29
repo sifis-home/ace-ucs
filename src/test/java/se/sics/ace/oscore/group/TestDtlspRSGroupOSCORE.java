@@ -107,7 +107,7 @@ import se.sics.ace.rs.TokenRepository;
  */
 public class TestDtlspRSGroupOSCORE {
 
-    private final static String rootGroupMembershipResource = "group-oscore";
+    private final static String rootGroupMembershipResource = "ace-group";
 	
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	
@@ -808,7 +808,7 @@ public class TestDtlspRSGroupOSCORE {
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
     	
-    	final String rootGroupMembershipResource = "group-oscore";
+    	final String rootGroupMembershipResource = "ace-group";
     	final String groupName = "feedca570000";
     	
         //Set up DTLSProfileTokenRepository

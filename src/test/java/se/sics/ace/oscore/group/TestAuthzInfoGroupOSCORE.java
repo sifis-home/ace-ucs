@@ -102,7 +102,7 @@ public class TestAuthzInfoGroupOSCORE {
     
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
-	private static final String rootGroupMembershipResource = "group-oscore";
+	private static final String rootGroupMembershipResource = "ace-group";
     
     /**
      * Set up tests.

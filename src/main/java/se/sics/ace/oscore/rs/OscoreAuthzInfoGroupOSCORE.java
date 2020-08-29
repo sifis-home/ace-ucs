@@ -97,7 +97,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 
 	private Map<String, GroupInfo> activeGroups;
 	
-	private final String rootGroupMembershipResource = "group-oscore";
+	private final String rootGroupMembershipResource = "ace-group";
 	
 	/**
 	 * Constructor.

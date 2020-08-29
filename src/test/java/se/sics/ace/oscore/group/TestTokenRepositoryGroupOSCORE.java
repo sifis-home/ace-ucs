@@ -91,7 +91,7 @@ public class TestTokenRepositoryGroupOSCORE {
     private static String ourKey = "ourKey";
     private static String rpk = "ni:///sha-256;-QCjSk6ojWX8-YaHwQMOkewLD7p89aFF2eh8shWDmKE";
     
-	private static final String rootGroupMembershipResource = "group-oscore";
+	private static final String rootGroupMembershipResource = "ace-group";
 	
 	private static Map<String, Short> rolesToInt = new HashMap<>();
     

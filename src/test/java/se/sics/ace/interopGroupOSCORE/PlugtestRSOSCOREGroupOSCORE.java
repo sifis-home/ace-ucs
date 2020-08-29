@@ -113,7 +113,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
             0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
     
-    private final static String rootGroupMembershipResource = "group-oscore";
+    private final static String rootGroupMembershipResource = "ace-group";
     
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	

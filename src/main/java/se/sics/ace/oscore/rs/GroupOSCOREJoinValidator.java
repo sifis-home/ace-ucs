@@ -76,7 +76,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
      * The group-membership resources exported by the OSCORE Group Manager to access an OSCORE group.
      * 
      * Each entry of the list contains the full path to a group-membership resource and the last
-     * path segment is the name of the associated OSCORE group, e.g. group-oscore/GROUP_NAME
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
      */
 	private Set<String> myJoinResources;
 	
@@ -191,7 +191,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Get the list of group-membership resources to access an OSCORE group.
 	 * 
 	 * Each entry of the list contains the full path to a group-membership resource, and the last
-     * path segment is the name of the associated OSCORE group, e.g. group-oscore/GROUP_NAME
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
 	 * 
 	 * @return the resources that this validator considers as group-membership resources to access an OSCORE group
 	 */
@@ -207,7 +207,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Set the list of group-membership resources to access an OSCORE group.
 	 * 
 	 * Each entry of the list contains the full path to a group-membership resource, and the last
-     * path segment is the name of the associated OSCORE group, e.g. group-oscore/GROUP_NAME
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
      * 
 	 * @param myJoinResources  the resources that this validator considers as group-membership resources to access an OSCORE group
 	 * .
@@ -227,7 +227,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * Remove a group-membership resource to access an OSCORE group from "myJoinResources".
 	 * 
 	 * The group-membership resource to remove is specified by its full path, where the last
-     * path segment is the name of the associated OSCORE group, e.g. group-oscore/GROUP_NAME
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
 	 * 
 	 * @param joinResource  the group-membership resource to remove.
 	 * 

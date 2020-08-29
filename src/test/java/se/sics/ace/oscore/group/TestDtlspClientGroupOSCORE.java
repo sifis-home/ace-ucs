@@ -90,7 +90,7 @@ import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
  */
 public class TestDtlspClientGroupOSCORE {
 
-	private final String rootGroupMembershipResource = "group-oscore";
+	private final String rootGroupMembershipResource = "ace-group";
 	
     private static byte[] key128
         = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};

@@ -235,7 +235,7 @@ public class PlugtestClientGroupOSCORE {
     
     private static String rsAddr = "";
     private static String rsAuthzInfo = "";
-    private static final String rootGroupMembershipResource = "group-oscore";
+    private static final String rootGroupMembershipResource = "ace-group";
     private static final String groupName = new String("feedca570000");
     
     // Uncomment to set ECDSA with curve P-256 for countersignatures
