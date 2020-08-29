@@ -789,6 +789,27 @@ public class TokenRepository implements AutoCloseable {
     }
 
     /**
+	 * @param   kid  the key identifier associated to the token ids (cti) of interest
+     * @return  a set of all token ids (cti) stored in this repository and associated to 'kid'
+     */
+    public Set<String> getCtis(String kid) {
+    	
+	    //Check if we have tokens for this pop-key
+	    if (!this.cti2kid.containsValue(kid)) {
+	        return null; //No tokens for this pop-key
+	    }
+	    
+	    //Collect the token id's of matching tokens
+	    Set<String> ctis = new HashSet<>();
+	    for (String cti : this.cti2kid.keySet()) {
+	        if (this.cti2kid.get(cti).equals(kid)) {
+	            ctis.add(cti);
+	        }
+	    }
+	    return ctis;
+    }
+	    
+    /**
      * Checks if a given scope is meaningful for this repository.
      * 
      * @param scope  the Scope can be CBOR String or CBOR array

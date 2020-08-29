@@ -361,9 +361,11 @@ public class TestDtlspRSGroupOSCORE {
       	  	// Retrieve the role or list of roles
       	  	scopeElement = cborScope.get(1);
       	  	
+      	  	int roleSet = 0;
+      	  	
           	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
         	if (scopeElement.getType().equals(CBORType.Integer)) {
-        		int roleSet = scopeElement.AsInt32();
+        		roleSet = scopeElement.AsInt32();
         		
         		// Invalid format of roles
         		if (roleSet < 0) {
@@ -477,6 +479,12 @@ public class TestDtlspRSGroupOSCORE {
       	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
       	  	}
+        	
+        	// Check that the indicated roles are actually supported by the Access Token for this group
+        	if (!checkRolesAgainstToken(subject, groupName, roleSet)) {
+        		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+        	}
         	
         	// Retrieve 'get_pub_keys'
         	// If present, this parameter must be an empty CBOR array
@@ -1118,6 +1126,109 @@ public class TestDtlspRSGroupOSCORE {
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
+    /**
+     * Verify that all the roles indicated in the Joining Request are also part of the 'scope' claim in the Access Token
+     * 
+     * @param subject   Subject identity of the joining node
+     * @param groupName   Group name of the OSCORE group
+     * @param roleSet   AIF-based combination of roles to take in the OSCORE group, as indicated in the 'scope' field of the Joining Request
+     * @return True if 'scope' in the Access Token admits all the roles indicated in the Joining Request, false otherwise
+     */
+    public static boolean checkRolesAgainstToken(String subject, String groupName, int roleSet) {
+    	
+    	boolean ret = false;
+    	
+    	String kid = TokenRepository.getInstance().getKid(subject);
+    	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
+    	
+    	// This should never happen at this point, since a valid Access Token has just made this request pass through 
+    	if (ctis == null)
+    		return false;
+    	
+    	for (String cti : ctis) { //All tokens linked to that pop key
+    		
+	        //Check if we have the claims for that cti
+	        //Get the claims
+            Map<Short, CBORObject> claims = TokenRepository.getInstance().getClaims(cti);
+            if (claims == null || claims.isEmpty()) {
+                //No claims found
+        		// Move to the next Access Token for this 'kid'
+                continue;
+            }
+            
+	        //Check the scope
+            CBORObject scope = claims.get(Constants.SCOPE);
+            
+        	// This should never happen at this point, since a valid Access Token has just made this request pass through
+            if (scope == null) {
+        		// Move to the next Access Token for this 'kid'
+            	continue;
+            }
+            
+            if (!scope.getType().equals(CBORType.ByteString)) {
+        		// Move to the next Access Token for this 'kid'
+            	continue;
+            }
+            
+            byte[] rawScope = scope.GetByteString();
+        	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
+        	
+        	if (!cborScope.getType().equals(CBORType.Array)) {
+        		// Move to the next Access Token for this 'kid'
+                continue;
+            }
+
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
+            	
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+        		
+        		if (!scopeEntry.getType().equals(CBORType.Array) || scopeEntry.size() != 2) {
+        			// Move to the next Access Token for this 'kid'
+                    break;
+                }
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	        	String scopeStr;
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  		if (!scopeStr.equals(groupName)) {
+	      	  		    // Move to the next scope entry
+	      	  			continue;
+	      	  		}
+	      	  	}
+	      	  	else {
+	    			// Move to the next Access Token for this 'kid'
+	                break;
+	      	  	}
+	      	  	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	
+	        	if (!scopeElement.getType().equals(CBORType.Integer)) {
+      	  		    // Move to the next scope entry
+      	  			continue;
+	        	}
+	        	
+        		int roleSetToken = scopeElement.AsInt32();
+        		
+        		if (roleSetToken < 0) {
+      	  		    // Move to the next scope entry
+      	  			continue;
+        		}
+        		        		
+        		if ((roleSet & roleSetToken) == roleSet) {
+        			// 'scope' in the Access Token admits all the roles indicated in the Joining Request
+        			ret = true;
+        		}
+        			        	
+        	}
+        	
+    	}
+    	    	
+    	return ret;
+    	
+    }
     
     /**
      * Verify the correctness of a digital signature
