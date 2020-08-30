@@ -924,12 +924,12 @@ public class Constants {
      public static final short NUM = 206;
      
      /**
-      * Value for the label "group_plicies" in the Join Response message
+      * Value for the label "group_policies" in the Join Response message
       */
      public static final short GROUP_POLICIES = 207;
      
      /**
-      * Value for the label "group_plicies" in the Join Response message
+      * Value for the label "peer_roles" in the Join Response message
       */
      public static final short PEER_ROLES = 208;
      
