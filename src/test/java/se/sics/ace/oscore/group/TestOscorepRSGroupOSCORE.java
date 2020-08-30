@@ -896,6 +896,8 @@ public class TestOscorepRSGroupOSCORE {
         			
         		}
         		
+            	myGroup.addGroupMember(senderId, roleSet);
+        		
         	}
         	
             // Respond to the Join Request
@@ -944,6 +946,7 @@ public class TestOscorepRSGroupOSCORE {
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
+        		CBORObject peerRoles = CBORObject.NewArray();
         		
         		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
         		
@@ -960,12 +963,15 @@ public class TestOscorepRSGroupOSCORE {
         				continue;
         			
         			coseKeySet.Add(publicKey);
+        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+
         		}
         		
         		if (coseKeySet.size() > 0) {
         			
         			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
         			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+        			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
         			
         		}
         		
@@ -1030,7 +1036,8 @@ public class TestOscorepRSGroupOSCORE {
         
     }
     
-    private static boolean OSCOREGroupCreation(String groupName, int countersignKeyCurve) throws CoseException
+
+    private static boolean OSCOREGroupCreation(String groupName, int countersignKeyCurve) throws CoseException, Exception
     {
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -1123,7 +1130,12 @@ public class TestOscorepRSGroupOSCORE {
     	
     	// Add a group member with Sender ID 0x52
     	mySid = new byte[] { (byte) 0x52 };
-    	myGroup.allocateSenderId(mySid);	
+    	if (!myGroup.allocateSenderId(mySid))
+    		return false;
+    	
+    	int roles = 0;
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	myGroup.addGroupMember(mySid, roles);
     	
     	String rpkStr1 = "";
     	
@@ -1139,13 +1151,19 @@ public class TestOscorepRSGroupOSCORE {
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	// myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
     	
     	myGroup.storePublicKey(mySid, myKey.AsCBOR());
     	
+    	
     	// Add a group member with Sender ID 0x77
     	mySid = new byte[] { (byte) 0x77 };
-    	myGroup.allocateSenderId(mySid);
+    	if (!myGroup.allocateSenderId(mySid))
+    		return false;
+    	
+    	roles = 0;
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+    	myGroup.addGroupMember(mySid, roles);
     	
     	String rpkStr2 = "";
     	

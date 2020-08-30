@@ -928,6 +928,11 @@ public class Constants {
       */
      public static final short GROUP_POLICIES = 207;
      
+     /**
+      * Value for the label "group_plicies" in the Join Response message
+      */
+     public static final short PEER_ROLES = 208;
+     
      
      /**
       * Value for the group key type "Group_OSCORE_Security_Context object"

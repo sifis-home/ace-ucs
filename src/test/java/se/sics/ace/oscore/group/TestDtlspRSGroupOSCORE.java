@@ -697,6 +697,8 @@ public class TestDtlspRSGroupOSCORE {
         			
         		}
         		
+            	myGroup.addGroupMember(senderId, roleSet);
+        		
         	}
         	
             // Respond to the Join Request
@@ -746,6 +748,7 @@ public class TestDtlspRSGroupOSCORE {
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
+        		CBORObject peerRoles = CBORObject.NewArray();
         		
         		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
         		
@@ -762,12 +765,14 @@ public class TestDtlspRSGroupOSCORE {
         				continue;
         			
         			coseKeySet.Add(publicKey);
+        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
         		}
         		
         		if (coseKeySet.size() > 0) {
         			
         			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
         			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+        			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
         			
         		}
         		
@@ -979,7 +984,12 @@ public class TestDtlspRSGroupOSCORE {
     	
     	// Add a group member with Sender ID 0x52
     	mySid = new byte[] { (byte) 0x52 };
-    	myGroup.allocateSenderId(mySid);	
+    	if (!myGroup.allocateSenderId(mySid))
+    		stop();	
+    	
+    	int roles = 0;
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	myGroup.addGroupMember(mySid, roles);
     	
     	String rpkStr1 = "";
     	
@@ -1000,7 +1010,13 @@ public class TestDtlspRSGroupOSCORE {
     	
     	// Add a group member with Sender ID 0x77
     	mySid = new byte[] { (byte) 0x77 };
-    	myGroup.allocateSenderId(mySid);
+    	if (!myGroup.allocateSenderId(mySid))
+    		stop();	
+    	
+    	roles = 0;
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+    	myGroup.addGroupMember(mySid, roles);
     	
     	String rpkStr2 = "";
     	

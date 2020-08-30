@@ -42,6 +42,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Constants;
 
 /**
@@ -73,6 +74,12 @@ public class GroupInfo {
 	// Each map stores the public keys of the group members as COSE Keys (CBOR Maps).
 	// The map key (label) is the integer representation of the Sender ID of the group member.
 	private List<Map<Integer, CBORObject>> publicKeyRepo = new ArrayList<Map<Integer, CBORObject>>();
+	
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 includes as elements Sender IDs with size 1 byte.
+	// Each map stores the AIF-based role(s) of group members.
+	// The map key (label) is the integer representation of the Sender ID of the group member.
+	private List<Map<Integer, Integer>> nodeRoles = new ArrayList<Map<Integer, Integer>>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -164,6 +171,10 @@ public class GroupInfo {
         	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
     		publicKeyRepo.add(new HashMap<>());
+    		
+        	// Empty sets of roles; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		nodeRoles.add(new HashMap<>());
     	}
     	
     	this.groupPolicies = groupPolicies;
@@ -587,6 +598,10 @@ public class GroupInfo {
     	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1))
     		return false;
     	
+    	// The specified Sender ID has been already assigned - And no recycling is admitted
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(bytesToInt(id)))
+    		return false;
+    	
     	// In case the input array is 4 bytes in size and encoding a negative integer, this will return false
     	return allocateSenderId(bytesToInt(id));
     	
@@ -659,6 +674,78 @@ public class GroupInfo {
     }
     
     /**
+     * Add a new group member - Note that the public key has to be added separately
+     * 
+     * @param sid   The Sender ID of the new node
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     */
+    synchronized public void addGroupMember(final byte[] sid, final int roles) {
+
+    	// Consider the inner map related to the size in bytes of the Sender ID
+    	this.nodeRoles.get(sid.length - 1).put(bytesToInt(sid), roles);
+    	
+    }
+    
+    /**
+     * Return the roles of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     * @return The roles of the group member, encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final String nodeName) {
+    	
+    	byte[] sid = Utils.hexToBytes(nodeName);
+    	return getGroupMemberRoles(sid);
+    	
+    }
+    
+    /**
+     * Return the roles of the group member identified by the specified Sender ID
+     * 
+     * @param sid   The Sender ID of the group member
+     * 
+     * @return The roles of the group member, encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final byte[] sid) {
+    	
+    	return this.nodeRoles.get(sid.length - 1).get(bytesToInt(sid)).shortValue();
+    	
+    }
+    
+    /**
+     * Remove the group member identified by the specified node name
+     * 
+     * @param sid   The node name of the group member
+     * 
+     * @return True if an entry for the group member was found and removed, false otherwise
+     */
+    synchronized public boolean removeGroupMember(final String nodeName) {
+    	
+    	byte[] sid = Utils.hexToBytes(nodeName);
+    	return removeGroupMember(sid);
+    	
+    }
+    
+    /**
+     * Remove the group member identified by the specified Sender ID - Note that the public key has to be removed separately
+     * 
+     * @param sid   The Sender ID of the group member
+     * 
+     * @return True if an entry for the group member was found and removed, false otherwise
+     */
+    synchronized public boolean removeGroupMember(final byte[] sid) {
+    	
+    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    		return false;
+    	
+    	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
+    	
+    	return true;
+    	
+    }
+    
+    /**
      * Return the public keys of the current group members
      * 
      * @return  The set of public keys of the current group member with Sender ID 'sid' from the public key repo.
@@ -697,27 +784,6 @@ public class GroupInfo {
     	return this.publicKeyRepo.get(sid.length - 1).get(bytesToInt(sid));
     	
     }
-
-    /**
-     *  Remove the public key of the group member indicated by the provided Sender ID
-     *  The format of the public key is the raw CBOR Map encoding it as COSE Key. 
-     *  
-     * @param sid   Sender ID of the group member associated to the public key.
-     * @return  True if the public key was found and removed, false otherwise
-     */
-    synchronized public boolean deletePublicKey(final byte[] sid) {
-    	
-    	if (sid.length < 1 || sid.length > 4)
-    		return false;
-    	
-    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(bytesToInt(sid)))
-    		return false;
-    	
-    	this.publicKeyRepo.get(sid.length - 1).remove(bytesToInt(sid));
-    	
-    	return true;
-    	
-    }
     
     /**
      *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
@@ -735,6 +801,28 @@ public class GroupInfo {
     		return false;
     	
     	this.publicKeyRepo.get(sid.length - 1).put(bytesToInt(sid), key);
+    	
+    	return true;
+    	
+    }
+    
+
+    /**
+     *  Remove the public key of the group member indicated by the provided Sender ID
+     *  The format of the public key is the raw CBOR Map encoding it as COSE Key. 
+     *  
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @return  True if the public key was found and removed, false otherwise
+     */
+    synchronized public boolean deletePublicKey(final byte[] sid) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
+    		return false;
+    	
+    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    		return false;
+    	
+    	this.publicKeyRepo.get(sid.length - 1).remove(bytesToInt(sid));
     	
     	return true;
     	
