@@ -43,6 +43,7 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -719,7 +720,7 @@ public class PlugtestRSGroupOSCORE {
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
         		// Store this client's public key
-        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), publicKey.AsCBOR())) {
+        		if (!myGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
         			myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
             		return;
@@ -776,15 +777,21 @@ public class PlugtestRSGroupOSCORE {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
         		
-        		for (Integer i : myGroup.getUsedSenderIds()) {
+        		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
+        		
+        		for (CBORObject publicKey : publicKeys) {
         			
-        			// Skip the entry of the just-added joining node 
-        			if (i.equals(GroupInfo.bytesToInt(senderId)))
+        			// This should never happen; silently ignore
+        			if (publicKey == null)
         				continue;
         			
-        			CBORObject coseKeyPeer = myGroup.getPublicKey(i);
-        			coseKeySet.Add(coseKeyPeer);
+        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
         			
+        			// Skip the public key of the just-added joining node
+        			if (Arrays.equals(senderId, peerSenderId))
+        				continue;
+        			
+        			coseKeySet.Add(publicKey);
         		}
         		
         		if (coseKeySet.size() > 0) {
@@ -1031,7 +1038,7 @@ public class PlugtestRSGroupOSCORE {
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+    	myGroup.storePublicKey(mySid, myKey.AsCBOR());
     	
     	// Add a group member
     	mySid = idClient3;
@@ -1051,7 +1058,7 @@ public class PlugtestRSGroupOSCORE {
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
+    	myGroup.storePublicKey(mySid, myKey.AsCBOR()); 	
     	
     	
     	// Add this OSCORE group to the set of active groups

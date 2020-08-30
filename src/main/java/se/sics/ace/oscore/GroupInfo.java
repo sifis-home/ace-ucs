@@ -31,8 +31,10 @@
  *******************************************************************************/
 package se.sics.ace.oscore;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -59,13 +61,18 @@ public class GroupInfo {
 	private byte[] masterSecret;
 	private byte[] masterSalt;
 	
-	private Set<Integer> usedSenderIds = new HashSet<>();
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 includes as elements Sender IDs with size 1 byte.
+	private List<Set<Integer>> usedSenderIds = new ArrayList<Set<Integer>>();
+	
 	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
 	private int maxSenderIdValue;
 	
-	// This map stores the public keys of the group members as COSE Keys (CBOR Maps).
-	// The map key (label) is the integer representation of the Sender ID of the group member. 
-	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<>();
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 includes as elements Sender IDs with size 1 byte.
+	// Each map stores the public keys of the group members as COSE Keys (CBOR Maps).
+	// The map key (label) is the integer representation of the Sender ID of the group member.
+	private List<Map<Integer, CBORObject>> publicKeyRepo = new ArrayList<Map<Integer, CBORObject>>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -145,9 +152,19 @@ public class GroupInfo {
     		this.senderIdSize = senderIdSize;
     	
     	if (senderIdSize == 4)
-    		this.maxSenderIdValue = (2 << 31) - 1;
+    		this.maxSenderIdValue = (1 << 31) - 1;
     	else
-    		this.maxSenderIdValue = (2 << (senderIdSize * 8)) - 1;
+    		this.maxSenderIdValue = (1 << (senderIdSize * 8)) - 1;
+    	
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedSenderIds.add(new HashSet<>());
+    		
+        	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		publicKeyRepo.add(new HashMap<>());
+    	}
     	
     	this.groupPolicies = groupPolicies;
     	
@@ -271,6 +288,7 @@ public class GroupInfo {
     	
     }
     
+    // ZZ
     // Set the size and initial value of the Group ID Epoch.
     // This method is only internally invoked by this class' constructor.
     //
@@ -284,12 +302,8 @@ public class GroupInfo {
     	else
     		this.groupIdEpochSize = groupIdEpochSize;
     	
-    	if (groupIdEpochSize == 4)
-    		this.maxGroupIdEpochValue = (2 << 31) - 1;
-    	else
-    	    this.maxGroupIdEpochValue = (2 << (groupIdEpochSize * 8)) - 1;
-
     	this.groupIdEpoch = groupIdEpoch;
+    	this.maxGroupIdEpochValue = (1 << (groupIdEpochSize * 8)) - 1;
 
     	return true;
     }
@@ -334,26 +348,27 @@ public class GroupInfo {
     	
     }
     
+    // ZZ
     /**
      * @return  the full {Prefix + Epoch} Group ID as a Byte Array
      */
     synchronized public final byte[] getGroupId() {
     	
     	byte[] myArray = new byte[this.groupIdPrefix.length + this.groupIdEpochSize];
+    	for (int i = 0; i < myArray.length; i++)
+    		myArray[i] = (byte) 0x00;
+    	
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
     	
+    	// The returned array has the minimal size to represent integer, hence the possible padding with zeros
     	byte[] groupIdEpochArray = intToBytes(this.groupIdEpoch);
     	
-    	if (groupIdEpochArray.length != 0)
-    		System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
-    	
-    	// Ensure that the Group ID Epoch have the intended size in bytes
+    	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
+    		return null;
+    		    	
     	int diff = this.groupIdEpochSize - groupIdEpochArray.length;
-    	for (int i = 0; i < diff; i++) {
-    		int offset = this.groupIdPrefix.length + groupIdEpochArray.length + i; 
-    		myArray[offset] = (byte) 0x00;
-    	}
-    	
+    	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length + diff, groupIdEpochArray.length);
+    	     
     	return myArray;
     	
     }
@@ -509,16 +524,35 @@ public class GroupInfo {
      */
     synchronized public byte[] allocateSenderId() {
     	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
-    		return null;
+    	// All the possible values for the Sender IDs with this size have been allocated.
+    	// Switch to the next size, up to 4 bytes, and update the maximum Sender ID value.
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1)) {
+	    		this.senderIdSize++;
+	    
+        	// All Sender IDs with all possible sizes have been assigned alrady
+        	if (this.senderIdSize > 4)
+        		return null;
+        	
+        	if (senderIdSize == 4)
+        		this.maxSenderIdValue = (1 << 31) - 1;
+        	else
+        		this.maxSenderIdValue = (1 << (senderIdSize * 8)) - 1;
+    	}
     	
     	byte[] senderIdByteArray = null;
     	for (int i = 0; i < this.maxSenderIdValue; i++) {
-    		if (!this.usedSenderIds.contains(i)) {
-    			this.usedSenderIds.add(i);
+    		if (!this.usedSenderIds.get(senderIdSize - 1).contains(i)) {
+    			this.usedSenderIds.get(senderIdSize - 1).add(i);
+    			
     			senderIdByteArray = new byte[this.senderIdSize];
-    			System.arraycopy(intToBytes(i), 0, senderIdByteArray, 0, this.senderIdSize);
+    			for (int j = 0; j < senderIdByteArray.length; j++)
+    				senderIdByteArray[j] = (byte) 0x00;
+    			
+    			// The returned array has the minimal size to represent the integer value, hence the possible padding with zeros
+    			byte[] myArray = intToBytes(i);
+    			int diff = senderIdByteArray.length - myArray.length;
+    			
+    			System.arraycopy(myArray, 0, senderIdByteArray, diff, myArray.length);
     			break;
     		}
     	}
@@ -528,21 +562,48 @@ public class GroupInfo {
     }
     
     /**
+     *  Return the whole collection of Sender IDs assigned so far.
+     *  Note that this includes also Sender IDs of members that have left the group.
+     *  On top of uniqueness, there is not re-cycling of previously assigned Sender IDs.
+     * @return   The whole collection of assigned Sender IDs.
+     */
+    synchronized public List<Set<Integer>> getUsedSenderIds() {
+    	
+    	return this.usedSenderIds;
+    	
+    }
+    
+    /**
+     *  If never assigned before, assign a particular Sender ID value provided as byte array.
+     * @param id   The requested Sender ID to allocate
+     * @return   True is the Sender ID could be allocated, false otherwise.
+     */
+    synchronized public boolean allocateSenderId(byte[] id) {
+    	
+    	if (id.length != this.senderIdSize)
+    		return false;
+    	
+    	// All the possible values for the Sender IDs with this size have been assigned already
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1))
+    		return false;
+    	
+    	// In case the input array is 4 bytes in size and encoding a negative integer, this will return false
+    	return allocateSenderId(bytesToInt(id));
+    	
+    }
+    
+    /**
      *  Check if a particular Sender ID value provided as an integer is available.
      * @param id
      * @return  if available allocate it and return true. Otherwise, return false.
      */
-    synchronized public boolean allocateSenderId(final int id) {
-    	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
-    		return false;
+    synchronized private boolean allocateSenderId(final int id) {
     	
     	if (id < 0 || id > this.maxSenderIdValue)
     		return false;
     	
-    	if (!this.usedSenderIds.contains(id)) {
-    		this.usedSenderIds.add(id);
+    	if (!this.usedSenderIds.get(senderIdSize - 1).contains(id)) {
+    		this.usedSenderIds.get(senderIdSize - 1).add(id);
     		return true;
     	}
     	
@@ -551,56 +612,9 @@ public class GroupInfo {
     }
     
     /**
-     *  Check if a particular Sender ID value provided as a byte array is available.
-     * @param id
-     * @return   If available, allocate it and return true. Otherwise, return false.
-     */
-    synchronized public boolean allocateSenderId(byte[] id) {
-    	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
-    		return false;
-    	
-    	if (id.length != this.senderIdSize)
-    		return false;
-    	
-    	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
-    	return allocateSenderId(bytesToInt(id));
-    	
-    }
-    
-    /**
-     * @return  the set of allocated Sender Ids in the OSCORE group
-     */
-    synchronized public final Set<Integer> getUsedSenderIds() {
-    	
-    	return new HashSet<>(this.usedSenderIds);
-    	
-    }
-    
-    /**
-     *  Release a particular Sender ID value provided as an integer.
-     * @param id
-     * @return  false in case of failure, or true otherwise.
-     */
-    synchronized public boolean deallocateSenderId(final int id) {
-    	
-    	if (id < 0 || id > this.maxSenderIdValue)
-    		return false;
-    	
-    	if (this.usedSenderIds.contains(id)) {
-    		this.usedSenderIds.remove(id);
-			return true;
-    	}
-    	
-    	return false;
-    	
-    }
-    
-    /**
-     *  Release a particular Sender ID value provided as an byte array.
-     * @param idByteArray
-     * @return  false in case of failure, or true otherwise.
+     *  Release a particular Sender ID value provided as a byte array.
+     * @param idByteArray   The Sender ID as byte array
+     * @return  false in case of failure, true otherwise.
      */
     synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
     	
@@ -610,7 +624,98 @@ public class GroupInfo {
     	int id = bytesToInt(idByteArray);
     	
     	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
-    	return deallocateSenderId(id);
+    	return deallocateSenderId(id, idByteArray.length);
+    	
+    }
+    
+    /**
+     *  Release a particular Sender ID value provided as an integer.
+     * @param id   the Sender ID converted to integer
+     * @param size   the size in bytes of the original Sender ID as byte array
+     * @return  false in case of failure, or true otherwise.
+     */
+    synchronized private boolean deallocateSenderId(final int id, final int size) {
+
+    	if (size < 0 || size > 4)
+    		return false;
+    	
+    	int maxValue;
+    	
+    	if (size == 4)
+    		maxValue = (1 << 31) - 1;
+    	else
+    		maxValue = (1 << (senderIdSize * 8)) - 1;
+    	
+    	if (id < 0 || id > maxValue)
+    		return false;
+    	
+    	if (this.usedSenderIds.get(size - 1).contains(id)) {
+    		this.usedSenderIds.get(size - 1).remove(id);
+			return true;
+    	}
+    	
+    	return false;
+    	
+    }
+    
+    /**
+     * Return the public keys of the current group members
+     * 
+     * @return  The set of public keys of the current group member with Sender ID 'sid' from the public key repo.
+     */
+    // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
+    synchronized public Set<CBORObject> getPublicKeys() {
+    	
+    	Set<CBORObject> publicKeys = new HashSet<>();
+    	
+    	// Go through each size of Sender ID, i.e. from 1 (i=0) to 4 (i=3) bytes
+    	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
+    		
+    		// Retrieve each public key
+    		for (Map.Entry<Integer, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
+    			publicKeys.add(pair.getValue());
+    		}
+    		
+    	}
+    	
+    	return publicKeys;
+    	
+    }
+    
+    /**
+     * Return the public key of the group member indicated by the provided Sender ID
+     * 
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @return  the public key 'key' of the group member.
+     */
+    // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
+    synchronized public CBORObject getPublicKey(final byte[] sid) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
+    		return null;
+    	
+    	return this.publicKeyRepo.get(sid.length - 1).get(bytesToInt(sid));
+    	
+    }
+
+    /**
+     *  Remove the public key of the group member indicated by the provided Sender ID
+     *  The format of the public key is the raw CBOR Map encoding it as COSE Key. 
+     *  
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @return  True if the public key was found and removed, false otherwise
+     */
+    synchronized public boolean deletePublicKey(final byte[] sid) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
+    		return false;
+    	
+    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    		return false;
+    	
+    	this.publicKeyRepo.get(sid.length - 1).remove(bytesToInt(sid));
+    	
+    	return true;
     	
     }
     
@@ -621,44 +726,15 @@ public class GroupInfo {
      * @param key
      * @return  true if it worked, false if it failed
      */
-    synchronized public boolean storePublicKey(final Integer sid, final CBORObject key) {
+    synchronized public boolean storePublicKey(final byte[] sid, final CBORObject key) {
     	
-    	if (!this.usedSenderIds.contains(sid))
+    	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
     	if (key.getType() != CBORType.Map)
     		return false;
     	
-    	this.publicKeyRepo.put(sid, key);
-    	
-    	return true;
-    	
-    }
-    
-    /**
-     * @param sid
-     * @return  the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
-     */
-    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-    synchronized public CBORObject getPublicKey(final Integer sid) {
-    	
-    	return this.publicKeyRepo.get(sid);
-    	
-    }
-
-    /**
-     *  Remove the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
-     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-     *  
-     * @param sid
-     * @return  true if it was there, false if it wasn't
-     */
-    synchronized public boolean deletePublicKey(final Integer sid) {
-    	
-    	if (!this.publicKeyRepo.containsKey(sid))
-    		return false;
-    	
-    	this.publicKeyRepo.remove(sid);
+    	this.publicKeyRepo.get(sid.length - 1).put(bytesToInt(sid), key);
     	
     	return true;
     	
@@ -696,6 +772,16 @@ public class GroupInfo {
     	
     }
     
+    /**
+     *  Return the current size of new Sender IDs to assign
+	 *
+	 *  @return  an integer with the current size of new Sender IDs to assign 
+     */
+    synchronized public int getSenderIdSize() {
+    	
+    	return this.senderIdSize;
+    	
+    }
     
     /**
      *  Convert a positive integer into a byte array of minimal size.
@@ -708,9 +794,7 @@ public class GroupInfo {
     	// Big-endian
     	if (num < 0)
     		return null;
-    	else if (num == 0) {
-            return new byte[] {};
-        } else if (num < 256) {
+        else if (num < 256) {
             return new byte[] { (byte) (num) };
         } else if (num < 65536) {
             return new byte[] { (byte) (num >>> 8), (byte) num };
@@ -724,9 +808,7 @@ public class GroupInfo {
     	/*
     	if (num < 0)
     		return null;
-    	else if (num == 0) {
-            return new byte[] {};
-        } else if (num < 256) {
+        else if (num < 256) {
             return new byte[] { (byte) (num) };
         } else if (num < 65536) {
             return new byte[] { (byte) num, (byte) (num >>> 8) };

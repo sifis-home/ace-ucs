@@ -10,6 +10,7 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -705,7 +706,7 @@ public class TestOscorepRSGroupOSCORE {
         		
         		// TODO: cover also the case where the first array is not empty
         		
-        		// This is currently assuming the first array to be emtpy, so asking for all public keys
+        		// This is currently assuming the first array to be empty, so asking for all public keys
         		providePublicKeys = true;
         		
         	}
@@ -716,6 +717,7 @@ public class TestOscorepRSGroupOSCORE {
         	// Assign a new Sender ID to the joining node.
         	// For the sake of testing, a particular Sender ID is used as known to be available.
             byte[] senderId = new byte[] { (byte) 0x25 };
+            
         	myGroup.allocateSenderId(senderId);        	
         	
         	String nodeName = Utils.bytesToHex(senderId);
@@ -887,7 +889,7 @@ public class TestOscorepRSGroupOSCORE {
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
         		// Store this client's public key
-        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), publicKey.AsCBOR())) {
+        		if (!myGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
         			myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
             		return;
@@ -938,21 +940,26 @@ public class TestOscorepRSGroupOSCORE {
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
-        	
-        	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
+
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
         		
-        		for (Integer i : myGroup.getUsedSenderIds()) {
+        		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
+        		
+        		for (CBORObject publicKey : publicKeys) {
         			
-        			// Skip the entry of the just-added joining node 
-        			if (i.equals(GroupInfo.bytesToInt(senderId)))
+        			// This should never happen; silently ignore
+        			if (publicKey == null)
         				continue;
         			
-        			CBORObject coseKeyPeer = myGroup.getPublicKey(i);
-        			coseKeySet.Add(coseKeyPeer);
+        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
         			
+        			// Skip the public key of the just-added joining node
+        			if (Arrays.equals(senderId, peerSenderId))
+        				continue;
+        			
+        			coseKeySet.Add(publicKey);
         		}
         		
         		if (coseKeySet.size() > 0) {
@@ -1079,7 +1086,7 @@ public class TestOscorepRSGroupOSCORE {
         // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
-    	
+    	    	
     	GroupInfo myGroup = new GroupInfo(groupName,
     									  masterSecret,
     			                          masterSalt,
@@ -1132,8 +1139,9 @@ public class TestOscorepRSGroupOSCORE {
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
+    	// myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR());
     	
+    	myGroup.storePublicKey(mySid, myKey.AsCBOR());
     	
     	// Add a group member with Sender ID 0x77
     	mySid = new byte[] { (byte) 0x77 };
@@ -1153,8 +1161,8 @@ public class TestOscorepRSGroupOSCORE {
     	
     	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
     	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(GroupInfo.bytesToInt(mySid), myKey.AsCBOR()); 	
     	
+    	myGroup.storePublicKey(mySid, myKey.AsCBOR());
     	
     	// Add this OSCORE group to the set of active groups
     	activeGroups.put(groupName, myGroup);
