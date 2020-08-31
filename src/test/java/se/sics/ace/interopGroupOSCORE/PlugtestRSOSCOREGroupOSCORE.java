@@ -524,9 +524,24 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		
         		}
         		
-        		// TODO: cover also the case where the first array is not empty
-        		
-        		// This is currently assuming the first array to be emtpy, so asking for all public keys
+        		// Invalid format of 'get_pub_keys'
+        		if (getPubKeys.size() != 0) {
+        			
+        			for (int i = 0; i < getPubKeys.get(0).size(); i++) {
+        				// Possible elements of the first array have to be all integers and
+        				// express a valid combination of roles encoded in the AIF data model
+        				if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
+        					!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
+        					
+                    		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+                    		return;
+        					
+        				}
+        			}
+        			
+        		}
+
         		providePublicKeys = true;
         		
         	}
@@ -784,8 +799,34 @@ public class PlugtestRSOSCOREGroupOSCORE {
         			if (Arrays.equals(senderId, peerSenderId))
         				continue;
         			
-        			coseKeySet.Add(publicKey);
-        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+        			boolean includePublicKey = false;
+        			
+        			// Public keys of all group members are requested
+        			if (getPubKeys.get(0).size() == 0) {
+        				includePublicKey = true;
+        			}
+        			// Only public keys of group members with certain roles are requested
+        			else {
+        				for (int i = 0; i < getPubKeys.get(0).size(); i++) {
+        					int filterRoles = getPubKeys.get(0).get(i).AsInt32();
+        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
+        					
+        					// The owner of this public key does not have all its roles indicated in this AIF integer filter
+        					if (filterRoles != memberRoles) {
+        						continue;
+        					}
+        					else {
+        						includePublicKey = true;
+        						break;
+        					}
+        				}
+        			}
+        			
+        			if (includePublicKey) {
+	        			coseKeySet.Add(publicKey);
+	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+        			}
+        			
         		}
         		
         		if (coseKeySet.size() > 0) {
