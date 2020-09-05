@@ -490,8 +490,10 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		          	  // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
 		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
 		        		  int roleSet = scopeElement.AsInt32();
-		        		  if (roleSet < 0)
-		        			  throw new AceException("The roles must be encoded as a CBOR Unsigned Integer");
+		        		  
+		        		  if (roleSet <= 0)
+		        			  throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
+		        		  
 		        		  Set<Integer> roleIdSet = Constants.getGroupOSCORERoles(roleSet);
 		        		  short[] roleIdArray = new short[roleIdSet.size()];
 		        		  int index = 0;
@@ -503,6 +505,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        			  if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
 			        			  roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
 		        		  }
+		        		  
 		        	  }
 		        	  
 		        	  // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
@@ -510,8 +513,8 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
 		        		  // Only one role is specified
 		        		  int index = scopeElement.AsInt32();
-		        		  if (index < 0)
-		        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+		        		  if (index <= 0)
+		        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
 		        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
 		        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
 		        		  else
@@ -525,8 +528,8 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        		  for (int i=0; i<scopeElement.size(); i++) {
 		        			  if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
 		        				  int index = scopeElement.get(i).AsInt32();
-				        		  if (index < 0)
-				        			  throw new AceException("The roles must be CBOR Unsigned Integers");
+				        		  if (index <= 0)
+				        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
 				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
 				        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
 				        		  else

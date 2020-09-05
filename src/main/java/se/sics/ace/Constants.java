@@ -1042,25 +1042,26 @@ public class Constants {
        * @return  The set of role identifiers specified in the role set
        * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
       */
+     
+     
      public static Set<Integer> getGroupOSCORERoles (int roleSet) throws AceException {
     	 
     	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
     	 
     	 Set<Integer> mySet = new HashSet<Integer>();
-    	 // int counter = 0;
     	 int roleIdentifier = 0;
     	 
     	 while (roleSet != 0) {
     		 roleSet = roleSet >>> 1;
     	 	 roleIdentifier++;
     	 	 if ((roleSet & 1) != 0) {
-    	 		 // counter++;
     	 		 mySet.add(Integer.valueOf(roleIdentifier));
     	 	 }
     	 }
     	 
     	 return mySet;
     	 
-     }   
+     }
+     
      
 }

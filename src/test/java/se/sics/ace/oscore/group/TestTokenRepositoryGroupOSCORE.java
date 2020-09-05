@@ -149,25 +149,12 @@ public class TestTokenRepositoryGroupOSCORE {
     	final String groupName = "feedca570000";
         
         // M.T.
-        // Adding the group-membership resource, as one scope for each different
-        // combinations of roles admitted in the OSCORE Group wiht name "feedca570000".
+        // Adding the group-membership resource
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
         myResource2.put(rootGroupMembershipResource + "/" + groupName, actions2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor_responder", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester_monitor", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_monitor_requester", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_requester_responder", myResource2);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor_responder_requester", myResource2);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource2);
         
         // M.T.
         Set<String> auds = new HashSet<>();

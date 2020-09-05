@@ -916,31 +916,21 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myScopes.put("r_temp", myResource2);
         
         // M.T.
-        // Adding the group-membership resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with group name "feedca570000".
+        // Adding the group-membership resource, with group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder_requester", myResource3);
-        
+        myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
+                
         // M.T.
-        // Adding another group-membership resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with group name "fBBBca570000".
+        // Adding another group-membership resource, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Set<Short> actions4 = new HashSet<>();
         actions4.add(Constants.POST);
         Map<String, Set<Short>> myResource4 = new HashMap<>();
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_monitor", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_requester_responder", myResource4);
-        myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000_responder_requester", myResource4);
+        myScopes.put(rootGroupMembershipResource + "/", myResource4);
         
         // M.T.
         Set<String> auds = new HashSet<>();

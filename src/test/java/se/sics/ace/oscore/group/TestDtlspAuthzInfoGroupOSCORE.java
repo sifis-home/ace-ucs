@@ -138,21 +138,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         
         final String groupName = "feedca570000";
         
-        // Adding the group-membership resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with group name "feedca570000".
-        
+        // Adding the group-membership resource
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_monitor", myResource3);
-        myScopes.put(rootGroupMembershipResource + "/" + groupName + "_requester_responder_monitor", myResource3);
-        
+        myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
+                
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
