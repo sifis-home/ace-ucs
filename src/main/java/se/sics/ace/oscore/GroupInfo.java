@@ -733,7 +733,7 @@ public class GroupInfo {
      * 
      * @param nodeName   The node name of the group member
      * 
-     * @return The roles of the group member encoded in the AIF data model, or -1 if the node is not found among the group members
+     * @return The roles of the group member encoded in the AIF data model
      */
     synchronized public short getGroupMemberRoles(final String nodeName) {
     	
