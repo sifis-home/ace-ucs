@@ -238,14 +238,134 @@ public class PlugtestRSGroupOSCORE {
             // set display name
             getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
             
-            // Set the valid cambinations of roles in a Joining Request
+            // Set the valid combinations of roles in a Joining Request
             // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
-            validRoleCombinations.add(2); // Requester
-            validRoleCombinations.add(4); // Responder
-            validRoleCombinations.add(8); // Monitor
-            validRoleCombinations.add(6); // Requester+Responder
+            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER); // Requester (2)
+            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER); // Responder (4)
+            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR); // Monitor (8)
+            validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
+            		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
+
         }
 
+        @Override
+        public void handleGET(CoapExchange exchange) {
+        	System.out.println("GET request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}  
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		
+        		// The requester is not a current group member.
+        		//
+        		// This is still fine, as long as at least one Access Tokens of the
+        		// requester allow also other roles than "Verifier" in this group
+        		
+        		// Check that none of the Access Tokens for this node allows only the Verifier role for this group
+            	
+        		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+        		boolean allowed = false;
+            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	if (roleSetToken == null) {
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		return;
+            	}
+            	else {
+            		for (int index = 0; index < roleSetToken.length; index++) {
+                		if (role == roleSetToken[index]) {
+                			// 'scope' in this Access Token admits only the "Verifier" role for this group. Skip to the next Access Token.
+                			continue;
+                		}
+                		else {
+                			// 'scope' in this Access Token admits other roles than "Verifier" this group. This makes it fine for the requester.
+                			allowed = true;
+                			break;
+                		}
+            		}	
+            	}
+            	
+            	if (!allowed) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a Verifier-only requester");
+            		return;
+            	}
+            	
+        	}
+            	
+        	// Respond to the Key Distribution Request
+            
+        	CBORObject myResponse = CBORObject.NewMap();
+        	
+        	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
+        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT));
+        	
+        	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
+        	CBORObject myMap = CBORObject.NewMap();
+        	
+        	// Fill the 'key' parameter
+        	// Note that no Sender ID is included
+        	myMap.Add(OSCORESecurityContextObjectParameters.ms, targetedGroup.getMasterSecret());
+        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCORESecurityContextObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
+        	if (targetedGroup.getCsParams().size() != 0)
+        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, targetedGroup.getCsParams());
+        	if (targetedGroup.getCsKeyParams().size() != 0)
+        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
+        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        	
+        	myResponse.Add(Constants.KEY, myMap);
+        	
+        	// The current version of the symmetric keying material
+        	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+        	
+        	// CBOR Value assigned to the coap_group_oscore profile.
+        	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+        	
+        	// Expiration time in seconds, after which the OSCORE Security Context
+        	// derived from the 'k' parameter is not valid anymore.
+        	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+
+        }
+        
         @Override
         public void handlePOST(CoapExchange exchange) {
         	
@@ -511,10 +631,27 @@ public class PlugtestRSGroupOSCORE {
         		return;
       	  	}
         	
-        	// Check that the indicated roles are actually supported by the Access Token for this group
-        	if (!checkRolesAgainstToken(subject, groupName, roleSet)) {
+        	// Check that the indicated roles for this group are actually allowed by the Access Token 
+        	boolean allowed = false;
+        	int[] roleSetToken = getRolesFromToken(subject, groupName);
+        	if (roleSetToken == null) {
+        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+        		return;
+        	}
+        	else {
+        		for (int index = 0; index < roleSetToken.length; index++) {
+            		if ((roleSet & roleSetToken[index]) == roleSet) {
+            			// 'scope' in at least one Access Token admits all the roles indicated for this group in the Joining Request
+            			allowed = true;
+            			break;
+            		}
+        		}	
+        	}
+        	
+        	if (!allowed) {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+        		return;
         	}
         	
         	// Retrieve 'get_pub_keys'
@@ -568,12 +705,14 @@ public class PlugtestRSGroupOSCORE {
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
-        	if (clientCred == null) {
-        	
-        		// TODO: check if the client if joining the group only with the "Monitor" role.
+        	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
         		
-        		// TODO: check if the Group Manager already owns this client's public key, otherwise reply with 4.00
+        		// TODO: check if the Group Manager already owns this client's public key
         		
+        	}
+        	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A public key was neither provided nor found as already stored");
+        		return;
         	}
         	else {
         		
@@ -742,7 +881,7 @@ public class PlugtestRSGroupOSCORE {
         			
         		}
         		
-        		myGroup.addGroupMember(senderId, roleSet);
+        		myGroup.addGroupMember(senderId, roleSet, subject);
         		
         	}
         	
@@ -931,6 +1070,7 @@ public class PlugtestRSGroupOSCORE {
         // M.T.
         // Adding the group-membership resource, with group name "feedca570000".
         Set<Short> actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
         actions3.add(Constants.POST);
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
@@ -940,6 +1080,7 @@ public class PlugtestRSGroupOSCORE {
         // Adding another group-membership resource, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Set<Short> actions4 = new HashSet<>();
+        actions3.add(Constants.POST);
         actions4.add(Constants.POST);
         Map<String, Set<Short>> myResource4 = new HashMap<>();
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
@@ -1031,6 +1172,7 @@ public class PlugtestRSGroupOSCORE {
     			                          null);
         
     	byte[] mySid;
+    	String mySubject;
     	OneKey myKey;
     	
     	
@@ -1060,10 +1202,12 @@ public class PlugtestRSGroupOSCORE {
     	mySid = idClient2;
     	if (!myGroup.allocateSenderId(mySid))
     		stop();
+    	mySubject = "clientX";
+    	
     	
     	int roles = 0;
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	myGroup.addGroupMember(mySid, roles);
+    	myGroup.addGroupMember(mySid, roles, mySubject);
     	
     	String rpkStr1 = "";
     	
@@ -1085,11 +1229,12 @@ public class PlugtestRSGroupOSCORE {
     	mySid = idClient3;
     	if (!myGroup.allocateSenderId(mySid))
     		stop();
+    	mySubject = "clientY";
     	
     	roles = 0;
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
-    	myGroup.addGroupMember(mySid, roles);
+    	myGroup.addGroupMember(mySid, roles, mySubject);
     	
     	String rpkStr2 = "";
     	
@@ -1252,23 +1397,22 @@ public class PlugtestRSGroupOSCORE {
     }
 
     /**
-     * Verify that all the roles indicated in the Joining Request are also part of the 'scope' claim in the Access Token
+     * Return the role sets allowed to a subject in a group, based on all the Access Tokens for that subject
      * 
-     * @param subject   Subject identity of the joining node
+     * @param subject   Subject identity of the node
      * @param groupName   Group name of the OSCORE group
-     * @param roleSet   AIF-based combination of roles to take in the OSCORE group, as indicated in the 'scope' field of the Joining Request
-     * @return True if 'scope' in the Access Token admits all the roles indicated in the Joining Request, false otherwise
+     * @return The sets of allowed roles for the subject in the specified group using the AIF data model, or null in case of no results
      */
-    public static boolean checkRolesAgainstToken(String subject, String groupName, int roleSet) {
-    	
-    	boolean ret = false;
+    public static int[] getRolesFromToken(String subject, String groupName) {
+
+    	Set<Integer> roleSets = new HashSet<Integer>();
     	
     	String kid = TokenRepository.getInstance().getKid(subject);
     	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
     	
     	// This should never happen at this point, since a valid Access Token has just made this request pass through 
     	if (ctis == null)
-    		return false;
+    		return null;
     	
     	for (String cti : ctis) { //All tokens linked to that pop key
     		
@@ -1284,7 +1428,7 @@ public class PlugtestRSGroupOSCORE {
 	        //Check the scope
             CBORObject scope = claims.get(Constants.SCOPE);
             
-        	// This should never happen at this point, since a valid Access Token has just made this request pass through
+        	// This should never happen, since a valid Access Token has just made a request reach a handler at the Group Manager
             if (scope == null) {
         		// Move to the next Access Token for this 'kid'
             	continue;
@@ -1341,17 +1485,28 @@ public class PlugtestRSGroupOSCORE {
       	  		    // Move to the next scope entry
       	  			continue;
         		}
-        		        		
-        		if ((roleSet & roleSetToken) == roleSet) {
-        			// 'scope' in the Access Token admits all the roles indicated in the Joining Request
-        			ret = true;
-        		}
+
+        		roleSets.add(roleSetToken);
         			        	
         	}
         	
     	}
     	    	
-    	return ret;
+    	// This should never happen, since a valid Access Token has just made a request reach a handler at the Group Manager
+    	if (roleSets.size() == 0) {
+    		return null;
+    	}
+    	else {
+    		int[] ret = new int[roleSets.size()];
+    		
+    		int index = 0;
+    		for (Integer i : roleSets) {
+    			ret[index] = i.intValue();
+    			index++;
+    		}
+    		
+    		return ret;
+    	}
     	
     }
     

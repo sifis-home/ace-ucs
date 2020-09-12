@@ -70,16 +70,28 @@ public class GroupInfo {
 	private int maxSenderIdValue;
 	
 	// Each set of the list refers to a different size of Sender IDs.
-	// The element with index 0 includes as elements Sender IDs with size 1 byte.
-	// Each map stores the public keys of the group members as COSE Keys (CBOR Maps).
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as value the public keys of the group members as COSE Keys (CBOR Maps).
 	// The map key (label) is the integer representation of the Sender ID of the group member.
 	private List<Map<Integer, CBORObject>> publicKeyRepo = new ArrayList<Map<Integer, CBORObject>>();
 	
 	// Each set of the list refers to a different size of Sender IDs.
-	// The element with index 0 includes as elements Sender IDs with size 1 byte.
-	// Each map stores the AIF-based role(s) of group members.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as value the AIF-based role(s) of group members.
 	// The map key (label) is the integer representation of the Sender ID of the group member.
 	private List<Map<Integer, Integer>> nodeRoles = new ArrayList<Map<Integer, Integer>>();
+	
+	// The value of each map entry is the node name of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+	private Map<String, String> identities2nodeNames = new HashMap<String, String>();
+	
+	/*
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as value the identity of each group member, as per its secure association with the Group Manager.
+	// The map key (label) is the integer representation of the Sender ID of the group member.
+	private List<Map<Integer, String>> identities2senderIds = new ArrayList<Map<Integer, String>>();
+	*/
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -166,15 +178,16 @@ public class GroupInfo {
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
-    		usedSenderIds.add(new HashSet<>());
+    		usedSenderIds.add(new HashSet<Integer>());
     		
         	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
-    		publicKeyRepo.add(new HashMap<>());
+    		publicKeyRepo.add(new HashMap<Integer, CBORObject>());
     		
         	// Empty sets of roles; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
-    		nodeRoles.add(new HashMap<>());
+    		nodeRoles.add(new HashMap<Integer, Integer>());
+    		
     	}
     	
     	this.groupPolicies = groupPolicies;
@@ -299,7 +312,6 @@ public class GroupInfo {
     	
     }
     
-    // ZZ
     // Set the size and initial value of the Group ID Epoch.
     // This method is only internally invoked by this class' constructor.
     //
@@ -359,7 +371,6 @@ public class GroupInfo {
     	
     }
     
-    // ZZ
     /**
      * @return  the full {Prefix + Epoch} Group ID as a Byte Array
      */
@@ -674,15 +685,46 @@ public class GroupInfo {
     }
     
     /**
+     * Check if a certain node is a current group member
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * @return   True if the node is a current member of the group, false otherwise
+     */
+    synchronized public boolean isGroupMember(final String subject) {
+
+    	return this.identities2nodeNames.containsKey(subject);
+    		
+    }
+    
+    /**
      * Add a new group member - Note that the public key has to be added separately
      * 
      * @param sid   The Sender ID of the new node
      * @param roles   The role(s) of the new node, encoded in the AIF data model
+     * @param subject   The node's identity based on the secure association with the GM
      */
-    synchronized public void addGroupMember(final byte[] sid, final int roles) {
+    synchronized public void addGroupMember(final byte[] sid, final int roles, final String subject) {
 
     	// Consider the inner map related to the size in bytes of the Sender ID
     	this.nodeRoles.get(sid.length - 1).put(bytesToInt(sid), roles);
+    	
+    	this.identities2nodeNames.put(subject, Utils.bytesToHex(sid));
+    	
+    }
+    
+    /**
+     * Return the roles of the group member identified by the specified node name
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The node name of the group member, of null if no member is found with the specified identity
+     */
+    synchronized public String getGroupMemberName(final String subject) {
+    	
+    	if (!this.identities2nodeNames.containsKey(subject))
+    		return null;
+    	
+    	return this.identities2nodeNames.get(subject);
     	
     }
     
@@ -691,11 +733,12 @@ public class GroupInfo {
      * 
      * @param nodeName   The node name of the group member
      * 
-     * @return The roles of the group member, encoded in the AIF data model
+     * @return The roles of the group member encoded in the AIF data model, or -1 if the node is not found among the group members
      */
     synchronized public short getGroupMemberRoles(final String nodeName) {
     	
     	byte[] sid = Utils.hexToBytes(nodeName);
+    	
     	return getGroupMemberRoles(sid);
     	
     }
@@ -717,13 +760,14 @@ public class GroupInfo {
      * Remove the group member identified by the specified node name
      * 
      * @param sid   The node name of the group member
+     * @param subject   The node's identity based on the secure association with the GM
      * 
      * @return True if an entry for the group member was found and removed, false otherwise
      */
-    synchronized public boolean removeGroupMember(final String nodeName) {
+    synchronized public boolean removeGroupMember(final String nodeName, final String subject) {
     	
     	byte[] sid = Utils.hexToBytes(nodeName);
-    	return removeGroupMember(sid);
+    	return removeGroupMember(sid, subject);
     	
     }
     
@@ -731,15 +775,17 @@ public class GroupInfo {
      * Remove the group member identified by the specified Sender ID - Note that the public key has to be removed separately
      * 
      * @param sid   The Sender ID of the group member
-     * 
+     * @param subject   The node's identity based on the secure association with the GM 
      * @return True if an entry for the group member was found and removed, false otherwise
      */
-    synchronized public boolean removeGroupMember(final byte[] sid) {
+    synchronized public boolean removeGroupMember(final byte[] sid, final String subject) {
     	
-    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)) ||
+    		!this.identities2nodeNames.containsKey(subject) )
     		return false;
     	
     	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
+    	this.identities2nodeNames.remove(subject);
     	
     	return true;
     	
