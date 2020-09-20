@@ -56,6 +56,9 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
@@ -79,7 +82,6 @@ import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-//import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
 import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
 import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
 
@@ -889,6 +891,32 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         }
         
+        
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
+        
     }
     
     
@@ -1516,6 +1544,31 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
         
     }
     
@@ -2258,6 +2311,31 @@ public class TestDtlspClientGroupOSCORE {
 			Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
 		}
         
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
+		
     }
     
     
@@ -2883,6 +2961,31 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
         
     }
     
@@ -3770,6 +3873,31 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
         }
         
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
+        
     }
     
     // M.T.
@@ -4410,6 +4538,31 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
         }
+        
+        /////////////////
+        //
+        // Part 4
+        //
+        /////////////////
+		
+        // Send a Version Request
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
+                
+        Request VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r4 = c.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("CONTENT", r4.getCode().name());
+        
+        CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
+        Assert.assertEquals(CBORType.Integer, myObject.getType());
+        Assert.assertEquals(0, myObject.AsInt32());
         
 }   
     
