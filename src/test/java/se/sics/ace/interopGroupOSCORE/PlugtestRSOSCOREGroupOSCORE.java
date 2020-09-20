@@ -408,6 +408,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getName());
 			
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	if (!targetedGroup.getStatus()) {
+        		// The group is currently inactive and no new members are admitted
+        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "The OSCORE group is currently not active");
+            	return;
+        	}
+        	
 			CBORObject signInfoEntry = CBORObject.NewArray();
 			CBORObject errorResponseMap = CBORObject.NewMap();
 			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
@@ -1056,20 +1068,20 @@ public class PlugtestRSOSCOREGroupOSCORE {
         
         // M.T.
         // Adding the group-membership resource, with group name "feedca570000".
+        Map<String, Set<Short>> myResource3 = new HashMap<>();
         Set<Short> actions3 = new HashSet<>();
         actions3.add(Constants.GET);
         actions3.add(Constants.POST);
-        Map<String, Set<Short>> myResource3 = new HashMap<>();
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
                 
         // M.T.
         // Adding another group-membership resource, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
+        Map<String, Set<Short>> myResource4 = new HashMap<>();
         Set<Short> actions4 = new HashSet<>();
         actions4.add(Constants.GET);
         actions4.add(Constants.POST);
-        Map<String, Set<Short>> myResource4 = new HashMap<>();
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
         myScopes.put(rootGroupMembershipResource + "/", myResource4);
         
@@ -1158,6 +1170,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
     			                          csKeyEnc,
     			                          null);
         
+    	myGroup.setStatus(true);
+    	
     	byte[] mySid;
     	String mySubject;
     	OneKey myKey;

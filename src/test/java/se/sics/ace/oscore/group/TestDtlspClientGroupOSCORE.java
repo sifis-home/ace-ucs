@@ -905,7 +905,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -916,6 +915,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
     }
     
@@ -1558,7 +1582,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -1569,6 +1592,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
     }
     
@@ -2324,7 +2372,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -2335,6 +2382,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
 		
     }
     
@@ -2975,7 +3047,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -2986,6 +3057,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
     }
     
@@ -3881,12 +3977,13 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
+        
         System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
-                
+        
+        
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -3897,6 +3994,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
     }
     
@@ -4552,7 +4674,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
-        VersionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r4 = c.advanced(VersionReq);
         
         System.out.println("");
@@ -4563,6 +4684,31 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        CoapResponse r5 = c.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
 }   
     

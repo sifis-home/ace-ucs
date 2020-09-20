@@ -109,6 +109,7 @@ public class GroupInfo {
 	private CBORObject groupPolicies = null;
 	
 	private int version; // Version of the current symmetric keying material
+	private boolean status; // True if the group is currently active, false otherwise
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -146,6 +147,7 @@ public class GroupInfo {
     		         final CBORObject groupPolicies) {
     	
     	this.version = 0;
+    	this.status = false;
     	
     	setGroupName(groupName);
     	
@@ -201,6 +203,26 @@ public class GroupInfo {
         	defaultGroupPolicies.Add(Constants.POLICY_PAIRWISE_MODE, CBORObject.False);
         	this.groupPolicies = defaultGroupPolicies;
     	}
+    	
+    }
+    
+    /** Retrieve the current status of the group
+     * 
+     * @return  True if the group is currently active, false otherwise
+     */
+    synchronized public final boolean getStatus() {
+    	
+    	return this.status;
+    	
+    }
+    
+    /** 
+     * Set the status of the group
+     * @param The new status to set for the group, i.e. true for active, false for inactive
+     */
+    synchronized public void setStatus(final boolean status) {
+    	
+    	this.status = status;
     	
     }
     

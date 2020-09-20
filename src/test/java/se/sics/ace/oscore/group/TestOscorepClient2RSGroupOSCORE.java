@@ -937,6 +937,33 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
         
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        GroupStatusReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r5 = c1.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
+        
     }
     
     // M.T.
@@ -1618,6 +1645,33 @@ public class TestOscorepClient2RSGroupOSCORE {
         CBORObject myObject = CBORObject.DecodeFromBytes(r4.getPayload());
         Assert.assertEquals(CBORType.Integer, myObject.getType());
         Assert.assertEquals(0, myObject.AsInt32());
+        
+        
+        /////////////////
+        //
+        // Part 5
+        //
+        /////////////////
+		
+        // Send a Group Status Request
+        
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request GroupStatusReq = new Request(Code.GET, Type.CON);
+        GroupStatusReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r5 = c1.advanced(GroupStatusReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Status request to GM");
+
+        Assert.assertEquals("CONTENT", r5.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r5.getPayload());
+        Assert.assertEquals(CBORType.Boolean, myObject.getType());
+        Assert.assertEquals(true, myObject.AsBoolean());
         
     }
     
