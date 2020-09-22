@@ -371,7 +371,7 @@ public class TokenRepository implements AutoCloseable {
             if (sid != null) {
                 this.sid2kid.put(sid, kid);
             }
-        } else if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
+        } else if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             String kid = new String(osc.getClientId(), Constants.charset);
             this.cti2kid.put(cti, kid);
@@ -385,8 +385,8 @@ public class TokenRepository implements AutoCloseable {
             	String subjectId = "";
             	String kid_context = null;
             	
-            	if (cnf.get(Constants.OSCORE_Security_Context).getKeys().contains(Constants.OS_CONTEXTID)) {
-            		kid_context = cnf.get(Constants.OSCORE_Security_Context).get(Constants.OS_CONTEXTID).toString();
+            	if (cnf.get(Constants.OSCORE_Input_Material).getKeys().contains(Constants.OS_CONTEXTID)) {
+            		kid_context = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).toString();
             	}
             	
             	if (kid_context != null) {

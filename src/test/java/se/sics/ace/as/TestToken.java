@@ -909,9 +909,9 @@ public class TestToken {
         CBORObject cnf = claims.get(Constants.CNF);
         assert(cnf.getType().equals(CBORType.Map));
         assert(cnf.ContainsKey(CBORObject.FromObject(
-                Constants.OSCORE_Security_Context)));
+                Constants.OSCORE_Input_Material)));
         CBORObject osctx = cnf.get(CBORObject.FromObject(
-                Constants.OSCORE_Security_Context));
+                Constants.OSCORE_Input_Material));
         assert(osctx.getType().equals(CBORType.Map));
         assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_MS)));
         assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_CLIENTID)));

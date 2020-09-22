@@ -421,14 +421,14 @@ public class Constants {
 
 
 	/**
-	 * OSCORE_Security_Context abbreviations =================================
+	 * OSCORE_Input_Material abbreviations =================================
 	 */  
 
 	/**
-	 * The outer map key of a OSCORE_Security_Context object
+	 * The outer map key of a OSCORE_Input_Material object
 	 * XXX: not specified yet
 	 */
-	public static final CBORObject OSCORE_Security_Context 
+	public static final CBORObject OSCORE_Input_Material
 	    = CBORObject.FromObject(99);
 
 	/**
@@ -935,9 +935,9 @@ public class Constants {
      
      
      /**
-      * Value for the group key type "Group_OSCORE_Security_Context object"
+      * Value for the group key type "Group_OSCORE_Input_Material object"
       */
-     public static final short GROUP_OSCORE_SECURITY_CONTEXT_OBJECT = 1;
+     public static final short GROUP_OSCORE_INPUT_MATERIAL_OBJECT = 1;
      
      /**
       * Value for the application profile "coap_group_oscore_app"

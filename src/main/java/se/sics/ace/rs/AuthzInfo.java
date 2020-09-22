@@ -383,7 +383,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            throw new AceException("cnf claim malformed in token");
 	        }
 	    	
-	    	if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
+	    	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
 	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
 	    		assignedKid = new String(osc.getClientId(), Constants.charset);
 	    	}

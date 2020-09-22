@@ -45,7 +45,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
 /**
- * Utility class to parse, verify and access  OSCORE_Security_Context in a cnf element
+ * Utility class to parse, verify and access  OSCORE_Input_Material in a cnf element
  * 
  * @author Ludwig Seitz
  *
@@ -108,11 +108,11 @@ public class OscoreSecurityContext {
      * @throws AceException 
      */
     public OscoreSecurityContext(CBORObject cnf) throws AceException {
-        CBORObject osc = cnf.get(Constants.OSCORE_Security_Context);
+        CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
         if (osc == null || !osc.getType().equals(CBORType.Map)) {
             LOGGER.info("Missing or invalid parameter type for "
-                    + "'OSCORE_Security_Context', must be CBOR-map");
-            throw new AceException("invalid/missing OSCORE_Security_Context");
+                    + "'OSCORE_Input_Material', must be CBOR-map");
+            throw new AceException("invalid/missing OSCORE_Input_Material");
         }
         
         CBORObject algC = osc.get(Constants.OS_ALG);

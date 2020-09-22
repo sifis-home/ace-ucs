@@ -295,10 +295,10 @@ public class TestDtlspRSGroupOSCORE {
             
         	CBORObject myResponse = CBORObject.NewMap();
         	
-        	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
-        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT));
+        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
         	
-        	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
@@ -871,10 +871,10 @@ public class TestDtlspRSGroupOSCORE {
             
         	CBORObject joinResponse = CBORObject.NewMap();
         	
-        	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
-        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_SECURITY_CONTEXT_OBJECT));
+        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+        	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
         	
-        	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter

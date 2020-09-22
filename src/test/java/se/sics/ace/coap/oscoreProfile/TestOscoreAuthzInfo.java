@@ -230,7 +230,7 @@ public class TestOscoreAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         Request r = Request.newPost();
         CBORObject foo = CBORObject.NewMap();
-        foo.Add(Constants.OSCORE_Security_Context, "bar");
+        foo.Add(Constants.OSCORE_Input_Material, "bar");
         r.setPayload(foo.EncodeToBytes());
         CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
@@ -377,7 +377,7 @@ public class TestOscoreAuthzInfo {
     }
   
     /**
-     * Test OSCORE_Security_Context  == null
+     * Test OSCORE_Input_Material  == null
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
@@ -394,7 +394,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.OSCORE_Security_Context, null);
+        cbor.Add(Constants.OSCORE_Input_Material, null);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
 
@@ -423,12 +423,12 @@ public class TestOscoreAuthzInfo {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, 
-                "invalid/missing OSCORE_Security_Context");
+                "invalid/missing OSCORE_Input_Material");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
-     * Test OSCORE_Security_Context  != Map
+     * Test OSCORE_Input_Material  != Map
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
@@ -444,7 +444,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.OSCORE_Security_Context, "blah");
+        cbor.Add(Constants.OSCORE_Input_Material, "blah");
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x04});
 
@@ -473,7 +473,7 @@ public class TestOscoreAuthzInfo {
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, 
-                "invalid/missing OSCORE_Security_Context");
+                "invalid/missing OSCORE_Input_Material");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
     }
     
@@ -496,7 +496,7 @@ public class TestOscoreAuthzInfo {
         CBORObject cbor = CBORObject.NewMap();
         CBORObject osc = CBORObject.NewMap();
         osc.Add(Constants.OS_ALG, "blah");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x05});
 
@@ -548,7 +548,7 @@ public class TestOscoreAuthzInfo {
         CBORObject cbor = CBORObject.NewMap();
         CBORObject osc = CBORObject.NewMap();
         osc.Add(Constants.OS_CLIENTID, "hugo");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x06});
 
@@ -602,7 +602,7 @@ public class TestOscoreAuthzInfo {
         byte[] clientId = {0x09, 0x08};
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_HKDF, "blah");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
 
@@ -656,7 +656,7 @@ public class TestOscoreAuthzInfo {
         byte[] clientId = {0x09, 0x08};
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, null);
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
 
@@ -710,7 +710,7 @@ public class TestOscoreAuthzInfo {
         byte[] clientId = {0x09, 0x08};
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, "very secret");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x10});
 
@@ -767,7 +767,7 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SALT, "NaCl");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0a});
 
@@ -822,7 +822,7 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SERVERID, null);
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0b});
 
@@ -877,7 +877,7 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SERVERID, "emil");
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0c});
 
@@ -934,7 +934,7 @@ public class TestOscoreAuthzInfo {
         byte[] serverId = {0x05, 0x06};
         osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_HKDF, AlgorithmID.HKDF_HMAC_AES_128.AsCBOR());
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
 
@@ -995,7 +995,7 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_MS, key128a);
         byte[] serverId = {0x05, 0x06};
         osc.Add(Constants.OS_SERVERID, serverId);
-        cbor.Add(Constants.OSCORE_Security_Context, osc);
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
 

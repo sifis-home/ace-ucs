@@ -907,7 +907,7 @@ public class Token implements Endpoint, AutoCloseable {
 	}
 	
 	/**
-	 * Create an OSCORE_Security_Context CBOR object.
+	 * Create an OSCORE_Input_Material CBOR object.
 	 * 
 	 * @param key  the Master Key
 	 * @param clientId  the client identifier
@@ -925,7 +925,7 @@ public class Token implements Endpoint, AutoCloseable {
 	    osccnf.Add(Constants.OS_SERVERID, serverId);
 	    osccnf.Add(Constants.OS_CLIENTID, clientId.getBytes(
 	            Constants.charset));
-	    osc.Add(Constants.OSCORE_Security_Context, osccnf);
+	    osc.Add(Constants.OSCORE_Input_Material, osccnf);
 	    return osc;            
 	}
 	

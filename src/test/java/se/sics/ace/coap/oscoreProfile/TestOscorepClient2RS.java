@@ -165,7 +165,7 @@ public class TestOscorepClient2RS {
         osc.Add(Constants.OS_SERVERID, serverId);
 
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.OSCORE_Security_Context, osc);
+        cnf.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
         CBORObject payload = CBORObject.NewMap();
