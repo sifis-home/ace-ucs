@@ -38,13 +38,13 @@ import java.util.Set;
 import com.upokecenter.cbor.CBORObject;
 
 /**
- * A class implementing the OSCORE Security Context Object, as defined in the OSCORE profile of ACE.
+ * A class implementing the OSCORE Input Material Object, as defined in the OSCORE profile of ACE.
  * This Object is encoded as a CBOR Map.
  *  
  * @author Marco Tiloca
  *
  */
-public class OSCORESecurityContextObject {
+public class OSCOREInputMaterialObject {
 
 	/**
 	 * Content of the OSCORE Security Context Object
@@ -56,7 +56,7 @@ public class OSCORESecurityContextObject {
 	 * 
 	 * @param myMap  the map of parameters.
 	 */
-    public OSCORESecurityContextObject(Map<Short, CBORObject> myMap) {
+    public OSCOREInputMaterialObject(Map<Short, CBORObject> myMap) {
     	
     	this.myMap = new HashMap<>(myMap);
     	
@@ -77,7 +77,7 @@ public class OSCORESecurityContextObject {
 	 */
     public CBORObject getAsCbor() {
     	
-    	return OSCORESecurityContextObjectParameters.getCBOR(this.myMap);
+    	return OSCOREInputMaterialObjectParameters.getCBOR(this.myMap);
     	
     }
 	

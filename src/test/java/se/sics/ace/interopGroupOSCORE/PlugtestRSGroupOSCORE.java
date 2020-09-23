@@ -95,8 +95,8 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
-import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
+import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
@@ -332,17 +332,17 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Fill the 'key' parameter
         	// Note that no Sender ID is included
-        	myMap.Add(OSCORESecurityContextObjectParameters.ms, targetedGroup.getMasterSecret());
-        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCORESecurityContextObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
-        	myMap.Add(OSCORESecurityContextObjectParameters.salt, targetedGroup.getMasterSalt());
-        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
         	if (targetedGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, targetedGroup.getCsParams());
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
         	if (targetedGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
         	
         	myResponse.Add(Constants.KEY, myMap);
         	
@@ -908,18 +908,18 @@ public class PlugtestRSGroupOSCORE {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(OSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(OSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(OSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
-        	myMap.Add(OSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(OSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, myGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, myGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, myGroup.getCsParams());
         	if (myGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, myGroup.getCsKeyParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
         	        	
         	joinResponse.Add(Constants.KEY, myMap);
         	

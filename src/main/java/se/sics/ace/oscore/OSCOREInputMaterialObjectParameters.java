@@ -40,13 +40,13 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 
 /**
- * Constants for use in the OSCRE Security Context Object
+ * Constants for use in the OSCORE Input Material Object
  *  
  * @author Marco Tiloca
  *
  */
  
- public class OSCORESecurityContextObjectParameters {
+ public class OSCOREInputMaterialObjectParameters {
 
 		/**
 		 *  'ms' - OSCORE Master Secret Value

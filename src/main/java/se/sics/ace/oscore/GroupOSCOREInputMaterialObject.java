@@ -31,43 +31,40 @@
  *******************************************************************************/
 package se.sics.ace.oscore;
 
+import java.util.Map;
+
+import com.upokecenter.cbor.CBORObject;
+
 /**
- * Constants for use in the OSCRE Security Context Object
+ * A class implementing the Group OSCORE Input Material Object, as defined in draft-ace-key-groupcomm-oscore
+ * This Object is encoded as a CBOR Map.
  *  
  * @author Marco Tiloca
  *
  */
- 
- public class GroupOSCORESecurityContextObjectParameters extends OSCORESecurityContextObjectParameters {
-
-		/**
-		 * 'cs_alg' - Group OSCORE Countersignature Algorithm value
-		 */
-	    // Assume that "cs_alg" is registered with label 8 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_alg = 8; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
-		
-		/**
-		 *  'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
-		 */
-		// Assume that "cs_params" is registered with label 9 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_params = 9; // Major type 5 (map)
-		
-		/**
-		 *  'cs_key_params' - Group OSCORE Countersignature algorithm Key Parameter Value
-		 */
-		// Assume that "cs_key_params" is registered with label 10 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_key_params = 10; // Major type 5 (map)
-		
-		/**
-		 *  'cs_key_enc' - Group OSCORE Countersignature Key Encoding Value
-		 */
-		// Assume that "cs_key_enc" is registered with label 11 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_key_enc = 11; // Major type 0 (unsigned integer) or 1 (negative integer)
-		
-		/**
-	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
-	     */
-	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf",
-	    		"alg", "salt", "contextId", "cs_alg", "cs_params", "cs_key_enc"};
-	 
- }
+public class GroupOSCOREInputMaterialObject extends OSCOREInputMaterialObject {
+	    
+	/**
+	 * Creates a new Group OSCORE Security Input Material from one provided as argument.
+	 * 
+	 * @param myMap the map of parameters
+	 */
+    public GroupOSCOREInputMaterialObject(Map<Short, CBORObject> myMap) {
+    	
+    	super(myMap);
+    	
+    }
+    
+    /**
+	 * Return the Group OSCORE Input Material Object as a CBOR Map.
+	 * 
+	 * @param the map representing the Group OSCORE Input Material Object.
+	 */
+    @Override
+    public CBORObject getAsCbor() {
+    	
+    	return OSCOREInputMaterialObjectParameters.getCBOR(this.myMap);
+    	
+    }
+	    
+}
