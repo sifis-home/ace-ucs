@@ -384,7 +384,7 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//4. Check if the request has an audience or if there is a default audience
 		cbor = msg.getParameter(Constants.AUDIENCE);
-		Set<String> aud = new HashSet<>();
+		Set<String> aud = new HashSet<>(); // The audience has to be a text string. A set is built for compatibility with other methods
 		if (cbor == null) {
 		    try {
 		        String dAud = this.db.getDefaultAudience(id);
@@ -397,6 +397,10 @@ public class Token implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             }
 		} else {
+			
+			// OLD version, covering also an array of strings as "audience"
+			// Rather, the 'audience' parameter has to be a CBOR Text String
+			/*
 		    if (cbor.getType().equals(CBORType.Array)) {
 		      for (int i=0; i<cbor.size(); i++) {
 		          CBORObject audE = cbor.get(i);
@@ -405,7 +409,10 @@ public class Token implements Endpoint, AutoCloseable {
 		          } //XXX: Silently skip non-text string audiences
 		      }
 		    } else if (cbor.getType().equals(CBORType.TextString)) {
-		        aud.add(cbor.AsString()); 
+		    	aud.add(cbor.AsString());
+		    */
+			  if (cbor.getType().equals(CBORType.TextString)) {
+				  aud.add(cbor.AsString());
 		    } else {//error
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
