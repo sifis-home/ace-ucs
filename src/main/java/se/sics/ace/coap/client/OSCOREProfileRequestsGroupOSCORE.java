@@ -230,10 +230,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         byte[] n2 = n2C.GetByteString();
-        byte[] contextId = new byte[n1.length+n2.length];
-        System.arraycopy(n1, 0, contextId, 0, n1.length);
-        System.arraycopy(n2, 0, contextId, n1.length, n2.length);
-        
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         

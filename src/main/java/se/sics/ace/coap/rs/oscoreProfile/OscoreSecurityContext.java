@@ -204,6 +204,32 @@ public class OscoreSecurityContext {
         byte[] recipientId;
 
         byte[] finalSalt;
+        
+        // NEW WAY - The final Master Salt is the concatenation of whole CBOR byte strings
+        byte[] saltEncoded = null;
+        byte[] n1Encoded = null;
+        byte[] n2Encoded = null;
+        if (this.salt != null) {
+            CBORObject saltCBOR = CBORObject.FromObject(this.salt);
+        	saltEncoded  = saltCBOR.EncodeToBytes();
+        }
+        CBORObject n1CBOR = CBORObject.FromObject(n1);
+        CBORObject n2CBOR = CBORObject.FromObject(n2);
+        n1Encoded = n1CBOR.EncodeToBytes();
+        n2Encoded = n2CBOR.EncodeToBytes();
+        if (saltEncoded != null) {
+            finalSalt = new byte[saltEncoded.length + n1Encoded.length + n2Encoded.length];
+            System.arraycopy(saltEncoded, 0, finalSalt, 0, saltEncoded.length);
+            System.arraycopy(n1Encoded, 0, finalSalt, saltEncoded.length, n1Encoded.length);
+            System.arraycopy(n2Encoded, 0, finalSalt, saltEncoded.length + n1Encoded.length, n2Encoded.length);
+        } else {
+            finalSalt = new byte[n1Encoded.length + n2Encoded.length];
+            System.arraycopy(n1Encoded, 0, finalSalt, 0, n1Encoded.length);
+            System.arraycopy(n2Encoded, 0, finalSalt, n1Encoded.length, n2Encoded.length);
+        }
+                
+        // OLD WAY - The final Master Salt is the concatenation of raw byte arrays
+        /*
         if (this.salt != null) {
             finalSalt = new byte[this.salt.length + n1.length + n2.length];
             System.arraycopy(this.salt, 0, finalSalt, 0, this.salt.length);
@@ -215,6 +241,7 @@ public class OscoreSecurityContext {
             System.arraycopy(n1, 0, finalSalt, 0, n1.length);
             System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
         }
+        */
         
         if (isClient) {
             senderId = this.clientId;
