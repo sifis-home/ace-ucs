@@ -941,6 +941,36 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
         
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
+        
     }
     
     
@@ -1617,6 +1647,36 @@ public class TestDtlspClientGroupOSCORE {
         myObject = CBORObject.DecodeFromBytes(r5.getPayload());
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
+        
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
         
     }
     
@@ -2407,6 +2467,36 @@ public class TestDtlspClientGroupOSCORE {
         myObject = CBORObject.DecodeFromBytes(r5.getPayload());
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
+        
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
 		
     }
     
@@ -3082,6 +3172,36 @@ public class TestDtlspClientGroupOSCORE {
         myObject = CBORObject.DecodeFromBytes(r5.getPayload());
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
+        
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
         
     }
     
@@ -4020,6 +4140,36 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
         
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
+        
     }
     
     // M.T.
@@ -4709,6 +4859,36 @@ public class TestDtlspClientGroupOSCORE {
         myObject = CBORObject.DecodeFromBytes(r5.getPayload());
         Assert.assertEquals(CBORType.Boolean, myObject.getType());
         Assert.assertEquals(true, myObject.AsBoolean());
+        
+        
+        /////////////////
+        //
+        // Part 6
+        //
+        /////////////////
+		
+        // Send a Policies Request
+        
+        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
+                
+        Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
+        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r6 = c.advanced(GroupPoliciesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Policies request to GM");
+
+        Assert.assertEquals("CONTENT", r6.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r6.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
         
 }   
     

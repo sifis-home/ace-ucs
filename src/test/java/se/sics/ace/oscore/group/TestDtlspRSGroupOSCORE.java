@@ -1152,6 +1152,93 @@ public class TestDtlspRSGroupOSCORE {
         
     }
     
+    // M.T.
+    /**
+     * Definition of the Group OSCORE group-membership sub-resource /policies
+     */
+    public static class GroupOSCORESubResourcePolicies extends CoapResource {
+    	
+		/**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORESubResourcePolicies(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"policies\"" + resId);
+            
+        }
+
+        @Override
+        public void handleGET(CoapExchange exchange) {
+        	System.out.println("GET request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {	
+        		// The requester is not a current group member.
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		return;
+        	}
+            	
+        	// Respond to the Policies Request
+            
+        	CBORObject myResponse = null;
+        	CBORObject groupPolicies = targetedGroup.getGroupPolicies();
+        	
+        	if (groupPolicies == null) {
+            	// This should not happen for this Group Manager, since default policies apply if not specified when creating the group
+        		myResponse = CBORObject.FromObject(new byte[0]);
+        	}
+        	else {
+        		myResponse = CBORObject.NewMap();
+        		myResponse.Add(Constants.GROUP_POLICIES, groupPolicies);
+        	}
+        	
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+
+        }
+        
+    }
+    
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
     
@@ -1202,6 +1289,7 @@ public class TestDtlspRSGroupOSCORE {
         actions3.add(Constants.GET);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/num", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/policies", actions3); 
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
         // M.T.
@@ -1233,6 +1321,7 @@ public class TestDtlspRSGroupOSCORE {
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/num"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
         
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
@@ -1467,6 +1556,9 @@ public class TestDtlspRSGroupOSCORE {
   	    // Add the /active sub-resource
         Resource activeSubResource = new GroupOSCORESubResourceActive("active"); // M.T.
   	    join.add(activeSubResource); // M.T.
+  	    // Add the /policies sub-resource
+        Resource policiesSubResource = new GroupOSCORESubResourcePolicies("policies"); // M.T.
+  	    join.add(policiesSubResource); // M.T.
   	    
   	    
   	    rs = new CoapServer();
