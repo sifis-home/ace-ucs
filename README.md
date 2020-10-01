@@ -16,6 +16,7 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 ### How do I get set up? ###
 
 * Just clone the repo, do the Maven fu and you are good to go
+    * For Eclipse use the maven command "mvn eclipse:eclipse", and then import the project
 * Configuration: You need to set up a MySQL database to run the Junit tests. 
   To run in production you need to configure everything, starting with
   your resource servers (out of scope here), the access control policies for
