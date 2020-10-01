@@ -1,6 +1,6 @@
 # README #
 
-This is a mavenized Java 1.8 project. You should be able to compile and run these classes if you manage to figure out how Maven works (which is non-trivial due to the lack of good introductory manuals for Maven).
+This is a mavenized Java 1.8 project. You should be able to compile and run these classes by using Maven.
 
 ### What is this repository for? ###
 
@@ -12,18 +12,22 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
   talking to the resource constrained ones. We are planning to release code for constrained devices as well in the future.
 * Version: beta
 
+### Quick start ###
+
+* For Eclipse run the maven command "mvn eclipse:eclipse", and then import the project
+* Install a MySQL server
+* Create a file 'db.pwd' with the MySQL root password in the root directory
+* The test class files can now be ran to check that everything is working correctly
 
 ### How do I get set up? ###
 
 * Just clone the repo, do the Maven fu and you are good to go
-    * For Eclipse use the maven command "mvn eclipse:eclipse", and then import the project
 * Configuration: You need to set up a MySQL database to run the Junit tests. 
   To run in production you need to configure everything, starting with
   your resource servers (out of scope here), the access control policies for
   the authorization server (KissPDP has a demo format backed in the database, check the
-  test resources), the discovery of AS (out of scope again). If you don't
-  know where to start you probably shouldn't use this in production settings.
-* Dependencies: Lots, check the .pom file
+  test resources), the discovery of AS (out of scope again).
+* Dependencies: Check the .pom file
 * Database configuration:  Set up a MySQL or Postgresql database, for running 
   the Junit tests create a file 'db.pwd' with the root password of your test 
   database at the root directory of this library (just the password nothing else). 
