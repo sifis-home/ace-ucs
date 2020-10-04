@@ -596,7 +596,6 @@ public class TestOscorepRSGroupOSCORE {
         	
         	byte[] requestPayload = exchange.getRequestPayload();
         	
-        	// NNN
         	if(requestPayload == null) {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
         		return;
@@ -876,7 +875,6 @@ public class TestOscorepRSGroupOSCORE {
             		
         		}
         		
-        		// NNN
         		// Invalid format of 'get_pub_keys'
     			for (int i = 0; i < getPubKeys.get(0).size(); i++) {
     				// Possible elements of the first array have to be all integers and
