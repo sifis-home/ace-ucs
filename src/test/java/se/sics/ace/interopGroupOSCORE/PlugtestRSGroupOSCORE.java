@@ -410,6 +410,12 @@ public class PlugtestRSGroupOSCORE {
             byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
             
         	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	if(requestPayload == null) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        		return;
+        	}
+        	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
         	
         	// Prepare a 'sign_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	

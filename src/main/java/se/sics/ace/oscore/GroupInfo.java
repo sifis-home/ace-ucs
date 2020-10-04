@@ -573,7 +573,7 @@ public class GroupInfo {
     	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1)) {
 	    		this.senderIdSize++;
 	    
-        	// All Sender IDs with all possible sizes have been assigned alrady
+        	// All Sender IDs with all possible sizes have been assigned already
         	if (this.senderIdSize > 4)
         		return null;
         	
@@ -735,7 +735,7 @@ public class GroupInfo {
     }
     
     /**
-     * Return the roles of the group member identified by the specified node name
+     * Return the identity of the group member identified by the specified node name
      * 
      * @param subject   The identity of the node, as per its secure association with the Group Manager
      * 

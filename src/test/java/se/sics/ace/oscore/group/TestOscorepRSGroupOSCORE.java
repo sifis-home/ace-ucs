@@ -1,6 +1,7 @@
 package se.sics.ace.oscore.group;
 
 import java.io.File;
+import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
@@ -81,6 +82,8 @@ public class TestOscorepRSGroupOSCORE {
 	
 	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
 	private final static int groupIdPrefixSize = 4; 
+	
+	private static Set<Integer> validRoleCombinations = new HashSet<Integer>();
 	
 	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 
@@ -209,6 +212,14 @@ public class TestOscorepRSGroupOSCORE {
     	final Provider EdDSA = new EdDSASecurityProvider();
     	Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
+    	
+        // Set the valid combinations of roles in a Joining Request
+        // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER); // Requester (2)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER); // Responder (4)
+        validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR); // Monitor (8)
+        validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
+        		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
     	
     	final String groupName = "feedca570000";
     	
@@ -404,8 +415,6 @@ public class TestOscorepRSGroupOSCORE {
      * Definition of the Group OSCORE group-membership resource
      */
     public static class GroupOSCOREJoinResource extends CoapResource {
-
-    	private Set<Integer> validRoleCombinations = new HashSet<Integer>();
     	
 		/**
          * Constructor
@@ -418,14 +427,6 @@ public class TestOscorepRSGroupOSCORE {
             
             // set display name
             getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
-            
-            // Set the valid combinations of roles in a Joining Request
-            // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_REQUESTER); // Requester (2)
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_RESPONDER); // Responder (4)
-            validRoleCombinations.add(1 << Constants.GROUP_OSCORE_MONITOR); // Monitor (8)
-            validRoleCombinations.add((1 << Constants.GROUP_OSCORE_REQUESTER) +
-            		                  (1 << Constants.GROUP_OSCORE_RESPONDER)); // Requester+Responder (6)
             
         }
 
@@ -594,6 +595,12 @@ public class TestOscorepRSGroupOSCORE {
             byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
         	
         	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	// NNN
+        	if(requestPayload == null) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        		return;
+        	}
         	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
         	
@@ -852,7 +859,7 @@ public class TestOscorepRSGroupOSCORE {
         	}
         	
         	// Retrieve 'get_pub_keys'
-        	// If present, this parameter must be an empty CBOR array
+        	// If present, this parameter must be a CBOR array
         	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
         	if (getPubKeys != null) {
         		
@@ -869,23 +876,20 @@ public class TestOscorepRSGroupOSCORE {
             		
         		}
         		
+        		// NNN
         		// Invalid format of 'get_pub_keys'
-        		if (getPubKeys.size() != 0) {
-        			
-        			for (int i = 0; i < getPubKeys.get(0).size(); i++) {
-        				// Possible elements of the first array have to be all integers and
-        				// express a valid combination of roles encoded in the AIF data model
-        				if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
-        					!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
-        					
-                    		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-                    		return;
-        					
-        				}
-        			}
-        			
-        		}
+    			for (int i = 0; i < getPubKeys.get(0).size(); i++) {
+    				// Possible elements of the first array have to be all integers and
+    				// express a valid combination of roles encoded in the AIF data model
+    				if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
+    					!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
+    					
+                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+                		return;
+    					
+    				}
+    			}
         		
         		providePublicKeys = true;
         		
@@ -1175,14 +1179,11 @@ public class TestOscorepRSGroupOSCORE {
         			}
 
         		}
-        		
-        		if (coseKeySet.size() > 0) {
         			
-        			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-        			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
+    			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+    			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+    			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
         			
-        		}
         		
         		// Debug:
         		// 1) Print 'kid' as equal to the Sender ID of the key owner
@@ -1326,13 +1327,249 @@ public class TestOscorepRSGroupOSCORE {
     			
     		}
     		
-    		if (coseKeySet.size() > 0) {
+			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+			myResponse.Add(Constants.PEER_ROLES, peerRoles);	
+        	
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+
+        }
+        
+        @Override
+        public void handleFETCH(CoapExchange exchange) {
+        	System.out.println("FETCH request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		
+        		// The requester is not a current group member.
+        		//
+        		// This is still fine, as long as at least one Access Tokens
+        		// of the requester allows also the role "Verifier" in this group
+        		
+        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+            	
+        		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+        		boolean allowed = false;
+            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	if (roleSetToken == null) {
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		return;
+            	}
+            	else {
+            		for (int index = 0; index < roleSetToken.length; index++) {
+            			if ((role & roleSetToken[index]) != 0) {
+                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+            				allowed = true;
+            				break;
+            			}
+            		}
+            	}
+            	
+            	if (!allowed) {
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a non-member which is not a Verifier");
+            		return;
+            	}
+            	
+        	}
+        	        	
+        	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	if(requestPayload == null) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        		return;
+        	}
+        	
+        	CBORObject requestCBOR = CBORObject.DecodeFromBytes(requestPayload);
+        	
+        	// Prepare a 'sign_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
+    		CBORObject signInfo = CBORObject.NewArray();
+        	
+			CBORObject signInfoEntry = CBORObject.NewArray();
+			CBORObject errorResponseMap = CBORObject.NewMap();
+			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
+			signInfoEntry.Add(targetedGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
+	    	CBORObject arrayElem = targetedGroup.getCsParams(); // 'sign_parameters' element
+	    	if (arrayElem == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(arrayElem);
+	    	arrayElem = targetedGroup.getCsKeyParams(); // 'sign_key_parameters' element
+	    	if (arrayElem == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(arrayElem);
+	    	signInfoEntry.Add(targetedGroup.getCsKeyEnc()); // 'pub_key_enc' element
+		    signInfo.Add(signInfoEntry);
+		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
+		    byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+			
+        	boolean valid = true;
+		    
+        	// The payload of the request must be a CBOR Map
+        	if (!requestCBOR.getType().equals(CBORType.Map)) {
+        		valid = false;
+        		
+        	}
+
+        	// The CBOR Map must include exactly one element, i.e. 'get_pub_keys'
+        	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GET_PUB_KEYS))) {
+        		valid = false;
+        		
+        	}
+
+        	// Invalid format of 'get_pub_keys'
+    		if (!valid) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	    		return;
+    		}
+
+    		valid = true;
+    		
+        	// Retrieve 'get_pub_keys'
+        	// This parameter must be a CBOR array
+        	CBORObject getPubKeys = requestCBOR.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
+
+    		// 'get_pub_keys' must include exactly two elements, both of which CBOR arrays
+    		if (!getPubKeys.getType().equals(CBORType.Array) ||
+    			 getPubKeys.size() != 2 ||
+    			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
+    			!getPubKeys.get(1).getType().equals(CBORType.Array)) {
+    			valid = false;
+        		
+    		}
+
+    		// Invalid format of 'get_pub_keys'
+    		if (valid) {
+				for (int i = 0; i < getPubKeys.get(0).size(); i++) {
+					// Possible elements of the first array have to be all integers and
+					// express a valid combination of roles encoded in the AIF data model
+					if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
+						!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
+							valid = false;
+							break;
+							
+					}
+				}
+    		}
+    		
+    		// Invalid format of 'get_pub_keys'
+    		if (valid) {
+				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+					// Possible elements of the second array have to be all
+					// byte strings, specifying Sender IDs of other group members
+					if (!getPubKeys.get(1).get(i).getType().equals(CBORType.ByteString)) {
+						valid = false;
+						break;
+						
+					}			
+				}
+    		}
+			
+    		// Invalid format of 'get_pub_keys'
+    		if (!valid) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	    		return;
+    		}
+    		
+        	// Respond to the Public Key Request
+            
+        	CBORObject myResponse = CBORObject.NewMap();
+    		CBORObject coseKeySet = CBORObject.NewArray();
+    		CBORObject peerRoles = CBORObject.NewArray();
+    		
+    		Set<Integer> requestedRoles = new HashSet<Integer>();
+    		Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
+    		
+    		// Retrieve and store the combination of roles specified in the request
+    		for (int i = 0; i < getPubKeys.get(0).size(); i++) {
+    			requestedRoles.add((getPubKeys.get(0).get(i).AsInt32()));
+    		}
+    		
+    		// Retrieve and store the Sender IDs specified in the request
+    		for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+    			byte[] myArray = getPubKeys.get(1).get(i).GetByteString();
+    			ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
+    			requestedSenderIDs.add(myBuffer);
+    		}
+    		
+    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
+    		
+    		for (CBORObject publicKey : publicKeys) {
     			
-    			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-    			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-    			myResponse.Add(Constants.PEER_ROLES, peerRoles);
+    			// This should never happen; silently ignore
+    			if (publicKey == null)
+    				continue;
+    			
+    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+    			// This should never happen; silently ignore
+    			if (memberSenderId == null)
+    				continue;
+
+    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
+    			
+    			boolean include = false;
+    			
+    			if((requestedRoles.size() == 0) && (requestedSenderIDs.size() == 0)) {
+    				include = true;
+    			}
+    			
+    			if(!include && requestedRoles.contains(memberRoles)) {
+    				include = true;
+    			}
+    			
+    			if(!include && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+    				include = true;
+    			}
+    			
+    			if (include) {
+    				
+	    			coseKeySet.Add(publicKey);
+	    			peerRoles.Add(memberRoles);
+	    			
+    			}
     			
     		}
+    		
+			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+			myResponse.Add(Constants.PEER_ROLES, peerRoles);
         	
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	
