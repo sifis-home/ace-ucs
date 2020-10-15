@@ -115,7 +115,11 @@ public class TestDtlspRSGroupOSCORE {
 	
 	private static Set<Integer> validRoleCombinations = new HashSet<Integer>();
 	
-	static Map<String, GroupInfo> activeGroups = new HashMap<>();
+	private static Map<String, GroupInfo> activeGroups = new HashMap<>();
+	
+	private static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
+	
+	private static GroupOSCOREJoinValidator valid = null;
 	
     /**
      * Definition of the Hello-World Resource
@@ -863,6 +867,26 @@ public class TestDtlspRSGroupOSCORE {
         		}
         		
             	myGroup.addGroupMember(senderId, roleSet, subject);
+            	
+            	// Create and add the sub-resource associated to the new group member
+            	Set<Short> actions = new HashSet<>();
+            	actions.add(Constants.GET);
+            	actions.add(Constants.PUT);
+            	actions.add(Constants.DELETE);
+            	myScopes.get(rootGroupMembershipResource + "/" + groupName)
+            	        .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName, actions);
+            	try {
+            		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
+        		}
+        		catch(AceException e) {
+        			myGroup.removeGroupMemberBySubject(subject);
+        			myGroup.deallocateSenderId(senderId);
+        			myGroup.deletePublicKey(senderId);
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when creating the node sub-resource");
+            		return;
+        		}
+            	Resource nodeCoAPResource = new GroupOSCORESubResourceNodename(nodeName);
+            	this.getChild("nodes").add(nodeCoAPResource);
         		
         	}
         	
@@ -1600,8 +1624,156 @@ public class TestDtlspRSGroupOSCORE {
         	exchange.respond(coapResponse);
 
         }
+                
+    }
+    
+    // M.T.
+    /**
+     * Definition of the Group OSCORE group-membership sub-resource /nodes
+     * 
+     * This resource has no handlers and is not directly accessed.
+     * It acts as root resource to actual sub-resources for each group member.
+     * 
+     */
+    public static class GroupOSCORESubResourceNodes extends CoapResource {
+    	
+		/**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORESubResourceNodes(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"nodes\" " + resId);
+            
+        }
         
     }
+    
+    // M.T.
+    /**
+     * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME
+     * for the group members with node name "NODENAME"
+     */
+    public static class GroupOSCORESubResourceNodename extends CoapResource {
+    	
+		/**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORESubResourceNodename(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"nodes/NODENAME\" " + resId);
+            
+        }
+
+        @Override
+        public void handleGET(CoapExchange exchange) {
+        	System.out.println("GET request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		// The requester is not a current group member.
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		return;
+        	}
+        	
+        	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
+        		// The requester is not the group member associated to this sub-resource.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		return;
+        	}
+            	
+        	// Respond to the Key Distribution Request
+            
+        	// Respond to the Key Distribution Request
+            
+        	CBORObject myResponse = CBORObject.NewMap();
+        	
+        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+        	
+        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	CBORObject myMap = CBORObject.NewMap();
+        	
+        	byte[] senderId = Utils.hexToBytes(targetedGroup.getGroupMemberName(subject));
+        	
+        	// Fill the 'key' parameter
+        	// Note that no Sender ID is included
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
+        	if (targetedGroup.getCsParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
+        	if (targetedGroup.getCsKeyParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        	
+        	myResponse.Add(Constants.KEY, myMap);
+        	
+        	// The current version of the symmetric keying material
+        	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+        	
+        	// CBOR Value assigned to the coap_group_oscore profile.
+        	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+        	
+        	// Expiration time in seconds, after which the OSCORE Security Context
+        	// derived from the 'k' parameter is not valid anymore.
+        	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+        	
+        }
+        
+    }
+    
     
     
     private static AuthzInfoGroupOSCORE ai = null; // M.T.
@@ -1641,7 +1813,7 @@ public class TestDtlspRSGroupOSCORE {
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("helloWorld", actions);
-        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
+        myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
         
         Set<Short> actions2 = new HashSet<>();
@@ -1682,7 +1854,7 @@ public class TestDtlspRSGroupOSCORE {
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
+        valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
@@ -1939,6 +2111,9 @@ public class TestDtlspRSGroupOSCORE {
   	    // Add the /policies sub-resource
         Resource policiesSubResource = new GroupOSCORESubResourcePolicies("policies"); // M.T.
   	    join.add(policiesSubResource); // M.T.
+        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
+        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes"); // M.T.
+  	    join.add(nodesSubResource); // M.T.
   	    
   	    
   	    rs = new CoapServer();

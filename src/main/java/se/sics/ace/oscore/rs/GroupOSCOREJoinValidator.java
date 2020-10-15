@@ -446,7 +446,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        	if (scopeEntry.size() != 2)
 	        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
 	        	
-	        	// Retrieve the Group ID of the OSCORE group
+	        	// Retrieve the group name of the OSCORE group
 	      	  	CBORObject scopeElement = scopeEntry.get(0);
 	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
 	      	  		scopeStr = scopeElement.AsString();

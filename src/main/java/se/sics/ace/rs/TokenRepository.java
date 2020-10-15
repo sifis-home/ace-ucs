@@ -637,6 +637,7 @@ public class TokenRepository implements AutoCloseable {
                  methodNA = true; //scope did match resource but not action
              }
 	    }
+
 	    return ((methodNA) ? METHODNA : FORBID); 
 	}
 

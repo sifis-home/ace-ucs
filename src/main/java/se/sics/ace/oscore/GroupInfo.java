@@ -777,34 +777,60 @@ public class GroupInfo {
     	return this.nodeRoles.get(sid.length - 1).get(bytesToInt(sid)).shortValue();
     	
     }
-    
+        
     /**
-     * Remove the group member identified by the specified node name
+     * Remove the group member identified by the specified identity
      * 
-     * @param sid   The node name of the group member
-     * @param subject   The node's identity based on the secure association with the GM
+     * Note that the public key has to be removed separately
+     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members
      * 
+     * @param subject   The node's identity based on the secure association with the GM 
      * @return True if an entry for the group member was found and removed, false otherwise
      */
-    synchronized public boolean removeGroupMember(final String nodeName, final String subject) {
+    synchronized public boolean removeGroupMemberBySubject(final String subject) {
     	
+    	if (!this.identities2nodeNames.containsKey(subject))
+        		return false;
+    	
+    	String nodeName = this.identities2nodeNames.get(subject);
     	byte[] sid = Utils.hexToBytes(nodeName);
-    	return removeGroupMember(sid, subject);
+    	
+    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    		return false;
+    	
+    	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
+    	this.identities2nodeNames.remove(subject);
+    	
+    	return true;
     	
     }
     
     /**
-     * Remove the group member identified by the specified Sender ID - Note that the public key has to be removed separately
+     * Remove the group member identified by the specified node name
+     *
+     * Note that the public key has to be removed separately
+     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members
      * 
-     * @param sid   The Sender ID of the group member
-     * @param subject   The node's identity based on the secure association with the GM 
+     * @param nodeName   The node name of the group member 
      * @return True if an entry for the group member was found and removed, false otherwise
      */
-    synchronized public boolean removeGroupMember(final byte[] sid, final String subject) {
+    synchronized public boolean removeGroupMemberByName(final String nodeName) {
+
+    	byte[] sid = Utils.hexToBytes(nodeName);
     	
-    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)) ||
-    		!this.identities2nodeNames.containsKey(subject) )
+    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
     		return false;
+    	
+    	if (!this.identities2nodeNames.containsValue(nodeName))
+        	return false;
+
+    	String subject = null;
+    	for (String key : identities2nodeNames.keySet()) {
+    		if (identities2nodeNames.get(key).equals(nodeName)) {
+    			subject = new String(identities2nodeNames.get(key));
+    			break;
+    		}
+    	}
     	
     	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
     	this.identities2nodeNames.remove(subject);
