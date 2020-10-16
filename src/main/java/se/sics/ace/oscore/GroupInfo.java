@@ -85,16 +85,13 @@ public class GroupInfo {
 	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
 	private Map<String, String> identities2nodeNames = new HashMap<String, String>();
 	
-	/*
-	// Each set of the list refers to a different size of Sender IDs.
-	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
-	// Each map has as value the identity of each group member, as per its secure association with the Group Manager.
-	// The map key (label) is the integer representation of the Sender ID of the group member.
-	private List<Map<Integer, String>> identities2senderIds = new ArrayList<Map<Integer, String>>();
-	*/
-	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
+	
+	private final String prefixMonitorNames; // Initial part of the node name for monitors, since they do not have a Sender ID
+	
+	// Each element of the set is an allocated variable part of the node name for monitors, since they do not have a Sender ID
+	private Set<Integer> suffixMonitorNames = new HashSet<Integer>();
 	
 	private int groupIdEpochSize; // Epoch size (bytes) in the {Prefix ; Epoch} Group ID
 	private int maxGroupIdEpochValue;
@@ -137,6 +134,7 @@ public class GroupInfo {
     		         final byte[] groupIdPrefix,
     		         final int groupIdEpochSize,
     		         final int groupIdEpoch,
+    		         final String prefixMonitorNames,
     		         final int senderIdSize,
     		         final AlgorithmID alg,
     		         final AlgorithmID hkdf,
@@ -157,6 +155,8 @@ public class GroupInfo {
     	this.groupIdPrefixSize = groupIdPrefixSize;
     	setGroupIdPrefix(groupIdPrefix);
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
+    	
+    	this.prefixMonitorNames = prefixMonitorNames;
     	
     	setAlg(alg);
     	setHkdf(hkdf);
@@ -563,6 +563,18 @@ public class GroupInfo {
     }
 
     /**
+     *  Return the whole collection of Sender IDs assigned so far.
+     *  Note that this includes also Sender IDs of members that have left the group.
+     *  On top of uniqueness, there is not re-cycling of previously assigned Sender IDs.
+     * @return   The whole collection of assigned Sender IDs.
+     */
+    synchronized public List<Set<Integer>> getUsedSenderIds() {
+    	
+    	return this.usedSenderIds;
+    	
+    }
+    
+    /**
      * Find the first available Sender ID value and allocate it.
      * @return  the allocated Sender ID value as a byte array, or null if all values are used.
      */
@@ -584,7 +596,7 @@ public class GroupInfo {
     	}
     	
     	byte[] senderIdByteArray = null;
-    	for (int i = 0; i < this.maxSenderIdValue; i++) {
+    	for (int i = 0; i <= this.maxSenderIdValue; i++) {
     		if (!this.usedSenderIds.get(senderIdSize - 1).contains(i)) {
     			this.usedSenderIds.get(senderIdSize - 1).add(i);
     			
@@ -602,18 +614,6 @@ public class GroupInfo {
     	}
     	
     	return senderIdByteArray;
-    	
-    }
-    
-    /**
-     *  Return the whole collection of Sender IDs assigned so far.
-     *  Note that this includes also Sender IDs of members that have left the group.
-     *  On top of uniqueness, there is not re-cycling of previously assigned Sender IDs.
-     * @return   The whole collection of assigned Sender IDs.
-     */
-    synchronized public List<Set<Integer>> getUsedSenderIds() {
-    	
-    	return this.usedSenderIds;
     	
     }
     
@@ -660,7 +660,10 @@ public class GroupInfo {
     }
     
     /**
-     *  Release a particular Sender ID value provided as a byte array.
+     * Release a particular Sender ID value provided as a byte array.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     * 
      * @param idByteArray   The Sender ID as byte array
      * @return  false in case of failure, true otherwise.
      */
@@ -677,7 +680,10 @@ public class GroupInfo {
     }
     
     /**
-     *  Release a particular Sender ID value provided as an integer.
+     * Release a particular Sender ID value provided as an integer.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     *  
      * @param id   the Sender ID converted to integer
      * @param size   the size in bytes of the original Sender ID as byte array
      * @return  false in case of failure, or true otherwise.
@@ -707,6 +713,72 @@ public class GroupInfo {
     }
     
     /**
+     * Assign a node name to group member. If applicable, the group member must have already received a Sender ID.
+     * 
+     * @param id   The Sender ID already assigned to the node. It is Null if the node is a monitor.
+     * @return   The name assigned to the group member, or Null if there was a problem.
+     */
+    synchronized public String allocateNodeName(byte[] id) {
+    	
+    	String nodeName = null;
+    	
+    	// The group member is a monitor and gets a node name following a monitor-name schema
+    	if (id == null) {
+        	int maxSuffixValue = (1 << 31) - 1;
+    		for (int i = 0; i <= maxSuffixValue; i++) {
+    			// This suffix value has been already assigned - No recycling is admitted
+    			if (suffixMonitorNames.contains(Integer.valueOf(i))) {
+    				continue;
+    			}
+    			else {
+    				// Mark the suffix value as assigned
+    				suffixMonitorNames.add(Integer.valueOf(i));
+    				nodeName = new String(prefixMonitorNames + String.valueOf(i));
+    				break;
+    			}
+    		}
+    	}
+    	// The group member is not a monitor and has already been assigned a Sender ID
+    	else {
+	    	// Double-check that the specified Sender ID has been in fact allocated
+	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(bytesToInt(id)))
+	    		nodeName = new String(Utils.bytesToHex(id));
+    	}
+    	
+    	return nodeName;
+    	
+    }
+    
+    /**
+     * Release a particular node name previously assigned to a node joining the group as monitor.
+     * 
+     * This method is intended only to rollback from errors during the joining process,
+     * and only for candidate members attempting to join the group as monitor.
+     * 
+     * @param nodeName   The node name as a string
+     */
+    synchronized public void deallocateNodeName(final String nodeName) {
+    	
+    	// Double-check that the node name is consistent with the naming schema for monitor group members
+    
+    	int prefixSize = prefixMonitorNames.length();
+    	if (nodeName.length() < (prefixMonitorNames.length() + 1))
+    		return;
+    	if(!nodeName.substring(0, prefixSize).equals(prefixMonitorNames))
+    		return;
+    	for (int i = prefixSize; i < nodeName.length(); i++) {
+    		if (!Character.isDigit(nodeName.charAt(i)))
+    			return;
+    	}
+    	
+    	String valueStr = nodeName.substring(prefixSize, nodeName.length());
+    	int value = Integer.parseInt(valueStr);
+    	
+    	suffixMonitorNames.remove(Integer.valueOf(value));
+    	
+    }
+    
+    /**
      * Check if a certain node is a current group member
      * 
      * @param subject   The identity of the node, as per its secure association with the Group Manager
@@ -721,16 +793,30 @@ public class GroupInfo {
     /**
      * Add a new group member - Note that the public key has to be added separately
      * 
-     * @param sid   The Sender ID of the new node
+     * @param sid   The Sender ID of the new node. It is Null if the node is a monitor.
+     * @param sid   The node name of the new node.
      * @param roles   The role(s) of the new node, encoded in the AIF data model
      * @param subject   The node's identity based on the secure association with the GM
+     * @return   True if the node is successfully added to the group, false otherwise
      */
-    synchronized public void addGroupMember(final byte[] sid, final int roles, final String subject) {
+    synchronized public boolean addGroupMember(final byte[] sid, final String name, final int roles, final String subject) {
 
-    	// Consider the inner map related to the size in bytes of the Sender ID
-    	this.nodeRoles.get(sid.length - 1).put(bytesToInt(sid), roles);
+    	// The node is a monitor
+    	if (sid == null) {
+    		if (roles != (1 << Constants.GROUP_OSCORE_MONITOR))
+    			return false;
+    	}
+    	// THe node is not a monitor
+    	else {
+    		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
+    			return false;
+	    	// Consider the inner map related to the size in bytes of the Sender ID
+	    	this.nodeRoles.get(sid.length - 1).put(bytesToInt(sid), roles);
+    	}
     	
-    	this.identities2nodeNames.put(subject, Utils.bytesToHex(sid));
+    	this.identities2nodeNames.put(subject, name);
+    	
+    	return true;
     	
     }
     
@@ -759,6 +845,16 @@ public class GroupInfo {
      */
     synchronized public short getGroupMemberRoles(final String nodeName) {
     	
+    	// First, check if the node is a monitor, based on the naming-schema
+    	int prefixSize = prefixMonitorNames.length();
+    	if (nodeName.length() > (prefixMonitorNames.length()) &&
+    		nodeName.substring(0, prefixSize).equals(prefixMonitorNames)) {
+    		
+    		return 1 << Constants.GROUP_OSCORE_MONITOR;
+    		
+    	}
+
+    	// The node is not a monitor and has a Sender ID
     	byte[] sid = Utils.hexToBytes(nodeName);
     	
     	return getGroupMemberRoles(sid);
@@ -797,40 +893,6 @@ public class GroupInfo {
     	
     	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
     		return false;
-    	
-    	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
-    	this.identities2nodeNames.remove(subject);
-    	
-    	return true;
-    	
-    }
-    
-    /**
-     * Remove the group member identified by the specified node name
-     *
-     * Note that the public key has to be removed separately
-     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members
-     * 
-     * @param nodeName   The node name of the group member 
-     * @return True if an entry for the group member was found and removed, false otherwise
-     */
-    synchronized public boolean removeGroupMemberByName(final String nodeName) {
-
-    	byte[] sid = Utils.hexToBytes(nodeName);
-    	
-    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
-    		return false;
-    	
-    	if (!this.identities2nodeNames.containsValue(nodeName))
-        	return false;
-
-    	String subject = null;
-    	for (String key : identities2nodeNames.keySet()) {
-    		if (identities2nodeNames.get(key).equals(nodeName)) {
-    			subject = new String(identities2nodeNames.get(key));
-    			break;
-    		}
-    	}
     	
     	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
     	this.identities2nodeNames.remove(subject);

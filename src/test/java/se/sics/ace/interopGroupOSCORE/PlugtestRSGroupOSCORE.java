@@ -97,6 +97,8 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceNodename;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceNodes;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
@@ -128,6 +130,8 @@ public class PlugtestRSGroupOSCORE {
 	private final static String rootGroupMembershipResource = "ace-group";
     
 	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+	
+	private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
 	
 	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 	
@@ -715,10 +719,23 @@ public class PlugtestRSGroupOSCORE {
         	// Retrieve the entry for the target group, using the group name
         	GroupInfo myGroup = activeGroups.get(groupName);
         	
-        	// Assign a new Sender ID to the joining node.
-        	myGroup.allocateSenderId(senderId);        	
+        	String nodeName = null;
+        	byte[] senderId = null;
+        	        	
+        	// Assign a Sender ID to the joining node, unless it is a monitor
+        	if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+            	// For the sake of testing, a particular Sender ID is used as known to be available.
+                senderId = new byte[] { (byte) 0x25 };
+                
+            	myGroup.allocateSenderId(senderId);
+        	}
         	
-        	String nodeName = Utils.bytesToHex(senderId);
+        	nodeName = myGroup.allocateNodeName(senderId);
+        	
+        	if (nodeName == null) {
+        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when assigning a node name");
+        		return;
+        	}
         	
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
@@ -732,7 +749,8 @@ public class PlugtestRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A public key was neither provided nor found as already stored");
         		return;
         	}
-        	else {
+        	// Process the public key of the joining node
+        	else if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
         		
         		// client_cred must be byte string
         		if (!clientCred.getType().equals(CBORType.ByteString)) {
@@ -899,9 +917,46 @@ public class PlugtestRSGroupOSCORE {
         			
         		}
         		
-        		myGroup.addGroupMember(senderId, roleSet, subject);
-        		
         	}
+        	
+        	if (!myGroup.addGroupMember(senderId, nodeName, roleSet, subject)) {
+        		// The joining node is not a monitor; its node name is its Sender ID encoded as a String
+    			if (senderId != null) {
+    				myGroup.deallocateSenderId(senderId);
+    			}
+    			// The joining node is a monitor; it got a node name but not a Sender ID
+    			else {
+    				myGroup.deallocateNodeName(nodeName);
+    			}
+    			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when adding the new group member");
+        		return;
+        	}
+        	
+        	// Create and add the sub-resource associated to the new group member
+        	try {
+        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
+    		}
+    		catch(AceException e) {
+    			myGroup.removeGroupMemberBySubject(subject);
+    			
+    			// The joining node is not a monitor
+    			if (senderId != null) {
+	    			myGroup.deallocateSenderId(senderId);
+	    			myGroup.deletePublicKey(senderId);
+    			}
+    			
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when creating the node sub-resource");
+        		return;
+    		}
+        	Set<Short> actions = new HashSet<>();
+        	actions.add(Constants.GET);
+        	actions.add(Constants.PUT);
+        	actions.add(Constants.DELETE);
+        	myScopes.get(rootGroupMembershipResource + "/" + groupName)
+        	        .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName, actions);
+        	Resource nodeCoAPResource = new GroupOSCORESubResourceNodename(nodeName);
+        	this.getChild("nodes").add(nodeCoAPResource);
+        	
         	
             // Respond to the Join Request
             
@@ -915,7 +970,10 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Fill the 'key' parameter
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	if (senderId != null) {
+    			// The joining node is not a monitor
+        		myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	}
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, myGroup.getMasterSalt());
@@ -963,7 +1021,7 @@ public class PlugtestRSGroupOSCORE {
         			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
         			
         			// Skip the public key of the just-added joining node
-        			if (Arrays.equals(senderId, peerSenderId))
+        			if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
         				continue;
         			
         			boolean includePublicKey = false;
@@ -1040,6 +1098,10 @@ public class PlugtestRSGroupOSCORE {
     
     private static CoapDeliverer dpd = null;
     
+    private static Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
+    
+    private static GroupOSCOREJoinValidator valid = null;
+    
     // OLD WAY with the Base 64 encoding
     // private static String rpk = "piJYILr/9Frrqur4bAz152+6hfzIG6v/dHMG+SK7XaC2JcEvI1ghAKryvKM6og3sNzRQk/nNqzeAfZsIGAYisZbRsPCE3s5BAyYBAiFYIIrXSWPfcBGeHZvB0La2Z0/nCciMirhJb8fv8HcOCyJzIAE=";
     
@@ -1076,7 +1138,7 @@ public class PlugtestRSGroupOSCORE {
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
         myResource.put("helloWorld", actions);
-        Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
+        myScopes = new HashMap<>();
         myScopes.put("r_helloWorld", myResource);
         
         Set<Short> actions2 = new HashSet<>();
@@ -1108,7 +1170,7 @@ public class PlugtestRSGroupOSCORE {
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
+        valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
@@ -1180,6 +1242,7 @@ public class PlugtestRSGroupOSCORE {
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
     			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          prefixMonitorNames,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,
@@ -1192,6 +1255,7 @@ public class PlugtestRSGroupOSCORE {
     	myGroup.setStatus(true);
     	
     	byte[] mySid;
+    	String myName;
     	String mySubject;
     	OneKey myKey;
     	
@@ -1222,12 +1286,15 @@ public class PlugtestRSGroupOSCORE {
     	mySid = idClient2;
     	if (!myGroup.allocateSenderId(mySid))
     		stop();
+    	myName = myGroup.allocateNodeName(mySid);
     	mySubject = "clientX";
     	
     	
     	int roles = 0;
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	myGroup.addGroupMember(mySid, roles, mySubject);
+    	
+    	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
+    		return;
     	
     	String rpkStr1 = "";
     	
@@ -1249,12 +1316,15 @@ public class PlugtestRSGroupOSCORE {
     	mySid = idClient3;
     	if (!myGroup.allocateSenderId(mySid))
     		stop();
+    	myName = myGroup.allocateNodeName(mySid);
     	mySubject = "clientY";
     	
     	roles = 0;
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
     	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
-    	myGroup.addGroupMember(mySid, roles, mySubject);
+    	
+    	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
+    		return;
     	
     	String rpkStr2 = "";
     	
@@ -1356,6 +1426,9 @@ public class PlugtestRSGroupOSCORE {
   	    Resource temp = new TempResource();
   	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource); // M.T.
   	    Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
+        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
+        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes"); // M.T.
+  	    join.add(nodesSubResource); // M.T.
   	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
       
   	    rs = new CoapServer();

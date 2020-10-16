@@ -101,6 +101,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
+    private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
+    
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
 	private static final String rootGroupMembershipResource = "ace-group";
@@ -219,6 +221,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
     			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          prefixMonitorNames,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,
