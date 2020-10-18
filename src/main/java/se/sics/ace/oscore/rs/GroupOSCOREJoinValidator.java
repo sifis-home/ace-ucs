@@ -576,6 +576,10 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
       	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
       	  		CBORObject scopeEntry = cborScope.get(entryIndex);
+	      	  		
+	      	  	if (!scopeEntry.getType().equals(CBORType.Array)) {
+	                throw new AceException("Invalid scope format for joining OSCORE groups");
+	            }
       	  		
 	        	if (scopeEntry.size() != 2)
 	        		throw new AceException("A scope entry must have two elements, i.e. group name and list of roles");
