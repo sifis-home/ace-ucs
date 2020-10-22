@@ -200,7 +200,6 @@ public class GroupInfo {
         	defaultGroupPolicies.Add(Constants.POLICY_SN_SYNCH, CBORObject.FromObject(1));
         	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
         	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
-        	defaultGroupPolicies.Add(Constants.POLICY_PAIRWISE_MODE, CBORObject.False);
         	this.groupPolicies = defaultGroupPolicies;
     	}
     	

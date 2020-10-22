@@ -971,13 +971,6 @@ public class Constants {
      public static final short POLICY_EXP_DELTA = 3;
      
      /**
-      * Value for the label of "Group OSCORE Pairwise Mode"
-      * 
-      * Default: False
-      */
-     public static final short POLICY_PAIRWISE_MODE = 4;
-     
-     /**
       * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
       * 
       * @param currentRoleSet  the current set of roles
