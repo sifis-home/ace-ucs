@@ -454,107 +454,19 @@ public class TestDtlspClientGroupOSCORE {
 		csParams.Add(keyCapabilities);
 		csKeyParams = keyCapabilities;
         
+    	final byte[] senderId = new byte[] { (byte) 0x25 };
+        CBORObject coseKeySetArray = null;
+        
 
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-		
-
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
 		
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -630,12 +542,12 @@ public class TestDtlspClientGroupOSCORE {
 	        nodeResourceLocationPath = r2.getOptions().getLocationPathString();
         }
         
-    	final byte[] senderId = new byte[] { (byte) 0x25 };
+
         String nodeName = Utils.bytesToHex(senderId);
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -647,7 +559,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -721,7 +633,7 @@ public class TestDtlspClientGroupOSCORE {
         	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
         }
         
-        CBORObject coseKeySetArray = null;
+
         if (askForPubKeys) {
         	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
@@ -802,7 +714,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 3
+        // Part 2
         //
         /////////////////
         
@@ -810,14 +722,14 @@ public class TestDtlspClientGroupOSCORE {
         
         System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
-		r1 = c.get();
+		CoapResponse r1 = c.get();
         System.out.println("");
         System.out.println("Sent Key Distribution request to GM as non member");
         
         Assert.assertEquals("CONTENT", r1.getCode().name());
         
         responsePayload = r1.getPayload();
-        keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
        
         Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
        
@@ -896,7 +808,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -921,7 +833,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -946,7 +858,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -976,7 +888,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -1095,7 +1007,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -1211,7 +1123,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		
@@ -1506,106 +1418,16 @@ public class TestDtlspClientGroupOSCORE {
 		csParams.Add(keyCapabilities);
 		csKeyParams = keyCapabilities;
         
-        
+
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
-       
-        // Check the presence, type and value of the signature key encoding
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-
-
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -1690,7 +1512,7 @@ public class TestDtlspClientGroupOSCORE {
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -1702,7 +1524,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -1855,7 +1677,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 3
+        // Part 2
         //
         /////////////////
 		
@@ -1863,14 +1685,14 @@ public class TestDtlspClientGroupOSCORE {
         
         System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
-		r1 = c.get();
+		CoapResponse r1 = c.get();
         System.out.println("");
         System.out.println("Sent Key Distribution request to GM as non member");
         
         Assert.assertEquals("CONTENT", r1.getCode().name());
         
         responsePayload = r1.getPayload();
-        keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
        
         Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
        
@@ -1944,7 +1766,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -1969,7 +1791,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -1994,7 +1816,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -2015,16 +1837,16 @@ public class TestDtlspClientGroupOSCORE {
         
         myObject = CBORObject.DecodeFromBytes(r6.getPayload());
         Assert.assertEquals(CBORType.Map, myObject.getType());
-        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
-        Assert.assertEquals(1, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
-        Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
-        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
-        Assert.assertEquals(CBORObject.False, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_SN_SYNCH)).AsInt32());
+        Assert.assertEquals(3600, myObject.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+        Assert.assertEquals(0, myObject.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        Assert.assertEquals(CBORObject.False, myObject.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_PAIRWISE_MODE)));
         
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -2143,7 +1965,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -2257,7 +2079,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		
@@ -2664,107 +2486,16 @@ public class TestDtlspClientGroupOSCORE {
 		csParams.Add(keyCapabilities);
 		csKeyParams = keyCapabilities;
         
-        
+                
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-        
-        
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -2845,7 +2576,7 @@ public class TestDtlspClientGroupOSCORE {
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -2857,7 +2588,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -3010,7 +2741,7 @@ public class TestDtlspClientGroupOSCORE {
         
 		/////////////////
 		//
-		// Part 3
+		// Part 2
 		//
 		/////////////////
         
@@ -3018,14 +2749,14 @@ public class TestDtlspClientGroupOSCORE {
 		
 		System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
 		
-		r1 = c.get();
+		CoapResponse r1 = c.get();
 		System.out.println("");
 		System.out.println("Sent Key Distribution request to GM as non member");
 		
 		Assert.assertEquals("CONTENT", r1.getCode().name());
 		
 		responsePayload = r1.getPayload();
-		keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+		CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
 		
 		Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
 		
@@ -3103,7 +2834,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -3128,7 +2859,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -3153,7 +2884,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -3183,7 +2914,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -3302,7 +3033,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -3418,7 +3149,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		
@@ -3713,107 +3444,17 @@ public class TestDtlspClientGroupOSCORE {
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
 		csKeyParams = keyCapabilities;
-        
+                
         
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
-       
-        // Check the presence, type and value of the signature key encoding
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -3898,7 +3539,7 @@ public class TestDtlspClientGroupOSCORE {
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -3910,7 +3551,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -4060,7 +3701,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 3
+        // Part 2
         //
         /////////////////
 		
@@ -4068,14 +3709,14 @@ public class TestDtlspClientGroupOSCORE {
         
         System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
-		r1 = c.get();
+		CoapResponse r1 = c.get();
         System.out.println("");
         System.out.println("Sent Key Distribution request to GM as non member");
         
         Assert.assertEquals("CONTENT", r1.getCode().name());
         
         responsePayload = r1.getPayload();
-        keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
        
         Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
        
@@ -4149,7 +3790,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -4174,7 +3815,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -4199,7 +3840,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -4229,7 +3870,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -4348,7 +3989,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -4462,7 +4103,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		
@@ -5014,108 +4655,17 @@ public class TestDtlspClientGroupOSCORE {
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
 		csKeyParams = keyCapabilities;
-        
-        
+        		
+
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
-        	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        }
-		
-
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -5196,7 +4746,7 @@ public class TestDtlspClientGroupOSCORE {
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -5208,7 +4758,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -5361,21 +4911,21 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 3
+        // Part 2
         //
         /////////////////
         // Send a second Key Distribution Request, now as a group member
         
         System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
-		r1 = c.get();
+		CoapResponse r1 = c.get();
         System.out.println("");
         System.out.println("Sent Key Distribution request to GM as non member");
         
         Assert.assertEquals("CONTENT", r1.getCode().name());
         
         responsePayload = r1.getPayload();
-        keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
        
         Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
        
@@ -5453,7 +5003,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -5480,7 +5030,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -5505,7 +5055,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -5535,7 +5085,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -5654,7 +5204,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -5770,7 +5320,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		
@@ -6073,106 +5623,15 @@ public class TestDtlspClientGroupOSCORE {
 		csKeyParams = keyCapabilities;
         
 		
-        
         /////////////////
         //
         // Part 1
         //
         /////////////////
-		
-        // Send a Key Distribution Request as a non-member
-        
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
-        
-		CoapResponse r1 = c.get();
-        System.out.println("");
-        System.out.println("Sent Key Distribution request to GM as non member");
-        
-        Assert.assertEquals("CONTENT", r1.getCode().name());
-        
-        byte[] responsePayload = r1.getPayload();
-        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
-       
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, keyDistributionResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
-        Assert.assertEquals(CBORType.Map, keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
-       
-        CBORObject myMap = keyDistributionResponse.get(CBORObject.FromObject(Constants.KEY));
-       
-        // Sanity check
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
-        Assert.assertEquals(false, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.clientId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
-
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
-       
-        // Check the presence, type and value of the signature key encoding
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
-        
-        // Add default values for missing parameters
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-              
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
-        Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
-        
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
-        // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
-        Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, keyDistributionResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
-       
-        Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
-        Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
-        Assert.assertEquals(1000000, keyDistributionResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-
-
-        /////////////////
-        //
-        // Part 2
-        //
-        /////////////////
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
 		
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -6257,7 +5716,7 @@ public class TestDtlspClientGroupOSCORE {
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
-        responsePayload = r2.getPayload();
+        byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
         
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
@@ -6269,7 +5728,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         
-        myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+        CBORObject myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
         
         // Sanity check
     	Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
@@ -6427,7 +5886,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 3
+        // Part 2
         //
         /////////////////
 		
@@ -6435,14 +5894,14 @@ public class TestDtlspClientGroupOSCORE {
         
         System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
         
-		r1 = c.get();
+		CoapResponse r1 = c.get();
         System.out.println("");
         System.out.println("Sent Key Distribution request to GM as non member");
         
         Assert.assertEquals("CONTENT", r1.getCode().name());
         
         responsePayload = r1.getPayload();
-        keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
+        CBORObject keyDistributionResponse = CBORObject.DecodeFromBytes(responsePayload);
        
         Assert.assertEquals(CBORType.Map, keyDistributionResponse.getType());
        
@@ -6516,7 +5975,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 4
+        // Part 3
         //
         /////////////////
 		
@@ -6541,7 +6000,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 5
+        // Part 4
         //
         /////////////////
 		
@@ -6566,7 +6025,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 6
+        // Part 5
         //
         /////////////////
 		
@@ -6596,7 +6055,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 7
+        // Part 6
         //
         /////////////////
 		
@@ -6715,7 +6174,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 8
+        // Part 7
         //
         /////////////////
 		
@@ -6829,7 +6288,7 @@ public class TestDtlspClientGroupOSCORE {
         
         /////////////////
         //
-        // Part 9
+        // Part 8
         //
         /////////////////
 		

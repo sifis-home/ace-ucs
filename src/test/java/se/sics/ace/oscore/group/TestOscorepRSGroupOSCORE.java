@@ -473,43 +473,12 @@ public class TestOscorepRSGroupOSCORE {
             	return;
             }
         	
-        	if (!targetedGroup.isGroupMember(subject)) {
-        		
+        	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		//
-        		// This is still fine, as long as at least one Access Tokens of the
-        		// requester allows also other roles than "Verifier" in this group
-        		
-        		// Check that none of the Access Tokens for this node allows only the Verifier role for this group
-            	
-        		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
-        		boolean allowed = false;
-            	int[] roleSetToken = getRolesFromToken(subject, groupName);
-            	if (roleSetToken == null) {
-            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
-            		return;
-            	}
-            	else {
-            		for (int index = 0; index < roleSetToken.length; index++) {
-                		if (role == roleSetToken[index]) {
-                			// 'scope' in this Access Token admits only the "Verifier" role for this group. Skip to the next Access Token.
-                			continue;
-                		}
-                		else {
-                			// 'scope' in this Access Token admits other roles than "Verifier" this group. This makes it fine for the requester.
-                			allowed = true;
-                			break;
-                		}
-            		}	
-            	}
-            	
-            	if (!allowed) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a Verifier-only requester");
-            		return;
-            	}
-            	
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		return;
         	}
-            	
+            
         	// Respond to the Key Distribution Request
             
         	CBORObject myResponse = CBORObject.NewMap();
@@ -861,7 +830,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!allowed) {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
         		return;
         	}
         	
@@ -1698,7 +1667,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
         		return;
         	}
             	
@@ -1775,7 +1744,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
         		return;
         	}
             	
@@ -1852,7 +1821,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
         		return;
         	}
             	
@@ -1967,7 +1936,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
         		return;
         	}
         	

@@ -80,7 +80,6 @@ import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.Token;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
-// import se.sics.ace.interopGroupOSCORE.TestCoAPClientGroupOSCORE.RunTestServer;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
