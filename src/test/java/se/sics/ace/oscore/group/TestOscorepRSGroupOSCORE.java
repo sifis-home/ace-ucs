@@ -1125,7 +1125,7 @@ public class TestOscorepRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
         	if (senderId != null) {
     			// The joining node is not a monitor
-        		myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	}
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
@@ -1963,7 +1963,7 @@ public class TestOscorepRSGroupOSCORE {
         	// Fill the 'key' parameter
         	// Note that no Sender ID is included
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
