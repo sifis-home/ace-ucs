@@ -1464,12 +1464,26 @@ public class PlugtestClientGroupOSCORE {
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-            offset += byteStringScope.length;
-            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-            offset += gm_sign_nonce.length;
-            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+            
+            byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+            byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+            byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+       	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+       	    offset += serializedScopeCBOR.length;
+       	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+       	    offset += serializedGMSignNonceCBOR.length;
+       	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+            
+            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
+            /*
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -1904,12 +1918,26 @@ public class PlugtestClientGroupOSCORE {
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-            offset += byteStringScope.length;
-            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-            offset += gm_sign_nonce.length;
-            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+            
+            byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+            byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+            byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+       	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+       	    offset += serializedScopeCBOR.length;
+       	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+       	    offset += serializedGMSignNonceCBOR.length;
+       	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+            
+            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
+            /*
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -2338,12 +2366,26 @@ public class PlugtestClientGroupOSCORE {
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-            offset += byteStringScope.length;
-            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-            offset += gm_sign_nonce.length;
-            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+            
+            byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+            byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+            byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+       	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+       	    offset += serializedScopeCBOR.length;
+       	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+       	    offset += serializedGMSignNonceCBOR.length;
+       	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+            
+            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
+            /*
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -2784,12 +2826,26 @@ public class PlugtestClientGroupOSCORE {
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
             PrivateKey privKey = C1keyPair.AsPrivateKey();
-            byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-            System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-            offset += byteStringScope.length;
-            System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-            offset += gm_sign_nonce.length;
-            System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+            
+            byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+            byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+            byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+       	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+       	    offset += serializedScopeCBOR.length;
+       	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+       	    offset += serializedGMSignNonceCBOR.length;
+       	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+            
+            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
+            /*
+       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
+       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
+       	    offset += byteStringScope.length;
+       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
+       	    offset += gm_sign_nonce.length;
+       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
+       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             

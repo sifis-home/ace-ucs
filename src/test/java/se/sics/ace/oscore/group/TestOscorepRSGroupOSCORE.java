@@ -997,7 +997,8 @@ public class TestOscorepRSGroupOSCORE {
             		return;
                 }
             	
-            	byte[] rawCnonce = cnonce.GetByteString();
+            	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
+            	// byte[] rawCnonce = cnonce.GetByteString();
         		
         		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
             	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
@@ -1032,12 +1033,26 @@ public class TestOscorepRSGroupOSCORE {
                 }
 
                 int offset = 0;
+                
+                byte[] serializedScopeCBOR = scope.EncodeToBytes();
+                byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
+                byte[] serializedCSignNonceCBOR = cnonce.EncodeToBytes();
+           	    byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+           	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+           	    offset += serializedScopeCBOR.length;
+           	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+           	    offset += serializedGMSignNonceCBOR.length;
+           	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+                
+            	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
+           	    /*
             	byte[] dataToSign = new byte [rawScope.length + rsnonce.length + rawCnonce.length];
             	System.arraycopy(rawScope, 0, dataToSign, offset, rawScope.length);
             	offset += rawScope.length;
            	    System.arraycopy(rsnonce, 0, dataToSign, offset, rsnonce.length);
            	    offset += rsnonce.length;
            	    System.arraycopy(rawCnonce, 0, dataToSign, offset, rawCnonce.length);
+           	    */
            	    
            	    int countersignKeyCurve = 0;
            	    
