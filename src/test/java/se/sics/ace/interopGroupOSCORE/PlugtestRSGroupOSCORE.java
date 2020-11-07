@@ -1003,7 +1003,7 @@ public class PlugtestRSGroupOSCORE {
         					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
         					
         					// The owner of this public key does not have all its roles indicated in this AIF integer filter
-        					if (filterRoles != memberRoles) {
+        					if (filterRoles != (filterRoles & memberRoles)) {
         						continue;
         					}
         					else {

@@ -1019,7 +1019,7 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are both requester and responder
+        // Ask for the public keys of group members that are (also) both requester and responder
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
@@ -1975,8 +1975,8 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are responder only
-        // This will not match with any group member
+        // Ask for the public keys of group members that are (also) responder
+        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
@@ -2014,7 +2014,7 @@ public class TestDtlspClientGroupOSCORE {
         coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(2, coseKeySetArray.size());
+        Assert.assertEquals(3, coseKeySetArray.size());
         
         
         // Retrieve and check the public key of another node in the group
@@ -2040,10 +2040,10 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key this same node in the group
+        peerSenderId = senderId;
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -2062,7 +2062,30 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
+        
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x77 };
+        peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+       
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+        }
+       
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+        }
+        
+        Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
@@ -3040,7 +3063,7 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are both requester and responder
+        // Ask for the public keys of group members that are (also) both requester and responder
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
@@ -3994,8 +4017,8 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are responder only
-        // This will not match with any group member
+        // Ask for the public keys of group members that are (also) responder
+        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
@@ -4033,7 +4056,7 @@ public class TestDtlspClientGroupOSCORE {
         coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(2, coseKeySetArray.size());
+        Assert.assertEquals(3, coseKeySetArray.size());
         
         
         // Retrieve and check the public key of another node in the group
@@ -4059,10 +4082,10 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key this same node in the group
+        peerSenderId = senderId;
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -4081,7 +4104,31 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
+        
+        
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x77 };
+        peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+       
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+        }
+       
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+        }
+        
+        Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
@@ -5207,7 +5254,7 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are both requester and responder
+        // Ask for the public keys of group members that are (also) both requester and responder
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
@@ -6175,8 +6222,8 @@ public class TestDtlspClientGroupOSCORE {
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are responder only
-        // This will not match with any group member
+        // Ask for the public keys of group members that are (also) responder
+        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
@@ -6214,7 +6261,7 @@ public class TestDtlspClientGroupOSCORE {
         coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(2, coseKeySetArray.size());
+        Assert.assertEquals(3, coseKeySetArray.size());
         
         
         // Retrieve and check the public key of another node in the group
@@ -6240,10 +6287,10 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key this same node in the group
+        peerSenderId = senderId;
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -6262,7 +6309,30 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
+        
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x77 };
+        peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+       
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+        }
+       
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+        }
+        
+        Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);

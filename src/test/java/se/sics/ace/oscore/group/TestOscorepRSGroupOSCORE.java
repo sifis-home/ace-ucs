@@ -1186,10 +1186,10 @@ public class TestOscorepRSGroupOSCORE {
         			else {
         				for (int i = 0; i < getPubKeys.get(0).size(); i++) {
         					int filterRoles = getPubKeys.get(0).get(i).AsInt32();
-        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
+        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);        					
         					
         					// The owner of this public key does not have all its roles indicated in this AIF integer filter
-        					if (filterRoles != memberRoles) {
+        					if (filterRoles != (filterRoles & memberRoles)) {
         						continue;
         					}
         					else {
@@ -1443,28 +1443,6 @@ public class TestOscorepRSGroupOSCORE {
         	}
         	
         	CBORObject requestCBOR = CBORObject.DecodeFromBytes(requestPayload);
-        	
-        	// Prepare a 'sign_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
-    		CBORObject signInfo = CBORObject.NewArray();
-        	
-			CBORObject signInfoEntry = CBORObject.NewArray();
-			CBORObject errorResponseMap = CBORObject.NewMap();
-			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
-			signInfoEntry.Add(targetedGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
-	    	CBORObject arrayElem = targetedGroup.getCsParams(); // 'sign_parameters' element
-	    	if (arrayElem == null)
-	    		signInfoEntry.Add(CBORObject.Null);
-	    	else
-	    		signInfoEntry.Add(arrayElem);
-	    	arrayElem = targetedGroup.getCsKeyParams(); // 'sign_key_parameters' element
-	    	if (arrayElem == null)
-	    		signInfoEntry.Add(CBORObject.Null);
-	    	else
-	    		signInfoEntry.Add(arrayElem);
-	    	signInfoEntry.Add(targetedGroup.getCsKeyEnc()); // 'pub_key_enc' element
-		    signInfo.Add(signInfoEntry);
-		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
-		    byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
 			
         	boolean valid = true;
 		    
@@ -1482,11 +1460,9 @@ public class TestOscorepRSGroupOSCORE {
 
         	// Invalid format of 'get_pub_keys'
     		if (!valid) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
 	    		return;
     		}
-
-    		valid = true;
     		
         	// Retrieve 'get_pub_keys'
         	// This parameter must be a CBOR array
@@ -1497,6 +1473,7 @@ public class TestOscorepRSGroupOSCORE {
     			 getPubKeys.size() != 2 ||
     			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
     			!getPubKeys.get(1).getType().equals(CBORType.Array)) {
+    			
     			valid = false;
         		
     		}
@@ -1530,7 +1507,7 @@ public class TestOscorepRSGroupOSCORE {
 			
     		// Invalid format of 'get_pub_keys'
     		if (!valid) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
 	    		return;
     		}
     		
@@ -1576,8 +1553,17 @@ public class TestOscorepRSGroupOSCORE {
     				include = true;
     			}
     			
-    			if(!include && requestedRoles.contains(memberRoles)) {
-    				include = true;
+    			if(!include) {
+    				
+    				for (Integer filter : requestedRoles) {
+    					int filterRoles = filter.intValue();
+    					
+    					if (filterRoles == (filterRoles & memberRoles)) {
+    						include = true;
+    						break;
+    					}	
+    				}
+    				
     			}
     			
     			if(!include && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
