@@ -208,12 +208,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
                     "Missing or malformed 'nonce2' in RS response");
         }
         
-        CBORObject rsNoncePoP = rsPayload.get(
-                CBORObject.FromObject(Constants.KDCCHALLENGE));
-        if (rsNoncePoP == null || !rsNoncePoP.getType().equals(CBORType.ByteString)) {
-            throw new AceException("Missing or malformed PoP rsnonce in RS response");
-        }
-        
         if (askForSignInfo || askForPubKeyEnc) {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||

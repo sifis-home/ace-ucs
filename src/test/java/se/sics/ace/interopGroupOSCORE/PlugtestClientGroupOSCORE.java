@@ -1451,6 +1451,11 @@ public class PlugtestClientGroupOSCORE {
         
         if (providePublicKey) {
         	
+        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+        	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+        	if (gm_sign_nonce == null)
+        		Assert.fail("Error: the component N_S of the signature challence is null");
+        	
         	// For the time being, the client's public key can be only a COSE Key
         	OneKey publicKey = C1keyPair.PublicKey();
         	
