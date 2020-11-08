@@ -64,6 +64,7 @@ import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.Util;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -83,7 +84,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
  * is generated with 
  * org.eclipse.californium.scandium.auth.RawPublicKeyIdentity.getName()
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class Token implements Endpoint, AutoCloseable {
@@ -180,6 +181,13 @@ public class Token implements Endpoint, AutoCloseable {
 	  * Size in bytes of the serverId generated for OSCORE contexts. Default is 1.
 	  */
 	 private short OS_serverId_size = 1;
+	 
+	 // M.T.
+	 /**
+	 * Incremented after having released an Access Token including OSCORE input material
+	 * The current value is used for the 'id' parameter in the OSCORE Security Context object in 'cnf'
+	 */
+	 private int OSCORE_material_counter = 0;
 	 
 	 /*
 	  * XXX: Currently OSCORE alg, hkdf, salt and replay window size are fixed to default.
@@ -932,6 +940,11 @@ public class Token implements Endpoint, AutoCloseable {
 	    osccnf.Add(Constants.OS_SERVERID, serverId);
 	    osccnf.Add(Constants.OS_CLIENTID, clientId.getBytes(
 	            Constants.charset));
+	    
+	    // M.T.
+	    osccnf.Add(Constants.OS_ID, Util.intToBytes(OSCORE_material_counter));
+	    OSCORE_material_counter++;
+	    
 	    osc.Add(Constants.OSCORE_Input_Material, osccnf);
 	    return osc;            
 	}

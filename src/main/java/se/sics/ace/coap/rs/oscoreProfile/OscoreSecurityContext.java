@@ -47,7 +47,7 @@ import se.sics.ace.Constants;
 /**
  * Utility class to parse, verify and access  OSCORE_Input_Material in a cnf element
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreSecurityContext {
@@ -59,9 +59,15 @@ public class OscoreSecurityContext {
         = Logger.getLogger(OscoreSecurityContext.class.getName());
     
     /**
-     * The Master_Secret
+     * The Master Secret
      */
     private byte[] ms;
+    
+    // M.T.
+    /**
+     * The OSCORE Input Material Identifier
+     */
+    private byte[] id;
     
     /**
      * The server identifier
@@ -169,6 +175,16 @@ public class OscoreSecurityContext {
         }
         this.ms = msC.GetByteString();
 
+        // M.T.
+        CBORObject idC = osc.get(Constants.OS_ID);
+        if (idC == null || !idC.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Missing or invalid parameter: 'id',"
+                    + " must be byte-array");
+            throw new AceException("malformed or missing input material identifier"
+                    + " in OSCORE security context");
+        }
+        this.id = idC.GetByteString();
+        
         CBORObject saltC = osc.get(Constants.OS_SALT);
         if (saltC != null) {
             if (!saltC.getType().equals(CBORType.ByteString)) {
@@ -260,6 +276,13 @@ public class OscoreSecurityContext {
      */
     public byte[] getClientId() {
         return this.clientId;
+    }
+    
+    /**
+     * @return  the input material identifier
+     */
+    public byte[] getId() {
+        return this.id;
     }
 
 }

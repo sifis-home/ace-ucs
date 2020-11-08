@@ -138,11 +138,16 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	protected Map<String, String>cti2kid;
 	
-	
 	/**
 	 * Map a subject identity to the kid they use
 	 */
 	private Map<String, String>sid2kid;
+	
+	// M.T.
+	/**
+	 * Map an OSCORE input material identifier to the base64 encoded cti of a token
+	 */
+	private Map<String, String>id2cti;
 	
 	// M.T.
 	/**
@@ -232,6 +237,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
+	    this.id2cti = new HashMap<>(); // M.T.
 	    this.sid2rsnonce = new HashMap<>(); // M.T.
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
@@ -375,6 +381,13 @@ public class TokenRepository implements AutoCloseable {
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             String kid = new String(osc.getClientId(), Constants.charset);
             this.cti2kid.put(cti, kid);
+            
+            // Store the association between the immutable identitifer of the OSCORE input material
+            // and the base64 encoded cti of this Access Token; this will be updated in case a new
+            // Access Token with updated access rights (and a new cti) is posted as still associated
+            // to this OSCORE input material identifier and hence to the same kid            
+            String id = Base64.getEncoder().encodeToString(osc.getId());
+            this.id2cti.put(id, cti);
             
             // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
             // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object

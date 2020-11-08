@@ -70,6 +70,7 @@ import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.cwt.CWT;
@@ -374,6 +375,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs2".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
@@ -835,6 +837,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs2".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);

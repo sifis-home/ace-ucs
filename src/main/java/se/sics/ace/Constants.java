@@ -432,39 +432,49 @@ public class Constants {
 	    = CBORObject.FromObject(99);
 
 	/**
+	 * The version
+	 */
+	public static final CBORObject OS_VERSION = CBORObject.FromObject(0);
+	
+	/**
 	 * The master secret
 	 */
 	public static final CBORObject OS_MS = CBORObject.FromObject(1);
 
-	/**
-	 * The client Id
-	 */
-	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(2);
-
-	/**
-	 * The server Id
-	 */
-	public static final CBORObject OS_SERVERID = CBORObject.FromObject(3);
-
+    /**
+     * The input material identifier
+     */
+    public static final CBORObject OS_ID = CBORObject.FromObject(2);
+	
     /**
      * The HKDF algorithm
      */
-    public static final CBORObject OS_HKDF = CBORObject.FromObject(4);
+    public static final CBORObject OS_HKDF = CBORObject.FromObject(3);
 
     /**
      * The AEAD algorithm
      */
-    public static final CBORObject OS_ALG = CBORObject.FromObject(5);
+    public static final CBORObject OS_ALG = CBORObject.FromObject(4);
 
     /**
      * The Master Salt
      */
-    public static final CBORObject OS_SALT = CBORObject.FromObject(6);
+    public static final CBORObject OS_SALT = CBORObject.FromObject(5);
     
     /**
      * The Id Context
      */
-    public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(7);
+    public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(6);
+    
+	/**
+	 * The client Id
+	 */
+	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(92);
+
+	/**
+	 * The server Id
+	 */
+	public static final CBORObject OS_SERVERID = CBORObject.FromObject(93);
 
 
     /**

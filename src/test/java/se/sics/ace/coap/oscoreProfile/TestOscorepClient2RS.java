@@ -55,6 +55,7 @@ import COSE.MessageTag;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -62,7 +63,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 /**
  * A test case for the OSCORE profile interactions between client and server.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestOscorepClient2RS {
@@ -163,6 +164,10 @@ public class TestOscorepClient2RS {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs1".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        
+        // M.T.
+        byte[] id = Util.intToBytes(0);
+        osc.Add(Constants.OS_ID, id);
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);

@@ -68,6 +68,7 @@ import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.cwt.CWT;
@@ -220,6 +221,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs1".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
@@ -321,6 +323,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs2".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
@@ -563,6 +566,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         System.out.println("Sent Join request to GM: " + requestPayload.toString());
         CoapResponse r2 = c.advanced(joinReq);
        
+        System.out.println("Received Join Reponse from the GM: " + CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
+        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
         if (r2.getOptions().getLocationPath().size() != 0) {
@@ -1316,6 +1321,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         osc.Add(Constants.OS_MS, keyCnf);
         byte[] serverId = "rs2".getBytes(Constants.charset);
         osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);

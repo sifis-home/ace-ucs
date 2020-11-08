@@ -62,6 +62,7 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -228,7 +229,7 @@ public class TestAuthzInfoGroupOSCORE {
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
-    			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
     			                          senderIdSize,
     			                          alg,

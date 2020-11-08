@@ -82,6 +82,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.CoapDeliverer;
 import se.sics.ace.cwt.CWT;
@@ -1935,7 +1936,7 @@ public class TestDtlspRSGroupOSCORE {
     			                          groupIdPrefixSize,
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
-    			                          GroupInfo.bytesToInt(groupIdEpoch),
+    			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
     			                          senderIdSize,
     			                          alg,

@@ -49,39 +49,49 @@ import se.sics.ace.AceException;
  public class OSCOREInputMaterialObjectParameters {
 
 		/**
+		 *  'version' - OSCORE Master Secret Value
+		 */
+		public static final short version = 0;  // Major type 0 (unsigned integer)
+	 
+		/**
 		 *  'ms' - OSCORE Master Secret Value
 		 */
 		public static final short ms = 1;  // Major type 2 (byte string)
 		
 		/**
-		 *  'clientId' - OSCORE Sender ID value of the client, OSCORE Recipient ID value of the server
+		 *  'id' - OSCORE Input Material Identifier
 		 */
-		public static final short clientId = 2;  // Major type 2 (byte string)
-		
-		/**
-		 *  'serverId' - OSCORE Sender ID value of the server, OSCORE Recipient ID value of the client
-		 */
-		public static final short serverId = 3; // Major type 2 (byte string)
+		public static final short id = 2;  // Major type 2 (byte string)
 		
 		/**
 		 *  'hkdf' - OSCORE HKDF value
 		 */
-		public static final short hkdf = 4; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
+		public static final short hkdf = 3; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
 		/**
 		 *  'alg' - OSCORE AEAD Algorithm value
 		 */
-		public static final short alg = 5; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
+		public static final short alg = 4; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
 		/**
 		 *  'salt' - OSCORE Master Salt Value
 		 */
-		public static final short salt = 6; // Major type 2 (byte string)
+		public static final short salt = 5; // Major type 2 (byte string)
 		
 		/**
 		 *  'contextId' - OSCORE ID Context Value
 		 */
-		public static final short contextId = 7; // Major type 2 (byte string)
+		public static final short contextId = 6; // Major type 2 (byte string)
+		
+		/**
+		 *  'clientId' - OSCORE Sender ID value of the client, OSCORE Recipient ID value of the server
+		 */
+		public static final short clientId = 92;  // Major type 2 (byte string)
+		
+		/**
+		 *  'serverId' - OSCORE Sender ID value of the server, OSCORE Recipient ID value of the client
+		 */
+		public static final short serverId = 93; // Major type 2 (byte string)
 		
 		
 		/**

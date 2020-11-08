@@ -43,6 +43,7 @@ import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import net.i2p.crypto.eddsa.Utils;
+import se.sics.ace.Util;
 import se.sics.ace.Constants;
 
 /**
@@ -404,7 +405,7 @@ public class GroupInfo {
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
     	
     	// The returned array has the minimal size to represent integer, hence the possible padding with zeros
-    	byte[] groupIdEpochArray = intToBytes(this.groupIdEpoch);
+    	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch);
     	
     	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
     		return null;
@@ -604,7 +605,7 @@ public class GroupInfo {
     				senderIdByteArray[j] = (byte) 0x00;
     			
     			// The returned array has the minimal size to represent the integer value, hence the possible padding with zeros
-    			byte[] myArray = intToBytes(i);
+    			byte[] myArray = Util.intToBytes(i);
     			int diff = senderIdByteArray.length - myArray.length;
     			
     			System.arraycopy(myArray, 0, senderIdByteArray, diff, myArray.length);
@@ -631,11 +632,11 @@ public class GroupInfo {
     		return false;
     	
     	// The specified Sender ID has been already assigned - And no recycling is admitted
-    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(bytesToInt(id)))
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
     		return false;
     	
     	// In case the input array is 4 bytes in size and encoding a negative integer, this will return false
-    	return allocateSenderId(bytesToInt(id));
+    	return allocateSenderId(Util.bytesToInt(id));
     	
     }
     
@@ -671,7 +672,7 @@ public class GroupInfo {
     	if (idByteArray.length != this.senderIdSize)
     		return false;
     	
-    	int id = bytesToInt(idByteArray);
+    	int id = Util.bytesToInt(idByteArray);
     	
     	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
     	return deallocateSenderId(id, idByteArray.length);
@@ -740,7 +741,7 @@ public class GroupInfo {
     	// The group member is not a monitor and has already been assigned a Sender ID
     	else {
 	    	// Double-check that the specified Sender ID has been in fact allocated
-	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(bytesToInt(id)))
+	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
 	    		nodeName = new String(Utils.bytesToHex(id));
     	}
     	
@@ -810,7 +811,7 @@ public class GroupInfo {
     		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
     			return false;
 	    	// Consider the inner map related to the size in bytes of the Sender ID
-	    	this.nodeRoles.get(sid.length - 1).put(bytesToInt(sid), roles);
+	    	this.nodeRoles.get(sid.length - 1).put(Util.bytesToInt(sid), roles);
     	}
     	
     	this.identities2nodeNames.put(subject, name);
@@ -869,7 +870,7 @@ public class GroupInfo {
      */
     synchronized public short getGroupMemberRoles(final byte[] sid) {
     	
-    	return this.nodeRoles.get(sid.length - 1).get(bytesToInt(sid)).shortValue();
+    	return this.nodeRoles.get(sid.length - 1).get(Util.bytesToInt(sid)).shortValue();
     	
     }
         
@@ -890,10 +891,10 @@ public class GroupInfo {
     	String nodeName = this.identities2nodeNames.get(subject);
     	byte[] sid = Utils.hexToBytes(nodeName);
     	
-    	if (!this.nodeRoles.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    	if (!this.nodeRoles.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
     		return false;
     	
-    	this.nodeRoles.get(sid.length - 1).remove(bytesToInt(sid));
+    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
     	this.identities2nodeNames.remove(subject);
     	
     	return true;
@@ -936,7 +937,7 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return null;
     	
-    	return this.publicKeyRepo.get(sid.length - 1).get(bytesToInt(sid));
+    	return this.publicKeyRepo.get(sid.length - 1).get(Util.bytesToInt(sid));
     	
     }
     
@@ -955,7 +956,7 @@ public class GroupInfo {
     	if (key.getType() != CBORType.Map)
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).put(bytesToInt(sid), key);
+    	this.publicKeyRepo.get(sid.length - 1).put(Util.bytesToInt(sid), key);
     	
     	return true;
     	
@@ -974,10 +975,10 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(bytesToInt(sid)))
+    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).remove(bytesToInt(sid));
+    	this.publicKeyRepo.get(sid.length - 1).remove(Util.bytesToInt(sid));
     	
     	return true;
     	
@@ -1023,74 +1024,6 @@ public class GroupInfo {
     synchronized public int getSenderIdSize() {
     	
     	return this.senderIdSize;
-    	
-    }
-    
-    /**
-     *  Convert a positive integer into a byte array of minimal size.
-     *  The positive integer can be up to 2,147,483,647 
-     * @param num
-     * @return  the byte array
-     */
-    public static byte[] intToBytes(final int num) {
-
-    	// Big-endian
-    	if (num < 0)
-    		return null;
-        else if (num < 256) {
-            return new byte[] { (byte) (num) };
-        } else if (num < 65536) {
-            return new byte[] { (byte) (num >>> 8), (byte) num };
-        } else if (num < 16777216) {
-            return new byte[] { (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
-        } else { // up to 2,147,483,647
-            return new byte[]{ (byte) (num >>> 24), (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
-        }
-    	
-    	// Little-endian
-    	/*
-    	if (num < 0)
-    		return null;
-        else if (num < 256) {
-            return new byte[] { (byte) (num) };
-        } else if (num < 65536) {
-            return new byte[] { (byte) num, (byte) (num >>> 8) };
-        } else if (num < 16777216){
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16) };
-        } else{ // up to 2,147,483,647
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16), (byte) (num >>> 24) };
-        }
-    	*/
-    	
-    }
-
-    /**
-     * Convert a byte array into an equivalent unsigned integer.
-     * The input byte array can be up to 4 bytes in size.
-     *
-     * N.B. If the input array is 4 bytes in size, the returned integer may be negative! The calling method has to check, if relevant!
-     * 
-     * @param bytes 
-     * @return   the converted integer
-     */
-    public static int bytesToInt(final byte[] bytes) {
-    	
-    	if (bytes.length > 4)
-    		return -1;
-    	
-    	int ret = 0;
-
-    	// Big-endian
-    	for (int i = 0; i < bytes.length; i++)
-    		ret = ret + (bytes[bytes.length - 1 - i] & 0xFF) * (int) (Math.pow(256, i));
-
-    	/*
-    	// Little-endian
-    	for (int i = 0; i < bytes.length; i++)
-    		ret = ret + (bytes[i] & 0xFF) * (int) (Math.pow(256, i));
-    	*/
-    	
-    	return ret;
     	
     }
     
