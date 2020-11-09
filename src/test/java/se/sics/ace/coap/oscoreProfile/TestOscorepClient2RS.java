@@ -32,8 +32,12 @@
 package se.sics.ace.coap.oscoreProfile;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -82,6 +86,10 @@ public class TestOscorepClient2RS {
     
     private static OSCoreCtxDB ctxDB;
     
+	// Each set of the list refers to a different size of Recipient IDs.
+	// The element with index 0 includes as elements Recipient IDs with size 1 byte.
+	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
+    
     private static class RunTestServer implements Runnable {
         
         public RunTestServer() {
@@ -127,6 +135,13 @@ public class TestOscorepClient2RS {
                 null, null, null, null);
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
+        
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedRecipientIds.add(new HashSet<Integer>());
+    		
+    	}
     }
     
     /**
@@ -180,7 +195,7 @@ public class TestOscorepClient2RS {
         asRes.setPayload(payload.EncodeToBytes());
 
         Response rsRes = OSCOREProfileRequests.postToken(
-              "coap://localhost/authz-info", asRes, ctxDB);
+              "coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
 
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:

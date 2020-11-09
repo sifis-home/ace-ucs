@@ -39,9 +39,13 @@ import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -109,6 +113,10 @@ public class TestOscorepClient2RSGroupOSCORE {
     private static OSCoreCtx osctx;
     
     private static OSCoreCtxDB ctxDB;
+    
+	// Each set of the list refers to a different size of Recipient IDs.
+	// The element with index 0 includes as elements Recipient IDs with size 1 byte.
+	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
     
     private static class RunTestServer implements Runnable {
         
@@ -183,6 +191,13 @@ public class TestOscorepClient2RSGroupOSCORE {
     	}
     	
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
+        
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedRecipientIds.add(new HashSet<Integer>());
+    		
+    	}
     }
     
     /**
@@ -232,9 +247,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         payload.Add(Constants.CNF, cnf);
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
-        
         Response rsRes = OSCOREProfileRequests.postToken(
-                "coap://localhost/authz-info", asRes, ctxDB);
+                "coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
         
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
@@ -335,7 +349,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
+                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         
@@ -1338,7 +1352,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
+                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         

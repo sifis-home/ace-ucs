@@ -619,6 +619,16 @@ public class Constants {
     public static final short NONCE2 = 66;
     
     /**
+     * Value for the label "id1" in the Token POST request for the OSCORE profile
+     */
+    public static final short ID1 = 67;
+    
+    /**
+     * Value for the label "id2" in the Token POST request for the OSCORE profile
+     */
+    public static final short ID2 = 68;
+    
+    /**
      * Return the abbreviated profile id for the full profile name.
      * 
      * @param profileStr  profile name
@@ -851,7 +861,7 @@ public class Constants {
     /**
      * Content-Format ace-groupcomm+cbor
      */
-    public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 66000;
+    public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 65001;
     
     
     /**

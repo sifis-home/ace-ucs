@@ -34,6 +34,10 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
@@ -54,6 +58,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -76,7 +81,7 @@ public class OSCOREProfileRequests {
      * The logger
      */
     private static final Logger LOGGER 
-        = Logger.getLogger(OSCOREProfileRequests.class.getName() ); 
+        = Logger.getLogger(OSCOREProfileRequests.class.getName());
 
     /**
      * Sends a POST request to the /token endpoint of the AS to request an
@@ -130,7 +135,7 @@ public class OSCOREProfileRequests {
      * @throws AceException 
      * @throws OSException 
      */
-    public static Response postToken(String rsAddr, Response asResp, OSCoreCtxDB db) 
+    public static Response postToken(String rsAddr, Response asResp, OSCoreCtxDB db, List<Set<Integer>> usedRecipientIds) 
             throws AceException, OSException {
         if (asResp == null) {
             throw new AceException(
@@ -166,6 +171,77 @@ public class OSCOREProfileRequests {
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
+        
+
+        
+        // NNN
+        byte[] recipientId = null;
+        boolean found = false;
+        
+        // Determine an available Recipient ID to offer to the Resource Server as ID1
+        synchronized(usedRecipientIds) {
+        	synchronized(usedRecipientIds) {
+        	
+	        	int maxIdValue;
+	        	
+		        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
+		        for (int idSize = 1; idSize <= 4; idSize++) {
+		        	
+		        	if (idSize == 4)
+		        		maxIdValue = (1 << 31) - 1;
+		        	else
+		        		maxIdValue = (1 << (idSize * 8)) - 1;
+		        	
+			        for (int j = 0; j <= maxIdValue; j++) {
+			        	
+	        			recipientId = Util.intToBytes(j);
+	        			
+	        			// This Recipient ID is marked as not available to use
+	        			if (usedRecipientIds.get(idSize - 1).contains(j))
+	        				continue;
+	        			
+			        	// This Recipient ID seems to be available to use 
+		        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+		        			
+		        			// Double check in the database of OSCORE Security Contexts
+		        			if (db.getContext(recipientId) != null) {
+		        				
+		        				// A Security Context with this Recipient ID exists and was not tracked!
+		        				// Update the local list of used Recipient IDs, then move on to the next candidate
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				continue;
+		        				
+		        			}
+		        			else {
+		        				
+		        				// This Recipient ID is actually available at the moment. Add it to the local list
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				found = true;
+		        				break;
+		        			}
+		        			
+		        		}
+		        			
+			        }
+			        
+			        if (found)
+			        	break;
+			        	
+		        }
+	        
+        	}
+        	
+        }
+
+        if (!found) {
+            throw new AceException("No Recipient ID available to use");
+        }
+        payload.Add(Constants.ID1, recipientId);
+        // end NNN
+        
+        
+        
+        // TODO Insert the Recipient ID in the POST request to /authz-info
         
         CoapClient client = new CoapClient(rsAddr);
 

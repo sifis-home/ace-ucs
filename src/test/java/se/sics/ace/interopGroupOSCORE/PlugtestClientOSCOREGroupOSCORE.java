@@ -42,8 +42,12 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -143,6 +147,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
     private static byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     
     private static OSCoreCtxDB ctxDB;
+    
+	// Each set of the list refers to a different size of Recipient IDs.
+	// The element with index 0 includes as elements Recipient IDs with size 1 byte.
+	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
     
     //Needed to show token content
     private static CwtCryptoCtx ctx1 = null;    
@@ -281,6 +289,13 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
         
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedRecipientIds.add(new HashSet<Integer>());
+    		
+    	}
+        
         switch (testcase) {
         
         /* Client and AS */
@@ -387,7 +402,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
+                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes,
+                askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         
         printResponseFromRS(rsRes);
@@ -855,7 +871,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         asRes.setPayload(payload.EncodeToBytes());
         
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB);
+                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes,
+                askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
         
         /*
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));

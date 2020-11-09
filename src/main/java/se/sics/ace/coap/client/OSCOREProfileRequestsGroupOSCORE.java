@@ -34,6 +34,8 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.List;
+import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
@@ -132,7 +134,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc, OSCoreCtxDB db) 
+    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc,
+    		                         OSCoreCtxDB db, List<Set<Integer>> usedRecipientIds) 
             throws AceException, OSException {
         if (asResp == null) {
             throw new AceException(
