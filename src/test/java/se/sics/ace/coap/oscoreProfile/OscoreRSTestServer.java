@@ -74,7 +74,7 @@ import se.sics.ace.rs.AsRequestCreationHints;
  *
  */
 public class OscoreRSTestServer {
-
+	
     /**
      * Definition of the Hello-World Resource
      */
@@ -168,68 +168,66 @@ public class OscoreRSTestServer {
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
         new File(tokenFile).delete();
-        
-      //Set up the inner Authz-Info library
-      ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx,
-                tokenFile, valid, false);
       
-      //Add a test token to authz-info
-      byte[] key128
-          = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-      Map<Short, CBORObject> params = new HashMap<>(); 
-      params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-      params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-      params.put(Constants.CTI, CBORObject.FromObject(
-              "token1".getBytes(Constants.charset)));
-      params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        //Set up the inner Authz-Info library
+    	ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
+                  new KissTime(), null, valid, ctx,
+                  tokenFile, valid, false);
+      
+        //Add a test token to authz-info
+        byte[] key128
+            = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
-      OneKey key = new OneKey();
-      key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
       
-      byte[] kid  = new byte[] {0x01, 0x02, 0x03};
-      CBORObject kidC = CBORObject.FromObject(kid);
-      key.add(KeyKeys.KeyId, kidC);
-      key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+        CBORObject kidC = CBORObject.FromObject(kid);
+        key.add(KeyKeys.KeyId, kidC);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
 
-      CBORObject cnf = CBORObject.NewMap();
-      cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-      params.put(Constants.CNF, cnf);
-      CWT token = new CWT(params);
-      CBORObject payload = CBORObject.NewMap();
-      payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-      byte[] n1 = new byte[8];
-      new SecureRandom().nextBytes(n1);
-      payload.Add(Constants.NONCE1, n1);
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
+        payload.Add(Constants.NONCE1, n1);
       
-      ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
+        ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));
 
-      AsRequestCreationHints archm 
-          = new AsRequestCreationHints(
-                  "coaps://blah/authz-info/", null, false, false);
-      Resource hello = new HelloWorldResource();
-      Resource temp = new TempResource();
-      Resource authzInfo = new CoapAuthzInfo(ai);
+        AsRequestCreationHints archm 
+            = new AsRequestCreationHints(
+                    "coaps://blah/authz-info/", null, false, false);
+        Resource hello = new HelloWorldResource();
+        Resource temp = new TempResource();
+        Resource authzInfo = new CoapAuthzInfo(ai);
       
       
-      rs = new CoapServer();
-      rs.add(hello);
-      rs.add(temp);
-      rs.add(authzInfo);
-      rs.addEndpoint(new CoapEndpoint.Builder()
-              .setCoapStackFactory(new OSCoreCoapStackFactory())
-              .setPort(CoAP.DEFAULT_COAP_PORT)
-              .setCustomCoapStackArgument(
-                      OscoreCtxDbSingleton.getInstance())
-              .build());
+        rs = new CoapServer();
+        rs.add(hello);
+        rs.add(temp);
+        rs.add(authzInfo);
+        rs.addEndpoint(new CoapEndpoint.Builder()
+                .setCoapStackFactory(new OSCoreCoapStackFactory())
+                .setPort(CoAP.DEFAULT_COAP_PORT)
+                .setCustomCoapStackArgument(
+                        OscoreCtxDbSingleton.getInstance())
+                .build());
 
-      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
+        dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
-      rs.setMessageDeliverer(dpd);
-      rs.start();
-      System.out.println("Server starting");
-      
-      
+        rs.setMessageDeliverer(dpd);
+        rs.start();
+        System.out.println("Server starting");
       
     }
 

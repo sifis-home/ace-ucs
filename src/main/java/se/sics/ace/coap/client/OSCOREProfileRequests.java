@@ -34,8 +34,6 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -174,13 +172,16 @@ public class OSCOREProfileRequests {
         
 
         
+        /***********************************/
+        
         // NNN
         byte[] recipientId = null;
+        int recipientIdAsInt = -1;
         boolean found = false;
         
         // Determine an available Recipient ID to offer to the Resource Server as ID1
         synchronized(usedRecipientIds) {
-        	synchronized(usedRecipientIds) {
+        	synchronized(db) {
         	
 	        	int maxIdValue;
 	        	
@@ -216,6 +217,7 @@ public class OSCOREProfileRequests {
 		        				
 		        				// This Recipient ID is actually available at the moment. Add it to the local list
 		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				recipientIdAsInt = j;
 		        				found = true;
 		        				break;
 		        			}
@@ -228,9 +230,7 @@ public class OSCOREProfileRequests {
 			        	break;
 			        	
 		        }
-	        
         	}
-        	
         }
 
         if (!found) {
@@ -238,10 +238,10 @@ public class OSCOREProfileRequests {
         }
         payload.Add(Constants.ID1, recipientId);
         // end NNN
+                
+        /***********************************/
         
         
-        
-        // TODO Insert the Recipient ID in the POST request to /authz-info
         
         CoapClient client = new CoapClient(rsAddr);
 
@@ -252,6 +252,7 @@ public class OSCOREProfileRequests {
                     payload.EncodeToBytes(), 
                     Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
+        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
@@ -280,9 +281,26 @@ public class OSCOREProfileRequests {
         
         byte[] n2 = n2C.GetByteString();
         
+        
+        
+        // NNN
+        CBORObject senderIdCBOR = rsPayload.get(
+                CBORObject.FromObject(Constants.ID2));
+        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
+            throw new AceException(
+                    "Missing or malformed 'id2' in RS response");
+        }
+        
+        byte[] senderId = senderIdCBOR.GetByteString();
+            
+        
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-        OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        // OLD way
+        //OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        
+        // NNN
+        OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
         
         db.addContext(ctx);
         db.addContext(rsAddr, ctx);

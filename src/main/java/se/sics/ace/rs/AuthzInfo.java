@@ -33,15 +33,19 @@ package se.sics.ace.rs;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -54,10 +58,11 @@ import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.Util;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-
 
 /**
  * This class implements the /authz_info endpoint at the RS that receives
@@ -108,6 +113,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	private boolean checkCnonce;
 	
 	/**
+	 * Each set of the list refers to a different size of Recipient IDs.
+	 * The element with index 0 includes as elements Recipient IDs with size 1 byte.
+	 */
+	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
+	
+	/**
 	 * Constructor. Needs an initialized TokenRepository.
 	 * 
 	 * @param issuers  the list of acceptable issuer of access tokens
@@ -136,6 +147,13 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.audience = audience;
 		this.ctx = ctx;
 		this.checkCnonce = checkCnonce;
+		
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedRecipientIds.add(new HashSet<Integer>());
+    	}
+    	
 	}
 
 	@Override
@@ -155,6 +173,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	
 	protected synchronized Message processToken(CBORObject token,  Message msg) {
 	    Map<Short, CBORObject> claims = null;
+	    
+	    // NNN
+        byte[] recipientId = null;
+        boolean recipientIdFound = false;
 
 		//1. Check whether it is a CWT or REF type
 	    if (token.getType().equals(CBORType.ByteString)) {
@@ -342,6 +364,130 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //9. Extension point for handling other special claims in the future
 	    processOther(claims);
 	    
+	    
+	    
+	    
+	    
+	    
+	    // NNN
+	    // M.T. The OSCORE profile is being used. The Resource Server has to determine an available
+	    //      Recipient ID to offer to the Client.
+		CBORObject cnf = claims.get(Constants.CNF);
+		try {
+	        if (cnf == null) {
+	            LOGGER.severe("Token has not cnf");
+	            throw new AceException("Token has no cnf");
+	        }
+		}
+	    catch (Exception e) {
+	        LOGGER.info("No Recipient ID available to use");
+	        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	        
+	    }
+        
+    	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
+	    
+        	CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
+        	try {
+	            if (osc == null || !osc.getType().equals(CBORType.Map)) {
+	                LOGGER.info("Missing or invalid parameter type for "
+	                        + "'OSCORE_Input_Material', must be CBOR-map");
+	                throw new AceException("invalid/missing OSCORE_Input_Material");
+	            }
+    		}
+    	    catch (Exception e) {
+    	        LOGGER.info("No Recipient ID available to use");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "invalid/missing OSCORE_Input_Material");
+    	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+    	        
+    	    }
+    		
+	    	CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    	byte[] senderId = cbor.get(Constants.ID1).GetByteString();
+	    	
+	        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+	        
+	        // Determine an available Recipient ID to offer to the Resource Server as ID1
+	        synchronized(usedRecipientIds) {
+	        	synchronized(db) {
+	        	
+		        	int maxIdValue;
+		        	
+			        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
+			        for (int idSize = 1; idSize <= 4; idSize++) {
+			        	
+			        	if (idSize == 4)
+			        		maxIdValue = (1 << 31) - 1;
+			        	else
+			        		maxIdValue = (1 << (idSize * 8)) - 1;
+			        	
+				        for (int j = 0; j <= maxIdValue; j++) {
+				        	
+		        			recipientId = Util.intToBytes(j);
+		        			
+		        			// The Recipient ID must be different than what offered by the Client in the 'id1' parameter
+		        			if(Arrays.equals(senderId, recipientId))
+		        				continue;
+		        			
+		        			// This Recipient ID is marked as not available to use
+		        			if (usedRecipientIds.get(idSize - 1).contains(j))
+		        				continue;
+		        			
+				        	// This Recipient ID seems to be available to use 
+			        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+			        			
+			        			// Double check in the database of OSCORE Security Contexts
+			        			if (db.getContext(recipientId) != null) {
+			        				
+			        				// A Security Context with this Recipient ID exists and was not tracked!
+			        				// Update the local list of used Recipient IDs, then move on to the next candidate
+			        				usedRecipientIds.get(idSize - 1).add(j);
+			        				continue;
+			        				
+			        			}
+			        			else {
+			        				
+			        				// This Recipient ID is actually available at the moment. Add it to the local list
+			        				usedRecipientIds.get(idSize - 1).add(j);
+			        				recipientIdFound = true;
+			        				break;
+			        			}
+			        			
+			        		}
+			        			
+				        }
+				        
+				        if (recipientIdFound)
+				        	break;
+				        	
+			        }
+	        	}
+	        }
+	        
+		    try {
+		    	if (!recipientIdFound) {
+		            throw new AceException("No Recipient ID available to use");
+		        }
+		    } catch (Exception e) {
+		        LOGGER.info("No Recipient ID available to use");
+	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	            
+		    }
+	
+	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).set(Constants.OS_CLIENTID, CBORObject.FromObject(recipientId));	    	
+		    
+	    }
+    	// end NNN
+	    
+	    
+	    
+	    
+	    
+	    
+	    
 	    //10. Store the claims of this token
 	    CBORObject cti = null;
 	    //Check if we have a sid
@@ -356,6 +502,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+	    
 
 	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
@@ -370,8 +517,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    try {
 	    	String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
 	    	
-	    	CBORObject cnf = claims.get(Constants.CNF);
-	    	
+	    	cnf = claims.get(Constants.CNF);
+	    		    	
 	    	// This should really not happen for a previously validated and stored Access Token
 	    	if (cnf == null) {
 	            LOGGER.severe("Token has not cnf");
@@ -420,6 +567,16 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    if (assignedSid != null)
 	    	rep.Add(Constants.SUB, assignedSid);
 
+    	
+    	// NNN
+	    // If the OSCORE profile is being used, return also the selected Recipient ID to the specific AuthzInfo instance 
+    	if (claims.get(Constants.CNF).getKeys().contains(Constants.OSCORE_Input_Material)) {
+    		
+    		String recipientIdString = Base64.getEncoder().encodeToString(recipientId);
+	    	rep.Add(Constants.CLIENT_ID, recipientIdString);
+	    	
+    	}
+    	
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}

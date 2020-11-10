@@ -56,6 +56,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 
@@ -175,6 +176,79 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
+        
+        
+        /***********************************/
+        
+        // NNN
+        byte[] recipientId = null;
+        int recipientIdAsInt = -1;
+        boolean found = false;
+        
+        // Determine an available Recipient ID to offer to the Resource Server as ID1
+        synchronized(usedRecipientIds) {
+        	synchronized(db) {
+        	
+	        	int maxIdValue;
+	        	
+		        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
+		        for (int idSize = 1; idSize <= 4; idSize++) {
+		        	
+		        	if (idSize == 4)
+		        		maxIdValue = (1 << 31) - 1;
+		        	else
+		        		maxIdValue = (1 << (idSize * 8)) - 1;
+		        	
+			        for (int j = 0; j <= maxIdValue; j++) {
+			        	
+	        			recipientId = Util.intToBytes(j);
+	        			
+	        			// This Recipient ID is marked as not available to use
+	        			if (usedRecipientIds.get(idSize - 1).contains(j))
+	        				continue;
+	        			
+			        	// This Recipient ID seems to be available to use 
+		        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+		        			
+		        			// Double check in the database of OSCORE Security Contexts
+		        			if (db.getContext(recipientId) != null) {
+		        				
+		        				// A Security Context with this Recipient ID exists and was not tracked!
+		        				// Update the local list of used Recipient IDs, then move on to the next candidate
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				continue;
+		        				
+		        			}
+		        			else {
+		        				
+		        				// This Recipient ID is actually available at the moment. Add it to the local list
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				recipientIdAsInt = j;
+		        				found = true;
+		        				break;
+		        			}
+		        			
+		        		}
+		        			
+			        }
+			        
+			        if (found)
+			        	break;
+			        	
+		        }
+        	}
+        }
+
+        if (!found) {
+            throw new AceException("No Recipient ID available to use");
+        }
+        payload.Add(Constants.ID1, recipientId);
+        // end NNN
+                
+        /***********************************/
+        
+        
+        
         CoapClient client = new CoapClient(rsAddr);
 
         LOGGER.finest("Sending request payload: " + payload);
@@ -185,6 +259,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
                     payload.EncodeToBytes(), 
                     Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
+        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
@@ -215,6 +290,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
         		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
+        			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
                 	throw new AceException(
                 			"Missing or malformed sign_info in the RS response, although requested");
         	}
@@ -223,9 +299,24 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         byte[] n2 = n2C.GetByteString();
         
+        // NNN
+        CBORObject senderIdCBOR = rsPayload.get(
+                CBORObject.FromObject(Constants.ID2));
+        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
+            throw new AceException(
+                    "Missing or malformed 'id2' in RS response");
+        }
+        
+        byte[] senderId = senderIdCBOR.GetByteString();
+            
+        
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-        OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        // OLD way
+        //OSCoreCtx ctx = osc.getContext(true, n1, n2);
+        
+        // NNN
+        OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
         
         db.addContext(ctx);
         db.addContext(rsAddr, ctx);

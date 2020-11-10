@@ -43,6 +43,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 
 /**
  * Utility class to parse, verify and access  OSCORE_Input_Material in a cnf element
@@ -78,7 +79,6 @@ public class OscoreSecurityContext {
      * The client identifier
      */
     private byte[] clientId;
-    
     
     /**
      * The context id, can be null
@@ -141,7 +141,7 @@ public class OscoreSecurityContext {
                 throw new AceException(
                         "Malformed client Id in OSCORE security context");
             }
-            this.clientId = clientIdC.GetByteString(); 
+            this.clientId = clientIdC.GetByteString();
         }
                
         CBORObject ctxIdC = osc.get(Constants.OS_CONTEXTID);
@@ -214,7 +214,7 @@ public class OscoreSecurityContext {
      * @return  an OSCORE context based on this object 
      * @throws OSException 
      */
-    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) 
+    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2, byte[] id1, byte[] id2) 
             throws OSException {
         byte[] senderId;
         byte[] recipientId;
@@ -256,9 +256,11 @@ public class OscoreSecurityContext {
             finalSalt = new byte[n1.length + n2.length];
             System.arraycopy(n1, 0, finalSalt, 0, n1.length);
             System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
-        }
-        */
+        }*/
         
+        
+        // OLD WAY - The IDs of Client and Resource Server are distributed by the Authorization Server
+        /*
         if (isClient) {
             senderId = this.clientId;
             recipientId = this.serverId;
@@ -266,6 +268,17 @@ public class OscoreSecurityContext {
             senderId = this.serverId;
             recipientId = this.clientId;
         }
+        */
+        
+        if (isClient) {
+            senderId = id2;
+            recipientId = id1;
+            
+        } else {
+            senderId = id1;
+            recipientId = id2;
+        }
+        
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
                 recipientId, this.hkdf, this.replaySize, finalSalt, 
                 this.contextId);
@@ -283,6 +296,13 @@ public class OscoreSecurityContext {
      */
     public byte[] getId() {
         return this.id;
+    }
+    
+    /**
+     * @return  the context id
+     */
+    public byte[] getContextId() {
+        return this.contextId;
     }
 
 }

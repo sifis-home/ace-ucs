@@ -143,6 +143,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        
         if (!cbor.getType().equals(CBORType.Map)) {
             LOGGER.info("Invalid payload at authz-info: not a cbor map");
             CBORObject map = CBORObject.NewMap();
@@ -151,6 +152,30 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
                     "Payload to authz-info must be a CBOR map");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        
+        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.NONCE1));
+        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Missing or invalid parameter type for:"
+                    + "'nonce1', must be present and byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Malformed or missing parameter 'nonce1'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+        }
+        
+        // NNN
+        CBORObject senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
+        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Missing or invalid parameter type for:"
+                    + "'id1', must be present and byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, 
+                    "Malformed or missing parameter 'id1'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+        }
+        // end NNN
         
         token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
@@ -190,16 +215,20 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
 
-        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.NONCE1));
-        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter type for:"
-                    + "'nonce1', must be present and byte-string");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Malformed or missing parameter 'nonce1'");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+        
+        // NNN
+        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(reply.getRawPayload());
+        
+        String recipientIdString = authzInfoResponse.get(
+                CBORObject.FromObject(Constants.CLIENT_ID)).AsString();
+        if (recipientIdString == null) {
+            LOGGER.info("Missing mandatory parameter 'client_id'");
+            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
+        byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
+        // NNN
+        
+        
         byte[] n1 = nonce.GetByteString();
         byte[] n2 = new byte[8];
         new SecureRandom().nextBytes(n2);
@@ -216,7 +245,8 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             
         OSCoreCtx ctx;
         try {
-            ctx = osc.getContext(false, n1, n2);
+        	byte[] senderId = senderIdCBOR.GetByteString();        	
+            ctx = osc.getContext(false, n1, n2, senderId, recipientId);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);
         } catch (OSException e) {
             LOGGER.info("Error while creating OSCORE context: " 
@@ -362,6 +392,9 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    	}
     		
     	}
+    	
+        // NNN
+        payload.Add(Constants.ID2, recipientId);
         
         LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);

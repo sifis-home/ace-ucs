@@ -62,6 +62,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -379,6 +380,7 @@ public class TokenRepository implements AutoCloseable {
             }
         } else if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
+            
             String kid = new String(osc.getClientId(), Constants.charset);
             this.cti2kid.put(cti, kid);
             

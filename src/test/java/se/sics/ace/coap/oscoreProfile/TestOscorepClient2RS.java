@@ -140,7 +140,6 @@ public class TestOscorepClient2RS {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
     		usedRecipientIds.add(new HashSet<Integer>());
-    		
     	}
     }
     

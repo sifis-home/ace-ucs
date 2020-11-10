@@ -469,12 +469,12 @@ public class Constants {
 	/**
 	 * The client Id
 	 */
-	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(92);
+	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(-65537);
 
 	/**
 	 * The server Id
 	 */
-	public static final CBORObject OS_SERVERID = CBORObject.FromObject(93);
+	public static final CBORObject OS_SERVERID = CBORObject.FromObject(-65538);
 
 
     /**

@@ -33,6 +33,7 @@ package se.sics.ace.coap.oscoreProfile;
 
 import java.io.File;
 import java.io.IOException;
+import java.security.SecureRandom;
 import java.sql.SQLException;
 import java.util.Base64;
 import java.util.Collections;
@@ -232,6 +233,11 @@ public class TestOscoreAuthzInfo {
         Request r = Request.newPost();
         CBORObject foo = CBORObject.NewMap();
         foo.Add(Constants.OSCORE_Input_Material, "bar");
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
+        foo.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        foo.Add(Constants.ID1, id1);
         r.setPayload(foo.EncodeToBytes());
         CoapReq request = CoapReq.getInstance(r);        
         Message response = ai.processMessage(request);
@@ -256,6 +262,11 @@ public class TestOscoreAuthzInfo {
             InvalidCipherTextException, CoseException, AceException {
         CBORObject bogusToken = CBORObject.NewMap();
         bogusToken.Add(Constants.ACCESS_TOKEN, CBORObject.FromObject("bogus token"));
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
+        bogusToken.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        bogusToken.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 bogusToken);
                 
@@ -416,6 +427,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -466,6 +479,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -518,6 +533,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -531,7 +548,7 @@ public class TestOscoreAuthzInfo {
     }
     
     /**
-     * Test clientId  != byte-string
+     * Test kdf  != AlgorithmID
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
@@ -539,7 +556,7 @@ public class TestOscoreAuthzInfo {
      * @throws AceException  
      */
     @Test
-    public void testFailClientIdNotBytestring() throws IllegalStateException, 
+    public void testFailKdfWrongType() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x06}));
@@ -548,7 +565,9 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         CBORObject osc = CBORObject.NewMap();
-        osc.Add(Constants.OS_CLIENTID, "hugo");
+        byte[] clientId = {0x09, 0x08};
+        osc.Add(Constants.OS_CLIENTID, clientId);
+        osc.Add(Constants.OS_HKDF, "blah");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x06});
@@ -570,60 +589,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
-
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "Malformed client Id in OSCORE security context");
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
-    }
-    
-    /**
-     * Test kdf  != AlgorithmID
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailKdfWrongType() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x08}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_HKDF, "blah");
-        cbor.Add(Constants.OSCORE_Input_Material, osc);
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x08}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
-
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
-        payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -648,7 +615,7 @@ public class TestOscoreAuthzInfo {
     public void testFailMsNull() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x07}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -659,11 +626,11 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_MS, null);
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x09}), params);
+                new byte[]{0x07}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -678,6 +645,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -702,7 +671,7 @@ public class TestOscoreAuthzInfo {
     public void testFailMsNotBytestring() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x10}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x08}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -713,11 +682,11 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_MS, "very secret");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x10});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x10}), params);
+                new byte[]{0x08}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -732,6 +701,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -758,7 +729,7 @@ public class TestOscoreAuthzInfo {
     public void testFailSaltNotBytestring() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0a}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -771,11 +742,11 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0a});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0a}), params);
+                new byte[]{0x09}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -790,6 +761,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -814,7 +787,7 @@ public class TestOscoreAuthzInfo {
     public void testFailServerIdNull() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0b}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0a}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -825,6 +798,66 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SERVERID, null);
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0a});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x0a}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+
+
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+                payload);
+
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        CBORObject map = CBORObject.NewMap();
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing server id"
+                + " in OSCORE security context");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
+    } 
+            
+    // M.T.
+    /**
+     * Test id == null
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException  
+     */
+    @Test
+    public void testFailIdNull() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException {
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0b}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject cbor = CBORObject.NewMap();
+        CBORObject osc = CBORObject.NewMap();
+        byte[] clientId = {0x09, 0x08};
+        osc.Add(Constants.OS_CLIENTID, clientId);
+        osc.Add(Constants.OS_MS, key128a);
+        byte[] serverId = {0x05, 0x06};
+        osc.Add(Constants.OS_SERVERID, serverId);
+        osc.Add(Constants.OS_ID, null);
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0b});
@@ -846,120 +879,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
-
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing server id"
-                + " in OSCORE security context");
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
-    } 
-    
-    /**
-     * Test serverId != byte string
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailServerIdNotBytestring() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0c}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_MS, key128a);
-        osc.Add(Constants.OS_SERVERID, "emil");
-        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
-        cbor.Add(Constants.OSCORE_Input_Material, osc);
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0c});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0c}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
-
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
-        payload.Add(Constants.NONCE1, n1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
-
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing server id"
-                + " in OSCORE security context");
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
-    }
-        
-    // M.T.
-    /**
-     * Test id == null
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailIdNull() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0d}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_MS, key128a);
-        byte[] serverId = {0x05, 0x06};
-        osc.Add(Constants.OS_SERVERID, serverId);
-        osc.Add(Constants.OS_ID, null);
-        cbor.Add(Constants.OSCORE_Input_Material, osc);
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0d}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
-
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
-        payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -985,7 +906,7 @@ public class TestOscoreAuthzInfo {
     public void testFailIdNotBytestring() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0c}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -999,11 +920,11 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_ID, "emil");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0c});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0e}), params);
+                new byte[]{0x0c}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -1018,6 +939,8 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
         payload.Add(Constants.NONCE1, n1);
+        byte[] id1  = new byte[] {0x00};
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1042,7 +965,7 @@ public class TestOscoreAuthzInfo {
     public void testFailOscoreCtx() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0f}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0d}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -1058,11 +981,11 @@ public class TestOscoreAuthzInfo {
         
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0f});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0f}), params);
+                new byte[]{0x0d}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -1076,7 +999,9 @@ public class TestOscoreAuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
+        byte[] id1 = {0x00}; // NNN
         payload.Add(Constants.NONCE1, n1);
+        payload.Add(Constants.ID1, id1); // NNN
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1106,7 +1031,7 @@ public class TestOscoreAuthzInfo {
             InvalidCipherTextException, CoseException, AceException, 
             OSException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x1d}));
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -1120,11 +1045,11 @@ public class TestOscoreAuthzInfo {
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x1d});
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x1d}), params);
+                new byte[]{0x0e}), params);
         db.addCti2Client(ctiStr, "client1");  
 
 
@@ -1138,7 +1063,9 @@ public class TestOscoreAuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
+        byte[] id1 = {0x00}; // NNN
         payload.Add(Constants.NONCE1, n1);
+        payload.Add(Constants.ID1, id1); // NNN
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1146,9 +1073,22 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.CREATED);
         
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
-        OSCoreCtx osctx = db.getContext(clientId);
+        
+        
+        /*
+         * OSCoreCtx osctx = db.getContext(clientId);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
                 false, null, serverId, clientId, null, null, null, null);
+        */
+        
+        // NNN
+        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
+        byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        OSCoreCtx osctx = db.getContext(id2);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
+                false, null, id1, id2, null, null, null, null);
+        // end NNN
+        
         assert(osctx.equals(osctx2));
         
         
