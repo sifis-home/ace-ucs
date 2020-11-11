@@ -231,13 +231,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = "clientA".getBytes(Constants.charset);
-        osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, keyCnf);
-        byte[] serverId = "rs1".getBytes(Constants.charset);
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, Util.intToBytes(0));
-
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cnf);
@@ -332,13 +328,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = "clientB".getBytes(Constants.charset); //Need different client ID
-        osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, keyCnf);
-        byte[] serverId = "rs2".getBytes(Constants.charset);
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, Util.intToBytes(0));
-
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cnf);
@@ -1335,13 +1327,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = "clientC".getBytes(Constants.charset); //Need different client ID
-        osc.Add(Constants.OS_CLIENTID, clientId);
         osc.Add(Constants.OS_MS, keyCnf);
-        byte[] serverId = "rs2".getBytes(Constants.charset);
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, Util.intToBytes(0));
-
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cnf);

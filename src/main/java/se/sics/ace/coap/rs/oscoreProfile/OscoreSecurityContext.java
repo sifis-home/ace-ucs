@@ -43,7 +43,6 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.Util;
 
 /**
  * Utility class to parse, verify and access  OSCORE_Input_Material in a cnf element
@@ -194,8 +193,8 @@ public class OscoreSecurityContext {
                         + " in OSCORE security context");
             }
             this.salt = saltC.GetByteString();
-        }
-
+        }        
+        
         CBORObject serverIdC = osc.get(Constants.OS_SERVERID);
         if (serverIdC == null 
                 || !serverIdC.getType().equals(CBORType.ByteString)) {
@@ -205,12 +204,15 @@ public class OscoreSecurityContext {
                     + " in OSCORE security context");
         }
         this.serverId = serverIdC.GetByteString();
+        
     }
     
     /**
      * @param isClient
      * @param n1  the client's nonce
      * @param n2  the server's nonce
+     * @param id1  the Recipient ID offered by the client, i.e. the Sender ID of the Resource Server
+     * @param n2  the Recipient ID offered by the Resource Server, i.e. the Sender ID of the Client
      * @return  an OSCORE context based on this object 
      * @throws OSException 
      */
@@ -289,6 +291,13 @@ public class OscoreSecurityContext {
      */
     public byte[] getClientId() {
         return this.clientId;
+    }
+    
+    /**
+     * @return  the server identifier
+     */
+    public byte[] getServerId() {
+        return this.serverId;
     }
     
     /**

@@ -33,7 +33,6 @@ package se.sics.ace.as;
 
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -177,11 +176,6 @@ public class Token implements Endpoint, AutoCloseable {
 	  */
 	 private boolean setAudHeader = false;
 	 
-	 /**
-	  * Size in bytes of the serverId generated for OSCORE contexts. Default is 1.
-	  */
-	 private short OS_serverId_size = 1;
-	 
 	 // M.T.
 	 /**
 	 * Incremented after having released an Access Token including OSCORE input material
@@ -292,9 +286,7 @@ public class Token implements Endpoint, AutoCloseable {
         this.claims = new HashSet<>();
         this.claims.addAll(localClaims);
         this.setAudHeader = setAudInCwtHeader;
-        if (oscoreServerIdSize > 0) {
-            this.OS_serverId_size = oscoreServerIdSize;
-        }
+
 	}
 
 	@Override
@@ -934,14 +926,6 @@ public class Token implements Endpoint, AutoCloseable {
 	    CBORObject osc = CBORObject.NewMap();
 	    CBORObject osccnf = CBORObject.NewMap();
 	    osccnf.Add(Constants.OS_MS, key);
-	    byte[] serverId = new byte[this.OS_serverId_size];
-	    new SecureRandom().nextBytes(serverId);
-	 
-	    osccnf.Add(Constants.OS_SERVERID, serverId);
-	    osccnf.Add(Constants.OS_CLIENTID, clientId.getBytes(
-	            Constants.charset));
-	    
-	    // M.T.
 	    osccnf.Add(Constants.OS_ID, Util.intToBytes(OSCORE_material_counter));
 	    OSCORE_material_counter++;
 	    

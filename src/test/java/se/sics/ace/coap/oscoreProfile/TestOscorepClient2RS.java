@@ -173,13 +173,8 @@ public class TestOscorepClient2RS {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = "clientA".getBytes(Constants.charset);
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_MS, keyCnf);
-        byte[] serverId = "rs1".getBytes(Constants.charset);
-        osc.Add(Constants.OS_SERVERID, serverId);
         
-        // M.T.
+        osc.Add(Constants.OS_MS, keyCnf);
         byte[] id = Util.intToBytes(0);
         osc.Add(Constants.OS_ID, id);
 

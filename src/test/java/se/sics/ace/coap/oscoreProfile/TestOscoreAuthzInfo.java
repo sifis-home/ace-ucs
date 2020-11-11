@@ -563,10 +563,9 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+        
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_HKDF, "blah");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -619,10 +618,9 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+        
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, null);
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -675,10 +673,9 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+        
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, "very secret");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -733,10 +730,9 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SALT, "NaCl");
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
@@ -774,64 +770,6 @@ public class TestOscoreAuthzInfo {
                 + " salt in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     } 
-    
-    /**
-     * Test serverId == null
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testFailServerIdNull() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0a}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
-        CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
-        osc.Add(Constants.OS_MS, key128a);
-        osc.Add(Constants.OS_SERVERID, null);
-        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
-        cbor.Add(Constants.OSCORE_Input_Material, osc);
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0a});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0a}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
-
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
-        payload.Add(Constants.NONCE1, n1);
-        byte[] id1  = new byte[] {0x00};
-        payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
-
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing server id"
-                + " in OSCORE security context");
-        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
-    } 
             
     // M.T.
     /**
@@ -850,13 +788,11 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+
+
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
-        byte[] serverId = {0x05, 0x06};
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, null);
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -910,13 +846,10 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
-        byte[] serverId = {0x05, 0x06};
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, "emil");
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -969,16 +902,12 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
-        byte[] serverId = {0x05, 0x06};
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_HKDF, AlgorithmID.HKDF_HMAC_AES_128.AsCBOR());
-        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
-        
+        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.                
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
@@ -999,9 +928,9 @@ public class TestOscoreAuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
-        byte[] id1 = {0x00}; // NNN
+        byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1); // NNN
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1035,13 +964,10 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        CBORObject cbor = CBORObject.NewMap();
+        
         CBORObject osc = CBORObject.NewMap();
-        byte[] clientId = {0x09, 0x08};
-        osc.Add(Constants.OS_CLIENTID, clientId);
+        CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
-        byte[] serverId = {0x05, 0x06};
-        osc.Add(Constants.OS_SERVERID, serverId);
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
@@ -1059,13 +985,12 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         byte[] n1 = {0x01, 0x02, 0x03};
-        byte[] id1 = {0x00}; // NNN
+        byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
-        payload.Add(Constants.ID1, id1); // NNN
+        payload.Add(Constants.ID1, id1);
         LocalMessage request = new LocalMessage(0, "clientA", "rs1",
                 payload);
 
@@ -1074,20 +999,11 @@ public class TestOscoreAuthzInfo {
         
         OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
         
-        
-        /*
-         * OSCoreCtx osctx = db.getContext(clientId);
-        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
-                false, null, serverId, clientId, null, null, null, null);
-        */
-        
-        // NNN
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = db.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
                 false, null, id1, id2, null, null, null, null);
-        // end NNN
         
         assert(osctx.equals(osctx2));
         

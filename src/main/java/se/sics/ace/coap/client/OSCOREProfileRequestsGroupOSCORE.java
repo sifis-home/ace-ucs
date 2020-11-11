@@ -176,11 +176,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
-        
-        
-        /***********************************/
-        
-        // NNN
         byte[] recipientId = null;
         int recipientIdAsInt = -1;
         boolean found = false;
@@ -243,11 +238,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("No Recipient ID available to use");
         }
         payload.Add(Constants.ID1, recipientId);
-        // end NNN
-                
-        /***********************************/
-        
-        
         
         CoapClient client = new CoapClient(rsAddr);
 
@@ -259,7 +249,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
                     payload.EncodeToBytes(), 
                     Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
-        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
+        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
@@ -290,7 +280,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         	
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
         		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
-        			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
+        			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
                 	throw new AceException(
                 			"Missing or malformed sign_info in the RS response, although requested");
         	}
@@ -299,7 +289,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         byte[] n2 = n2C.GetByteString();
         
-        // NNN
         CBORObject senderIdCBOR = rsPayload.get(
                 CBORObject.FromObject(Constants.ID2));
         if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
@@ -309,13 +298,11 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         byte[] senderId = senderIdCBOR.GetByteString();
             
+    	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(senderId));
+    	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(recipientId));
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-        // OLD way
-        //OSCoreCtx ctx = osc.getContext(true, n1, n2);
-        
-        // NNN
         OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
         
         db.addContext(ctx);

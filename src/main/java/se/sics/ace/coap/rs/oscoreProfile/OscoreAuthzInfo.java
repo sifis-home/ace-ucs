@@ -139,7 +139,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
         
-        // NNN
         CBORObject senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
         if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
             LOGGER.info("Missing or invalid parameter type for:"
@@ -150,7 +149,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     "Malformed or missing parameter 'id1'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
-        // end NNN
         
         CBORObject token = cbor.get(
                 CBORObject.FromObject(Constants.ACCESS_TOKEN));
@@ -174,10 +172,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
-
-
         
-        // NNN
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(reply.getRawPayload());
         
         String recipientIdString = authzInfoResponse.get(
@@ -187,7 +182,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
         byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
-        // NNN
         
         
         byte[] n1 = nonce.GetByteString();
@@ -197,6 +191,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         OscoreSecurityContext osc;
         try {
             osc = new OscoreSecurityContext(this.cnf);
+            
         } catch (AceException e) {
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -223,7 +218,6 @@ public class OscoreAuthzInfo extends AuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.NONCE2, n2);
         
-        // NNN
         payload.Add(Constants.ID2, recipientId);
         
         LOGGER.info("Successfully processed OSCORE token");

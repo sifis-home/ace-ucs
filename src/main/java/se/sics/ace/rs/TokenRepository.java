@@ -382,6 +382,7 @@ public class TokenRepository implements AutoCloseable {
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             
             String kid = new String(osc.getClientId(), Constants.charset);
+            
             this.cti2kid.put(cti, kid);
             
             // Store the association between the immutable identitifer of the OSCORE input material

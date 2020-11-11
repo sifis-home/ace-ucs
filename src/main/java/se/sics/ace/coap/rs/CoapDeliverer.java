@@ -146,14 +146,6 @@ public class CoapDeliverer implements MessageDeliverer {
         
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
-            //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
-        	
-        	// Old way for retrieving only the OSCORE Sender ID of the message originator
-        	/*
-            if (ex.getCryptographicContextID()!= null) {                
-                subject = new String(ex.getCryptographicContextID(),
-                        Constants.charset);    
-            }*/
             
         	Request req = ex.getRequest();
             try {

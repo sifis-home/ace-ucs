@@ -174,7 +174,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	protected synchronized Message processToken(CBORObject token,  Message msg) {
 	    Map<Short, CBORObject> claims = null;
 	    
-	    // NNN
         byte[] recipientId = null;
         boolean recipientIdFound = false;
 
@@ -361,17 +360,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
-	    //9. Extension point for handling other special claims in the future
-	    processOther(claims);
-	    
-	    
-	    
-	    
-	    
-	    
-	    // NNN
-	    // M.T. The OSCORE profile is being used. The Resource Server has to determine an available
-	    //      Recipient ID to offer to the Client.
 		CBORObject cnf = claims.get(Constants.CNF);
 		try {
 	        if (cnf == null) {
@@ -385,6 +373,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        
 	    }
         
+	    // The OSCORE profile is being used. The Resource Server has to determine
+	    // an available Recipient ID to offer to the Client.
     	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
 	    
         	CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
@@ -477,16 +467,13 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            
 		    }
 	
-	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).set(Constants.OS_CLIENTID, CBORObject.FromObject(recipientId));	    	
+	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(recipientId));
+	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(senderId));
 		    
 	    }
-    	// end NNN
 	    
-	    
-	    
-	    
-	    
-	    
+	    //9. Extension point for handling other special claims in the future
+	    processOther(claims);
 	    
 	    //10. Store the claims of this token
 	    CBORObject cti = null;
@@ -567,8 +554,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    if (assignedSid != null)
 	    	rep.Add(Constants.SUB, assignedSid);
 
-    	
-    	// NNN
 	    // If the OSCORE profile is being used, return also the selected Recipient ID to the specific AuthzInfo instance 
     	if (claims.get(Constants.CNF).getKeys().contains(Constants.OSCORE_Input_Material)) {
     		

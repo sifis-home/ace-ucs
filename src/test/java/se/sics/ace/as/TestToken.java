@@ -914,8 +914,6 @@ public class TestToken {
                 Constants.OSCORE_Input_Material));
         assert(osctx.getType().equals(CBORType.Map));
         assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_MS)));
-        assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_CLIENTID)));
-        assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_SERVERID)));
     }
     
 }

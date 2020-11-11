@@ -171,10 +171,6 @@ public class OSCOREProfileRequests {
         payload.Add(Constants.NONCE1, n1);
         
 
-        
-        /***********************************/
-        
-        // NNN
         byte[] recipientId = null;
         int recipientIdAsInt = -1;
         boolean found = false;
@@ -236,12 +232,7 @@ public class OSCOREProfileRequests {
         if (!found) {
             throw new AceException("No Recipient ID available to use");
         }
-        payload.Add(Constants.ID1, recipientId);
-        // end NNN
-                
-        /***********************************/
-        
-        
+        payload.Add(Constants.ID1, recipientId);        
         
         CoapClient client = new CoapClient(rsAddr);
 
@@ -252,7 +243,7 @@ public class OSCOREProfileRequests {
                     payload.EncodeToBytes(), 
                     Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
-        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt); // NNN
+        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
@@ -281,9 +272,6 @@ public class OSCOREProfileRequests {
         
         byte[] n2 = n2C.GetByteString();
         
-        
-        
-        // NNN
         CBORObject senderIdCBOR = rsPayload.get(
                 CBORObject.FromObject(Constants.ID2));
         if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
@@ -293,13 +281,11 @@ public class OSCOREProfileRequests {
         
         byte[] senderId = senderIdCBOR.GetByteString();
             
+    	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(senderId));
+    	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(recipientId));
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-        // OLD way
-        //OSCoreCtx ctx = osc.getContext(true, n1, n2);
-        
-        // NNN
         OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
         
         db.addContext(ctx);
