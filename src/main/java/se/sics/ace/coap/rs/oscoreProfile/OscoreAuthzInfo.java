@@ -40,6 +40,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
@@ -55,6 +56,7 @@ import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.ScopeValidator;
+import se.sics.ace.rs.TokenRepository;
 
 
 /**
@@ -203,7 +205,46 @@ public class OscoreAuthzInfo extends AuthzInfo {
         try {
         	byte[] senderId = senderIdCBOR.GetByteString();        	
             ctx = osc.getContext(false, n1, n2, senderId, recipientId);
-            OscoreCtxDbSingleton.getInstance().addContext(ctx);
+            
+            OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+            
+            synchronized(db) {
+            	
+            	boolean install = true;
+            	
+    			try {
+            			
+    				// Double check in the database that the OSCORE Security Context
+    				// with the selected Recipient ID is actually still not present
+        			if (db.getContext(recipientId) != null) {
+        				// A Security Context with this Recipient ID exists!
+        				install = false;
+        			}        			
+    			}
+        		catch(RuntimeException e) {
+    				// Multiple Security Contexts with this Recipient ID exist!
+    				install = false;
+        		}
+            	
+    			if (install)
+    				db.addContext(ctx);
+    			else {
+    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
+				               + " has been installed while running the OSCORE profile");
+    	            
+    	            // Delete the stored Access Token to prevent a deadlock
+    	    	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+    	    	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
+    	    	    try {
+    	    	    	TokenRepository.getInstance().removeToken(cti.AsString());
+    	    	    }
+    	    	    catch (AceException e) {
+    	                LOGGER.info("Error while deleting an Access Token: " + e.getMessage());
+    	    	    }
+    	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+    			}
+            }
+            
         } catch (OSException e) {
             LOGGER.info("Error while creating OSCORE context: " 
                     + e.getMessage());

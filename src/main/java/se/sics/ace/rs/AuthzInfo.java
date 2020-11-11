@@ -426,26 +426,34 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		        			if (usedRecipientIds.get(idSize - 1).contains(j))
 		        				continue;
 		        			
-				        	// This Recipient ID seems to be available to use 
-			        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
-			        			
-			        			// Double check in the database of OSCORE Security Contexts
-			        			if (db.getContext(recipientId) != null) {
-			        				
-			        				// A Security Context with this Recipient ID exists and was not tracked!
-			        				// Update the local list of used Recipient IDs, then move on to the next candidate
-			        				usedRecipientIds.get(idSize - 1).add(j);
-			        				continue;
-			        				
-			        			}
-			        			else {
-			        				
-			        				// This Recipient ID is actually available at the moment. Add it to the local list
-			        				usedRecipientIds.get(idSize - 1).add(j);
-			        				recipientIdFound = true;
-			        				break;
-			        			}
-			        			
+		        			try {
+					        	// This Recipient ID seems to be available to use 
+				        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+				        			
+				        			// Double check in the database of OSCORE Security Contexts
+				        			if (db.getContext(recipientId) != null) {
+				        				
+				        				// A Security Context with this Recipient ID exists and was not tracked!
+				        				// Update the local list of used Recipient IDs, then move on to the next candidate
+				        				usedRecipientIds.get(idSize - 1).add(j);
+				        				continue;
+				        				
+				        			}
+				        			else {
+				        				
+				        				// This Recipient ID is actually available at the moment. Add it to the local list
+				        				usedRecipientIds.get(idSize - 1).add(j);
+				        				recipientIdFound = true;
+				        				break;
+				        			}
+				        			
+				        		}
+		        			}
+			        		catch(RuntimeException e) {
+		        				// Multiple Security Contexts with this Recipient ID exist and it was not tracked!
+		        				// Update the local list of used Recipient IDs, then move on to the next candidate
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				continue;
 			        		}
 			        			
 				        }

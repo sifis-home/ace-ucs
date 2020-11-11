@@ -34,6 +34,7 @@ package se.sics.ace.coap.client;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.security.SecureRandom;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import java.util.logging.Logger;
@@ -202,27 +203,35 @@ public class OSCOREProfileRequestsGroupOSCORE {
 	        			if (usedRecipientIds.get(idSize - 1).contains(j))
 	        				continue;
 	        			
-			        	// This Recipient ID seems to be available to use 
-		        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
-		        			
-		        			// Double check in the database of OSCORE Security Contexts
-		        			if (db.getContext(recipientId) != null) {
-		        				
-		        				// A Security Context with this Recipient ID exists and was not tracked!
-		        				// Update the local list of used Recipient IDs, then move on to the next candidate
-		        				usedRecipientIds.get(idSize - 1).add(j);
-		        				continue;
-		        				
-		        			}
-		        			else {
-		        				
-		        				// This Recipient ID is actually available at the moment. Add it to the local list
-		        				usedRecipientIds.get(idSize - 1).add(j);
-		        				recipientIdAsInt = j;
-		        				found = true;
-		        				break;
-		        			}
-		        			
+	        			try {
+				        	// This Recipient ID seems to be available to use 
+			        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+			        			
+			        			// Double check in the database of OSCORE Security Contexts
+			        			if (db.getContext(recipientId) != null) {
+			        				
+			        				// A Security Context with this Recipient ID exists and was not tracked!
+			        				// Update the local list of used Recipient IDs, then move on to the next candidate
+			        				usedRecipientIds.get(idSize - 1).add(j);
+			        				continue;
+			        				
+			        			}
+			        			else {
+			        				
+			        				// This Recipient ID is actually available at the moment. Add it to the local list
+			        				usedRecipientIds.get(idSize - 1).add(j);
+			        				recipientIdAsInt = j;
+			        				found = true;
+			        				break;
+			        			}
+			        			
+			        		}
+	        			}
+		        		catch(RuntimeException e) {
+	        				// Multiple Security Contexts with this Recipient ID exist and it was not tracked!
+	        				// Update the local list of used Recipient IDs, then move on to the next candidate
+	        				usedRecipientIds.get(idSize - 1).add(j);
+	        				continue;
 		        		}
 		        			
 			        }
@@ -297,7 +306,12 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         byte[] senderId = senderIdCBOR.GetByteString();
-            
+        
+		// The Recipient ID must be different than what offered by the Resource Server in the 'id2' parameter
+		if(Arrays.equals(senderId, recipientId)) {
+            throw new AceException("The Resource Server returned the ID offered by the Client");
+		}
+        
     	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(senderId));
     	cnf.get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(recipientId));
         
@@ -305,8 +319,30 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
         
-        db.addContext(ctx);
-        db.addContext(rsAddr, ctx);
+        synchronized(db) {
+        	
+        	boolean install = true;
+        	
+			try {
+        			
+				// Double check in the database that the OSCORE Security Context
+				// with the selected Recipient ID is actually still not present
+    			if (db.getContext(recipientId) != null) {
+    				// A Security Context with this Recipient ID exists!
+    				install = false;
+    			}        			
+			}
+    		catch(RuntimeException e) {
+				// Multiple Security Contexts with this Recipient ID exist!
+				install = false;
+    		}
+        	
+			if (install)
+				db.addContext(rsAddr, ctx);
+			else
+				throw new AceException("An OSCORE Security Context with the same Recipient ID"
+						               + " has been installed while running the OSCORE profile");
+        }
         
         return r;
         

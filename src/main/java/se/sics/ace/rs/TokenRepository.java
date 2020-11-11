@@ -496,13 +496,13 @@ public class TokenRepository implements AutoCloseable {
             throw new AceException("Cti is null");
         } 
 	    
-        //Remove the claims
+        // Remove the claims
         this.cti2claims.remove(cti);
  
-		//Remove the mapping to the pop key
+		// Remove the mapping to the pop key
 		this.cti2kid.remove(cti);
 		
-		//Remove unused keys
+		// Remove unused keys
 		Set<String> remove = new HashSet<>();
 		for (String kid : this.kid2key.keySet()) {
 		    if (!this.cti2kid.containsValue(kid)) {
@@ -511,6 +511,14 @@ public class TokenRepository implements AutoCloseable {
 		}
 		for (String kid : remove) {
 		    this.kid2key.remove(kid);
+		}
+		
+		// Remove the mapping from cti to an OSCORE ID,
+		// if the Token was established with the OSCORE profile
+		for (String id : this.id2cti.keySet()) {
+			if (this.id2cti.get(id).equals(cti)) {
+		    	this.id2cti.remove(id);
+		    }
 		}
 		
 		persist();
