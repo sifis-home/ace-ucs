@@ -85,6 +85,10 @@ public class GroupInfo {
 	// The value of each map entry is the node name of a group member with a certain identity.
 	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
 	private Map<String, String> identities2nodeNames = new HashMap<String, String>();
+
+	// The value of each map entry is the current Sender ID (CBOR byte string) of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+	private Map<String, CBORObject> identities2senderIDs = new HashMap<String, CBORObject>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
@@ -802,7 +806,7 @@ public class GroupInfo {
      * Add a new group member - Note that the public key has to be added separately
      * 
      * @param sid   The Sender ID of the new node. It is Null if the node is a monitor.
-     * @param sid   The node name of the new node.
+     * @param name   The node name of the new node.
      * @param roles   The role(s) of the new node, encoded in the AIF data model
      * @param subject   The node's identity based on the secure association with the GM
      * @return   True if the node is successfully added to the group, false otherwise
@@ -818,8 +822,8 @@ public class GroupInfo {
     	else {
     		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
     			return false;
-	    	// Consider the inner map related to the size in bytes of the Sender ID
-	    	this.nodeRoles.get(sid.length - 1).put(Util.bytesToInt(sid), roles);
+    		setGroupMemberRoles(sid, roles);
+	    	setSenderIdToIdentity(subject, sid);
     	}
     	
     	this.identities2nodeNames.put(subject, name);
@@ -829,7 +833,7 @@ public class GroupInfo {
     }
     
     /**
-     * Return the identity of the group member identified by the specified node name
+     * Return the node name of the group member identified by the specified identity
      * 
      * @param subject   The identity of the node, as per its secure association with the Group Manager
      * 
@@ -843,6 +847,35 @@ public class GroupInfo {
     	return this.identities2nodeNames.get(subject);
     	
     }
+    
+    /**
+     * Return the identity of the group member identified by the specified identity
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The current Sender ID of the group member as a CBOR byte string, of null if no member is found with the specified identity
+     */
+    synchronized public CBORObject getGroupMemberSenderId(final String subject) {
+    	
+    	if (!this.identities2senderIDs.containsKey(subject))
+    		return null;
+    	
+    	return this.identities2senderIDs.get(subject);
+    	
+    }
+    
+    /**
+     * 
+     * @param subject   Associate a Sender Id to the specified identity of a group member
+     *                  It has to be a valid and previously, consistently assigned Sender ID
+     * 
+     */
+    synchronized public void setSenderIdToIdentity(final String subject, final byte[] sid) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+    	this.identities2senderIDs.put(subject, CBORObject.FromObject(sid));
+    	
+    }    
     
     /**
      * Return the roles of the group member identified by the specified node name
@@ -870,6 +903,19 @@ public class GroupInfo {
     }
     
     /**
+     * 
+     * @param sid   The Sender Id of a group member. It has to be a valid and previously, consistently assigned Sender ID                       
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     */
+    synchronized public void setGroupMemberRoles(final byte[] sid, final int roles) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+    	// Consider the inner map related to the size in bytes of the Sender ID
+    	this.nodeRoles.get(sid.length - 1).put(Util.bytesToInt(sid), roles);
+    	
+    }   
+    
+    /**
      * Return the roles of the group member identified by the specified Sender ID
      * 
      * @param sid   The Sender ID of the group member
@@ -885,7 +931,6 @@ public class GroupInfo {
     /**
      * Remove the group member identified by the specified identity
      * 
-     * Note that the public key has to be removed separately
      * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members
      * 
      * @param subject   The node's identity based on the secure association with the GM 
@@ -896,14 +941,21 @@ public class GroupInfo {
     	if (!this.identities2nodeNames.containsKey(subject))
         		return false;
     	
-    	String nodeName = this.identities2nodeNames.get(subject);
-    	byte[] sid = Utils.hexToBytes(nodeName);
+    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << Constants.GROUP_OSCORE_MONITOR)) {
     	
-    	if (!this.nodeRoles.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
-    		return false;
+	    	byte[] sid = getGroupMemberSenderId(subject).GetByteString();
+	    	
+	    	if (!this.nodeRoles.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
+	    		return false;
+	    	
+	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
+	    	
+	    	deletePublicKey(sid);
     	
-    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
+    	}
+    	
     	this.identities2nodeNames.remove(subject);
+    	this.identities2senderIDs.remove(subject);
     	
     	return true;
     	

@@ -695,6 +695,7 @@ public class TestOscorepClient2RSGroupOSCORE {
             byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
             coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
             Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+            
             Assert.assertEquals(2, coseKeySetArray.size());
            
             byte[] peerSenderId;
@@ -975,12 +976,14 @@ public class TestOscorepClient2RSGroupOSCORE {
         byte[] coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(3, coseKeySetArray.size());
-       
+        
         byte[] peerSenderId;
         OneKey peerPublicKey;
         byte[] peerSenderIdFromResponse;
+        int expectedRoles = 0;
         
+        Assert.assertEquals(3, coseKeySetArray.size());
+       
         // Retrieve and check the public key of another node in the group
         peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
@@ -1051,7 +1054,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
-        int expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
@@ -1119,6 +1121,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
         coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        
         Assert.assertEquals(2, coseKeySetArray.size());
         
         
@@ -1290,7 +1293,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Distribution Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the GET method
         
         System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
@@ -1313,6 +1316,108 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(CBORType.Map, KeyRenewalResponse.getType());
         Assert.assertEquals(true, KeyRenewalResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_SENDER_ID)));
         Assert.assertEquals(CBORType.ByteString, KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
+     
+        
+        /////////////////
+        //
+        // Part 10
+        //
+        /////////////////
+		
+        // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
+        
+        System.out.println("Performing a Public Key Update Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath +  "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        requestPayload = CBORObject.NewMap();
+        
+        // For the time being, the client's public key can be only a COSE Key
+        OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
+
+        requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+
+        // Add the nonce for PoP of the Client's private key
+        byte[] cnonce = new byte[8];
+        new SecureRandom().nextBytes(cnonce);
+        requestPayload.Add(Constants.CNONCE, cnonce);
+
+        // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+        int offset = 0;
+        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+
+        byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+        byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+        byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+        System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+        offset += serializedScopeCBOR.length;
+        System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+        offset += serializedGMSignNonceCBOR.length;
+        System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+
+        byte[] clientSignature = computeSignature(privKey, dataToSign);
+
+        if (clientSignature != null)
+            requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        else
+            Assert.fail("Computed signature is empty");
+        
+        Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setOscore(new byte[0]);
+        PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
+        
+        CoapResponse r11 = c1.advanced(PublicKeyUpdateReq);
+
+        System.out.println("");
+        System.out.println("Sent Public Key Update Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("CHANGED", r11.getCode().name());
+        
+        responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 12
+        //
+        /////////////////
+		
+        // Send a Leaving Group Request to the node sub-resource, using the DELETE method
+        
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
+        LeavingGroupReq.getOptions().setOscore(new byte[0]);
+        
+        CoapResponse r13 = c1.advanced(LeavingGroupReq);
+
+        System.out.println("");
+        System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("DELETED", r13.getCode().name());
+        
+        responsePayload = r13.getPayload();
+        
+        // Send a Version Request, not as a member any more
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r14 = c1.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
         
     }
     
@@ -1721,6 +1826,7 @@ public class TestOscorepClient2RSGroupOSCORE {
             byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
             coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
             Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+            
             Assert.assertEquals(2, coseKeySetArray.size());
            
             byte[] peerSenderId;
@@ -2340,7 +2446,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Distribution Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the GET method
         
         System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
@@ -2363,6 +2469,109 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(CBORType.Map, KeyRenewalResponse.getType());
         Assert.assertEquals(true, KeyRenewalResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_SENDER_ID)));
         Assert.assertEquals(CBORType.ByteString, KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
+        
+        
+        
+        /////////////////
+        //
+        // Part 10
+        //
+        /////////////////
+		
+        // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
+        
+        System.out.println("Performing a Public Key Update Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath +  "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        requestPayload = CBORObject.NewMap();
+        
+        // For the time being, the client's public key can be only a COSE Key
+        OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
+
+        requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+
+        // Add the nonce for PoP of the Client's private key
+        byte[] cnonce = new byte[8];
+        new SecureRandom().nextBytes(cnonce);
+        requestPayload.Add(Constants.CNONCE, cnonce);
+
+        // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+        int offset = 0;
+        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+
+        byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+        byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+        byte[] serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+        System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+        offset += serializedScopeCBOR.length;
+        System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+        offset += serializedGMSignNonceCBOR.length;
+        System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+
+        byte[] clientSignature = computeSignature(privKey, dataToSign);
+
+        if (clientSignature != null)
+            requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        else
+            Assert.fail("Computed signature is empty");
+        
+        Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setOscore(new byte[0]);
+        PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
+        
+        CoapResponse r11 = c1.advanced(PublicKeyUpdateReq);
+
+        System.out.println("");
+        System.out.println("Sent Public Key Update Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("CHANGED", r11.getCode().name());
+        
+        responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 12
+        //
+        /////////////////
+		
+        // Send a Leaving Group Request to the node sub-resource, using the DELETE method
+        
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
+        LeavingGroupReq.getOptions().setOscore(new byte[0]);
+        
+        CoapResponse r13 = c1.advanced(LeavingGroupReq);
+
+        System.out.println("");
+        System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("DELETED", r13.getCode().name());
+        
+        responsePayload = r13.getPayload();
+        
+        // Send a Version Request, not as a member any more
+        
+        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        VersionReq = new Request(Code.GET, Type.CON);
+        VersionReq.getOptions().setOscore(new byte[0]);
+        CoapResponse r14 = c1.advanced(VersionReq);
+        
+        System.out.println("");
+        System.out.println("Sent Version request to GM");
+
+        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
         
     }
     

@@ -97,6 +97,7 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceNodenamePubKey;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.DtlspPskStoreGroupOSCORE;
@@ -815,7 +816,7 @@ public class PlugtestRSGroupOSCORE {
             	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
             	// byte[] rawCnonce = cnonce.GetByteString();
         		
-        		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
+        		// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
             	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
             	// A client signature must be included for proof-of-possession for joining OSCORE groups
@@ -826,7 +827,7 @@ public class PlugtestRSGroupOSCORE {
             	}
             	
             	// The client signature must be wrapped in a binary string for joining OSCORE groups
-            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            	if (!clientSignature.getType().equals(CBORType.ByteString)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
@@ -919,6 +920,7 @@ public class PlugtestRSGroupOSCORE {
         	// Create and add the sub-resource associated to the new group member
         	try {
         		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
+        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key"));
     		}
     		catch(AceException e) {
     			myGroup.removeGroupMemberBySubject(subject);
@@ -940,6 +942,13 @@ public class PlugtestRSGroupOSCORE {
         	        .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName, actions);
         	Resource nodeCoAPResource = new GroupOSCORESubResourceNodename(nodeName);
         	this.getChild("nodes").add(nodeCoAPResource);
+        	
+        	actions = new HashSet<>();
+        	actions.add(Constants.POST);
+        	myScopes.get(rootGroupMembershipResource + "/" + groupName)
+	                .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key", actions);
+        	nodeCoAPResource = new GroupOSCORESubResourceNodenamePubKey("pub-key");
+        	this.getChild("nodes").getChild(nodeName).add(nodeCoAPResource);
         	
         	
             // Respond to the Join Request

@@ -1003,7 +1003,7 @@ public class TestOscorepRSGroupOSCORE {
             	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
             	// byte[] rawCnonce = cnonce.GetByteString();
         		
-        		// Check the proof-of-possession signature over (rsnonce | cnonce), using the Client's public key
+        		// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
             	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
             	// A client signature must be included for proof-of-possession for joining OSCORE groups
@@ -1014,7 +1014,7 @@ public class TestOscorepRSGroupOSCORE {
             	}
 
             	// The client signature must be wrapped in a binary string for joining OSCORE groups
-            	if (!cnonce.getType().equals(CBORType.ByteString)) {
+            	if (!clientSignature.getType().equals(CBORType.ByteString)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
@@ -1106,6 +1106,7 @@ public class TestOscorepRSGroupOSCORE {
         	// Create and add the sub-resource associated to the new group member
         	try {
         		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
+        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key"));
     		}
     		catch(AceException e) {
     			myGroup.removeGroupMemberBySubject(subject);
@@ -1127,6 +1128,13 @@ public class TestOscorepRSGroupOSCORE {
         	        .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName, actions);
         	Resource nodeCoAPResource = new GroupOSCORESubResourceNodename(nodeName);
         	this.getChild("nodes").add(nodeCoAPResource);
+        	
+        	actions = new HashSet<>();
+        	actions.add(Constants.POST);
+        	myScopes.get(rootGroupMembershipResource + "/" + groupName)
+	                .put(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key", actions);
+        	nodeCoAPResource = new GroupOSCORESubResourceNodenamePubKey("pub-key");
+        	this.getChild("nodes").getChild(nodeName).add(nodeCoAPResource);
         	
         	
             // Respond to the Join Request
@@ -1174,7 +1182,7 @@ public class TestOscorepRSGroupOSCORE {
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
-
+        	
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
@@ -1223,7 +1231,7 @@ public class TestOscorepRSGroupOSCORE {
         			}
 
         		}
-        			
+        		
     			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
     			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
     			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
@@ -2058,12 +2066,13 @@ public class TestOscorepRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to members that are only monitors");
         		return;
         	}
-        		
-        	// Respond to the Key Renewal Request
-            
+        	
+        	
         	// Here the Group Manager simply assigns a new Sender ID to this group member.
         	// More generally, the Group Manager may alternatively or additionally rekey the whole OSCORE group 
         	// Note that the node name does not change.
+        	
+        	byte[] oldSenderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
         	
         	byte[] senderId = targetedGroup.allocateSenderId();
         	
@@ -2072,6 +2081,38 @@ public class TestOscorepRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "No available Sender IDs in this OSCORE group");
         		return;
         	}
+        	
+        	int roles = targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject)));
+        	targetedGroup.setGroupMemberRoles(senderId, roles);
+        	targetedGroup.setSenderIdToIdentity(subject, senderId);
+        	
+        	CBORObject publicKey = targetedGroup.getPublicKey(oldSenderId);
+        	System.out.println("old "  + publicKey.toString());
+        	
+        	CBORObject publicKeyCopy = CBORObject.NewMap();
+        	for (CBORObject label : publicKey.getKeys())
+        		publicKeyCopy.Add(label, publicKey.get(label));
+        	
+        	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
+        	publicKeyCopy.Remove(COSE.KeyKeys.KeyId.AsCBOR());
+        	publicKeyCopy.Add(COSE.KeyKeys.KeyId.AsCBOR(), senderId);
+        	        	
+            targetedGroup.deletePublicKey(oldSenderId);
+        	
+        	System.out.println("DAI1");
+        	
+        	// Store this client's public key
+        	System.out.println("new "  + publicKeyCopy.toString());
+        	if (!targetedGroup.storePublicKey(senderId, publicKeyCopy)) {
+        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
+        	    return;
+        	}
+        	
+        	CBORObject retrievedPublicKey = targetedGroup.getPublicKey(senderId);
+        	System.out.println("retrieved "  + retrievedPublicKey.toString());
+        	
+        	
+        	// Respond to the Key Renewal Request
         	
         	CBORObject myResponse = CBORObject.NewMap();
         	
@@ -2088,7 +2129,361 @@ public class TestOscorepRSGroupOSCORE {
         	
         }
         
+        
+        @Override
+        public void handleDELETE(CoapExchange exchange) {
+        	System.out.println("DELETE request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+        	
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+            
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		// The requester is not a current group member.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		return;
+        	}
+        	
+        	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
+        		// The requester is not the group member associated to this sub-resource.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		return;
+        	}
+            	
+        	targetedGroup.removeGroupMemberBySubject(subject);
+        	
+        	// Respond to the Group Leaving Request
+            
+        	Response coapResponse = new Response(CoAP.ResponseCode.DELETED);
+
+        	exchange.respond(coapResponse);
+        	
+        }
+        
     }
+    
+    // M.T.
+    /**
+     * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME/pub-key
+     * for the group members with node name "NODENAME"
+     */
+    public static class GroupOSCORESubResourceNodenamePubKey extends CoapResource {
+    	
+		/**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORESubResourceNodenamePubKey(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"nodes/NODENAME/pub-key\" " + resId);
+            
+        }
+
+        @Override
+        public void handlePOST(CoapExchange exchange) {
+        	System.out.println("POST request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getParent().getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		// The requester is not a current group member.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		return;
+        	}
+        	
+        	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getParent().getName())) {
+        		// The requester is not the group member associated to this sub-resource.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		return;
+        	}
+        	
+        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) == (1 << Constants.GROUP_OSCORE_MONITOR)) {
+        		// The requester is a monitor, hence it is not supposed to have a Sender ID.
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to members that are only monitors");
+        		return;
+        	}
+        	
+        	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	if(requestPayload == null) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        	    return;
+        	}
+
+        	CBORObject PublicKeyUpdateRequest = CBORObject.DecodeFromBytes(requestPayload);
+
+        	// The payload of the Public Key Update Request must be a CBOR Map
+        	if (!PublicKeyUpdateRequest.getType().equals(CBORType.Map)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload must be a CBOR map");
+        	    return;
+        	}
+        	
+        	if (!PublicKeyUpdateRequest.ContainsKey(Constants.CLIENT_CRED)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing parameter: " + "'client_cred'");
+        	    return;
+        	}
+        	
+        	if (!PublicKeyUpdateRequest.ContainsKey(Constants.CNONCE)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing parameter: " + "'cnonce'");
+        	    return;
+        	}
+        	
+        	if (!PublicKeyUpdateRequest.ContainsKey(Constants.CLIENT_CRED_VERIFY)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing parameter: " + "'client_cred_verify'");
+        	    return;
+        	}
+        	
+        	// Retrieve 'client_cred'
+        	CBORObject clientCred = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
+        	
+			// client_cred cannot be Null
+			if (clientCred == null) {
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred' cannot be Null");
+			    return;
+			}
+        	
+            // client_cred must be byte string
+            if (!clientCred.getType().equals(CBORType.ByteString)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "'client_cred' must be a CBOR byte string");
+        	    return;
+            }
+        	
+            // This assumes that the public key is a COSE Key
+            CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
+            
+            // The public key must be a COSE key
+            if (!coseKey.getType().equals(CBORType.Map)) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
+        	    return;
+            }
+        	
+            // Check that a OneKey object can be correctly built
+            OneKey publicKey;
+            try {
+                publicKey = new OneKey(coseKey);
+            } catch (CoseException e) {
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
+        	    return;
+            }
+        	
+			// Sanity check on the type of public key        		
+			if (targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
+			    targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
+				targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
+				
+				// Invalid public key format
+				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsParams().get(1).get(1)) || // key capability: curve
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsKeyParams().get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsKeyParams().get(1))) // key capability: key curve
+				{ 
+				        
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				    return;
+				            
+				}
+			
+			}
+			
+			if (targetedGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
+			
+				// Invalid public key format
+				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsParams().get(1).get(1)) || // key capability: curve
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsKeyParams().get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsKeyParams().get(1))) // key capability: key curve
+				{
+				            
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				    return;
+				        
+				}
+			    
+			}
+        	
+			// Retrieve the proof-of-possession nonce from the Client
+			CBORObject cnonce = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CNONCE));
+
+			// A client nonce must be included for proof-of-possession
+			if (cnonce == null) {
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'cnonce' cannot be Null");
+			    return;
+			}
+
+			// The client nonce must be wrapped in a binary string
+			if (!cnonce.getType().equals(CBORType.ByteString)) {
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'cnonce' must be a CBOR byte string");
+			    return;
+			}
+
+			
+			
+			// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
+			CBORObject clientSignature = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+
+			// A client signature must be included for proof-of-possession
+			if (clientSignature == null) {
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' cannot be Null");
+			    return;
+			}
+
+			// The client signature must be wrapped in a binary string for joining OSCORE groups
+			if (!clientSignature.getType().equals(CBORType.ByteString)) {
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' must be a CBOR byte string");
+			    return;
+			}
+
+			byte[] rawClientSignature = clientSignature.GetByteString();
+        	
+			PublicKey pubKey = null;
+			try {
+			    pubKey = publicKey.AsPublicKey();
+			} catch (CoseException e) {
+			    System.out.println(e.getMessage());
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+			    return;
+			}
+			if (pubKey == null) {
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+			    return;
+			}
+
+			// Rebuild the original 'scope' from the Join Request
+	        CBORObject cborArrayScope = CBORObject.NewArray();
+	        int myRoles = targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject)));
+	        cborArrayScope.Add(groupName);
+	        cborArrayScope.Add(myRoles);
+	        byte[] scope = cborArrayScope.EncodeToBytes();
+
+			// Retrieve the original 'rsnonce' specified in the Token POST response
+			String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
+            if(rsNonceString == null) {
+            	// Return an error response, with a new nonce for PoP of the Client's private key
+        	    CBORObject responseMap = CBORObject.NewMap();
+                byte[] rsnonce = new byte[8];
+                new SecureRandom().nextBytes(rsnonce);
+                responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
+                TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
+                byte[] responsePayload = responseMap.EncodeToBytes();
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+            	return;
+            }
+			byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
+			
+			int offset = 0;
+			
+			byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
+			byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
+			byte[] serializedCSignNonceCBOR = cnonce.EncodeToBytes();
+			byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+			System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+			offset += serializedScopeCBOR.length;
+			System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+			offset += serializedGMSignNonceCBOR.length;
+			System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+			
+			int countersignKeyCurve = 0;
+
+			if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+			    countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+			else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+			    countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+
+			// This should never happen, due to the previous sanity checks
+			if (countersignKeyCurve == 0) {
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+			    return;
+			}
+
+			// Invalid Client's PoP signature
+			if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		return;
+			}
+			
+			byte[] senderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
+			
+			// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
+			publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
+
+			// Store this client's public key, overwriting the current entry for the current Sender ID
+			if (!targetedGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
+			    return;
+			} 
+			
+        	// Respond to the Public Key Update Request     	
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CHANGED);
+        	
+        	exchange.respond(coapResponse);
+        	
+        }
+        
+    }
+    
     
     /**
      * @param str  the hex string
