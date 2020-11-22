@@ -86,6 +86,8 @@ public class TestOscorepRSGroupOSCORE {
 	
 	private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
 	
+	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
+	
 	private static Set<Integer> validRoleCombinations = new HashSet<Integer>();
 	
 	private static Map<String, GroupInfo> activeGroups = new HashMap<>();
@@ -1900,10 +1902,113 @@ public class TestOscorepRSGroupOSCORE {
             
         }
 
-        
         @Override
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+        	
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		// The requester is not a current group member.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		return;
+        	}
+        		
+        	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
+        		// The requester is not the group member associated to this sub-resource.
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		return;
+        	}
+            	
+        	// Respond to the Key Distribution Request
+            
+        	CBORObject myResponse = CBORObject.NewMap();
+        	
+        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+        	
+        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	CBORObject myMap = CBORObject.NewMap();
+        	
+            byte[] senderId = null;
+    		String myString = targetedGroup.getGroupMemberName(subject);
+            
+        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+        		// The requester is not a monitor, hence it has a Sender ID
+        		senderId = Utils.hexToBytes(myString.substring(myString.indexOf(nodeNameSeparator) + 1));
+        	}
+        	
+        	// Fill the 'key' parameter
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
+        	
+        	if (senderId != null)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
+        	
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
+        	if (targetedGroup.getCsParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
+        	if (targetedGroup.getCsKeyParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        	
+        	myResponse.Add(Constants.KEY, myMap);
+        	
+        	// The current version of the symmetric keying material
+        	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+        	
+        	// CBOR Value assigned to the coap_group_oscore profile.
+        	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+        	
+        	// Expiration time in seconds, after which the OSCORE Security Context
+        	// derived from the 'k' parameter is not valid anymore.
+        	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+        	
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+        	
+        }
+        
+        @Override
+        public void handlePUT(CoapExchange exchange) {
+        	System.out.println("PUT request reached the GM");
         	
         	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
@@ -1947,48 +2052,32 @@ public class TestOscorepRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
-            	
-        	// Respond to the Key Distribution Request
+        	
+        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) == (1 << Constants.GROUP_OSCORE_MONITOR)) {
+        		// The requester is a monitor, hence it is not supposed to have a Sender ID.
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to members that are only monitors");
+        		return;
+        	}
+        		
+        	// Respond to the Key Renewal Request
             
-        	// Respond to the Key Distribution Request
-            
+        	// Here the Group Manager simply assigns a new Sender ID to this group member.
+        	// More generally, the Group Manager may alternatively or additionally rekey the whole OSCORE group 
+        	// Note that the node name does not change.
+        	
+        	byte[] senderId = targetedGroup.allocateSenderId();
+        	
+        	if (senderId == null) {
+        		// All possible values are already in use for this OSCORE group
+        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "No available Sender IDs in this OSCORE group");
+        		return;
+        	}
+        	
         	CBORObject myResponse = CBORObject.NewMap();
         	
-        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
-        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
-        	
-        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
-        	CBORObject myMap = CBORObject.NewMap();
-        	
-        	byte[] senderId = Utils.hexToBytes(targetedGroup.getGroupMemberName(subject));
-        	
-        	// Fill the 'key' parameter
-        	// Note that no Sender ID is included
-        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
-        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
-        	if (targetedGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
-        	if (targetedGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
-        	
-        	myResponse.Add(Constants.KEY, myMap);
-        	
-        	// The current version of the symmetric keying material
-        	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
-        	
-        	// CBOR Value assigned to the coap_group_oscore profile.
-        	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
-        	
-        	// Expiration time in seconds, after which the OSCORE Security Context
-        	// derived from the 'k' parameter is not valid anymore.
-        	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
-
+        	// The new Sender ID assigned to the group member
+        	myResponse.Add(Constants.GROUP_SENDER_ID, CBORObject.FromObject(senderId));
+        	        	
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	
         	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
@@ -1998,7 +2087,6 @@ public class TestOscorepRSGroupOSCORE {
         	exchange.respond(coapResponse);
         	
         }
-        
         
     }
     
@@ -2118,6 +2206,7 @@ public class TestOscorepRSGroupOSCORE {
     			                          groupIdEpoch.length,
     			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
+    			                          nodeNameSeparator,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,

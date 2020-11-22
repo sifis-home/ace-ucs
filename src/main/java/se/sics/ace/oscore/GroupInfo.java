@@ -91,6 +91,8 @@ public class GroupInfo {
 	
 	private final String prefixMonitorNames; // Initial part of the node name for monitors, since they do not have a Sender ID
 	
+	private final String nodeNameSeparator; // For non-monitor members, separator between the two components of the node name
+	
 	// Each element of the set is an allocated variable part of the node name for monitors, since they do not have a Sender ID
 	private Set<Integer> suffixMonitorNames = new HashSet<Integer>();
 	
@@ -136,6 +138,7 @@ public class GroupInfo {
     		         final int groupIdEpochSize,
     		         final int groupIdEpoch,
     		         final String prefixMonitorNames,
+    		         final String nodeNameSeparator,
     		         final int senderIdSize,
     		         final AlgorithmID alg,
     		         final AlgorithmID hkdf,
@@ -158,6 +161,8 @@ public class GroupInfo {
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
     	this.prefixMonitorNames = prefixMonitorNames;
+    	
+    	this.nodeNameSeparator = nodeNameSeparator;
     	
     	setAlg(alg);
     	setHkdf(hkdf);
@@ -742,7 +747,10 @@ public class GroupInfo {
     	else {
 	    	// Double-check that the specified Sender ID has been in fact allocated
 	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
-	    		nodeName = new String(Utils.bytesToHex(id));
+	    		nodeName = new String(Utils.bytesToHex(this.groupIdPrefix) +
+	    				              Utils.bytesToHex(Util.intToBytes(this.groupIdEpoch)) +
+	    				              this.nodeNameSeparator +
+	    				              Utils.bytesToHex(id));
     	}
     	
     	return nodeName;
@@ -855,7 +863,7 @@ public class GroupInfo {
     	}
 
     	// The node is not a monitor and has a Sender ID
-    	byte[] sid = Utils.hexToBytes(nodeName);
+    	byte[] sid = Utils.hexToBytes(nodeName.substring(nodeName.indexOf(this.nodeNameSeparator) + 1));
     	
     	return getGroupMemberRoles(sid);
     	

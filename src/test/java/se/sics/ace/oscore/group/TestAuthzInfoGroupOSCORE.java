@@ -103,6 +103,8 @@ public class TestAuthzInfoGroupOSCORE {
     
     private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
     
+	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
+    
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
 	private static final String rootGroupMembershipResource = "ace-group";
@@ -231,6 +233,7 @@ public class TestAuthzInfoGroupOSCORE {
     			                          groupIdEpoch.length,
     			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
+    			                          nodeNameSeparator,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,

@@ -91,6 +91,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 	private final String rootGroupMembershipResource = "ace-group";
 	
     private static String groupKeyPair;
+    private static String groupKeyPairUpdate;
     private static String strPublicKeyPeer1;
     private static String strPublicKeyPeer2;
 	
@@ -168,6 +169,9 @@ public class TestOscorepClient2RSGroupOSCORE {
     	    // Private and public key to be used in the OSCORE group (ECDSA_256)
     	    groupKeyPair = "piJYIBZKbV1Ll/VtH2ChKBHVXeegVeusYWTJ75MCy8v/Hwq+I1ggO+AEdZm0KqRLj4oPqI1NoRaXtY2fzE45RD6YQ78jBYYDJgECIVgg6Pmo1YUKUzzaJLn6ih7ik/ag4egeHlYKZP8TTWX37OwgAQ==";
     	    
+    	    // Alternative private and public key, for later uploading of a new public key (ECDSA_256)
+    	    groupKeyPairUpdate = "pgMmAQIgASFYINhpLmzDRKUbuNYqt2jFLz0oExe3ifTxI2FIBtCwUUQ9IlggqfACRgS7AHxKkiEP71yoHHebxTA/jB5l8mhrgdIkQIgjWCCLF8p5CpN2Gy5v67a3/lbSEbZiPKna/Z80/uC/qu+WRA==";
+    	    
     	    // Public key to be received for the group member with Sender ID 0x52 (ECDSA_256)
     	    strPublicKeyPeer1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
     	    
@@ -181,6 +185,9 @@ public class TestOscorepClient2RSGroupOSCORE {
     		
     	    // Private and public key to be used in the OSCORE group (EDDSA - Ed25519)
     	    groupKeyPair = "pQMnAQEgBiFYIAaekSuDljrMWUG2NUaGfewQbluQUfLuFPO8XMlhrNQ6I1ggZHFNQaJAth2NgjUCcXqwiMn0r2/JhEVT5K1MQsxzUjk=";
+    	    
+    	    // Alternative private and public key, for later uploading of a new public key (EDDSA - Ed25519)
+    	    groupKeyPairUpdate = "pQMnAQEgBiFYICHJZEm981T2yDBrls/Z5ihZtRkOJ8D5JvvuoURgbbQEI1ggZsIlEzF3iOV8PFC2BGKoRi0K22HmCeYvC8xq1ui2C5c=";
     	    
     	    // Public key to be received for the group member with Sender ID 0x52 (EDDSA - Ed25519)
     	    strPublicKeyPeer1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
@@ -588,7 +595,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-        String nodeName = Utils.bytesToHex(senderId);
+    	
+        String nodeName =  Utils.bytesToHex(groupId) + "-" + Utils.bytesToHex(senderId);
+        
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
@@ -1184,8 +1193,9 @@ public class TestOscorepClient2RSGroupOSCORE {
                 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
         KeyDistributionReq.getOptions().setOscore(new byte[0]);
+                
         CoapResponse r9 = c1.advanced(KeyDistributionReq);
-        
+
         System.out.println("");
         System.out.println("Sent Key Distribution GET request to the node sub-resource at the GM");
         
@@ -1273,6 +1283,36 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
+        
+        /////////////////
+        //
+        // Part 9
+        //
+        /////////////////
+		
+        // Send a Key Distribution Request to the node sub-resource, using the GET method
+        
+        System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
+        KeyRenewalReq.getOptions().setOscore(new byte[0]);
+                
+        CoapResponse r10 = c1.advanced(KeyRenewalReq);
+
+        System.out.println("");
+        System.out.println("Sent Key Renewal Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("CONTENT", r10.getCode().name());
+        
+        responsePayload = r10.getPayload();
+        CBORObject KeyRenewalResponse = CBORObject.DecodeFromBytes(responsePayload);
+       
+        Assert.assertEquals(CBORType.Map, KeyRenewalResponse.getType());
+        Assert.assertEquals(true, KeyRenewalResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_SENDER_ID)));
+        Assert.assertEquals(CBORType.ByteString, KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
         
     }
     
@@ -1583,7 +1623,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
     	final byte[] senderId = new byte[] { (byte) 0x25 };
-        String nodeName = Utils.bytesToHex(senderId);
+    	String nodeName =  Utils.bytesToHex(groupId) + "-" + Utils.bytesToHex(senderId);
         String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
@@ -2293,6 +2333,36 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
+        
+        /////////////////
+        //
+        // Part 9
+        //
+        /////////////////
+		
+        // Send a Key Distribution Request to the node sub-resource, using the GET method
+        
+        System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        
+        c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
+                
+        Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
+        KeyRenewalReq.getOptions().setOscore(new byte[0]);
+                
+        CoapResponse r10 = c1.advanced(KeyRenewalReq);
+
+        System.out.println("");
+        System.out.println("Sent Key Renewal Request to the node sub-resource at the GM");
+        
+        Assert.assertEquals("CONTENT", r10.getCode().name());
+        
+        responsePayload = r10.getPayload();
+        CBORObject KeyRenewalResponse = CBORObject.DecodeFromBytes(responsePayload);
+       
+        Assert.assertEquals(CBORType.Map, KeyRenewalResponse.getType());
+        Assert.assertEquals(true, KeyRenewalResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_SENDER_ID)));
+        Assert.assertEquals(CBORType.ByteString, KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
         
     }
     

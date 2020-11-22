@@ -131,6 +131,8 @@ public class PlugtestRSGroupOSCORE {
 	
 	private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
 	
+	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
+	
 	static Map<String, GroupInfo> activeGroups = new HashMap<>();
 	
 	private static int portNumberNoSec = 5690;
@@ -954,7 +956,7 @@ public class PlugtestRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
         	if (senderId != null) {
     			// The joining node is not a monitor
-        		myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	}
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
@@ -1186,9 +1188,8 @@ public class PlugtestRSGroupOSCORE {
         	byte[] senderId = Utils.hexToBytes(targetedGroup.getGroupMemberName(subject));
         	
         	// Fill the 'key' parameter
-        	// Note that no Sender ID is included
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.clientId, senderId);
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
@@ -1377,6 +1378,7 @@ public class PlugtestRSGroupOSCORE {
     			                          groupIdEpoch.length,
     			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
+    			                          nodeNameSeparator,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,

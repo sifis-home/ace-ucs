@@ -953,6 +953,11 @@ public class Constants {
       */
      public static final short PEER_ROLES = 208;
      
+     /**
+      * Value for the label "group_senderId" in the Key Renewal Response message
+      */
+     public static final short GROUP_SENDER_ID = 209;
+     
      
      /**
       * Value for the group key type "Group_OSCORE_Input_Material object"
