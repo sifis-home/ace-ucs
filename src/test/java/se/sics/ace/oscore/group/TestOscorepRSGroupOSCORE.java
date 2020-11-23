@@ -11,11 +11,13 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -179,31 +181,6 @@ public class TestOscorepRSGroupOSCORE {
         }
     }
     
-    
-    // M.T.
-    /**
-     * Definition of the root group-membership resource for Group OSCORE
-     * 
-     * Children of this resource are the group-membership resources
-     */
-    public static class GroupOSCORERootMembershipResource extends CoapResource {
-        
-        /**
-         * Constructor
-         * @param resId  the resource identifier
-         */
-        public GroupOSCORERootMembershipResource(String resId) {
-            
-            // set resource identifier
-            super(resId);
-            
-            // set display name
-            getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
-        }
-        
-    }
-    
-    
     private static OscoreAuthzInfoGroupOSCORE ai = null;
     
     private static CoapServer rs = null;
@@ -255,6 +232,9 @@ public class TestOscorepRSGroupOSCORE {
         // Adding the group-membership resource, with group name "feedca570000".
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         Set<Short> actions3 = new HashSet<>();
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResource, actions3);
+        actions3 = new HashSet<>();
         actions3.add(Constants.GET);
         actions3.add(Constants.POST);
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
@@ -421,6 +401,202 @@ public class TestOscorepRSGroupOSCORE {
         new File(TestConfig.testFilePath + "tokens.json").delete();
     }
 
+    // M.T.
+    /**
+     * Definition of the root group-membership resource for Group OSCORE
+     * 
+     * Children of this resource are the group-membership resources
+     */
+    public static class GroupOSCORERootMembershipResource extends CoapResource {
+        
+        /**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORERootMembershipResource(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Resource " + resId);
+        }
+        
+        @Override
+        public void handleFETCH(CoapExchange exchange) {
+        	System.out.println("FETCH request reached the GM");
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+            
+        	byte[] requestPayload = exchange.getRequestPayload();
+        	
+        	if(requestPayload == null) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        		return;
+        	}
+        	
+        	CBORObject requestCBOR = CBORObject.DecodeFromBytes(requestPayload);
+			
+        	// The payload of the request must be a CBOR Map
+        	if (!requestCBOR.getType().equals(CBORType.Map)) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid payload format");
+	    		return;
+        	}
+        	
+        	// The CBOR Map must include exactly one element, i.e. 'gid'
+        	if ((requestCBOR.size() != 1) || (!requestCBOR.ContainsKey(Constants.GID))) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid payload format");
+	    		return;
+        	}
+        	
+        	// The 'gid' element must be a CBOR array, with at least one element
+        	if (requestCBOR.get(Constants.GID).getType() != CBORType.Array ||
+        		requestCBOR.get(Constants.GID).size() == 0) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid payload format");
+	    		return;
+        	}
+        	
+        	// Each element of 'gid' element must be a CBOR byte string
+        	for (int i = 0 ; i < requestCBOR.get(Constants.GID).size(); i++) {
+	        	if (requestCBOR.get(Constants.GID).get(i).getType() != CBORType.ByteString) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid payload format");
+		    		return;
+	        	}
+        	}
+        	    		
+    		List<CBORObject> inputGroupIds = new ArrayList<CBORObject> ();
+    		for (int i = 0; i < requestCBOR.get(Constants.GID).size(); i++) {
+    			inputGroupIds.add(requestCBOR.get(Constants.GID).get(i));
+    		}
+    		
+    		List<String> preliminaryGroupNames = new ArrayList<String>();
+    		List<CBORObject> finalGroupNames = new ArrayList<CBORObject>();
+    		List<CBORObject> finalGroupIds = new ArrayList<CBORObject>();
+    		List<CBORObject> finalGroupURIs = new ArrayList<CBORObject>();
+    		
+    		// Navigate the list of existing OSCORE groups
+        	for (String groupName : activeGroups.keySet()) {
+        		
+        		GroupInfo myGroup = activeGroups.get(groupName);
+        		byte[] storedGid = myGroup.getGroupId();
+        		
+        		// Navigate the list of Group IDs specified in the request
+        		for (int i = 0; i < inputGroupIds.size(); i ++) {
+        			byte[] inputGid = inputGroupIds.get(i).GetByteString();
+        			
+        			// A match is found with the examined OSCORE group
+        			if (Arrays.equals(storedGid, inputGid)) {
+            			// Store the used Group Name for future inspection
+        				preliminaryGroupNames.add(groupName);
+        				// No need to further consider this Group ID value
+        				inputGroupIds.remove(i);
+        				break;
+        			}
+        		}
+        		
+        		if (inputGroupIds.isEmpty())
+        			break;
+        		
+        	}
+    		
+        	// Check if the requesting client is a group member or an authorized Verifier
+        	for (String groupName : preliminaryGroupNames) {
+        		
+        		GroupInfo targetedGroup = activeGroups.get(groupName);
+        		
+            	if (!targetedGroup.isGroupMember(subject)) {
+            		
+            		// The requester is not a current group member.
+            		//
+            		// This is still fine, as long as at least one Access Tokens
+            		// of the requester allows also the role "Verifier" in this group
+            		
+            		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+                	
+            		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+            		boolean allowed = false;
+                	int[] roleSetToken = getRolesFromToken(subject, groupName);
+                	if (roleSetToken == null) {
+                		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+                		return;
+                	}
+                	else {
+                		for (int index = 0; index < roleSetToken.length; index++) {
+                			if ((role & roleSetToken[index]) != 0) {
+                    			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+                				allowed = true;
+                				break;
+                			}
+                		}
+                	}
+                	
+                	// Move considering the next group
+                	if (!allowed) {
+                		continue;
+                	}
+                	
+            	}
+            	
+            	finalGroupNames.add(CBORObject.FromObject(groupName));
+            	byte[] gid = targetedGroup.getGroupId();
+            	finalGroupIds.add(CBORObject.FromObject(gid));
+            	finalGroupURIs.add(CBORObject.FromObject(this.getURI() + "/" + groupName));
+            	
+        	}
+        	
+            
+            // Respond to the Group Name and URI Retrieval Request
+            
+        	byte[] responsePayload = null;
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	
+        	// The response is an empty CBOR byte string
+        	if (finalGroupNames.size() == 0) {
+        		byte[] emptyArray = new byte[0];
+        		responsePayload = CBORObject.FromObject(emptyArray).EncodeToBytes();
+        	}
+        	// The response is a CBOR may including three CBOR arrays
+        	else {
+        		CBORObject myResponse = CBORObject.NewMap();
+
+        		CBORObject gnameArray = CBORObject.NewArray();
+        		CBORObject gidArray = CBORObject.NewArray();
+        		CBORObject guriArray = CBORObject.NewArray();
+        		
+        		for (int i = 0; i < finalGroupNames.size(); i++) {
+        			gnameArray.Add(finalGroupNames.get(i));
+        			gidArray.Add(finalGroupIds.get(i));
+        			guriArray.Add(finalGroupURIs.get(i));
+        		}
+        		
+        		myResponse.Add(Constants.GID, gidArray);
+        		myResponse.Add(Constants.GNAME, gnameArray);
+        		myResponse.Add(Constants.GURI, guriArray);
+        		
+        		responsePayload = myResponse.EncodeToBytes();
+            	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        	} 
+            
+        	coapResponse.setPayload(responsePayload);
+
+        	exchange.respond(coapResponse);
+        	
+        }
+        
+    }
+    
     // M.T.
     /**
      * Definition of the Group OSCORE group-membership resource
@@ -2087,7 +2263,6 @@ public class TestOscorepRSGroupOSCORE {
         	targetedGroup.setSenderIdToIdentity(subject, senderId);
         	
         	CBORObject publicKey = targetedGroup.getPublicKey(oldSenderId);
-        	System.out.println("old "  + publicKey.toString());
         	
         	CBORObject publicKeyCopy = CBORObject.NewMap();
         	for (CBORObject label : publicKey.getKeys())
@@ -2099,17 +2274,11 @@ public class TestOscorepRSGroupOSCORE {
         	        	
             targetedGroup.deletePublicKey(oldSenderId);
         	
-        	System.out.println("DAI1");
-        	
         	// Store this client's public key
-        	System.out.println("new "  + publicKeyCopy.toString());
         	if (!targetedGroup.storePublicKey(senderId, publicKeyCopy)) {
         	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
         	    return;
         	}
-        	
-        	CBORObject retrievedPublicKey = targetedGroup.getPublicKey(senderId);
-        	System.out.println("retrieved "  + retrievedPublicKey.toString());
         	
         	
         	// Respond to the Key Renewal Request
@@ -2617,6 +2786,7 @@ public class TestOscorepRSGroupOSCORE {
     	String myName;
     	String mySubject;
     	OneKey myKey;
+    	
     	
     	/*
     	// Generate a pair of ECDSA_256 keys and print them in base 64 (whole version, then public only)

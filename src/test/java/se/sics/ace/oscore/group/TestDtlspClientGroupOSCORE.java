@@ -895,7 +895,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -924,7 +923,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -1066,7 +1064,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -1158,7 +1156,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -1256,13 +1253,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -1325,6 +1321,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -1335,6 +1332,82 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
+        
         
         
         /////////////////
@@ -1350,7 +1423,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 
@@ -1991,7 +2063,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -2020,7 +2091,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -2160,7 +2230,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -2275,7 +2345,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -2373,13 +2442,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -2442,6 +2510,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -2452,6 +2521,81 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
         
         
         /////////////////
@@ -2467,7 +2611,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 
@@ -3219,7 +3362,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -3248,7 +3390,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -3390,7 +3531,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -3482,7 +3623,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -3580,13 +3720,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -3649,6 +3788,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -3659,6 +3799,81 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
         
         
         /////////////////
@@ -3674,7 +3889,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 
@@ -4313,7 +4527,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -4342,7 +4555,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -4482,7 +4694,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -4598,7 +4810,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -4696,13 +4907,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -4765,6 +4975,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -4775,6 +4986,81 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
         
         
         /////////////////
@@ -4790,7 +5076,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 
@@ -5690,7 +5975,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -5719,7 +6003,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -5861,7 +6144,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -5953,7 +6236,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -6051,13 +6333,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -6120,6 +6401,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -6130,6 +6412,81 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
         
         
         /////////////////
@@ -6145,7 +6502,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 
@@ -6798,7 +7154,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
-        GroupPoliciesReq.getOptions().setOscore(new byte[0]);
         CoapResponse r6 = c.advanced(GroupPoliciesReq);
         
         System.out.println("");
@@ -6827,7 +7182,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
         CoapResponse r7 = c.advanced(PubKeyReq);
         
         System.out.println("");
@@ -6967,7 +7321,7 @@ public class TestDtlspClientGroupOSCORE {
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
-        PubKeyReq.getOptions().setOscore(new byte[0]);
+        PubKeyReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PubKeyReq.setPayload(requestPayload.EncodeToBytes());
         CoapResponse r8 = c.advanced(PubKeyReq);
         
@@ -7082,7 +7436,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyDistributionReq = new Request(Code.GET, Type.CON);
-        KeyDistributionReq.getOptions().setOscore(new byte[0]);
         CoapResponse r9 = c.advanced(KeyDistributionReq);
         
         System.out.println("");
@@ -7180,13 +7533,12 @@ public class TestDtlspClientGroupOSCORE {
         //
         /////////////////
 		
-        // Send a Key Renewal Request to the node sub-resource, using the GET method
+        // Send a Key Renewal Request to the node sub-resource, using the PUT method
         System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
-        KeyRenewalReq.getOptions().setOscore(new byte[0]);
         CoapResponse r10 = c.advanced(KeyRenewalReq);
         
         System.out.println("");
@@ -7249,6 +7601,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.fail("Computed signature is empty");
         
         Request PublicKeyUpdateReq = new Request(Code.POST, Type.CON);
+        PublicKeyUpdateReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         PublicKeyUpdateReq.setPayload(requestPayload.EncodeToBytes());
         
         CoapResponse r11 = c.advanced(PublicKeyUpdateReq);
@@ -7259,6 +7612,81 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CHANGED", r11.getCode().name());
         
         responsePayload = r11.getPayload();
+        
+        
+        /////////////////
+        //
+        // Part 11
+        //
+        /////////////////
+		
+        // Send a Group Name and URI Retrieval Request, using the FETCH method
+        
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource);
+
+        requestPayload = CBORObject.NewMap();
+
+        CBORObject reqGroupIds = CBORObject.NewArray();
+        reqGroupIds.Add(CBORObject.FromObject(groupId));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        Request GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        CoapResponse r12 = c.advanced(GroupNamesReq);
+        
+        System.out.println("");
+        System.out.println("Sent Group Name and URI Retrieval Request FETCH request to GM");
+
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        Assert.assertEquals(3, myObject.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GID)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GNAME)));
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.GURI)));
+        
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GID)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GNAME)).getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.GURI)).getType());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GID)).size());
+        Assert.assertArrayEquals(groupId, myObject.get(CBORObject.FromObject(Constants.GID)).get(0).GetByteString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GNAME)).size());
+        Assert.assertEquals(groupName, myObject.get(CBORObject.FromObject(Constants.GNAME)).get(0).AsString());
+        
+        Assert.assertEquals(1, myObject.get(CBORObject.FromObject(Constants.GURI)).size());
+        String expectedUri = new String("/" + rootGroupMembershipResource + "/" + groupName);
+        Assert.assertEquals(expectedUri, myObject.get(CBORObject.FromObject(Constants.GURI)).get(0).AsString());
+        
+        // Send a second request, indicating the Group ID of a non existing OSCORE group
+        
+        requestPayload = CBORObject.NewMap();
+
+        reqGroupIds = CBORObject.NewArray();
+        byte[] groupId2 = { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22 };
+        reqGroupIds.Add(CBORObject.FromObject(groupId2));
+        
+        requestPayload.Add(Constants.GID, reqGroupIds);
+        
+        GroupNamesReq = new Request(Code.FETCH, Type.CON);
+        GroupNamesReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        GroupNamesReq.setPayload(requestPayload.EncodeToBytes());
+        r12 = c.advanced(GroupNamesReq);
+        
+        Assert.assertEquals("CONTENT", r12.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r12.getPayload());
+        
+        Assert.assertEquals(CBORType.ByteString, myObject.getType());
+        Assert.assertEquals(0, myObject.size());
         
         
         /////////////////
@@ -7274,7 +7702,6 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
-        LeavingGroupReq.getOptions().setOscore(new byte[0]);
         
         CoapResponse r13 = c.advanced(LeavingGroupReq);
 

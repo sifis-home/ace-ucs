@@ -958,6 +958,21 @@ public class Constants {
       */
      public static final short GROUP_SENDER_ID = 209;
      
+     /**
+      * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
+      */
+     public static final short GID = 210;
+     
+     /**
+      * Value for the label "gname" in the Group Name and URI Retrieval Response message
+      */
+     public static final short GNAME = 211;
+     
+     /**
+      * Value for the label "guri" in the Group Name and URI Retrieval Response message
+      */
+     public static final short GURI = 212;
+     
      
      /**
       * Value for the group key type "Group_OSCORE_Input_Material object"

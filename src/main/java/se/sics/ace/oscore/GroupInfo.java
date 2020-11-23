@@ -165,7 +165,6 @@ public class GroupInfo {
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
     	this.prefixMonitorNames = prefixMonitorNames;
-    	
     	this.nodeNameSeparator = nodeNameSeparator;
     	
     	setAlg(alg);
@@ -353,12 +352,15 @@ public class GroupInfo {
     		return false;
     	else if (groupIdEpochSize > 4)
     		return false;
-    	else
-    		this.groupIdEpochSize = groupIdEpochSize;
-    	
-    	this.groupIdEpoch = groupIdEpoch;
-    	this.maxGroupIdEpochValue = (1 << (groupIdEpochSize * 8)) - 1;
 
+    	this.groupIdEpochSize = groupIdEpochSize;
+    	this.groupIdEpoch = groupIdEpoch;
+    	
+    	if (groupIdEpochSize == 4)
+    		this.maxGroupIdEpochValue = (1 << 31) - 1;
+    	else
+    		this.maxGroupIdEpochValue = (1 << (groupIdEpochSize * 8)) - 1;
+    	
     	return true;
     }
 
@@ -418,9 +420,13 @@ public class GroupInfo {
     	
     	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
     		return null;
-    		    	
+    	
+    	/*
     	int diff = this.groupIdEpochSize - groupIdEpochArray.length;
     	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length + diff, groupIdEpochArray.length);
+    	*/
+    	
+    	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
     	     
     	return myArray;
     	
