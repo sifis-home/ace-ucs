@@ -89,7 +89,7 @@ import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
  * 
  * NOTE: This will automatically start a server in another thread
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class PlugtestClientGroupOSCORE {
@@ -637,7 +637,6 @@ public class PlugtestClientGroupOSCORE {
 
     }
     
-    // M.T.
     // === Case 2 ===
     /**
      * Test CoapToken using PSK, for asking access to an
@@ -864,7 +863,6 @@ public class PlugtestClientGroupOSCORE {
     }
     
     
-    // M.T.
     // === Case 3 ===
     /**
      * Test CoapToken using PSK, for asking access to an
@@ -1053,7 +1051,6 @@ public class PlugtestClientGroupOSCORE {
     }
 
     
-    // M.T.
     // === Case 4 ===
     /**
      * Test CoapToken using PSK, for asking access to an
@@ -1264,7 +1261,6 @@ public class PlugtestClientGroupOSCORE {
     // Start tests with the Group Manager
     
     // === Case 6 ===
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request
      * for accessing an OSCORE Group with single role
@@ -1716,7 +1712,6 @@ public class PlugtestClientGroupOSCORE {
     }
     
     // === Case 7 ===
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request
      * for accessing an OSCORE Group with multiple roles
@@ -2165,7 +2160,6 @@ public class PlugtestClientGroupOSCORE {
     }
     
     // === Case 8 ===
-    // M.T.
     /** 
      * Test post to authz-info with PSK then request
      * for joining an OSCORE Group with a single role
@@ -2616,7 +2610,6 @@ public class PlugtestClientGroupOSCORE {
     }
     
     // === Case 9 ===
-    // M.T.
     /** 
      * Test post to authz-info with PSK then request
      * for joining an OSCORE Group with multiple roles

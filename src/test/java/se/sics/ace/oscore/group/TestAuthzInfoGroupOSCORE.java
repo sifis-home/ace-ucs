@@ -79,7 +79,7 @@ import se.sics.ace.rs.TokenRepository;
 
 /**
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  */
 public class TestAuthzInfoGroupOSCORE {
     
@@ -88,16 +88,16 @@ public class TestAuthzInfoGroupOSCORE {
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static SQLConnector db = null;
 
-    private static AuthzInfoGroupOSCORE ai = null; // M.T.
+    private static AuthzInfoGroupOSCORE ai = null;
     
-    private static AuthzInfoGroupOSCORE ai2 = null; // M.T.
+    private static AuthzInfoGroupOSCORE ai2 = null;
     // Created a separate authz-info endpoint using a dedicated introspection handler
     // for the audience "rs2" (OSCORE Group Manager). An actual fix would be defining
     // a new introspection handler, whose constructor takes as input a list of audience
     // identifiers, rather than a single RS identifier.
     
     private static Introspect i; 
-    private static GroupOSCOREJoinPDP pdp = null; // M.T.
+    private static GroupOSCOREJoinPDP pdp = null;
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
@@ -153,7 +153,6 @@ public class TestAuthzInfoGroupOSCORE {
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
-        // M.T.
         // Adding the group-membership resource
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
@@ -166,11 +165,9 @@ public class TestAuthzInfoGroupOSCORE {
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
-        // M.T.
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
@@ -258,10 +255,9 @@ public class TestAuthzInfoGroupOSCORE {
         pdp = new GroupOSCOREJoinPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
-        pdp.addIntrospectAccess("rs2"); // M.T. Enabling introspection for the OSCORE Group Manager
+        pdp.addIntrospectAccess("rs2"); // Enabling introspection for the OSCORE Group Manager
         i = new Introspect(pdp, db, new KissTime(), key);
         
-        // M.T.
         // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
@@ -271,7 +267,6 @@ public class TestAuthzInfoGroupOSCORE {
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
-        // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
@@ -739,7 +734,6 @@ public class TestAuthzInfoGroupOSCORE {
                 new byte[]{0x11});
     }    
 
-    // M.T.
     /**
      * Test successful submission to AuthzInfo, for
      * accessing an OSCORE group with a single role.
@@ -763,9 +757,6 @@ public class TestAuthzInfoGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -814,7 +805,6 @@ public class TestAuthzInfoGroupOSCORE {
                 new byte[]{0x12});
     }
 
-    // M.T.
     /**
      * Test successful submission to AuthzInfo, for
      * accessing an OSCORE group with multiple roles.
@@ -839,13 +829,7 @@ public class TestAuthzInfoGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
+    		
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	

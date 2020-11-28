@@ -62,7 +62,7 @@ import se.sics.ace.rs.TokenRepository;
  * Implements the retrieval of the access token as defined in section 4.1. of 
  * draft-ietf-ace-dtls-authorize.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class DtlspPskStoreGroupOSCORE implements PskStore {

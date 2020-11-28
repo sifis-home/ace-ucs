@@ -71,7 +71,7 @@ import se.sics.ace.rs.TokenRepository;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
@@ -207,7 +207,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return reply;
         }
         
-        if (this.cnf == null) {//Should never happen, caught in TokenRepository
+        if (this.cnf == null) { //Should never happen, caught in TokenRepository
             LOGGER.info("Missing required parameter 'cnf'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);

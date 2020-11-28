@@ -75,7 +75,7 @@ import se.sics.ace.rs.TokenRepository;
 /**
  * Tests for the TokenRepository class.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestTokenRepositoryGroupOSCORE {
@@ -148,7 +148,6 @@ public class TestTokenRepositoryGroupOSCORE {
         
     	final String groupName = "feedca570000";
         
-        // M.T.
         // Adding the group-membership resource
         Set<Short> actions2 = new HashSet<>();
         actions2.add(Constants.POST);
@@ -156,22 +155,18 @@ public class TestTokenRepositoryGroupOSCORE {
         myResource2.put(rootGroupMembershipResource + "/" + groupName, actions2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource2);
         
-        // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
-        // M.T.
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         
-        // M.T.
     	rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
     	rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
     	rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
@@ -191,7 +186,6 @@ public class TestTokenRepositoryGroupOSCORE {
        
     }
     
-    // M.T.
     /**
      * Create the Token repository if not already created,
      * if already create ignore.
@@ -497,7 +491,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing COSE_Key, to access a
      * group-membership resource for joining an OSCORE group with a single role
@@ -520,10 +513,7 @@ public class TestTokenRepositoryGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
+    	    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -554,7 +544,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing COSE_Key, to access a
      * group-membership resource for joining an OSCORE group with multiple roles
@@ -578,12 +567,6 @@ public class TestTokenRepositoryGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -658,7 +641,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing known kid, to access a
      * group-membership resource for joining an OSCORE group with a single role
@@ -679,9 +661,6 @@ public class TestTokenRepositoryGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
@@ -715,7 +694,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing known kid, to access a
      * group-membership resource for joining an OSCORE group with multiple roles
@@ -737,12 +715,6 @@ public class TestTokenRepositoryGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -817,7 +789,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing valid Encrypt0, to access a
      * group-membership resource for joining an OSCORE group with a single role
@@ -843,9 +814,6 @@ public class TestTokenRepositoryGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -874,7 +842,6 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.canAccess("otherKey", null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
-    // M.T.
     /**
      * Test add token with cnf containing valid Encrypt0, to access a
      * group-membership resource for joining an OSCORE group with multiple roles
@@ -901,12 +868,6 @@ public class TestTokenRepositoryGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();

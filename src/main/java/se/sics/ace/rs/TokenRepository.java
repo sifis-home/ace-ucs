@@ -62,7 +62,6 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -144,13 +143,11 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private Map<String, String>sid2kid;
 	
-	// M.T.
 	/**
 	 * Map an OSCORE input material identifier to the base64 encoded cti of a token
 	 */
 	private Map<String, String>id2cti;
 	
-	// M.T.
 	/**
 	 * Map a subject identity to the rsnonce possibly provided upon Token posting
 	 * This is relevant when joining an OSCORE Group, with the RS acting as Group Manager
@@ -238,8 +235,8 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
-	    this.id2cti = new HashMap<>(); // M.T.
-	    this.sid2rsnonce = new HashMap<>(); // M.T.
+	    this.id2cti = new HashMap<>();
+	    this.sid2rsnonce = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
 

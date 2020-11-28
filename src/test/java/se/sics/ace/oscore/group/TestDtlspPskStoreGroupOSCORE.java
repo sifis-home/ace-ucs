@@ -72,7 +72,7 @@ import se.sics.ace.rs.TokenRepository;
  * Test the DTLSProfilePskStoreGroupOSCORE class that implements fetching the access token from the
  * psk-identity in the DTLS handshake.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestDtlspPskStoreGroupOSCORE {
@@ -113,7 +113,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
-        // M.T.
     	final String groupName = "feedca570000";
         
         // Adding the group-membership resource
@@ -123,17 +122,14 @@ public class TestDtlspPskStoreGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
-        // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
-        // M.T.
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
@@ -398,7 +394,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         Assert.assertArrayEquals(key128 ,psk);
     }
     
-    // M.T.
     /**
      * Test with an valid psk-identity, when
      * joining an OSCORE group with a single role
@@ -417,9 +412,6 @@ public class TestDtlspPskStoreGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -455,7 +447,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         Assert.assertArrayEquals(key128 ,psk);
     }
     
-    // M.T.
     /**
      * Test with an valid psk-identity, when
      * joining an OSCORE group with multiple roles
@@ -475,12 +466,6 @@ public class TestDtlspPskStoreGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -516,7 +501,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         Assert.assertArrayEquals(key128 ,psk);
     }
 
-    // M.T.
     /**
      * Test with only a kid in the CBOR structure, when
      * joining an OSCORE group with a single role
@@ -574,7 +558,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         Assert.assertArrayEquals(key128 ,psk);
     }
     
-    // M.T.
     /**
      * Test with only a kid in the CBOR structure, when
      * joining an OSCORE group with multiple roles

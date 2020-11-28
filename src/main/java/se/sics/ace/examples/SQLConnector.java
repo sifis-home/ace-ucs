@@ -213,7 +213,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement selectAudiences;
 	
-	// M.T.
 	/**
      * A prepared INSERT statement to add an audience a 
      * Resource Server acting as OSCORE Group Manager identifies with
@@ -222,7 +221,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement insertOSCOREGroupManager;
 	
-	// M.T.
     /**
      * A prepared DELETE statement to remove the audiences
      * a Resource Server acting as OSCORE Group Manager identifies with
@@ -231,7 +229,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement deleteOSCOREGroupManagers;
 	
-	// M.T.
     /**
      * A prepared SELECT statement to get a set of audiences
      * an RS acting as OSCORE Group Manager identifies with
@@ -628,19 +625,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
 		                + DBConnector.audColumn + ";"));
 
-		// M.T.
 		this.insertOSCOREGroupManager = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.oscoreGroupManagersTable
 		                + " VALUES (?,?);"));
 
-		// M.T.
 		this.deleteOSCOREGroupManagers = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
 		                + DBConnector.oscoreGroupManagersTable
 		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		// M.T.
 		this.selectOSCOREGroupManagers = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.audColumn + " FROM "
@@ -1367,7 +1361,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         return auds;
     }
 
-    // M.T.
     @Override
     public synchronized Set<String> getOSCOREGroupManagers(String rsId) 
             throws AceException {
@@ -1658,7 +1651,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
     }
     
-    // M.T.
     @Override
     public void addOSCOREGroupManagers(String rsId, Set<String> auds) throws AceException {
     	if (rsId == null || rsId.isEmpty()) {
@@ -1719,7 +1711,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             this.deleteAudiences.execute();
             this.deleteAudiences.clearParameters();
 
-            // M.T.
             this.deleteOSCOREGroupManagers.setString(1,  rsId);
             this.deleteOSCOREGroupManagers.execute();
             this.deleteOSCOREGroupManagers.clearParameters();

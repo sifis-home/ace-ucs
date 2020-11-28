@@ -71,7 +71,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class OSCOREProfileRequestsGroupOSCORE {

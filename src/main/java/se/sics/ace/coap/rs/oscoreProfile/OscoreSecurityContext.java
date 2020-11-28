@@ -63,7 +63,6 @@ public class OscoreSecurityContext {
      */
     private byte[] ms;
     
-    // M.T.
     /**
      * The OSCORE Input Material Identifier
      */
@@ -174,7 +173,6 @@ public class OscoreSecurityContext {
         }
         this.ms = msC.GetByteString();
 
-        // M.T.
         CBORObject idC = osc.get(Constants.OS_ID);
         if (idC == null || !idC.getType().equals(CBORType.ByteString)) {
             LOGGER.info("Missing or invalid parameter: 'id',"

@@ -420,11 +420,6 @@ public class GroupInfo {
     	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
     		return null;
     	
-    	/*
-    	int diff = this.groupIdEpochSize - groupIdEpochArray.length;
-    	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length + diff, groupIdEpochArray.length);
-    	*/
-    	
     	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
     	     
     	return myArray;
@@ -567,7 +562,6 @@ public class GroupInfo {
      */
     synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
     	
-        //XXX: Is this Integer or SimpleValue?
     	if (csKeyEnc.getType() != CBORType.Integer)
     		return false;
     	

@@ -84,7 +84,7 @@ import se.sics.ace.rs.TokenRepository;
 /**
  * Test the DTLSProfileAuthzInfo class.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestDtlspAuthzInfoGroupOSCORE {
@@ -92,13 +92,13 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     private static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static CwtCryptoCtx ctx;
-    private static AuthzInfoGroupOSCORE ai; // M.T.
-    private static AuthzInfoGroupOSCORE ai2; // M.T.
-    private static CoapAuthzInfoGroupOSCORE dai; // M.T.
-    private static CoapAuthzInfoGroupOSCORE dai2; // M.T.
+    private static AuthzInfoGroupOSCORE ai;
+    private static AuthzInfoGroupOSCORE ai2;
+    private static CoapAuthzInfoGroupOSCORE dai;
+    private static CoapAuthzInfoGroupOSCORE dai2;
     private static CBORObject payload;
-    private static CBORObject payload2; // M.T.
-    private static CBORObject payload3; // M.T.
+    private static CBORObject payload2;
+    private static CBORObject payload3;
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
@@ -139,8 +139,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myResource.put("co2", actions2);
         myScopes.put("rw_co2", myResource2);
         
-        // M.T.
-        
         final String groupName = "feedca570000";
         
         // Adding the group-membership resource
@@ -151,17 +149,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
                 
-        // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
-        // M.T.
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
@@ -257,7 +252,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfoGroupOSCORE(ai);
         
-        // M.T.
         // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
@@ -266,7 +260,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
         
-        // M.T.
         // A separate authz-info endpoint is required for each audience, here "rs2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
@@ -299,9 +292,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -330,12 +320,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -406,7 +390,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                         kid, kid, "temp", Constants.GET, null));
     }
      
-    // M.T.
     /**
      * Test a POST to /authz-info for accessing
      * an OSCORE group with a single role
@@ -457,7 +440,6 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                        kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
     }
     
-    // M.T.
     /**
      * Test a POST to /authz-info for accessing
      * an OSCORE group with multiple roles

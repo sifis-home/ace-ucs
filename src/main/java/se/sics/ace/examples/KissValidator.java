@@ -161,7 +161,6 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
         return null; //No scope found
     }
     
-    // M.T.
     // This method performs as isScopeMeaningful(CBORObject scope) for this Validator
     @Override
     public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {

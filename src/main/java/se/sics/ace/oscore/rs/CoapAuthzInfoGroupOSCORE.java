@@ -50,7 +50,7 @@ import se.sics.ace.coap.rs.CoapAuthzInfo;
  * A CoAP resource implementing the authz-info endpoint at the RS 
  * for the DTLS profile.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class CoapAuthzInfoGroupOSCORE extends CoapResource {

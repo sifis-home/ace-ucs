@@ -62,7 +62,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class PlugtestASGroupOSCORE
@@ -307,7 +307,6 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs1, tokenPsk_rs1, akey_rs);
         
-        // M.T.
         // Add a further resource server "rs2" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
         profiles.clear();
@@ -324,12 +323,9 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
         
-        // M.T.
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
         
-        
-        // M.T.
         // Add a further resource server "rs3" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
         profiles.clear();
@@ -346,12 +342,9 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs3, tokenPsk_rs3, akey_rs);
         
-        // M.T.
         // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
         
-        
-        // M.T.
         // Add a further resource server "rs4" acting as OSCORE Group Manager
         // This resource server uses only CWT Tokens
         profiles.clear();
@@ -368,7 +361,6 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs4, tokenPsk_rs4, akey_rs);
         
-        // M.T.
         // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
         
@@ -380,7 +372,6 @@ public class PlugtestASGroupOSCORE
         db.addClient("clientA", profiles, null, null, 
                 keyTypes, authPsk_clientA, null);        
         
-        // M.T.
         // Add a further client "clientF" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
@@ -389,7 +380,6 @@ public class PlugtestASGroupOSCORE
         db.addClient("clientF", profiles, null, null, 
                 keyTypes, authPsk_clientF, null);
         
-        // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
@@ -436,8 +426,6 @@ public class PlugtestASGroupOSCORE
         pdp.addIntrospectAccess("rs3");
         pdp.addIntrospectAccess("rs4");
         
-        
-        // M.T.
         // Add also client "clientF" as a joining node of an OSCORE group.
         pdp.addTokenAccess("clientF");
         // Add also client "clientG" as a joining node of an OSCORE group.
@@ -470,27 +458,21 @@ public class PlugtestASGroupOSCORE
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        // M.T.
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
         // On this Group Manager, this client is allowed to be requester, responder, requester+responder or monitor.
         pdp.addAccess("clientF", "rs2", groupName + "_requester_monitor_responder");
         // On this Group Manager, this client is allowed to be requester or monitor.
         pdp.addAccess("clientF", "rs3", groupName + "_requester_monitor");
         
-        // M.T.
         // Specify access right also for client "clientG" as a joining node of an OSCORE group.
         // On this Group Manager, this client is allowed to be requester.
         pdp.addAccess("clientG", "rs2", groupName + "_requester");
         
-        // M.T.
         // Add the resource servers rs2  and rs3 and their OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
         Set<String> rs2 = Collections.singleton("rs2");
         pdp.addOSCOREGroupManagers("rs2", rs2);
         Set<String> rs3 = Collections.singleton("rs3");
         pdp.addOSCOREGroupManagers("rs3", rs3);
-        
-        // OLD SETUP
-        // as = new DtlsAS("AS", db, pdp, time, asymmKey, portNumber);
         
         as = new DtlsAS("AS", db, pdp, time, asRPK, portNumber);
         as.start();

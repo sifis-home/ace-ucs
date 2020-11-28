@@ -57,7 +57,7 @@ import se.sics.ace.examples.SQLConnector;
  * 
  * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
@@ -79,7 +79,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
      */    
     public static String accessTable = "PdpAccess";
  
-    // M.T.
     /**
      * The name of the OSCORE Group Managers table
      */    
@@ -106,16 +105,12 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 
     private PreparedStatement getAllAccess;
     
-    // M.T.
     private PreparedStatement addOSCOREGroupManager;
     
-    // M.T.
     private PreparedStatement deleteOSCOREGroupManagers;
     
-    // M.T.
     private PreparedStatement selectOSCOREGroupManagers;
     
-    // M.T. 
     private Map<String, Short> rolesToInt = new HashMap<>();
 
 	/**
@@ -147,7 +142,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
-        // M.T.
         String createOSCOREGroupManagers = this.db.getAdapter().updateEngineSpecificSQL(
         		"CREATE TABLE IF NOT EXISTS "
         		+ oscoreGroupManagersTable + "("
@@ -159,7 +153,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
 	        stmt.execute(createAccess);
-	        stmt.execute(createOSCOREGroupManagers); // M.T.
+	        stmt.execute(createOSCOREGroupManagers);
 	    } catch (SQLException e) {
 	        e.printStackTrace();
 	        throw new AceException(e.getMessage());
@@ -176,8 +170,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + introspectTable
                         + " WHERE " + DBConnector.idColumn + "=?;"));
         
-        //Gets only the access of the client, the PDP sorts out the audiences
-        //and scopes
+        //Gets only the access of the client, the PDP sorts out the audiences and scopes
         this.canAccess = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable
@@ -197,7 +190,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + accessTable + " VALUES (?,?,?);"));
         
-        // M.T.
         this.addOSCOREGroupManager = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + oscoreGroupManagersTable + " VALUES (?,?);"));
@@ -230,7 +222,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?;"));
 
-        // M.T.
         this.deleteOSCOREGroupManagers = this.db.prepareStatement(
         		this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
         				+ oscoreGroupManagersTable + " WHERE "
@@ -241,7 +232,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + accessTable + " WHERE "
                         + DBConnector.idColumn + "=?;"));
         
-        // M.T.
         this.selectOSCOREGroupManagers = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("SELECT "
                 		+ DBConnector.audColumn + " FROM "
@@ -249,7 +239,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + DBConnector.rsIdColumn + "=? ORDER BY " 
 		                + DBConnector.audColumn +";"));
         
-        // M.T.
         rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
         rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
         rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
@@ -418,7 +407,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         String grantedScopesString = "";
         Object grantedScopes = null;
         
-        // M.T.
         // If the RS and the audience point at an OSCORE Group Manager,
         // the scope must be encoded as a CBOR Byte String
         boolean scopeMustBeBinary = false;
@@ -429,7 +417,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	if (scopeMustBeBinary) break;
         }
         
-        // M.T.
         // Handling of a Text String scope, just as in KissPDP
         if (scope instanceof String) {
         	if (scopeMustBeBinary)
@@ -451,7 +438,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             	grantedScopes = grantedScopesString;
         }
         
-        // M.T.
         // Handling of a Byte String scope, formatted as per draft-ietf-ace-key-groupcomm , Section 3.1
         // This type of scope is expected to have this structure for each RS acting as OSCORE Group Manager
         else if (scope instanceof byte[] && rsOSCOREGroupManager) {
@@ -508,38 +494,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        		  
 		        	  }
 		        	  
-		        	  // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-		        	  /*
-		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
-		        		  // Only one role is specified
-		        		  int index = scopeElement.AsInt32();
-		        		  if (index <= 0)
-		        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-		        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-		        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
-		        		  else
-		        			  roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
-		        	  }
-		        	  else if (scopeElement.getType().equals(CBORType.Array)) {
-		        		  // Multiple roles are specified
-		        		  if (scopeElement.size() < 2) {
-		        			  throw new AceException("The CBOR Array of roles must include at least two roles");
-		        		  }
-		        		  for (int i=0; i<scopeElement.size(); i++) {
-		        			  if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
-		        				  int index = scopeElement.get(i).AsInt32();
-				        		  if (index <= 0)
-				        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-				        			  roles.add(Constants.GROUP_OSCORE_ROLES[index]);
-				        		  else
-				        			  roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
-		        			  }
-		        			  else {throw new AceException("The roles must be a CBOR Unsigned Integer");}
-		        		  }
-		        	  }
-		        	  */
-		        	  
 		        	  else {throw new AceException("Invalid format of roles");}
 		        	  
 		        	  // Check if the client can access the specified group on the RS with the specified roles
@@ -564,33 +518,10 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	      
 		        		  cborArrayScopeEntry.Add(groupName);
 		        	      
-		        		  
-		        		  // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
 		        		  int grantedRoles = 0;
 	        	    	  for (String foo : allowedRoles)
 	        	    		  grantedRoles = Constants.addGroupOSCORERole(grantedRoles, rolesToInt.get(foo));
 	        	    	  cborArrayScopeEntry.Add(grantedRoles);
-	        	    	  
-		        		  
-			        	  // OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-			        	  /*
-		        	      if (allowedRoles.size() == 1) {
-		        	    	  for (String foo : allowedRoles) {
-		        	    		  cborArrayScopeEntry.Add(rolesToInt.get(foo));
-		                	  }
-		        	      }
-		        	      
-		        	      if (allowedRoles.size() == 2) {
-		        	    		  
-		        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
-		        	    	  
-		        	    	  for (String foo : allowedRoles) {
-		        	    		  cborArrayRoles.Add(rolesToInt.get(foo));
-		                	  }
-		        	    	  
-		        	    	  cborArrayScopeEntry.Add(cborArrayRoles);
-		        	      }
-		        	      */
 		        	      
 		        	      cborArrayScope.Add(cborArrayScopeEntry);
 		        	     
@@ -614,7 +545,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	
         }
         
-        // M.T.
     	// This includes the case where the scope is encoded as a CBOR Byte String,
     	// but the audience is not registered as related to an OSCORE Group Manager.
     	// In fact, no processing for byte string scopes are defined, other than
@@ -628,7 +558,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	throw new AceException(
                    "Scopes must be Text Strings or Byte Strings");
         }
-        // end M.T.
         
         return grantedScopes;
 	}
@@ -897,7 +826,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
     }
     
-    // M.T.
     /**
      * Add a pre-registered audience as an OSCORE Group Manager
      * 
@@ -942,7 +870,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
     }
 
- // M.T.
     /**
      * Remove all audiences an RS identifies with as an OSCORE Group Manager
      * 

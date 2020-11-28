@@ -66,7 +66,7 @@ import se.sics.ace.rs.TokenRepository;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class AuthzInfoGroupOSCORE extends AuthzInfo {

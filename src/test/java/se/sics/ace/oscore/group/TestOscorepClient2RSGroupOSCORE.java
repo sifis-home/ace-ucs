@@ -83,7 +83,7 @@ import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
 /**
  * A test case for the OSCORE profile interactions between client and server.
  * 
- * @author Ludwig Seitz, Marco Tiloca & Rikard Hoeglund
+ * @author Marco Tiloca and Rikard Hoeglund
  *
  */
 public class TestOscorepClient2RSGroupOSCORE {
@@ -288,7 +288,7 @@ public class TestOscorepClient2RSGroupOSCORE {
        
     }
     
-    // M.T.
+
     /**
      * Test post to Authz-Info, then join using a single role.
      * Uses the ACE OSCORE Profile.
@@ -322,8 +322,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -498,8 +496,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
         
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
         
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -555,15 +551,6 @@ public class TestOscorepClient2RSGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	    
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -1499,7 +1486,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         
     }
     
-    // M.T.
     /**
      * Test post to Authz-Info, then join using multiple roles.
      * Uses the ACE OSCORE Profile.
@@ -1534,11 +1520,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // CBORObject cborArrayRoles = CBORObject.NewArray();
-        // cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-        // cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-        // cborArrayEntry.Add(cborArrayRoles);
         
         cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1713,11 +1694,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayRoles = CBORObject.NewArray();
-        // cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-        // cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-        // cborArrayScope.Add(cborArrayRoles);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1768,15 +1744,6 @@ public class TestOscorepClient2RSGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             

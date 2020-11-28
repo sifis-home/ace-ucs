@@ -63,7 +63,7 @@ import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 /**
  * Test the GroupOSCOREJoinPDP class.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestGroupOSCOREJoinPDP {
@@ -170,7 +170,6 @@ public class TestGroupOSCOREJoinPDP {
         db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, null, null, publicKey);
         
-        // M.T.
         // Add a further resource server "rs4" acting as OSCORE Group Manager
         profiles.clear();
         profiles.add("coap_dtls");
@@ -194,7 +193,6 @@ public class TestGroupOSCOREJoinPDP {
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
-        // M.T.
         // Add the resource server rs4 and its OSCORE Group Manager
         // audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
@@ -215,7 +213,6 @@ public class TestGroupOSCOREJoinPDP {
         db.addClient("clientB", profiles, "co2", "sensors", 
                 keyTypes, skey, null);
         
-        // M.T.
         // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
@@ -224,7 +221,6 @@ public class TestGroupOSCOREJoinPDP {
         db.addClient("clientG", profiles, null, null, 
                 keyTypes, skey, null);
         
-        // M.T.
         // Add a further client "clientH" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
@@ -251,7 +247,6 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addIntrospectAccess("rs7");
        pdp.addIntrospectAccess("rs8", PDP.IntrospectAccessLevel.ACTIVE_ONLY);
        
-       // M.T.
        // Add also client "clientG" as a joining node of an OSCORE group.
        pdp.addTokenAccess("clientG");
        // Add also client "clientH" as a joining node of an OSCORE group.
@@ -291,17 +286,15 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addAccess("clientE", "rs3", "failProfile");
        
        pdp.addAccess("clientG", "rs2", "r_light");
-       // M.T.
+       
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
        // On this Group Manager, this client is allowed to be requester, responder, requester+responder, or monitor.
        pdp.addAccess("clientG", "rs4", "feedca570000_requester_monitor_responder");
        
-       // M.T.
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
        // This client is allowed to be requester.
        pdp.addAccess("clientH", "rs4", "feedca570000_monitor");
        
-       // M.T.
        // Add the resource server rs4 and its OSCORE Group Manager
        // audience to the table OSCOREGroupManagersTable in the PDP
        Set<String> rs4 = Collections.singleton("rs4");
@@ -345,7 +338,6 @@ public class TestGroupOSCOREJoinPDP {
     	assert(pdp.getIntrospectAccessLevel("rs4").equals(PDP.IntrospectAccessLevel.NONE));
     }
     
-    // M.T.
     /**
      * Test the basic example configuration with different access queries
      * 
@@ -380,9 +372,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
@@ -396,9 +385,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	//cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
@@ -411,9 +397,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -428,9 +411,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
@@ -443,10 +423,7 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
+    		
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);
@@ -459,9 +436,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add((short)10);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -481,12 +455,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -500,19 +468,12 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
     	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope) ||
     	       Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), bysteStringScope2));
     	
-
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
     	cborArrayEntry = CBORObject.NewArray();
@@ -522,12 +483,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -544,13 +499,7 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
+    	    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -561,9 +510,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
@@ -581,11 +527,6 @@ public class TestGroupOSCOREJoinPDP {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();

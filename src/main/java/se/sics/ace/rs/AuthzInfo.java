@@ -324,7 +324,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    		meaningful = TokenRepository.getInstance().checkScope(scope);
 	    	}
 	    	else {
-	    		// M.T. The version of checkScope() with two arguments is invoked
+	    		// The version of checkScope() with two arguments is invoked
 	    		// This is currently expecting a structured scope for joining OSCORE groups
 	    		meaningful = TokenRepository.getInstance().checkScope(scope, auds);
 	    	}
@@ -504,7 +504,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
 	    
-	    // M.T.
 	    // The following enables this class to return to the specific AuthzInfo instance also the
 	    // Sender Identifier associated to this Access Token, as 'SUB' parameter of the response.
 	    String assignedKid = null;

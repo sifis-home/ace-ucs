@@ -54,7 +54,7 @@ import se.sics.ace.rs.ScopeValidator;
  * The actions are expected to be integers corresponding to the 
  * values for RESTful actions in <code>Constants</code>.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidator {
@@ -64,14 +64,12 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
      */
 	private Set<String> myAudiences;
 	
-	// M.T.
 	/**
      * The audiences acting as OSCORE Group Managers
      * Each of these audiences is also included in the main set "myAudiences"
      */
 	private Set<String> myGMAudiences;
 	
-	// M.T.
 	/**
      * The group-membership resources exported by the OSCORE Group Manager to access an OSCORE group.
      * 
@@ -88,7 +86,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 */
 	private Map<String, Map<String, Set<Short>>> myScopes;
 	
-	// M.T.
 	/**
 	 * Constructor.
 	 * 
@@ -99,8 +96,8 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        Map<String, Map<String, Set<Short>>> myScopes,
 	        String rootGroupMemberResource) {
 		this.myAudiences = new HashSet<>();
-		this.myGMAudiences = new HashSet<>(); // M.T:
-		this.myJoinResources = new HashSet<>(); // M.T:
+		this.myGMAudiences = new HashSet<>();
+		this.myJoinResources = new HashSet<>();
 		this.myScopes = new HashMap<>();
 		if (myAudiences != null) {
 		    this.myAudiences.addAll(myAudiences);
@@ -115,7 +112,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	this.rootGroupMembershipResource = rootGroupMemberResource;
 	}
 	
-	// M.T.
 	/**
 	 * Get a string including the common URI path to all group-membership
 	 * resources, i.e. the full URI path minus the group name
@@ -126,7 +122,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         return this.rootGroupMembershipResource;
 	}
 	
-	// M.T.
 	/**
 	 * Get the list of audiences acting as OSCORE Group Managers.
 	 * 
@@ -139,7 +134,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         return Collections.emptySet();
 	}
 	
-	// M.T.
 	/**
 	 * Set the list of audiences acting as OSCORE Group Managers.
 	 * Check that each of those audiences are in the main set "myAudiences".
@@ -160,8 +154,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		    this.myGMAudiences = Collections.emptySet();
 		}
 	}
-	
-	// M.T.
+
 	/**
 	 * Remove an audience acting as OSCORE Group Manager from "myGMAudiences".
 	 * This method does not remove the audience from the main set "myAudiences".
@@ -176,7 +169,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return false;
 	}
 	
-	// M.T.
 	/**
 	 * Remove all the audiences acting as OSCORE Group Manager from "myGMAudiences".
 	 * This method does not remove the audiences from the main set "myAudiences".
@@ -186,7 +178,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		this.myGMAudiences.clear();
 	}
 	
-	// M.T.
 	/**
 	 * Get the list of group-membership resources to access an OSCORE group.
 	 * 
@@ -202,7 +193,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         return Collections.emptySet();
 	}
 	
-	// M.T.
 	/**
 	 * Set the list of group-membership resources to access an OSCORE group.
 	 * 
@@ -222,7 +212,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		}
 	}
 	
-	// M.T.
 	/**
 	 * Remove a group-membership resource to access an OSCORE group from "myJoinResources".
 	 * 
@@ -239,7 +228,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return false;
 	}
 	
-	// M.T.
 	/**
 	 * Remove all the group-membership resources to access an OSCORE group from "myJoinResources".
 	 * 
@@ -253,7 +241,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return this.myAudiences.contains(aud);
 	}
 
-	// M.T.
     @Override
     public boolean scopeMatch(CBORObject scope, String resourceId, Object actionId)
             throws AceException {
@@ -316,7 +303,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	      	  	// Retrieve the role or list of roles
 	      	  	scopeElement = scopeEntry.get(1);
 	      	  	
-	          	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
 	        	if (scopeElement.getType().equals(CBORType.Integer)) {
 	        		int roleSet = scopeElement.AsInt32();
 	        		
@@ -333,38 +319,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        		}
 	        		  
 	        	}
-	      	  	
-	        	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-	      	  	/*
-	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
-	      	  		// Only one role is specified
-	        		  int index = scopeElement.AsInt32();
-	        		  if (index <= 0)
-	        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-	  	      	  		continue;
-	        		  else
-	        			  throw new AceException("Unrecognized role");
-	      	  	}
-	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-	      	  		// Multiple roles are specified
-	      	  		if (scopeElement.size() < 2) {
-	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-	      	  		}
-		      	  		for (int i=0; i<scopeElement.size(); i++) {
-		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
-		        				  int index = scopeElement.get(i).AsInt32();
-				        		  if (index <= 0)
-				        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-					  	      	  		continue;
-				        		  else
-				        			  throw new AceException("Unrecognized role");
-		      	  			}
-		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
-		      	  		}
-	      	  	}
-	      	  	*/
 	      	  	
 	      	  	else {throw new AceException("Invalid format of roles");}
 	      	  	
@@ -394,7 +348,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	
     }
 
-    // M.T.
     @Override
     public boolean scopeMatchResource(CBORObject scope, String resourceId)
             throws AceException {
@@ -456,7 +409,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	      	  	// Retrieve the role or list of roles
 	      	  	scopeElement = scopeEntry.get(1);
 	      	  	
-	          	// NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
 	        	if (scopeElement.getType().equals(CBORType.Integer)) {
 	        		int roleSet = scopeElement.AsInt32();
 	        		
@@ -473,39 +425,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	        		}
 	        			        		  
 	        	}
-	      	  	
-	        	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-	        	/*
-	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
-	      	  		// Only one role is specified
-	        		  int index = scopeElement.AsInt32();
-	        		  if (index <= 0)
-	        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-	        		  	  continue;
-	        		  else
-	        			  throw new AceException("Unrecognized role");
-	      	  	}
-	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-	      	  		// Multiple roles are specified
-	      	  		if (scopeElement.size() < 2) {
-	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-	      	  		}
-		      	  		for (int i=0; i<scopeElement.size(); i++) {
-		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
-		        				  int index = scopeElement.get(i).AsInt32();
-				        		  if (index <= 0)
-				        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-					  	      	  		continue;
-				        		  else
-				        			  throw new AceException("Unrecognized role");
-		      	  			}
-		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
-		      	  		}
-	      	  	}
-	      	  	*/
-	        	
+	     	
 	      	  	else {throw new AceException("Invalid format of roles");}
 	      	  	
 	      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
@@ -594,7 +514,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	         	// Retrieve the role or list of roles
 	    	    scopeElement = scopeEntry.get(1);
 	    	  
-	      	    // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
 	    	    if (scopeElement.getType().equals(CBORType.Integer)) {
 	    		    int roleSet = scopeElement.AsInt32();
 	    		 
@@ -611,39 +530,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	    		    }
 	    	  	    
 	    	    }
-	      	  		
-	        	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-	        	/*
-	      	  	// Retrieve the role or list of roles
-	      	  	scopeElement = scopeEntry.get(1);
-	      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
-	      	  		// Only one role is specified
-	        		  int index = scopeElement.AsInt32();
-	        		  if (index <= 0)
-	        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-	        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-	  	      	  		  continue;
-	        		  else
-	        			  throw new AceException("Unrecognized role");
-	      	  	}
-	      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-	      	  		// Multiple roles are specified
-	      	  		if (scopeElement.size() < 2) {
-	      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-	      	  		}
-		      	  		for (int i=0; i<scopeElement.size(); i++) {
-		      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {	
-		        				  int index = scopeElement.get(i).AsInt32();
-				        		  if (index <= 0)
-				        			  throw new AceException("The roles must be CBOR Unsigned Integers greater than 0");
-				        		  if (index < Constants.GROUP_OSCORE_ROLES.length)
-					  	      	  	  continue;
-				        		  else
-				        			  throw new AceException("Unrecognized role");		      	  			}
-		      	  			else {throw new AceException("The roles must be CBOR Unsigned Integers");}
-		      	  		}
-	      	  	}
-	      	  	*/
 	      	  	
 	      	  	else {throw new AceException("Invalid format of roles");}
 	    	    

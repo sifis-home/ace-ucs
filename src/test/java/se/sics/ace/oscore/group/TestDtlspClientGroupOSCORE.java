@@ -88,7 +88,7 @@ import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
 
 /**
  * Tests a client running the DTLS profile.
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestDtlspClientGroupOSCORE {
@@ -141,7 +141,7 @@ public class TestDtlspClientGroupOSCORE {
         @Override
         public void run() {
             try {
-                TestDtlspRSGroupOSCORE.main(null); // M.T.
+                TestDtlspRSGroupOSCORE.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {
@@ -275,7 +275,6 @@ public class TestDtlspClientGroupOSCORE {
     }
     
     
-    // M.T.
     /**
      * Tests POSTing a token to authz-info for
      * accessing an OSCORE group with a single role
@@ -305,9 +304,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -483,9 +479,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -540,16 +533,6 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-       	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
@@ -628,9 +611,6 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        
-        //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
@@ -1448,7 +1428,6 @@ public class TestDtlspClientGroupOSCORE {
     }
     
     
-    // M.T.
     /**
      * Tests POSTing a token to authz-info for
      * accessing an OSCORE group with multiple roles
@@ -1478,12 +1457,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1658,12 +1631,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayScope.Add(cborArrayRoles);
-    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1713,16 +1680,6 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-
         	byte[] clientSignature = computeSignature(privKey, dataToSign);
 
         	if (clientSignature != null)
@@ -1804,10 +1761,7 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        
-        //Map<Short, CBORObject> contextParams = new HashMap<>(OSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams);
-        
+                
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
         // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
@@ -2748,7 +2702,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("Hello World!", r2.getResponseText());  
     }
     
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request
      * for accessing an OSCORE Group with single role
@@ -2783,9 +2736,6 @@ public class TestDtlspClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	//scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2955,9 +2905,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -3007,16 +2954,6 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-       	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
@@ -3098,9 +3035,6 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        
-        //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
@@ -3910,7 +3844,6 @@ public class TestDtlspClientGroupOSCORE {
     }
     
     
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request
      * for accessing an OSCORE Group with multiple roles
@@ -3946,12 +3879,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -4121,12 +4048,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayScope.Add(cborArrayRoles);
-    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -4175,16 +4096,6 @@ public class TestDtlspClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -5151,7 +5062,6 @@ public class TestDtlspClientGroupOSCORE {
     }
     
     
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request 
      * where RS rpk is not trusted, when attempting
@@ -5183,10 +5093,6 @@ public class TestDtlspClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// String role1 = new String("requester");
-        // scopeEntry.Add(role1);
         
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -5225,7 +5131,6 @@ public class TestDtlspClientGroupOSCORE {
     }
     
     
-    // M.T.
     /** 
      * Test post to authz-info with RPK then request 
      * where RS rpk is not trusted, when attempting
@@ -5258,12 +5163,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -5348,8 +5247,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("CONTENT", r2.getCode().name());
         Assert.assertEquals("Hello World!", r2.getResponseText());  
     }    
-    
-    // M.T.
+
+
     /** 
      * Test post to authz-info with PSK then request
      * for joining an OSCORE Group with a single role
@@ -5386,9 +5285,6 @@ public class TestDtlspClientGroupOSCORE {
         int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         
         cborArrayScope.Add(scopeEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -5561,9 +5457,6 @@ public class TestDtlspClientGroupOSCORE {
         myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -5613,17 +5506,7 @@ public class TestDtlspClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-       	   
+
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
@@ -5705,9 +5588,6 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        
-        //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
@@ -6518,7 +6398,7 @@ public class TestDtlspClientGroupOSCORE {
         
     }
     
-    // M.T.
+
     /** 
      * Test post to authz-info with PSK then request
      * for joining an OSCORE Group with multiple roles
@@ -6556,12 +6436,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -6736,12 +6610,6 @@ public class TestDtlspClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayScope.Add(cborArrayRoles);
-    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -6791,16 +6659,6 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
             
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-       	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
@@ -6882,9 +6740,6 @@ public class TestDtlspClientGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
-        
-        //Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(myMap));
-        //GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());

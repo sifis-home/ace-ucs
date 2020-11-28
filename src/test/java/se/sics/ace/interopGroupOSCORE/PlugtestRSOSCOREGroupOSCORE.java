@@ -105,7 +105,7 @@ import se.sics.ace.rs.TokenRepository;
  * The Junit tests are in TestDtlspClientGroupOSCORE, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class PlugtestRSOSCOREGroupOSCORE {
@@ -188,8 +188,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         }
     }
     
-    
-    // M.T.
     /**
      * Definition of the root group-membership resource for Group OSCORE
      * 
@@ -212,8 +210,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         
     }
     
-    
-    // M.T.
     /**
      * Definition of the group-membership resource for Group OSCORE
      */
@@ -527,84 +523,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         			if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
         				roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
         		}
-            	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        		/*
-      	  		// Invalid combination of roles
-      	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
-      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
-      	  				||
-      	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
-      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
-      	  		   ) {
-  					byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-  					return;
-      	  		}
-      	  		*/
         	}
-      	  	
-        	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-      	  	/*
-      	  	if (scopeElement.getType().equals(CBORType.Integer)) {
-      	  		// Only one role is specified
-      	  		int index = scopeElement.AsInt32();
-      	  		
-      	  		// Invalid format of roles
-      	  		if (index < 0) {
-      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-	        		return;
-      	  		}
-      	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
-      	  			roles.add(Constants.GROUP_OSCORE_ROLES[index]);
-      	  		else
-      	  			roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		
-      	  		// The CBOR Array of roles must include at least two roles
-      	  		if (scopeElement.size() != 2) {
-      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-            		return;
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.Integer)) {
-      	      	  		int index = scopeElement.get(i).AsInt32();
-      	      	  		
-      	      	  		// Invalid format of roles
-      	      	  		if (index < 0) {
-      	      	  			byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  							exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-      		        		return;
-      	      	  		}
-      	      	  		if (index < Constants.GROUP_OSCORE_ROLES.length)
-      	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[index]);
-      	      	  		else
-      	      	  			roles.add(Constants.GROUP_OSCORE_ROLES[0]); // The "reserved" role is used as invalid role
-      	  			}
-      	  			// Invalid format of roles
-      	  			else {
-						byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  						exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-      	        		return;
-      	  			}
-      	  		}
-      	  		// Invalid format of roles
-      	  		if ( (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_REQUESTER]) &&
-      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
-      	  				||
-      	  			 (roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_RESPONDER]) &&
-      	  			  roles.contains(Constants.GROUP_OSCORE_ROLES[Constants.GROUP_OSCORE_MONITOR]))
-      	  		   ) {
-  	  				byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-  	  				
-  	        		return;
-      	  		}
-      	  	}
-      	  	*/
       	  	
         	// Invalid format of roles
       	  	else {
@@ -802,9 +721,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
-            	
-            	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            	// byte[] rawCnonce = cnonce.GetByteString();
         		
         		// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
             	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
@@ -849,16 +765,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
            	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
            	    offset += serializedGMSignNonceCBOR.length;
            	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-                
-            	// Old version of signature verification, concatenating the plain bytes rather than the serialization of CBOR byte strings
-           	    /*
-            	byte[] dataToSign = new byte [rawScope.length + rsnonce.length + rawCnonce.length];
-            	System.arraycopy(rawScope, 0, dataToSign, offset, rawScope.length);
-            	offset += rawScope.length;
-           	    System.arraycopy(rsnonce, 0, dataToSign, offset, rsnonce.length);
-           	    offset += rsnonce.length;
-           	    System.arraycopy(rawCnonce, 0, dataToSign, offset, rawCnonce.length);
-           	    */
            	    
            	    int countersignKeyCurve = 0;
            	    
@@ -891,8 +797,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		return;
         			
         		}
-        		
-        		
         		
         	}
         	
@@ -989,7 +893,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
-        	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
         		
         		CBORObject coseKeySet = CBORObject.NewArray();
@@ -1077,8 +980,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         }
     }
     
-    
-    // M.T.
     /**
      * Definition of the Group OSCORE group-membership sub-resource /nodes
      * 
@@ -1104,7 +1005,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         
     }
     
-    // M.T.
     /**
      * Definition of the Group OSCORE group-membership sub-resource /nodes/NODENAME
      * for the group members with node name "NODENAME"
@@ -1277,7 +1177,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         
-        // M.T.
         // Adding the group-membership resource, with group name "feedca570000".
         Map<String, Set<Short>> myResource3 = new HashMap<>();
         Set<Short> actions3 = new HashSet<>();
@@ -1286,7 +1185,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
                 
-        // M.T.
         // Adding another group-membership resource, with group name "fBBBca570000".
         // There will NOT be a token enabling the access to this resource.
         Map<String, Set<Short>> myResource4 = new HashMap<>();
@@ -1296,17 +1194,14 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
         myScopes.put(rootGroupMembershipResource + "/", myResource4);
         
-        // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("rs2"));
         
-        // M.T.
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
@@ -1495,7 +1390,6 @@ public class PlugtestRSOSCOREGroupOSCORE {
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
       
-        // M.T.
         // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
         // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
         // 
@@ -1530,18 +1424,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
   	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
   	    Resource hello = new HelloWorldResource();
   	    Resource temp = new TempResource();
-  	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource); // M.T.
-  	    Resource join = new GroupOSCOREJoinResource(groupName); // M.T.
+  	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
+  	    Resource join = new GroupOSCOREJoinResource(groupName);
         // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
-        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes"); // M.T.
-  	    join.add(nodesSubResource); // M.T.
+        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
+  	    join.add(nodesSubResource);
   	    Resource authzInfo = new CoapAuthzInfo(ai);
       
   	    rs = new CoapServer();
   	    rs.add(hello);
   	    rs.add(temp);
-  	    rs.add(groupOSCORERootMembership); // M.T.
-  	    groupOSCORERootMembership.add(join); // M.T.
+  	    rs.add(groupOSCORERootMembership);
+  	    groupOSCORERootMembership.add(join);
   	    rs.add(authzInfo);
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 

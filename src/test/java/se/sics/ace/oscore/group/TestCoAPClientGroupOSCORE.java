@@ -65,7 +65,7 @@ import se.sics.ace.as.Token;
  * 
  * NOTE: This will automatically start a server in another thread
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestCoAPClientGroupOSCORE {
@@ -211,7 +211,6 @@ public class TestCoAPClientGroupOSCORE {
 
     }
     
-    // M.T.
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with a single role, using a REF token.
@@ -252,9 +251,6 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -287,10 +283,7 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
-        
+    	        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, 
@@ -323,9 +316,6 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
         byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -357,10 +347,7 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
-        
+    	        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -393,10 +380,7 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add((short)10);
-        
+    	 
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -419,8 +403,7 @@ public class TestCoAPClientGroupOSCORE {
         
     }
     
-    
-    // M.T.
+
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with multiple roles, using a REF token.
@@ -463,15 +446,8 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	
     	
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
@@ -503,12 +479,6 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -543,12 +513,6 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -587,17 +551,13 @@ public class TestCoAPClientGroupOSCORE {
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(expectedRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
         
     }
 
-    
-    // M.T.
+
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with multiple roles, using a REF token.
@@ -638,9 +598,6 @@ public class TestCoAPClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -674,12 +631,6 @@ public class TestCoAPClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -718,9 +669,6 @@ public class TestCoAPClientGroupOSCORE {
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(expectedRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
@@ -739,7 +687,6 @@ public class TestCoAPClientGroupOSCORE {
                 CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), 
                 key.AsPublicKey());
         builder.setRpkTrustAll();
