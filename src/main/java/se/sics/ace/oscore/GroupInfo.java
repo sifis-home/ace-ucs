@@ -206,7 +206,6 @@ public class GroupInfo {
     	if (groupPolicies == null) {
     		// Set default policy values
         	CBORObject defaultGroupPolicies = CBORObject.NewMap();
-        	defaultGroupPolicies.Add(Constants.POLICY_SN_SYNCH, CBORObject.FromObject(1));
         	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
         	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
         	this.groupPolicies = defaultGroupPolicies;

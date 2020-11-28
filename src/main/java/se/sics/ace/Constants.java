@@ -989,10 +989,7 @@ public class Constants {
      /**
       * Value for the label of "Sequence Number Synchronization Method"
       * 
-      * Possible values for the policy are:
-      * 1: "Best effort" (default)
-      * 2: "Baseline"
-      * 3: "Echo challenge-response"
+      * This policy is not used by this application profile
       */
      public static final short POLICY_SN_SYNCH = 1;
      
