@@ -431,20 +431,20 @@ public class Constants {
 	public static final CBORObject OSCORE_Input_Material
 	    = CBORObject.FromObject(99);
 
+    /**
+     * The input material identifier
+     */
+    public static final CBORObject OS_ID = CBORObject.FromObject(0);
+	
 	/**
 	 * The version
 	 */
-	public static final CBORObject OS_VERSION = CBORObject.FromObject(0);
+	public static final CBORObject OS_VERSION = CBORObject.FromObject(1);
 	
 	/**
 	 * The master secret
 	 */
-	public static final CBORObject OS_MS = CBORObject.FromObject(1);
-
-    /**
-     * The input material identifier
-     */
-    public static final CBORObject OS_ID = CBORObject.FromObject(2);
+	public static final CBORObject OS_MS = CBORObject.FromObject(2);
 	
     /**
      * The HKDF algorithm
