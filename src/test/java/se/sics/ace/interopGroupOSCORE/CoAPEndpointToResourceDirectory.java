@@ -68,10 +68,7 @@ public class CoAPEndpointToResourceDirectory {
 				"cs_key_kty=\"1\";cs_key_crv=\"6\";" + 
 				"cs_kenc=\"1\";ecdh_alg=\"-27\";" + 
 				"ecdh_alg_crv=\"4\";ecdh_key_kty=\"1\";" + 
-				"ecdh_key_crv=\"4\"," + 
-			"<coap://as.example.com/token>;" + 
-				"rel=\"authorization-server\";" + 
-				"anchor=\"coap://[2001:db8::ab]/ace-group/feedca570000\"" +
+				"ecdh_key_crv=\"4\"" +
 			/* End of Link-Format payload */
 			"";
 
@@ -98,6 +95,9 @@ public class CoAPEndpointToResourceDirectory {
     	
 		URI uri = null; // URI parameter of the request
 
+		
+		// Interact with the test server at coap://coap.me
+		/*
 		// input URI from command line arguments
 		try {
 			if (args.length == 0) {
@@ -110,30 +110,30 @@ public class CoAPEndpointToResourceDirectory {
 			System.exit(-1);
 		}
 		testServerExchange(args, uri);
+		*/
 		
 		
 		// Interact with the Resource Directory
 		
 		// Test reachability
+		
 		System.out.println("\n\n=============\nGET request to well-known/core");
 		path = "/.well-known/core";
 		uri = buildURI(resourceDirectoryURI + path);
 		getRequestToResourceDirectory(args, uri);
 		
-		// Dummy resource lookup, a 4.04 response is expected
-		/*
-		System.out.println("\n\n=============Dummy resource lookup\n\n");
-		path = "/resource-lookup";
-		query = "?rt=light";
-		uri = buildURI(resourceDirectoryURI + path + query);
-		if (debug) {
-			System.out.println("\nURI: " + resourceDirectoryURI + path + query);
-		}
-		// getRequestToResourceDirectory(args, uri);
-		*/
 		
+		// Test RD resource discovery
+		
+		System.out.println("\n\n=============\nGET request to well-known/core?rt=core.rd*");
+		path = "/.well-known/core";
+		query = "?rt=core.rd*";
+		uri = buildURI(resourceDirectoryURI + path + query);
+		getRequestToResourceDirectory(args, uri);
+
 		
 		// Register an application group
+		
 		System.out.println("\n\n=============\nRegister an application group");
 		path = "/rd";
 		query = "?ep=" + applicationGroupName + "&et=core.rd-group&base=coap://" + multicastAddress;
@@ -143,11 +143,12 @@ public class CoAPEndpointToResourceDirectory {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query +
 					           "\nPayload: " + new String(requestPayload, Constants.charset) + "\n");
 		}
-		//postRequestToResourceDirectory(args, uri, requestPayload);
+		postRequestToResourceDirectory(args, uri, requestPayload);
 		
 
-		// Register a security group
-		System.out.println("\n\n=============\nRegister a security group");
+		// Register an endpoint and a security group
+		
+		System.out.println("\n\n=============\nRegister an endpoint and a security group");
 		path = "/rd";
 		query = "?ep=" + endpointName;
 		uri = buildURI(resourceDirectoryURI + path + query);
@@ -159,7 +160,20 @@ public class CoAPEndpointToResourceDirectory {
 		postRequestToResourceDirectory(args, uri, requestPayload);
 		
 		
+		// Retrieve the registration entry for the endpoint
+		
+		System.out.println("\n\n=============\nRetrieve the endpoint registration entry");
+		path = "/endpoint-lookup";
+		query = "?ep=" + endpointName;
+		uri = buildURI(resourceDirectoryURI + path + query);
+		if (debug) {
+			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
+		}
+		getRequestToResourceDirectory(args, uri);
+		
+		
 		// Discover the security group(s)
+		
 		System.out.println("\n\n=============\nDiscover the security group(s)");
 		path = "/resource-lookup";
 		query = "?rt=core.osc.gm&app-gp=" + applicationGroupName;
@@ -171,6 +185,7 @@ public class CoAPEndpointToResourceDirectory {
 		
 		
 		// Discover the multicast address of the application group
+		
 		System.out.println("\n\n=============\nDiscover the multicast address of the application group");
 		path = "/endpoint-lookup";
 		query = "?et=core.rd-group&ep=" + applicationGroupName;
@@ -178,7 +193,8 @@ public class CoAPEndpointToResourceDirectory {
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		// getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, uri);
+		
 
 	}
 	
