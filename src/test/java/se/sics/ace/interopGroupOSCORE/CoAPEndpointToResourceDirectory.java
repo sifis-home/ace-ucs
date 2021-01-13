@@ -20,17 +20,27 @@ package se.sics.ace.interopGroupOSCORE;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 
+import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.coap.client.OSCOREProfileRequests;
 
+import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
@@ -55,6 +65,8 @@ public class CoAPEndpointToResourceDirectory {
 		}
 	};
 
+	private static final String resourceDirectoryURI = "coap://rd.coap.amsuess.com";
+	
 	private static final String endpointName = "gm1";
 	private static final String securityGroupName = "feedca570000";
 	private static final String applicationGroupName = "group1";
@@ -84,7 +96,6 @@ public class CoAPEndpointToResourceDirectory {
 	 */
 	public static void main(String args[]) {
 		String defaultUri = "coap://coap.me";
-		String resourceDirectoryURI = "coap://rd.coap.amsuess.com";
 
 		String path = "";
 		String query = "";
@@ -119,8 +130,10 @@ public class CoAPEndpointToResourceDirectory {
 		
 		System.out.println("\n\n=============\nGET request to well-known/core");
 		path = "/.well-known/core";
+		query = "";
 		uri = buildURI(resourceDirectoryURI + path);
-		getRequestToResourceDirectory(args, uri);
+		//getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
 		
 		
 		// Test RD resource discovery
@@ -129,7 +142,8 @@ public class CoAPEndpointToResourceDirectory {
 		path = "/.well-known/core";
 		query = "?rt=core.rd*";
 		uri = buildURI(resourceDirectoryURI + path + query);
-		getRequestToResourceDirectory(args, uri);
+		//getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
 
 		
 		// Register an application group
@@ -163,37 +177,39 @@ public class CoAPEndpointToResourceDirectory {
 		// Retrieve the registration entry for the endpoint
 		
 		System.out.println("\n\n=============\nRetrieve the endpoint registration entry");
-		path = "/endpoint-lookup";
+		path = "/endpoint-lookup/";
 		query = "?ep=" + endpointName;
 		uri = buildURI(resourceDirectoryURI + path + query);
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
 		
 		
 		// Discover the security group(s)
 		
 		System.out.println("\n\n=============\nDiscover the security group(s)");
-		path = "/resource-lookup";
+		path = "/resource-lookup/";
 		query = "?rt=core.osc.gm&app-gp=" + applicationGroupName;
 		uri = buildURI(resourceDirectoryURI + path + query);
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		getRequestToResourceDirectory(args, uri);
+		//getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
 		
 		
 		// Discover the multicast address of the application group
 		
 		System.out.println("\n\n=============\nDiscover the multicast address of the application group");
-		path = "/endpoint-lookup";
+		path = "/endpoint-lookup/";
 		query = "?et=core.rd-group&ep=" + applicationGroupName;
 		uri = buildURI(resourceDirectoryURI + path + query);
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		getRequestToResourceDirectory(args, uri);
+		//getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
 		
 
 	}
@@ -235,40 +251,54 @@ public class CoAPEndpointToResourceDirectory {
 		
 	}
 
-	private static void getRequestToResourceDirectory(final String args[], final URI targetUri) {
-		
-		CoapClient client = new CoapClient(targetUri);
+	
+	private static void getRequestToResourceDirectory(final String args[], final String path, final String query) {
 
-		CoapResponse response = null;
-		try {
-			System.out.println("\n\nSending GET request to: " + targetUri + "\n");
-			response = client.get();
-		} catch (ConnectorException | IOException e) {
-			System.err.println("Got an error: " + e);
-		}
+	       CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
+	       Endpoint clientEndpoint = builder.build();
+	       CoapClient client = new CoapClient(resourceDirectoryURI);
+	       client.setEndpoint(clientEndpoint);
 
-		if (response != null) {
+		   Request request = new Request(Code.GET);
+		   request.getOptions().setUriPath(path);
+	   
+		   // If the last path segment of the URI ends with a '/' ,
+		   // then append one more Uri-Path option with zero-length
+	   	   if(path.charAt(path.length() - 1) == '/') {   		   
+	   		   request.getOptions().addUriPath("");
+	   	   }
+	   	   
+		   request.getOptions().setUriQuery(query);
 
-			System.out.println(response.getCode());
-			System.out.println(response.getOptions());
-			if (args.length > 1) {
-				try (FileOutputStream out = new FileOutputStream(args[1])) {
-					out.write(response.getPayload());
-				} catch (IOException e) {
-					System.err.println("Error while writing the response payload to file: " +  e.getMessage());
+		   
+		   Response response = null;
+	       try {        	
+	    	   System.out.println("\n\nSending GET request to: " + client.getURI() + "\n");
+	           response = client.advanced(request).advanced();
+	       } catch (ConnectorException | IOException e) {
+	    	   System.err.println("Error while sending the CoAP request to " + client.getURI() + "\n" +  e.getMessage());
+	       }
+			if (response != null) {
+
+				System.out.println(response.getCode());
+				System.out.println(response.getOptions());
+				if (args.length > 1) {
+					try (FileOutputStream out = new FileOutputStream(args[1])) {
+						out.write(response.getPayload());
+					} catch (IOException e) {
+						System.err.println("Error while writing the response payload to file: " +  e.getMessage());
+					}
+				} else {
+					System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
+					// access advanced API with access to more details through
+					// .advanced()
+					System.out.println(Utils.prettyPrint(response));
 				}
 			} else {
-				System.out.println(response.getResponseText());
-
-				System.out.println(System.lineSeparator() + "ADVANCED" + System.lineSeparator());
-				// access advanced API with access to more details through
-				// .advanced()
-				System.out.println(Utils.prettyPrint(response));
+				System.out.println("No response received.");
 			}
-		} else {
-			System.out.println("No response received.");
-		}
-		client.shutdown();
+			
+			client.shutdown();
 		
 	}
 	
