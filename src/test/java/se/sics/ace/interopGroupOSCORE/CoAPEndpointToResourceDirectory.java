@@ -71,16 +71,20 @@ public class CoAPEndpointToResourceDirectory {
 	private static final String securityGroupName = "feedca570000";
 	private static final String applicationGroupName = "group1";
 	private static final String multicastAddress = "[ff35:30:2001:db8:f1::8000:1]";
+	private static final String gmAddress = "[2a01:4f8:190:3064::5]";
+	private static final String gmPort = "58292";
 	
 	private static final String securityGroupRegistrationRequest = "" +
 			/* Beginning of Link-Format payload */
-	        "</ace-group/feedca570000>;ct=41;rt=\"core.osc.gm\";if=\"ace.group\";" + 
+	        "</ace-group/feedca570000>;ct=65000;rt=\"core.osc.gm\";if=\"ace.group\";" + 
 				"sec-gp=\"" + securityGroupName + "\";app-gp=\"" + applicationGroupName + "\";" + 
 				"cs_alg=\"-8\";cs_alg_crv=\"6\";" + 
 				"cs_key_kty=\"1\";cs_key_crv=\"6\";" + 
 				"cs_kenc=\"1\";ecdh_alg=\"-27\";" + 
 				"ecdh_alg_crv=\"4\";ecdh_key_kty=\"1\";" + 
-				"ecdh_key_crv=\"4\"" +
+				"ecdh_key_crv=\"4\"," +
+			"<coap://as.example.com/token>;rel=\"authorization-server\";" +
+				"anchor=\"coap://" + gmAddress + ":" + gmPort + "/ace-group/" + securityGroupName + "\"" +
 			/* End of Link-Format payload */
 			"";
 
@@ -191,6 +195,19 @@ public class CoAPEndpointToResourceDirectory {
 		System.out.println("\n\n=============\nDiscover the security group(s)");
 		path = "/resource-lookup/";
 		query = "?rt=core.osc.gm&app-gp=" + applicationGroupName;
+		uri = buildURI(resourceDirectoryURI + path + query);
+		if (debug) {
+			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
+		}
+		//getRequestToResourceDirectory(args, uri);
+		getRequestToResourceDirectory(args, path, query);
+		
+		
+		// Discover the associated ACE Authorization Server
+		
+		System.out.println("\n\n=============\nDiscover the associated ACE Authorization Server");
+		path = "/resource-lookup/";
+		query = "?rel=authorization-server&anchor=coap://" + gmAddress + ":" + gmPort + "/ace-group/" + securityGroupName;
 		uri = buildURI(resourceDirectoryURI + path + query);
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
