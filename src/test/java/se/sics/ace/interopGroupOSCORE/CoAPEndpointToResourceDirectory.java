@@ -20,24 +20,19 @@ package se.sics.ace.interopGroupOSCORE;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.URISyntaxException;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 
-import se.sics.ace.AceException;
 import se.sics.ace.Constants;
-import se.sics.ace.coap.client.OSCOREProfileRequests;
 
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
@@ -136,7 +131,6 @@ public class CoAPEndpointToResourceDirectory {
 		path = "/.well-known/core";
 		query = "";
 		uri = buildURI(resourceDirectoryURI + path);
-		//getRequestToResourceDirectory(args, uri);
 		getRequestToResourceDirectory(args, path, query);
 		
 		
@@ -146,7 +140,6 @@ public class CoAPEndpointToResourceDirectory {
 		path = "/.well-known/core";
 		query = "?rt=core.rd*";
 		uri = buildURI(resourceDirectoryURI + path + query);
-		//getRequestToResourceDirectory(args, uri);
 		getRequestToResourceDirectory(args, path, query);
 
 		
@@ -199,7 +192,6 @@ public class CoAPEndpointToResourceDirectory {
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		//getRequestToResourceDirectory(args, uri);
 		getRequestToResourceDirectory(args, path, query);
 		
 		
@@ -212,7 +204,6 @@ public class CoAPEndpointToResourceDirectory {
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		//getRequestToResourceDirectory(args, uri);
 		getRequestToResourceDirectory(args, path, query);
 		
 		
@@ -225,7 +216,6 @@ public class CoAPEndpointToResourceDirectory {
 		if (debug) {
 			System.out.println("\nURI: " + resourceDirectoryURI + path + query + "\n");
 		}
-		//getRequestToResourceDirectory(args, uri);
 		getRequestToResourceDirectory(args, path, query);
 		
 
