@@ -1998,6 +1998,12 @@ public class PlugtestRSGroupOSCORE {
         	String subject = null;
         	Request request = exchange.advanced().getCurrentRequest();
             
+        	if (request.getPayloadSize() != 0) {
+        		// This request must not have a payload
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "This request must not have a payload");
+        		return;
+        	}
+        	
             try {
 				subject = CoapReq.getInstance(request).getSenderId();
 			} catch (AceException e) {
