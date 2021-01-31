@@ -1427,20 +1427,21 @@ public class PlugtestClientGroupOSCORE {
         
         if (askForPubKeys) {
         	
-        	CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            CBORObject getPubKeys = CBORObject.NewArray();
             
-            // The following is required to retrieve the public keys of both the already present group members
-            /*
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
+            // The following is required to retrieve the public keys of both the already present group members 
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -1884,21 +1885,22 @@ public class PlugtestClientGroupOSCORE {
         
         if (askForPubKeys) {
         	
-        	CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            CBORObject getPubKeys = CBORObject.NewArray();
             
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
             // The following is required to retrieve the public keys of both the already present group members
-            /*
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
-        	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+            
+            requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
         
@@ -2330,20 +2332,21 @@ public class PlugtestClientGroupOSCORE {
         
         if (askForPubKeys) {
         	
-        	CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            CBORObject getPubKeys = CBORObject.NewArray();
             
-            // The following is required to retrieve the public keys of both the already present group members
-            /*
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
+            // The following is required to retrieve the public keys of both the already present group members 
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }
@@ -2788,20 +2791,21 @@ public class PlugtestClientGroupOSCORE {
         
         if (askForPubKeys) {
         	
-        	CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
+            CBORObject getPubKeys = CBORObject.NewArray();
             
-            // The following is required to retrieve the public keys of both the already present group members
-            /*
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
+            // The following is required to retrieve the public keys of both the already present group members 
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+
         	requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
         	
         }

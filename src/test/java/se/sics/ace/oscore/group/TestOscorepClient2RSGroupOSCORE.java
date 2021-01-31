@@ -503,20 +503,23 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (askForPubKeys) {
            
             CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
             
+            // Start NNN
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
             // The following is required to retrieve the public keys of both the already present group members
-            /*
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+            
             requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+            // End NNN
            
         }
        
@@ -1067,22 +1070,26 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Ask for the public keys of group members that are (also) both requester and responder
         // This will have a neutral effect, by matching only the node with Sender ID = 0x77
+        
+        // Start NNN
+        getPubKeys.Add(CBORObject.True);
+        
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        getPubKeys.get(0).Add(myRoles);
+        getPubKeys.get(1).Add(myRoles);
         
 
         // Ask for the public keys of the other group members
         getPubKeys.Add(CBORObject.NewArray());
         peerSenderId = new byte[] { (byte) 0x52 };
-        getPubKeys.get(1).Add(peerSenderId);
+        getPubKeys.get(2).Add(peerSenderId);
         peerSenderId = new byte[] { (byte) 0x77 };
-        getPubKeys.get(1).Add(peerSenderId);
-        
+        getPubKeys.get(2).Add(peerSenderId);
         
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+        // End NNN
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
         PubKeyReq.getOptions().setOscore(new byte[0]);
@@ -1701,20 +1708,23 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (askForPubKeys) {
            
             CBORObject getPubKeys = CBORObject.NewArray();
-            getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
             
+            // Start NNN
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
             // The following is required to retrieve the public keys of both the already present group members
-            /*
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(0).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);            
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        	getPubKeys.get(0).Add(myRoles);
-        	*/
+        	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+            
             requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+            // End NNN
            
         }
        
@@ -2259,20 +2269,24 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Ask for the public keys of group members that are (also) responder
         // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
+        
+        // Start NNN
+        getPubKeys.Add(CBORObject.True);
+        
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
-        getPubKeys.get(0).Add(myRoles);
+        getPubKeys.get(1).Add(myRoles);
 
         // Ask for the public keys of the other group members
         getPubKeys.Add(CBORObject.NewArray());
         peerSenderId = new byte[] { (byte) 0x52 };
-        getPubKeys.get(1).Add(peerSenderId);
+        getPubKeys.get(2).Add(peerSenderId);
         peerSenderId = new byte[] { (byte) 0x77 };
-        getPubKeys.get(1).Add(peerSenderId);
-        
+        getPubKeys.get(2).Add(peerSenderId);
         
         requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+        // End NNN
         
         PubKeyReq = new Request(Code.FETCH, Type.CON);
         PubKeyReq.getOptions().setOscore(new byte[0]);

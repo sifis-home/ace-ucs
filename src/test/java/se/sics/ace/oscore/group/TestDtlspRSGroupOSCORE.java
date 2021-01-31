@@ -711,39 +711,47 @@ public class TestDtlspRSGroupOSCORE {
         	}
         	
         	// Retrieve 'get_pub_keys'
-        	// If present, this parameter must be a CBOR array
-        	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject(Constants.GET_PUB_KEYS));
+        	// If present, this parameter must be a CBOR array or the CBOR simple value Null
+        	CBORObject getPubKeys = joinRequest.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
         	if (getPubKeys != null) {
         		
         		// Invalid format of 'get_pub_keys'
-        		if (!getPubKeys.getType().equals(CBORType.Array) ||
-        			 getPubKeys.size() != 2 ||
-        			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
-        			!getPubKeys.get(1).getType().equals(CBORType.Array) || 
-        			 getPubKeys.get(1).size() != 0) {
-            		
+        		if (!getPubKeys.getType().equals(CBORType.Array) && !getPubKeys.equals(CBORObject.Null)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
         			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
-            		
         		}
         		
         		// Invalid format of 'get_pub_keys'
-        		if (getPubKeys.size() != 0) {
-        			
-        			for (int i = 0; i < getPubKeys.get(0).size(); i++) {
-        				// Possible elements of the first array have to be all integers and
-        				// express a valid combination of roles encoded in the AIF data model
-        				if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
-        					!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
-        					
-                    		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-                    		return;
-        					
-        				}
-        			}
-        			
+        		if (getPubKeys.getType().equals(CBORType.Array)) {
+	        		if ( getPubKeys.size() != 3 ||
+	        	        !getPubKeys.get(0).getType().equals(CBORType.Boolean) ||
+	        	         getPubKeys.get(0).AsBoolean() != true ||
+	        			!getPubKeys.get(1).getType().equals(CBORType.Array) ||
+	        			!getPubKeys.get(2).getType().equals(CBORType.Array) || 
+	        			 getPubKeys.get(2).size() != 0) {
+	            		
+	            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+	        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	            		return;
+	            		
+	        		}
+        		}
+        		
+        		// Invalid format of 'get_pub_keys'
+        		if (getPubKeys.getType().equals(CBORType.Array)) {
+	    			for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+	    				// Possible elements of the first array have to be all integers and
+	    				// express a valid combination of roles encoded in the AIF data model
+	    				if (!getPubKeys.get(1).get(i).getType().equals(CBORType.Integer) ||
+	    					!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
+	    					
+	                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+	            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	                		return;
+	    					
+	    				}
+	    			}
         		}
         		
         		providePublicKeys = true;
@@ -1068,14 +1076,14 @@ public class TestDtlspRSGroupOSCORE {
         			boolean includePublicKey = false;
         			
         			// Public keys of all group members are requested
-        			if (getPubKeys.get(0).size() == 0) {
+        			if (getPubKeys.equals(CBORObject.Null)) {
         				includePublicKey = true;
         			}
         			// Only public keys of group members with certain roles are requested
         			else {
-        				for (int i = 0; i < getPubKeys.get(0).size(); i++) {
-        					int filterRoles = getPubKeys.get(0).get(i).AsInt32();
-        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
+        				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+        					int filterRoles = getPubKeys.get(1).get(i).AsInt32();
+        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);        					
         					
         					// The owner of this public key does not have all its roles indicated in this AIF integer filter
         					if (filterRoles != (filterRoles & memberRoles)) {
@@ -1353,117 +1361,178 @@ public class TestDtlspRSGroupOSCORE {
     		}
     		
         	// Retrieve 'get_pub_keys'
-        	// This parameter must be a CBOR array
+        	// This parameter must be a CBOR array or the CBOR simple value Null
         	CBORObject getPubKeys = requestCBOR.get(CBORObject.FromObject((Constants.GET_PUB_KEYS)));
-
-    		// 'get_pub_keys' must include exactly two elements, both of which CBOR arrays
-    		if (!getPubKeys.getType().equals(CBORType.Array) ||
-    			 getPubKeys.size() != 2 ||
-    			!getPubKeys.get(0).getType().equals(CBORType.Array) ||
-    			!getPubKeys.get(1).getType().equals(CBORType.Array)) {
-    			valid = false;
-        		
-    		}
-
-    		// Invalid format of 'get_pub_keys'
-    		if (valid) {
-				for (int i = 0; i < getPubKeys.get(0).size(); i++) {
-					// Possible elements of the first array have to be all integers and
-					// express a valid combination of roles encoded in the AIF data model
-					if (!getPubKeys.get(0).get(i).getType().equals(CBORType.Integer) ||
-						!validRoleCombinations.contains(getPubKeys.get(0).get(i).AsInt32())) {
+        	
+    	    // Invalid format of 'get_pub_keys'
+    	    if (!getPubKeys.getType().equals(CBORType.Array) && !getPubKeys.equals(CBORObject.Null)) {
+				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
+	    		return;
+    	    }
+    			    
+    	    if (getPubKeys.getType().equals(CBORType.Array)) {
+    	    
+	    		// 'get_pub_keys' must include exactly two elements, both of which CBOR arrays
+	    		if ( getPubKeys.size() != 3 ||
+	    			!getPubKeys.get(0).getType().equals(CBORType.Boolean) ||
+	    			!getPubKeys.get(1).getType().equals(CBORType.Array) ||
+	    			!getPubKeys.get(2).getType().equals(CBORType.Array)) {
+	    			
+	    			valid = false;
+	        		
+	    		}
+	
+	    		// Invalid format of 'get_pub_keys'
+	    		if (valid && getPubKeys.get(1).size() == 0 && getPubKeys.get(2).size() == 0) {
+	    			valid = false;
+	    		}
+	    		
+	    		// Invalid format of 'get_pub_keys'
+	    		if (getPubKeys.get(0).AsBoolean() == false && getPubKeys.get(2).size() == 0) {
+	    			valid = false;
+	    		}
+	    		
+	    		// Invalid format of 'get_pub_keys'
+	    		if (valid) {
+					for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+						// Possible elements of the first array have to be all integers and
+						// express a valid combination of roles encoded in the AIF data model
+						if (!getPubKeys.get(1).get(i).getType().equals(CBORType.Integer) ||
+							!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
+								valid = false;
+								break;
+								
+						}
+					}
+	    		}
+	    		
+	    		// Invalid format of 'get_pub_keys'
+	    		if (valid) {
+					for (int i = 0; i < getPubKeys.get(2).size(); i++) {
+						// Possible elements of the second array have to be all
+						// byte strings, specifying Sender IDs of other group members
+						if (!getPubKeys.get(2).get(i).getType().equals(CBORType.ByteString)) {
 							valid = false;
 							break;
 							
+						}			
 					}
-				}
-    		}
+	    		}
+				
+	    		// Invalid format of 'get_pub_keys'
+	    		if (!valid) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
+		    		return;
+	    		}
     		
-    		// Invalid format of 'get_pub_keys'
-    		if (valid) {
-				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-					// Possible elements of the second array have to be all
-					// byte strings, specifying Sender IDs of other group members
-					if (!getPubKeys.get(1).get(i).getType().equals(CBORType.ByteString)) {
-						valid = false;
-						break;
-						
-					}			
-				}
-    		}
-			
-    		// Invalid format of 'get_pub_keys'
-    		if (!valid) {
-				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid format of 'get_pub_keys'");
-	    		return;
-    		}
+    	    }
+    		
     		
         	// Respond to the Public Key Request
             
         	CBORObject myResponse = CBORObject.NewMap();
     		CBORObject coseKeySet = CBORObject.NewArray();
     		CBORObject peerRoles = CBORObject.NewArray();
-    		
+    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
     		Set<Integer> requestedRoles = new HashSet<Integer>();
     		Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
     		
-    		// Retrieve and store the combination of roles specified in the request
-    		for (int i = 0; i < getPubKeys.get(0).size(); i++) {
-    			requestedRoles.add((getPubKeys.get(0).get(i).AsInt32()));
-    		}
-    		
-    		// Retrieve and store the Sender IDs specified in the request
-    		for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-    			byte[] myArray = getPubKeys.get(1).get(i).GetByteString();
-    			ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
-    			requestedSenderIDs.add(myBuffer);
-    		}
-    		
-    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
-    		
-    		for (CBORObject publicKey : publicKeys) {
+    		// Provide the public keys of all the group members
+    		if (getPubKeys.equals(CBORObject.Null)) {
     			
-    			// This should never happen; silently ignore
-    			if (publicKey == null)
-    				continue;
-    			
-    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-    			// This should never happen; silently ignore
-    			if (memberSenderId == null)
-    				continue;
-
-    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
-    			
-    			boolean include = false;
-    			
-    			if((requestedRoles.size() == 0) && (requestedSenderIDs.size() == 0)) {
-    				include = true;
-    			}
-    			
-    			if(!include) {
+    			for (CBORObject publicKey : publicKeys) {
     				
-    				for (Integer filter : requestedRoles) {
-    					int filterRoles = filter.intValue();
-    					
-    					if (filterRoles == (filterRoles & memberRoles)) {
-    						include = true;
-    						break;
-    					}	
-    				}
-    				
-    			}
-    			
-    			if(!include && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
-    				include = true;
-    			}
-    			
-    			if (include) {
-    				
+	    			// This should never happen; silently ignore
+	    			if (publicKey == null)
+	    				continue;
+	    			
+	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+	    			// This should never happen; silently ignore
+	    			if (memberSenderId == null)
+	    				continue;
+	
+	    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
+	    			
 	    			coseKeySet.Add(publicKey);
 	    			peerRoles.Add(memberRoles);
 	    			
     			}
     			
+    		}
+    		// Provide the public keys based on the specified filtering
+    		else {
+    		
+	    		// Retrieve the inclusion flag
+				boolean inclusionFlag = getPubKeys.get(0).getType().equals(CBORType.Boolean);
+	    		
+	    		// Retrieve and store the combination of roles specified in the request
+	    		for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+	    			requestedRoles.add((getPubKeys.get(1).get(i).AsInt32()));
+	    		}
+	    		
+	    		// Retrieve and store the Sender IDs specified in the request
+	    		for (int i = 0; i < getPubKeys.get(2).size(); i++) {
+	    			byte[] myArray = getPubKeys.get(2).get(i).GetByteString();
+	    			ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
+	    			requestedSenderIDs.add(myBuffer);
+	    		}
+    		
+	    		for (CBORObject publicKey : publicKeys) {
+	    			
+	    			// This should never happen; silently ignore
+	    			if (publicKey == null)
+	    				continue;
+	    			
+	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+	    			// This should never happen; silently ignore
+	    			if (memberSenderId == null)
+	    				continue;
+	
+	    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
+	    			
+	    			boolean include = false;
+	    			
+					for (Integer filter : requestedRoles) {
+						int filterRoles = filter.intValue();
+						
+						// The role(s) of the key owner match with the role filter
+						if (filterRoles == (filterRoles & memberRoles)) {
+							
+							// This public key has to be included anyway,
+							// regardless the Sender ID of the key owner
+							if (inclusionFlag) {
+								include = true;
+							}
+							// This public key has to be included only if the Sender ID
+							// of the key owner is not in the node identifier filter
+							else if (!requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+								include = true;
+							}
+							// Stop going through the role filter anyway;
+							// this public key has not to be included
+							break;
+						}	
+					}
+	    			
+	    			if(!include) {
+	    				// This public has to be included if the Sender ID of the key owner is in the node identifier filter
+	    				if (inclusionFlag && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+	    					include = true;
+	    				}
+	    				// This public has to be included if the Sender ID of the key owner is not in the node identifier filter
+	    				else if (!inclusionFlag && !requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+	    					include = true;
+	    				}
+	    			}
+	    			
+	    			if (include) {
+	    				
+		    			coseKeySet.Add(publicKey);
+		    			peerRoles.Add(memberRoles);
+		    			
+	    			}
+	    			
+	    		}
     		}
     		
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
