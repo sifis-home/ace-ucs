@@ -74,10 +74,8 @@ public class CoAPEndpointToResourceDirectory {
 	        "</ace-group/feedca570000>;ct=65000;rt=\"core.osc.gm\";if=\"ace.group\";" + 
 				"sec-gp=\"" + securityGroupName + "\";app-gp=\"" + applicationGroupName + "\";" + 
 				"cs_alg=\"-8\";cs_alg_crv=\"6\";" + 
-				"cs_key_kty=\"1\";cs_key_crv=\"6\";" + 
 				"cs_kenc=\"1\";ecdh_alg=\"-27\";" + 
-				"ecdh_alg_crv=\"4\";ecdh_key_kty=\"1\";" + 
-				"ecdh_key_crv=\"4\"," +
+				"ecdh_alg_crv=\"4\"," +
 			"<coap://as.example.com/token>;rel=\"authorization-server\";" +
 				"anchor=\"coap://" + gmAddress + ":" + gmPort + "/ace-group/" + securityGroupName + "\"" +
 			/* End of Link-Format payload */
