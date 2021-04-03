@@ -187,8 +187,9 @@ public class TestAuthzInfoGroupOSCORE {
 
         // Group OSCORE specific values for the countersignature
         AlgorithmID csAlg = null;
-        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
-        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
+        CBORObject algCapabilities = CBORObject.NewArray();
+        CBORObject keyCapabilities = CBORObject.NewArray();
+        CBORObject csParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -199,20 +200,21 @@ public class TestAuthzInfoGroupOSCORE {
         // ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+        	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
         }
         
         // EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
         }
 
-        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
-        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
+    	csParams.Add(algCapabilities);
+    	csParams.Add(keyCapabilities);     
         final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
@@ -236,7 +238,6 @@ public class TestAuthzInfoGroupOSCORE {
     			                          hkdf,
     			                          csAlg,
     			                          csParams,
-    			                          csKeyParams,
     			                          csKeyEnc,
     			                          null);
         

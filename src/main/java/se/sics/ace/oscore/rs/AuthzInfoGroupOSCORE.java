@@ -302,13 +302,13 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 					
 					signInfoEntry.Add(myGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
 			    	
-			    	CBORObject arrayElem = myGroup.getCsParams(); // 'sign_parameters' element
+					CBORObject arrayElem = myGroup.getCsParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
 			    	if (arrayElem == null)
 			    		signInfoEntry.Add(CBORObject.Null);
 			    	else
 			    		signInfoEntry.Add(arrayElem);
 			    	
-			    	arrayElem = myGroup.getCsKeyParams(); // 'sign_key_parameters' element
+			    	arrayElem = myGroup.getCsParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
 			    	if (arrayElem == null)
 			    		signInfoEntry.Add(CBORObject.Null);
 			    	else

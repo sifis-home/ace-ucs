@@ -108,7 +108,6 @@ public class GroupInfo {
 	private AlgorithmID hkdf = null;
 	private AlgorithmID csAlg = null;
 	private CBORObject csParams = null;
-	private CBORObject csKeyParams = null;
 	private CBORObject csKeyEnc = null;
 	private CBORObject groupPolicies = null;
 	
@@ -130,7 +129,6 @@ public class GroupInfo {
 	 * @param hkdf                the HKDF used in the OSCORE group.
 	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
 	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
 	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
 	 * @param groupPolicies		  the map of group policies used in the OSCORE group, or Null for building one with default values
 	 */
@@ -148,7 +146,6 @@ public class GroupInfo {
     		         final AlgorithmID hkdf,
     		         final AlgorithmID csAlg,
     		         final CBORObject csParams,
-    		         final CBORObject csKeyParams,
     		         final CBORObject csKeyEnc,
     		         final CBORObject groupPolicies) {
     	
@@ -171,7 +168,6 @@ public class GroupInfo {
     	setHkdf(hkdf);
     	setCsAlg(csAlg);
     	setCsParams(csParams);
-    	setCsKeyParams(csKeyParams);
     	setCsKeyEnc(csKeyEnc);
     	
     	if (senderIdSize < 1)
@@ -514,32 +510,6 @@ public class GroupInfo {
     	
     	this.csParams = csParams;
     	
-    	return true;
-    	
-    }
-    
-    /**
-     * @return parameters of the key of the countersignature key 
-     *      used in the group
-     */
-    synchronized public final CBORObject getCsKeyParams() {
-    	
-    	return this.csKeyParams;
-    	
-    }
-    
-    /**
-     *  Set the parameters of the key of the countersignature key used
-     *   in the group
-     * @param csKeyParams  the parameters
-     * @return  true if the parameters were successfully set, false otherwise
-     */
-    synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
-    
-    	if (csKeyParams.getType() != CBORType.Array)
-    		return false;
-    	
-    	this.csKeyParams = csKeyParams;
     	return true;
     	
     }

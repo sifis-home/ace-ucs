@@ -59,16 +59,10 @@ package se.sics.ace.oscore;
 		public static final short cs_params = 9; // Major type 5 (map)
 		
 		/**
-		 *  'cs_key_params' - Group OSCORE Countersignature algorithm Key Parameter Value
-		 */
-		// Assume that "cs_key_params" is registered with label 11 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_key_params = 10; // Major type 5 (map)
-		
-		/**
 		 *  'cs_key_enc' - Group OSCORE Countersignature Key Encoding Value
 		 */
 		// Assume that "cs_key_enc" is registered with label 12 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short cs_key_enc = 11; // Major type 0 (unsigned integer) or 1 (negative integer)
+		public static final short cs_key_enc = 10; // Major type 0 (unsigned integer) or 1 (negative integer)
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)

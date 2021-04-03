@@ -455,8 +455,6 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
         	if (targetedGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
-        	if (targetedGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
         	
         	myResponse.Add(Constants.KEY, myMap);
@@ -555,12 +553,12 @@ public class TestDtlspRSGroupOSCORE {
 			CBORObject errorResponseMap = CBORObject.NewMap();
 			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
 			signInfoEntry.Add(targetedGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
-	    	CBORObject arrayElem = targetedGroup.getCsParams(); // 'sign_parameters' element
+			CBORObject arrayElem = targetedGroup.getCsParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
 	    	if (arrayElem == null)
 	    		signInfoEntry.Add(CBORObject.Null);
 	    	else
 	    		signInfoEntry.Add(arrayElem);
-	    	arrayElem = targetedGroup.getCsKeyParams(); // 'sign_key_parameters' element
+	    	arrayElem = targetedGroup.getCsParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
 	    	if (arrayElem == null)
 	    		signInfoEntry.Add(CBORObject.Null);
 	    	else
@@ -832,9 +830,7 @@ public class TestDtlspRSGroupOSCORE {
         			// Invalid public key format
         			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
                    		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
-                   		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
-                   		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(0)) || // key capability: key type
-                		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(1))) // key capability: key curve
+                   		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsParams().get(1).get(1))) // key capability: curve
         			{ 
 
                 			myGroup.deallocateSenderId(senderId);
@@ -852,9 +848,7 @@ public class TestDtlspRSGroupOSCORE {
         			// Invalid public key format
         			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
                			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
-               			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(1).get(1)) || // key capability: curve
-               			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(0)) || // key capability: key type
-            			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(1))) // key capability: key curve
+               			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(1).get(1))) // key capability: curve
         			{
 
                 			myGroup.deallocateSenderId(senderId);
@@ -1030,8 +1024,6 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
         	if (myGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, myGroup.getCsParams());
-        	if (myGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, myGroup.getCsKeyParams());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
         	        	
         	joinResponse.Add(Constants.KEY, myMap);
@@ -1915,8 +1907,6 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
         	if (targetedGroup.getCsParams().size() != 0)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
-        	if (targetedGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params, targetedGroup.getCsKeyParams());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
         	
         	myResponse.Add(Constants.KEY, myMap);
@@ -2258,9 +2248,7 @@ public class TestDtlspRSGroupOSCORE {
 				// Invalid public key format
 				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
 				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsParams().get(1).get(1)) || // key capability: curve
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsKeyParams().get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsKeyParams().get(1))) // key capability: key curve
+				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsParams().get(1).get(1))) // key capability: curve
 				{ 
 				        
 				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
@@ -2275,9 +2263,7 @@ public class TestDtlspRSGroupOSCORE {
 				// Invalid public key format
 				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
 				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsParams().get(1).get(1)) || // key capability: curve
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsKeyParams().get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsKeyParams().get(1))) // key capability: key curve
+				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsParams().get(1).get(1))) // key capability: curve
 				{
 				            
 				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
@@ -2519,7 +2505,6 @@ public class TestDtlspRSGroupOSCORE {
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
         CBORObject csParams = CBORObject.NewArray();
-        CBORObject csKeyParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P-256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -2545,7 +2530,6 @@ public class TestDtlspRSGroupOSCORE {
 
     	csParams.Add(algCapabilities);
     	csParams.Add(keyCapabilities);
-    	csKeyParams = keyCapabilities;   
         final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
@@ -2569,7 +2553,6 @@ public class TestDtlspRSGroupOSCORE {
     			                          hkdf,
     			                          csAlg,
     			                          csParams,
-    			                          csKeyParams,
     			                          csKeyEnc,
     			                          null);
         

@@ -80,7 +80,6 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
-import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
@@ -358,9 +357,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -371,9 +369,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -435,7 +432,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 		CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
 			
 		// ECDSA_256
@@ -456,7 +452,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
         
     	final byte[] senderId = new byte[] { (byte) 0x25 };
         CBORObject coseKeySetArray = null;
@@ -586,11 +581,6 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
         	Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -631,11 +621,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
@@ -759,17 +744,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -801,11 +778,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
@@ -1169,17 +1141,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -1221,11 +1185,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
                 
         
@@ -1516,9 +1475,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -1529,9 +1487,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -1594,7 +1551,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 			
 		// ECDSA_256
 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -1614,7 +1570,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
         
 
         /////////////////
@@ -1733,17 +1688,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
         
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
         
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -1785,11 +1732,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (askForPubKeys) {
@@ -1908,17 +1850,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -1950,11 +1884,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         /////////////////
@@ -2334,17 +2263,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -2386,11 +2307,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         
@@ -2795,9 +2711,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -2808,9 +2723,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -2872,7 +2786,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 		CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
 			
 		// ECDSA_256
@@ -2893,7 +2806,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
         
                 
         /////////////////
@@ -3011,17 +2923,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
         
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -3064,12 +2968,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
+               
         if (askForPubKeys) {
         	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
@@ -3185,16 +3084,8 @@ public class TestDtlspClientGroupOSCORE {
 		Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
 		Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 		
-		// ECDSA_256
-		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
 		    Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-		    Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-		}
-		
-		// EDDSA (Ed25519)
-		if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-		   Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-		   Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
 		}
 		
 		// Check the presence, type and value of the signature key encoding
@@ -3228,12 +3119,7 @@ public class TestDtlspClientGroupOSCORE {
 		    Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
 		    Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
 		}
-		
-		if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-		    Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-		    Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-		}
-		
+
 		if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
 			Assert.assertEquals(csKeyEnc, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
 		}
@@ -3593,17 +3479,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -3645,11 +3523,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         
@@ -3941,9 +3814,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -3954,9 +3826,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -4018,7 +3889,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 			
 		// ECDSA_256
 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -4038,7 +3908,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
                 
         
         /////////////////
@@ -4157,17 +4026,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
         
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
         
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -4209,11 +4070,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (askForPubKeys) {
@@ -4332,17 +4188,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -4374,11 +4222,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         /////////////////
@@ -4759,17 +4602,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -4812,12 +4647,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
+
         
         /////////////////
         //
@@ -5351,9 +5181,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -5364,9 +5193,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -5432,7 +5260,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 		CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
 			
 		// ECDSA_256
@@ -5453,7 +5280,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
         		
 
         /////////////////
@@ -5571,17 +5397,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
         
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
         
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -5624,12 +5442,7 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
+
         if (askForPubKeys) {
         	Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         	Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
@@ -5745,17 +5558,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -5787,11 +5592,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc))) {
@@ -6156,17 +5956,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -6210,11 +6002,6 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
-        
         
         /////////////////
         //
@@ -6506,9 +6293,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         // EDDSA (Ed25519)
@@ -6519,9 +6305,8 @@ public class TestDtlspClientGroupOSCORE {
         	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
             csParamsExpected = CBORObject.NewArray();
             csKeyParamsExpected = CBORObject.NewArray();
-            csParamsExpected.Add(algCapabilitiesExpected);
-            csParamsExpected.Add(keyCapabilitiesExpected);
-            csKeyParamsExpected = keyCapabilitiesExpected;
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
         }
         
         final CBORObject csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -6588,7 +6373,6 @@ public class TestDtlspClientGroupOSCORE {
 		CBORObject algCapabilities = CBORObject.NewArray();
 		CBORObject keyCapabilities = CBORObject.NewArray();
 		CBORObject csParams = CBORObject.NewArray();
-		CBORObject csKeyParams = CBORObject.NewArray();
 			
 		// ECDSA_256
 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -6608,7 +6392,6 @@ public class TestDtlspClientGroupOSCORE {
 			
 		csParams.Add(algCapabilities);
 		csParams.Add(keyCapabilities);
-		csKeyParams = keyCapabilities;
         
 		
         /////////////////
@@ -6727,17 +6510,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
         
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
         
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -6784,11 +6559,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         if (askForPubKeys) {
@@ -6907,17 +6677,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -6951,10 +6713,6 @@ public class TestDtlspClientGroupOSCORE {
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
         }
        
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-        }
         
         /////////////////
         //
@@ -7333,17 +7091,9 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
 
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
-       
-       // EDDSA (Ed25519)
-       if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-           Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
-       }
        
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
@@ -7385,11 +7135,6 @@ public class TestDtlspClientGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
-        }
-       
-        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params))) {
-            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)).getType());
-            Assert.assertEquals(CBORObject.FromObject(csKeyParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_params)));
         }
         
         
