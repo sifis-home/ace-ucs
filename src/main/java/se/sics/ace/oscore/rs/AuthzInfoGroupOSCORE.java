@@ -102,6 +102,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
+	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
@@ -111,11 +112,11 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 */
 	public AuthzInfoGroupOSCORE(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile, 
-			ScopeValidator scopeValidator, boolean checkCnonce) 
+			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey,
+			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
 		
-		super(issuers, time, intro, audience, ctx, null, tokenFile, 
+		super(issuers, time, intro, audience, ctx, keyDerivationKey, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;

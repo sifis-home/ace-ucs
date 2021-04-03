@@ -220,7 +220,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         new File(tokenFile).delete();
         
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx,
+                new KissTime(), null, valid, ctx, null,
                 tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
