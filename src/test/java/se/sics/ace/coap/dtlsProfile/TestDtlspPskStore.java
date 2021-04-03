@@ -264,7 +264,7 @@ public class TestDtlspPskStore {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(claims, ctx, null);
+        TokenRepository.getInstance().addToken(claims, ctx, null, null);
         
     	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
         CBORObject identityStructure = CBORObject.NewMap();

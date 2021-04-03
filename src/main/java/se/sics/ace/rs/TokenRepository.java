@@ -168,6 +168,11 @@ public class TokenRepository implements AutoCloseable {
 	 * The time provider providing local time for this RS
 	 */
 	private TimeProvider time;
+
+	/**
+	 * The key derivation key to use with the AS
+	 */
+	private byte[] keyDerivationKey;
 	
 	/**
 	 * The singleton instance
@@ -197,18 +202,18 @@ public class TokenRepository implements AutoCloseable {
 	 * @param scopeValidator  the validator for scopes
 	 * @param tokenFile  the file where to save tokens
 	 * @param ctx  the crypto context
+	 * @param keyDerivationKey  the key derivation key, it can be null
 	 * @param time  the time provider for this RS
 	 * @throws AceException
 	 * @throws IOException
 	 */
 	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx, TimeProvider time)
+            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, TimeProvider time)
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
-	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, 
-	            time);
+	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, time);
 	}
 	
 	/**
@@ -223,12 +228,13 @@ public class TokenRepository implements AutoCloseable {
 	 * @param tokenFile  the file storing the existing tokens, if the file
 	 *     does not exist it is created
 	 * @param ctx  the crypto context for reading encrypted tokens
+	 * @param keyDerivationKey  the key derivation key to use to derive PoP keys, it can be null
      *
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
 	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx, TimeProvider time) 
+	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, TimeProvider time) 
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -239,6 +245,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.sid2rsnonce = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
+	    this.keyDerivationKey = keyDerivationKey; 
 
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -274,7 +281,7 @@ public class TokenRepository implements AutoCloseable {
                                     Base64.getDecoder().decode(
                                             token.getString((key)))));
                 }
-                this.addToken(params, ctx, null);
+                this.addToken(params, ctx, keyDerivationKey, null);
             }
         }
 	}
@@ -293,7 +300,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws AceException 
 	 */
 	public synchronized CBORObject addToken(Map<Short, CBORObject> claims, 
-	        CwtCryptoCtx ctx, String sid) throws AceException {
+	        CwtCryptoCtx ctx, byte[] keyDerivationKey, String sid) throws AceException {
 	    
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
@@ -333,6 +340,12 @@ public class TokenRepository implements AutoCloseable {
         if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {
+            
+              // The PoP key has to be derived using the key derivation key shared with the AS
+              if (!ckey.getKeys().contains(KeyKeys.Octet_K)) {
+            	  // TBD
+              }
+            	
               OneKey key = new OneKey(ckey);
               processKey(key, sid, cti);
             } catch (CoseException e) {

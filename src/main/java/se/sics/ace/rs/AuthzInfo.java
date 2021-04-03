@@ -144,7 +144,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
-            TokenRepository.create(scopeValidator, tokenFile, ctx, time);
+            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, time);
         }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -496,7 +496,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    String sid = msg.getSenderId();
 	    try {
             cti = TokenRepository.getInstance()
-                    .addToken(claims, this.ctx, sid);
+                    .addToken(claims, this.ctx, this.keyDerivationKey, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();
