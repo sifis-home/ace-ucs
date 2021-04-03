@@ -369,18 +369,16 @@ public class TokenRepository implements AutoCloseable {
                   byte[] salt = new byte[Hkdf.getHashLen()];
                   Arrays.fill(salt, (byte) 0);
             	  
-            	  int keySize = 16;
-            	  
             	  // The 'info' structure
             	  byte[] derivedKey = null;
             	  CBORObject info = CBORObject.NewArray();
             	  info.Add("ACE-CoAP-DTLS-key-derivation");
-            	  info.Add(keySize);
+            	  info.Add(derivedKeySize);
             	  info.Add(token.EncodeToBytes()); // The content of the "access_token" field, as transferred
             	                                   // from the authorization server to the resource server.
 
             	  try {
-					derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), keySize);
+					derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), derivedKeySize);
 				  } catch (InvalidKeyException e) {
 		              LOGGER.severe("Error while deriving a symmetric PoP key: " 
 		                      + e.getMessage());
