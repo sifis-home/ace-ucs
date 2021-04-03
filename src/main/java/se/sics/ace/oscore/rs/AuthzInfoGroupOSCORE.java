@@ -115,7 +115,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
 		
-		super(issuers, time, intro, audience, ctx, tokenFile, 
+		super(issuers, time, intro, audience, ctx, null, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;

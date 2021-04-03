@@ -130,7 +130,7 @@ public class TestAuthzInfoAif {
         KissValidator valid = new KissValidator(Collections.singleton("rs1"), null);
         String tokenFile = TestConfig.testFilePath + "tokens.json";   
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, tokenFile, aif, false);
+                new KissTime(), null, valid, ctx, null, tokenFile, aif, false);
     }
     
     /**

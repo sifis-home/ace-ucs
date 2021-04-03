@@ -171,6 +171,9 @@ public class DtlspRSTestServer {
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
+        byte[] keyDerivationKey 
+            = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        
         OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
                 Base64.getDecoder().decode(rpk)));
         
@@ -186,7 +189,7 @@ public class DtlspRSTestServer {
         
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx,
+                new KissTime(), null, valid, ctx, keyDerivationKey,
                 tokenFile, valid, false);
       
       //Add a test token to authz-info

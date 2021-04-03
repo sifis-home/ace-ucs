@@ -102,7 +102,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		super(issuers, time, intro, audience, ctx, tokenFile, 
+		super(issuers, time, intro, audience, ctx, null, tokenFile, 
 		        scopeValidator, checkCnonce);
 	}
 

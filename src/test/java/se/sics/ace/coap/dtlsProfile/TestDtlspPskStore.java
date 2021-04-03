@@ -114,7 +114,7 @@ public class TestDtlspPskStore {
         new File(tokenFile).delete(); 
         
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
-                null, valid, ctx, tokenFile, valid, false);
+                null, valid, ctx, null, tokenFile, valid, false);
         store = new DtlspPskStore(ai);
     }
     

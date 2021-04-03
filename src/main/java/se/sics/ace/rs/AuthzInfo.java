@@ -105,7 +105,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	/**
 	 * The crypto context to use with the AS
 	 */
-	private CwtCryptoCtx ctx;	
+	private CwtCryptoCtx ctx;
+	
+	/**
+	 * The key derivation key to use with the AS
+	 */
+	private byte[] keyDerivationKey;	
 	
 	/**
 	 * Flag to indicate if we need to check cnonces
@@ -126,6 +131,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param intro  the introspection handler (can be null)
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
+	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
@@ -134,8 +140,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 */
 	public AuthzInfo(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
-			ScopeValidator scopeValidator, boolean checkCnonce) 
+			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey,
+			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
             TokenRepository.create(scopeValidator, tokenFile, ctx, time);
@@ -146,6 +152,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.intro = intro;
 		this.audience = audience;
 		this.ctx = ctx;
+		this.keyDerivationKey = keyDerivationKey;
 		this.checkCnonce = checkCnonce;
 		
     	for (int i = 0; i < 4; i++) {

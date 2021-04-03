@@ -135,7 +135,7 @@ public class TestDtlspAuthzInfo {
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, tokenFile, valid,
+                new KissTime(), null, valid, ctx, null, tokenFile, valid,
                 false);
         
         //Set up the DTLS authz-info resource
