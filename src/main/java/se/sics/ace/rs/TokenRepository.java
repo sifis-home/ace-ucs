@@ -36,7 +36,10 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -47,6 +50,7 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.util.Bytes;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -61,6 +65,7 @@ import COSE.OneKey;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Hkdf;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -175,6 +180,11 @@ public class TokenRepository implements AutoCloseable {
 	private byte[] keyDerivationKey;
 	
 	/**
+	 * The size in bytes for symmetric keys derived with the key derivation key
+	 */
+	private int derivedKeySize;
+	
+	/**
 	 * The singleton instance
 	 */
 	private static TokenRepository singleton = null;
@@ -203,17 +213,18 @@ public class TokenRepository implements AutoCloseable {
 	 * @param tokenFile  the file where to save tokens
 	 * @param ctx  the crypto context
 	 * @param keyDerivationKey  the key derivation key, it can be null
+	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param time  the time provider for this RS
 	 * @throws AceException
 	 * @throws IOException
 	 */
 	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, TimeProvider time)
+            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time)
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
-	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, time);
+	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time);
 	}
 	
 	/**
@@ -234,7 +245,7 @@ public class TokenRepository implements AutoCloseable {
 	 * @throws AceException 
 	 */
 	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, TimeProvider time) 
+	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time) 
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -245,7 +256,8 @@ public class TokenRepository implements AutoCloseable {
 	    this.sid2rsnonce = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
-	    this.keyDerivationKey = keyDerivationKey; 
+	    this.keyDerivationKey = keyDerivationKey;
+	    this.derivedKeySize = derivedKeySize;
 
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -281,7 +293,7 @@ public class TokenRepository implements AutoCloseable {
                                     Base64.getDecoder().decode(
                                             token.getString((key)))));
                 }
-                this.addToken(params, ctx, keyDerivationKey, null);
+                this.addToken(null, params, ctx, null);
             }
         }
 	}
@@ -299,8 +311,8 @@ public class TokenRepository implements AutoCloseable {
 	 * 
 	 * @throws AceException 
 	 */
-	public synchronized CBORObject addToken(Map<Short, CBORObject> claims, 
-	        CwtCryptoCtx ctx, byte[] keyDerivationKey, String sid) throws AceException {
+	public synchronized CBORObject addToken(CBORObject token, Map<Short, CBORObject> claims, 
+	        CwtCryptoCtx ctx, String sid) throws AceException {
 	    
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
@@ -339,11 +351,49 @@ public class TokenRepository implements AutoCloseable {
         
         if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
-            try {
-            
-              // The PoP key has to be derived using the key derivation key shared with the AS
-              if (!ckey.getKeys().contains(KeyKeys.Octet_K)) {
-            	  // TBD
+            try {            	
+              
+              // The PoP key is symmetric but only its 'kid' is specified (e.g., as in the DTLS profile)
+              // The actual PoP key has to be derived using the key derivation key shared with the AS
+              if (ckey.getKeys().contains(KeyKeys.KeyType.AsCBOR()) &&
+            	  ckey.get(KeyKeys.KeyType.AsCBOR()).equals(KeyKeys.KeyType_Octet) &&
+                  ckey.getKeys().contains(KeyKeys.Octet_K.AsCBOR()) == false) {
+            	  
+            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
+                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
+                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
+            	  }
+            	  
+                  // The salt as empty byte string has to be an array of bytes with all its
+                  // elements set to 0x00 and with the same size of the hash output in bytes
+                  byte[] salt = new byte[Hkdf.getHashLen()];
+                  Arrays.fill(salt, (byte) 0);
+            	  
+            	  int keySize = 16;
+            	  
+            	  // The 'info' structure
+            	  byte[] derivedKey = null;
+            	  CBORObject info = CBORObject.NewArray();
+            	  info.Add("ACE-CoAP-DTLS-key-derivation");
+            	  info.Add(keySize);
+            	  info.Add(token.EncodeToBytes()); // The content of the "access_token" field, as transferred
+            	                                   // from the authorization server to the resource server.
+
+            	  try {
+					derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), keySize);
+				  } catch (InvalidKeyException e) {
+		              LOGGER.severe("Error while deriving a symmetric PoP key: " 
+		                      + e.getMessage());
+		              throw new AceException("Error while deriving a symmetric PoP key: " 
+		                      + e.getMessage());
+				  } catch (NoSuchAlgorithmException e) {
+		              LOGGER.severe("Error while deriving a symmetric PoP key: " 
+		                      + e.getMessage());
+		              throw new AceException("Error while deriving a symmetric PoP key: " 
+		                      + e.getMessage());
+				  }
+            	  ckey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(derivedKey));
+
               }
             	
               OneKey key = new OneKey(ckey);

@@ -169,7 +169,7 @@ public class TestTokenRepository {
     private static void createTR(KissValidator valid) throws IOException {
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, null, new KissTime());
+                    + "tokens.json", null, null, 0, new KissTime());
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -177,7 +177,7 @@ public class TestTokenRepository {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, null, new KissTime());
+                        + "tokens.json", null, null, 0, new KissTime());
             } catch (AceException e2) {
                throw new RuntimeException(e2);
             }
@@ -211,7 +211,7 @@ public class TestTokenRepository {
         params.put(Constants.CNF, pskCnf);
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Token has no scope");
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -226,7 +226,7 @@ public class TestTokenRepository {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         params.remove(Constants.CTI); //Gets added by tr.addToken()
         CBORObject cticb = CBORObject.FromObject(
                 buffer.putInt(0, params.hashCode()).array());
@@ -249,7 +249,7 @@ public class TestTokenRepository {
         params.put(Constants.CTI, CBORObject.FromObject("token1"));
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Cti has invalid format");
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -268,7 +268,7 @@ public class TestTokenRepository {
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -277,7 +277,7 @@ public class TestTokenRepository {
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -295,7 +295,7 @@ public class TestTokenRepository {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -317,7 +317,7 @@ public class TestTokenRepository {
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
                 "blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -341,7 +341,7 @@ public class TestTokenRepository {
         cnf.Add("blubb", CBORObject.FromObject(
                 "blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     /**
@@ -372,7 +372,7 @@ public class TestTokenRepository {
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     
@@ -395,7 +395,7 @@ public class TestTokenRepository {
         cnf.Add("blubb", CBORObject.FromObject(
                 "blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     
@@ -417,7 +417,7 @@ public class TestTokenRepository {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah"));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
     }
     
     
@@ -439,7 +439,7 @@ public class TestTokenRepository {
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -448,7 +448,7 @@ public class TestTokenRepository {
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         Assert.assertEquals(TokenRepository.OK, 
@@ -479,7 +479,7 @@ public class TestTokenRepository {
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -491,7 +491,7 @@ public class TestTokenRepository {
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
                 "ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         
         Assert.assertEquals(TokenRepository.OK, 
@@ -533,7 +533,7 @@ public class TestTokenRepository {
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
 
         Assert.assertEquals(TokenRepository.FORBID,
                 tr.canAccess(ourKey, null, "co2", Constants.GET, null));
@@ -564,7 +564,7 @@ public class TestTokenRepository {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()-1000));
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -577,7 +577,7 @@ public class TestTokenRepository {
                 "ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000));
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");
@@ -618,7 +618,7 @@ public class TestTokenRepository {
                 myScopes);
         
         TokenRepository tr2 = new TokenRepository(valid,
-                TestConfig.testFilePath + "testTokens.json" , ctx, null, new KissTime());
+                TestConfig.testFilePath + "testTokens.json" , ctx, null, 0, new KissTime());
         
         //Assert.assertEquals(TokenRepository.OK,
         //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
@@ -652,7 +652,7 @@ public class TestTokenRepository {
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -661,7 +661,7 @@ public class TestTokenRepository {
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null, null);
+        tr.addToken(null, params, ctx, null);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");

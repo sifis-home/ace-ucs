@@ -34,6 +34,9 @@ package se.sics.ace.coap.dtlsProfile;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,6 +47,7 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -61,6 +65,7 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Hkdf;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
@@ -425,6 +430,90 @@ public class TestDtlspClient2RS {
         Assert.assertEquals("CONTENT", r2.getCode().name());
         Assert.assertEquals("Hello World!", r2.getResponseText());  
     }    
+
+    
+    /** 
+     * Test post to authz-info with PSK to be derived then request
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
+     */
+    @Test
+    public void testPostToBeDerivedPSK() throws CoseException, IllegalStateException, 
+            InvalidCipherTextException, AceException, ConnectorException, 
+            IOException {
+    	
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourPSK";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+               
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenToBeDerivedPSK".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+        
+        // The salt as empty byte string has to be an array of bytes with all its
+        // elements set to 0x00 and with the same size of the hash output in bytes
+        byte[] salt = new byte[Hkdf.getHashLen()];
+        Arrays.fill(salt, (byte) 0);
+        
+        // The key derivation key as IKM
+        byte[] keyDerivationKey = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        
+        int keySize = 16;
+        
+        // The 'info' structure
+        byte[] derivedKey = null;
+  	    CBORObject info = CBORObject.NewArray();
+	    info.Add("ACE-CoAP-DTLS-key-derivation");
+	    info.Add(keySize);
+	    info.Add(payload.EncodeToBytes()); // The content of the "access_token" field, as transferred
+	                                       // from the authorization server to the resource server.
+
+   	    try {
+		  	derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), keySize);
+		} catch (InvalidKeyException e) {
+			System.err.println("Error while deriving a symmetric PoP key: " 
+                    + e.getMessage());
+            throw new AceException("Error while deriving a symmetric PoP key: " 
+                    + e.getMessage());
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Error while deriving a symmetric PoP key: " 
+                    + e.getMessage());
+            throw new AceException("Error while deriving a symmetric PoP key: " 
+                    + e.getMessage());
+		}
+	    
+	    key.add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(derivedKey));
+	    
+        CoapClient c = DTLSProfileRequests.getPskClient(
+                new InetSocketAddress("localhost", 
+                        CoAP.DEFAULT_COAP_SECURE_PORT), 
+                kidStr.getBytes(Constants.charset),
+                key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r2 = c.get();
+        Assert.assertEquals("CONTENT", r2.getCode().name());
+        Assert.assertEquals("Hello World!", r2.getResponseText());  
+    }   
+    
     
     /**
      * Test with a erroneous psk-identity

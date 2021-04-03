@@ -11,6 +11,8 @@ import net.i2p.crypto.eddsa.Utils;
 
 public class Hkdf {
 
+	private static final int hashLen = 32;
+	
 	/**
 	 * HMAC-based Extract-and-Expand Key Derivation Function.
 	 * https://tools.ietf.org/html/rfc5869
@@ -24,7 +26,7 @@ public class Hkdf {
 	 * @throws InvalidKeyException if the HMAC procedure fails
 	 * @throws NoSuchAlgorithmException if an unknown HMAC is used
 	 */
-	static byte[] extractExpand(byte[] salt, byte[] ikm, byte[] info, int len)
+	public static byte[] extractExpand(byte[] salt, byte[] ikm, byte[] info, int len)
 			throws InvalidKeyException, NoSuchAlgorithmException {
 
 		final String digest = "SHA256"; // Hash to use
@@ -54,6 +56,14 @@ public class Hkdf {
 		}
 		System.arraycopy(T, 0, okm, 0, len);
 		return okm;
+	}
+	
+	/**
+	 * Returns the length of the hash output, in bytes
+	 * @return   the length of the hash output
+	 */
+	public static int getHashLen() {
+		return hashLen;
 	}
 	
 	// https://tools.ietf.org/html/rfc5869#appendix-A.1

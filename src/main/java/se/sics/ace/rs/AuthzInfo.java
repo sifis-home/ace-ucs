@@ -132,6 +132,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
+	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
@@ -140,11 +141,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 */
 	public AuthzInfo(List<String> issuers, 
 			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey,
+			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
-            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, time);
+            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time);
         }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -495,8 +496,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {
-            cti = TokenRepository.getInstance()
-                    .addToken(claims, this.ctx, this.keyDerivationKey, sid);
+            cti = TokenRepository.getInstance().addToken(token, claims, this.ctx, sid);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();

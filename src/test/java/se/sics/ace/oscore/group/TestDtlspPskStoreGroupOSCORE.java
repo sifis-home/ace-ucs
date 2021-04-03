@@ -220,7 +220,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         new File(tokenFile).delete();
         
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, null,
+                new KissTime(), null, valid, ctx, null, 0,
                 tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
@@ -375,7 +375,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(claims, ctx, null, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
     	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
         CBORObject identityStructure = CBORObject.NewMap();
@@ -538,7 +538,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(claims, ctx, null, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
         
     	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
@@ -596,7 +596,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(claims, ctx, null, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
     	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
         CBORObject identityStructure = CBORObject.NewMap();

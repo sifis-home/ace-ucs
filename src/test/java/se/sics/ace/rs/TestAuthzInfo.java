@@ -145,7 +145,7 @@ public class TestAuthzInfo {
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx, null, tokenFile, valid, false);
+                valid, ctx, null, 0, tokenFile, valid, false);
     }
 
 

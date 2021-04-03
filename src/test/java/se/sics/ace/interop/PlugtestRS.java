@@ -287,7 +287,7 @@ public class PlugtestRS {
       
         //Set up the inner Authz-Info library
         ai = new AuthzInfo( Collections.singletonList("AS"), 
-                new KissTime(), null, valid, ctx, null, tokenFile, valid, false);
+                new KissTime(), null, valid, ctx, null, 0, tokenFile, valid, false);
         Resource authzInfo = new CoapAuthzInfo(ai);
         rs = new CoapServer();
         Resource ace = new CoapResource("ace");
@@ -365,7 +365,7 @@ public class PlugtestRS {
    
      //Set up the inner Authz-Info library
      ai = new AuthzInfo(Collections.singletonList("AS"), 
-             new KissTime(), null, valid, ctx, null, tokenFile, valid, false);
+             new KissTime(), null, valid, ctx, null, 0, tokenFile, valid, false);
      Resource authzInfo = new CoapAuthzInfo(ai);
      rs = new CoapServer();
      Resource ace = new CoapResource("ace");

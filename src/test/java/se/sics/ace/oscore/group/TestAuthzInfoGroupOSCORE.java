@@ -263,7 +263,7 @@ public class TestAuthzInfoGroupOSCORE {
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx, null, tokenFile, valid, false);
+                valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -273,7 +273,7 @@ public class TestAuthzInfoGroupOSCORE {
         // one RS as second argument.
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
-                valid, ctx, null, tokenFile, valid, false);
+                valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);

@@ -2724,7 +2724,7 @@ public class PlugtestRSGroupOSCORE {
         
         // Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), null, valid, ctx, null, tokenFile, valid, false);
+        	 new KissTime(), null, valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
