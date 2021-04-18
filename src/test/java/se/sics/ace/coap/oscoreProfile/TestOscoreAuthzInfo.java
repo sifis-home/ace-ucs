@@ -267,8 +267,7 @@ public class TestOscoreAuthzInfo {
         bogusToken.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         bogusToken.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                bogusToken);
+        LocalMessage request = new LocalMessage(0, null, null, bogusToken);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
@@ -322,8 +321,7 @@ public class TestOscoreAuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         payload.Add(Constants.NONCE1, "blah");
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -377,8 +375,7 @@ public class TestOscoreAuthzInfo {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         payload.Add(Constants.NONCE1, null);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -429,8 +426,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -481,8 +477,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -535,8 +530,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -590,8 +584,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -645,8 +638,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -700,8 +692,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -759,8 +750,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -817,8 +807,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -874,8 +863,7 @@ public class TestOscoreAuthzInfo {
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -931,8 +919,7 @@ public class TestOscoreAuthzInfo {
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -991,8 +978,7 @@ public class TestOscoreAuthzInfo {
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                payload);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
