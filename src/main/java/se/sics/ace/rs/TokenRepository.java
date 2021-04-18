@@ -806,6 +806,23 @@ public class TokenRepository implements AutoCloseable {
 	    LOGGER.finest("Key-Id for Subject-Id: " + sid + " not found");
 	    return null;
 	}
+	
+	
+	/**
+	 * Get the kid by the CTI.
+	 * 
+	 * @param sid  the CTI
+	 * 
+	 * @return  the kid associated to this CTI
+	 */
+	public String getKidByCti(String cti) {
+	    if (cti != null) {
+	        return this.cti2kid.get(cti);
+	    }
+	    LOGGER.finest("Key-Id for CTI: " + cti + " not found");
+	    return null;
+	}
+	
 
 	/**
 	 * Get the subject id by the kid.

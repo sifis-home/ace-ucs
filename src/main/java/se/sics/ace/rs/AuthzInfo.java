@@ -540,6 +540,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            throw new AceException("cnf claim malformed in token");
 	        }
 	    	
+	    	// OLD WAY - Manual rebuilding of the 'kid' from raw information in the 'cnf' claim
+	    	/*
 	    	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
 	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
 	    		assignedKid = new String(osc.getClientId(), Constants.charset);
@@ -557,6 +559,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		    	}
 		    	
 	    	}
+	    	*/
+	    	
+	    	// NEW WAY - Rebuild the 'kid' leveragin what already happened in the Token Repository
+	    	assignedKid = TokenRepository.getInstance().getKidByCti(ctiStr);
 	    	
 	    	// This should really not happen for a previously validated and stored Access Token
 	    	if (assignedKid == null) {
