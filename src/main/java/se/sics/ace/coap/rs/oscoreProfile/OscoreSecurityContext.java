@@ -152,6 +152,9 @@ public class OscoreSecurityContext {
             }
             this.contextId = ctxIdC.GetByteString();
         }
+        else {
+        	this.contextId = null;
+        }
 
         CBORObject kdfC = osc.get(Constants.OS_HKDF);
         if (kdfC != null) {

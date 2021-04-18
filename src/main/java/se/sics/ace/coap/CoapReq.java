@@ -131,11 +131,10 @@ public class CoapReq implements Message {
                 return null;
             }
             String senderId = "";
-            if (idContext != null) {
+            if (idContext != null && idContext.length != 0) {
                 senderId += new String(idContext, Constants.charset);
+                senderId += ":";
             }
-            if (!Objects.equals("", senderId))
-            	senderId += ":";
             senderId += new String(clientSenderId, Constants.charset);
             return senderId;
         }
