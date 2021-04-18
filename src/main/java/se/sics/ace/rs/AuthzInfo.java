@@ -561,7 +561,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	}
 	    	*/
 	    	
-	    	// NEW WAY - Rebuild the 'kid' leveragin what already happened in the Token Repository
+	    	// NEW WAY - Rebuild the 'kid' leveraging what already happened in the Token Repository
 	    	assignedKid = TokenRepository.getInstance().getKidByCti(ctiStr);
 	    	
 	    	// This should really not happen for a previously validated and stored Access Token
