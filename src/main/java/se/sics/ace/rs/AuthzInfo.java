@@ -502,6 +502,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    
 	    //10. Store the claims of this token
 	    CBORObject cti = null;
+	    
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {

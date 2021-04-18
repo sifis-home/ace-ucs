@@ -169,7 +169,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    }
 	    
         if (token == null) {
-            LOGGER.info("Missing manadory parameter 'access_token'");
+            LOGGER.info("Missing mandadory parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 

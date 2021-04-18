@@ -305,7 +305,7 @@ public class TestAuthzInfoGroupOSCORE {
     public void testRefInactive() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         ReferenceToken token = new ReferenceToken(20);
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                CBORObject.FromObject(token.encode().EncodeToBytes()));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -357,7 +357,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
@@ -396,7 +396,7 @@ public class TestAuthzInfoGroupOSCORE {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
 
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 cwt.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -419,7 +419,7 @@ public class TestAuthzInfoGroupOSCORE {
     public void testInvalidTokenFormat() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         CBORObject token = CBORObject.False;
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token);
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -461,7 +461,7 @@ public class TestAuthzInfoGroupOSCORE {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CWT cwt = new CWT(claims);
         
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 cwt.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -504,7 +504,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "client1", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
@@ -542,7 +542,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -581,7 +581,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
@@ -619,7 +619,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
@@ -668,7 +668,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -723,7 +723,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+        LocalMessage request = new LocalMessage(0, null, "rs1",
                 token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -793,7 +793,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs2",
+        LocalMessage request = new LocalMessage(0, null, "rs2",
                 token.encode(ctx));
               
         // Note the usage of the dedicated authz-info endpoint for this audience "rs2"
@@ -865,7 +865,7 @@ public class TestAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs2",
+        LocalMessage request = new LocalMessage(0, null, "rs2",
                 token.encode(ctx));
               
         // Note the usage of the dedicated authz-info endpoint for this audience "rs2"

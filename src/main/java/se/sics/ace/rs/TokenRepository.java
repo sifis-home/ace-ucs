@@ -149,6 +149,11 @@ public class TokenRepository implements AutoCloseable {
 	private Map<String, String>sid2kid;
 	
 	/**
+	 * Map a subject identity to the base64 encoded cti of a token
+	 */
+	private Map<String, String>sid2cti;
+	
+	/**
 	 * Map an OSCORE input material identifier to the base64 encoded cti of a token
 	 */
 	private Map<String, String>id2cti;
@@ -252,6 +257,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.kid2key = new HashMap<>();
 	    this.cti2kid = new HashMap<>();
 	    this.sid2kid = new HashMap<>();
+	    this.sid2cti = new HashMap<>();
 	    this.id2cti = new HashMap<>();
 	    this.sid2rsnonce = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
@@ -339,6 +345,7 @@ public class TokenRepository implements AutoCloseable {
 		}
 
 		//Store the pop-key
+		boolean storeKey = true;
 		CBORObject cnf = claims.get(Constants.CNF);
         if (cnf == null) {
             LOGGER.severe("Token has not cnf");
@@ -353,56 +360,142 @@ public class TokenRepository implements AutoCloseable {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
             try {            	
               
-              // The PoP key is symmetric but only its 'kid' is specified (e.g., as in the DTLS profile)
-              // The actual PoP key has to be derived using the key derivation key shared with the AS
+              // The PoP key is symmetric but only its 'kid' is specified (e.g., as in the DTLS profile).
+            
               if (ckey.getKeys().contains(KeyKeys.KeyType.AsCBOR()) &&
             	  ckey.get(KeyKeys.KeyType.AsCBOR()).equals(KeyKeys.KeyType_Octet) &&
                   ckey.getKeys().contains(KeyKeys.Octet_K.AsCBOR()) == false) {
             	  
-            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
-                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
-                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
+            	  if (sid == null) {
+                      // The Token has been posted to /authz-info through an unprotected message.
+                      // The actual PoP key has to be derived using the key derivation key shared with the AS
+            		  
+	            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
+	                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
+	                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
+	            	  }
+	            	  
+	                  // The salt as empty byte string has to be an array of bytes with all its
+	                  // elements set to 0x00 and with the same size of the hash output in bytes
+	                  byte[] salt = new byte[Hkdf.getHashLen()];
+	                  Arrays.fill(salt, (byte) 0);
+	            	  
+	            	  // The 'info' structure
+	            	  byte[] derivedKey = null;
+	            	  CBORObject info = CBORObject.NewArray();
+	            	  info.Add("ACE-CoAP-DTLS-key-derivation");
+	            	  info.Add(derivedKeySize);
+	            	  info.Add(token.EncodeToBytes()); // The content of the "access_token" field, as transferred
+	            	                                   // from the authorization server to the resource server.
+	
+	            	  try {
+						derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), derivedKeySize);
+					  } catch (InvalidKeyException e) {
+			              LOGGER.severe("Error while deriving a symmetric PoP key: " 
+			                      + e.getMessage());
+			              throw new AceException("Error while deriving a symmetric PoP key: " 
+			                      + e.getMessage());
+					  } catch (NoSuchAlgorithmException e) {
+			              LOGGER.severe("Error while deriving a symmetric PoP key: " 
+			                      + e.getMessage());
+			              throw new AceException("Error while deriving a symmetric PoP key: " 
+			                      + e.getMessage());
+					  }
+	            	  ckey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(derivedKey));
+
+              	  }
+            	  else {
+            		  // Since there is a non-null identity, either:
+            		  //  i) the Token has been posted through a protected message to /authz-info , to update access rights; or
+            		  // ii) the Token has been specified in the DTLS handshake message, as "psk_identity"
+            		  
+            		  // Case (i), i.e. the current Token for this security association must be superseded
+            		  if (sid2kid.containsKey(sid) && sid2cti.containsKey(sid)) {
+            			  
+    	            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
+    	                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
+    	                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
+    	            	  }
+    	            	  
+    	              	// Check if there is a stored Token associated to this subject ID 
+    	              	String storedCti = sid2cti.get(sid);
+    	              	
+    	              	// A Token was found - This implies that the corresponding security association
+    	              	// is the same one used to protect the received Token POST request
+    	              	if (storedCti != null) {
+
+    	                      // Now check that the stored Token is actually bound to a key with that 'kid'
+      	              		  String retrievedKid = cti2kid.get(storedCti);
+      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+      	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
+    	                      
+    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
+      	                            LOGGER.severe("Impossible to retrieve an OSCORE-related Token to supersede");
+      	                            throw new AceException("Impossible to retrieve an OSCORE-related Token to supersede");
+    	              		  }
+    	                    	
+		                      // Everything has matched - This Token is intended to update access rights, while
+		                      // preserving the same security association used to protect this Token POST and
+		                      // associated to the Token to supersede
+		                      
+      	              		  Map<Short, CBORObject> storedClaims = cti2claims.get(storedCti);
+      	              		  CBORObject storedCnf = storedClaims.get(Constants.CNF);
+      	              		
+      	              		  // The following should never happen, being this an already stored Token
+      	                      if (storedCnf == null) {
+      	                          LOGGER.severe("The retrieved stored token has not cnf");
+      	                          throw new AceException("The retrieved stored token has no cnf");
+      	                      }
+      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
+      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
+      	                          throw new AceException("cnf claim malformed in the retrieved stored token");
+      	                      }
+      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
+      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
+      	                          throw new AceException("cnf claim malformed in the retrieved storedtoken");
+      	                      }
+    	                      
+		                      // Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
+		                      // This will overwrite the orginal 'cnf' considered above in the new Token to store.
+		                      claims.put(Constants.CNF, storedCnf);
+		                      	
+		                      // Delete the Token to be replaced
+		                      removeToken(storedCti);
+		                      	
+		                      // Store the association between the CTI of the new Token and the same current kid
+		                      this.cti2kid.put(cti, receivedKid);
+		                      
+		                      // Store the association between the same current subjectId and the CTI of the new Token
+		                      this.sid2cti.put(sid, cti);
+		                      
+		                      // The same PoP key remains in use
+		                      storeKey = false;
+    	                      	
+    	              	}
+    	              	else {
+    	                      LOGGER.severe("Impossible to retrieve the stored Token to supersede");
+    	                      throw new AceException("Impossible to retrieve the stored Token to supersede");
+    	              	}
+            			  
+                  	  }
+            		  // Else it's Case (ii), which will be handled later in processKey()
+            		  
             	  }
             	  
-                  // The salt as empty byte string has to be an array of bytes with all its
-                  // elements set to 0x00 and with the same size of the hash output in bytes
-                  byte[] salt = new byte[Hkdf.getHashLen()];
-                  Arrays.fill(salt, (byte) 0);
             	  
-            	  // The 'info' structure
-            	  byte[] derivedKey = null;
-            	  CBORObject info = CBORObject.NewArray();
-            	  info.Add("ACE-CoAP-DTLS-key-derivation");
-            	  info.Add(derivedKeySize);
-            	  info.Add(token.EncodeToBytes()); // The content of the "access_token" field, as transferred
-            	                                   // from the authorization server to the resource server.
-
-            	  try {
-					derivedKey = Hkdf.extractExpand(salt, keyDerivationKey, info.EncodeToBytes(), derivedKeySize);
-				  } catch (InvalidKeyException e) {
-		              LOGGER.severe("Error while deriving a symmetric PoP key: " 
-		                      + e.getMessage());
-		              throw new AceException("Error while deriving a symmetric PoP key: " 
-		                      + e.getMessage());
-				  } catch (NoSuchAlgorithmException e) {
-		              LOGGER.severe("Error while deriving a symmetric PoP key: " 
-		                      + e.getMessage());
-		              throw new AceException("Error while deriving a symmetric PoP key: " 
-		                      + e.getMessage());
-				  }
-            	  ckey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(derivedKey));
-
               }
-            	
-              OneKey key = new OneKey(ckey);
-              processKey(key, sid, cti);
-            } catch (CoseException e) {
-                LOGGER.severe("Error while parsing cnf element: " 
-                        + e.getMessage());
-                throw new AceException("Invalid cnf element: " 
-                        + e.getMessage());
-            } 
-        } else if (cnf.getKeys().contains(Constants.COSE_ENCRYPTED_CBOR)) {
+              if (storeKey) {
+	              OneKey key = new OneKey(ckey);
+	              processKey(key, sid, cti);
+              }
+            }
+            catch (CoseException e) {
+                LOGGER.severe("Error while parsing cnf element: " + e.getMessage());
+                throw new AceException("Invalid cnf element: " + e.getMessage());
+            }
+        }
+        
+        else if (cnf.getKeys().contains(Constants.COSE_ENCRYPTED_CBOR)) {
             Encrypt0Message msg = new Encrypt0Message();
             CBORObject encC = cnf.get(Constants.COSE_ENCRYPTED_CBOR);
           try {
@@ -416,9 +509,12 @@ public class TokenRepository implements AutoCloseable {
                       + e.getMessage());
               throw new AceException("Error while decrypting a cnf claim");
           }
-        } else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
+        }
+        
+        else if (cnf.getKeys().contains(Constants.COSE_KID_CBOR)) {
             String kid = null;
             CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
+            
             if (kidC.getType().equals(CBORType.ByteString)) {
                 kid = new String(
                         kidC.GetByteString(), Constants.charset);
@@ -426,29 +522,117 @@ public class TokenRepository implements AutoCloseable {
                 LOGGER.severe("kid is not a byte string");
                 throw new AceException("cnf contains invalid kid");
             }
-            if (!this.kid2key.containsKey(kid)) {
-                LOGGER.info("Token refers to unknown kid");
-                throw new AceException("Token refers to unknown kid");
-            }
-            //Store the association between token and known key
-            this.cti2kid.put(cti, kid);  
-            // ... and between subject id and key if sid was given
+            
+            // The Token POST is protected
             if (sid != null) {
-                this.sid2kid.put(sid, kid);
+            	
+            	// The Token POST can be protected with OSCORE, for
+            	// updating access rights as per the OSCORE profile
+            	
+            	// Check if there is a stored Token associated to this subject ID 
+            	String storedCti = sid2cti.get(sid);
+            	
+            	// A Token was found - This implies that the corresponding security association
+            	// is the same one used to protect the received Token POST request
+            	if (storedCti != null) {
+            		
+            		// Now check that the stored Token is actually
+            		// associated to an OSCORE Security Context 
+            		
+            		Map<Short, CBORObject> storedClaims = cti2claims.get(storedCti);
+            		CBORObject storedCnf = storedClaims.get(Constants.CNF);
+            		
+            		// The following should never happen, being this an already stored Token
+                    if (storedCnf == null) {
+                        LOGGER.severe("The retrieved stored token has not cnf");
+                        throw new AceException("The retrieved stored token has no cnf");
+                    }
+                    if (!storedCnf.getType().equals(CBORType.Map)) {
+                        LOGGER.severe("Malformed cnf in the retrieved stored token");
+                        throw new AceException("cnf claim malformed in the retrieved stored token");
+                    }
+                    if (!storedCnf.getType().equals(CBORType.Map)) {
+                        LOGGER.severe("Malformed cnf in the retrieved stored token");
+                        throw new AceException("cnf claim malformed in the retrieved storedtoken");
+                    }
+            		
+                    if (storedCnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
+                    	
+                    	byte[] storedIdBytes = storedCnf.get(Constants.OSCORE_Input_Material).
+                    					                     get(Constants.OS_ID).GetByteString();
+                    	String storedId = Base64.getEncoder().encodeToString(storedIdBytes);
+                    	
+                    	String recoveredCti = id2cti.get(storedId);
+                    	
+                    	if (!storedCti.equals(recoveredCti) || !storedId.equals(kid) ) {
+                            LOGGER.severe("Impossible to retrieve an OSCORE-related Token to supersede");
+                            throw new AceException("Impossible to retrieve an OSCORE-related Token to supersede");
+                    	}
+                    	
+                    	// Everything has matched - This Token is intended to update access rights, while
+                    	// preserving the same OSCORE Security Context used to protect this Token POST
+                    	// and associated to the Token to supersede
+                    	
+                    	// Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
+                    	// This will overwrite the orginal 'cnf' considered above in the new Token to store.
+                    	claims.put(Constants.CNF, storedCnf);
+                    	
+                    	// Delete the Token to be replaced
+                    	removeToken(storedCti);
+                    	
+                    	// Store the association between the same current subjectId and the CTI of the new Token
+                    	this.sid2cti.put(sid, cti);
+                    	
+                    	// Store the association between the CTI of the new Token and kid, with kid equal to the subjectId 
+                        this.cti2kid.put(cti, sid);
+
+                    	// Store the association between the immutable identifier of the OSCORE input material
+                    	// and the base64 encoded cti of this Access Token; this will be updated in case a new
+                    	// Access Token with updated access rights (and a new cti) is posted as still associated
+                    	// to this OSCORE input material identifier and hence to the same kid
+                    	this.id2cti.put(kid, cti);
+                    	
+                    }
+                    else {
+                		// The only admitted situation for 'cnf' of 'kid' type for a protected Token POST
+                		// is the one described in the OSCORE profile for the update of access rights.
+                		// Any other case should be treated as an error at the moment.
+                        LOGGER.severe("A Token to supersede through 'cnf' of type 'kid' must be"
+                        			   + "related to an OSCORE Security Context");
+                        throw new AceException("A Token to supersede through 'cnf' of type 'kid' must be"
+                        		                + "related to an OSCORE Security Context");
+                    }
+                    
+            	}
+            	else {
+                    LOGGER.severe("Impossible to retrieve the stored Token to supersede");
+                    throw new AceException("Impossible to retrieve the stored Token to supersede");
+            	}
+            	
             }
-        } else if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
+            
+            // The Token POST is not protected
+            else {	            
+	            if (!this.kid2key.containsKey(kid)) {
+	                LOGGER.info("Token refers to unknown kid");
+	                throw new AceException("Token refers to unknown kid");
+	            }
+	            //Store the association between token and known key
+	            this.cti2kid.put(cti, kid);
+	            
+	            // Since the Token POST is not protected, there is no Subject ID available
+	            // at all for the moment, to store the associations sid2kid and sid2cti
+	            // NOTE: Current profiles do not support this case
+            }
+        }
+        
+        else if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
+        	// Coming from the /authz-info endpoint, it is ensured that
+        	// this Token has been posted through an unprotected request
+        	
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             
             String kid = new String(osc.getClientId(), Constants.charset);
-            
-            this.cti2kid.put(cti, kid);
-            
-            // Store the association between the immutable identitifer of the OSCORE input material
-            // and the base64 encoded cti of this Access Token; this will be updated in case a new
-            // Access Token with updated access rights (and a new cti) is posted as still associated
-            // to this OSCORE input material identifier and hence to the same kid            
-            String id = Base64.getEncoder().encodeToString(osc.getId());
-            this.id2cti.put(id, cti);
             
             // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
             // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object
@@ -461,9 +645,26 @@ public class TokenRepository implements AutoCloseable {
         		subjectId = kidContext + ":";
         	}
         	subjectId += kid;
-        	this.sid2kid.put(subjectId, kid);
+        	
+        	// Store the association between subjectId and kid, with kid equal to the subjectId
+        	this.sid2kid.put(subjectId, subjectId);
+        	
+        	// Store the association between subjectId and the Token CTI
+        	this.sid2cti.put(subjectId, cti);
+        	
+        	// Store the association between CTI and kid, with kid equal to the subjectId
+            this.cti2kid.put(cti, subjectId);
             
-        } else {
+            // Store the association between the immutable identifier of the OSCORE input material
+            // and the base64 encoded cti of this Access Token; this will be updated in case a new
+            // Access Token with updated access rights (and a new cti) is posted as still associated
+            // to this OSCORE input material identifier and hence to the same kid            
+            String id = Base64.getEncoder().encodeToString(osc.getId());
+            this.id2cti.put(id, cti);
+            
+        }
+        
+        else {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");
         }
@@ -492,6 +693,7 @@ public class TokenRepository implements AutoCloseable {
 	        throws AceException, CoseException {
 	    
 	    String kid = null;
+	    
 	    if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
 	        CBORObject kidC = key.get(KeyKeys.KeyId);
 
@@ -504,22 +706,41 @@ public class TokenRepository implements AutoCloseable {
 	            LOGGER.severe("kid is not a byte string");
 	            throw new AceException("COSE_Key contains invalid kid");
 	        }
-	    } else {//Key type is EC2
+	    }
+	    
+	    else { //Key type is EC2
 	        RawPublicKeyIdentity rpk =
 	                new RawPublicKeyIdentity(key.AsPublicKey());
 	        kid = rpk.getName();
 	    }
-        this.cti2kid.put(cti, kid);
-        this.kid2key.put(kid, key);
+	    
         if (sid != null) {
-            this.sid2kid.put(sid, kid);
-        } else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-        		   key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
+        	// Receiving a new PoP key through an already identifiable peer should
+        	// happen only in the DTLS profile, and only when the whole Token conveying
+        	// a symmetric PoP key is transported within the DTLS handshake message.
+        	
+        	// Add the new subject ID only if it is actually new, i.e. this is
+        	// not an attempt to update access rights of an already stored Token
+        	if (!sid2kid.containsKey(sid) && !sid2cti.containsKey(sid)) {
+	            this.sid2kid.put(sid, kid);
+	        	this.sid2cti.put(sid, cti);
+        	}
+        	else {
+	            LOGGER.severe("A new PoP key must be provided through an unprotected Token POST");
+	            throw new AceException("A new PoP key must be provided through an unprotected Token POST");
+        	}
+        }
+        
+        else if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
+        		 key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
             //Scandium needs a special mapping for raw public keys
-            RawPublicKeyIdentity rpk 
-                = new RawPublicKeyIdentity(key.AsPublicKey());
+            RawPublicKeyIdentity rpk  = new RawPublicKeyIdentity(key.AsPublicKey());
+            
             this.sid2kid.put(rpk.getName(), kid);
-        } else { //Take the kid as sid
+        	this.sid2cti.put(rpk.getName(), cti);
+        }
+        
+        else { //Take the kid as sid
         	
         	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
             CBORObject identityStructure = CBORObject.NewMap();
@@ -534,7 +755,12 @@ public class TokenRepository implements AutoCloseable {
             
             // OLD WAY, with only the kid used as "psk_identity"
             //this.sid2kid.put(kid, kid);
-        }        
+            
+        	this.sid2cti.put(identity, cti);
+        }  
+        
+        this.cti2kid.put(cti, kid);
+        this.kid2key.put(kid, key);
     }
 
     /**
@@ -565,13 +791,52 @@ public class TokenRepository implements AutoCloseable {
 		    this.kid2key.remove(kid);
 		}
 		
-		// Remove the mapping from cti to an OSCORE ID,
-		// if the Token was established with the OSCORE profile
-		for (String id : this.id2cti.keySet()) {
-			if (this.id2cti.get(id).equals(cti)) {
-		    	this.id2cti.remove(id);
+		// Remove the mapping from the subject ID to cti
+		remove = new HashSet<>();
+		for (String id : this.sid2cti.keySet()) {
+			if (this.sid2cti.get(id).equals(cti)) {
+				remove.add(id);
 		    }
 		}
+		for (String id : remove) {
+			this.sid2cti.remove(id);
+		}
+				
+		// Remove unused kids
+		remove = new HashSet<>();
+		for (String sid : this.sid2kid.keySet()) {
+		    if (!this.sid2cti.containsKey(sid)) {
+		        remove.add(sid);
+		    }
+		}
+		for (String sid : remove) {
+		    this.sid2kid.remove(sid);
+		}
+		
+		// Remove unused rs nonces
+		// Relevant when joining an OSCORE Group, with the RS acting as Group Manager
+		remove = new HashSet<>();
+		for (String sid : this.sid2kid.keySet()) {
+		    if (!this.sid2rsnonce.containsKey(sid)) {
+		        remove.add(sid);
+		    }
+		}
+		for (String sid : remove) {
+		    this.sid2rsnonce.remove(sid);
+		}
+		
+		// Remove the mapping from an OSCORE ID to cti,
+		// if the Token was established with the OSCORE profile
+		remove = new HashSet<>();
+		for (String id : this.id2cti.keySet()) {
+			if (this.id2cti.get(id).equals(cti)) {
+				remove.add(id);
+		    }
+		}
+		for (String id : remove) {
+	    	this.id2cti.remove(id);
+		}
+		
 		
 		persist();
 	}
@@ -827,9 +1092,9 @@ public class TokenRepository implements AutoCloseable {
 	/**
 	 * Get the subject id by the kid.
 	 * 
-	 * @param kid the kid this subject uses
+	 * @param kid  the kid this subject uses
 	 * 
-	 * @return  sid  the subject id
+	 * @return  the subject id
 	 */
 	public String getSid(String kid) {
 	    if (kid != null) {
@@ -841,6 +1106,22 @@ public class TokenRepository implements AutoCloseable {
 	    }
 	    return null;
 	}
+	
+	
+	/**
+	 * Get the CTI by the subject id.
+	 * 
+	 * @param sid  the subject id
+	 * 
+	 * @return  the CTI associated to the subject id
+	 */
+	public String getCti(String sid) {
+	    if (sid != null) {
+	    		return sid2cti.get(sid);
+	    }
+	    return null;
+	}
+	
 	
 	/**
 	 * FIXME 

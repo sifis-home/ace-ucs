@@ -271,8 +271,9 @@ public class DTLSProfileRequests {
     
     
     /**
-     * Generates a Coap client for sending requests to an RS that will pass the
-     *  kid of a known access token through psk-identity in the DTLS handshake.
+     * Generates a Coap client for sending requests to an RS that will use
+     * a symmetric PoP key to connect to the server.
+     * 
      * @param serverAddress  the address of the server and resource this client
      *  should talk to
      * @param kid  the kid that the client should use as PSK in the handshake

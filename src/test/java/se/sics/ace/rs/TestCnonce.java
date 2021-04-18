@@ -182,7 +182,7 @@ public class TestCnonce {
        params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
 
        CWT token = new CWT(params);
-       LocalMessage request = new LocalMessage(0, "clientA", "rs1",
+       LocalMessage request = new LocalMessage(0, null, "rs1",
                token.encode(ctx));
        Message response = ai.processMessage(request);
        assert(response.getMessageCode() == Message.CREATED);
