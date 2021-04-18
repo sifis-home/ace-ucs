@@ -39,7 +39,6 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
@@ -51,10 +50,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.Util;
-import se.sics.ace.coap.CoapReq;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
