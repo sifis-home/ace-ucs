@@ -385,6 +385,15 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    // an available Recipient ID to offer to the Client.
     	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
 	    
+    		if (msg.getSenderId() != null) {
+    	        LOGGER.info("OSCORE Input Material provided over a protected POST request");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "OSCORE_Input_Material provided over a protected POST request");
+    	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+    		}
+    		
         	CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
         	try {
 	            if (osc == null || !osc.getType().equals(CBORType.Map)) {
@@ -408,7 +417,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	
 	        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
 	        
-	        // Determine an available Recipient ID to offer to the Resource Server as ID1
+	        // Determine an available Recipient ID to offer to the Client as ID2 (i.e., as Client's Sender ID)
 	        synchronized(usedRecipientIds) {
 	        	synchronized(db) {
 	        	
