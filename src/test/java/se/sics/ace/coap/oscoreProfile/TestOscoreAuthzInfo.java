@@ -994,5 +994,118 @@ public class TestOscoreAuthzInfo {
         assert(osctx.equals(osctx2));
         
         
-    }    
+    }
+    
+    
+    // M.T.
+    /**
+     * Test successful submission to AuthzInfo, followed by attempts
+     * to update access rights by posting a new Access Token
+     * 
+     * @throws IllegalStateException 
+     * @throws InvalidCipherTextException 
+     * @throws CoseException 
+     * @throws AceException  
+     * @throws OSException 
+     */
+    @Test
+    public void testSuccessUpdateAccessRights() throws IllegalStateException, 
+            InvalidCipherTextException, CoseException, AceException, 
+            OSException {
+    	
+    	// Prepare and POST a first Token, through an unprotected request.
+    	// Then establish a new OSCORE Security Context
+    	
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0f}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
+        CBORObject osc = CBORObject.NewMap();
+        CBORObject cbor = CBORObject.NewMap();
+        osc.Add(Constants.OS_MS, key128a);
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
+        params.put(Constants.CNF, cbor);
+        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0f});
+
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+                new byte[]{0x0f}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+
+        CWT token = new CWT(params);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
+                coseP.getAlg().AsCBOR());
+
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        byte[] n1 = {0x01, 0x02, 0x03};
+        byte[] id1 = {0x00};
+        payload.Add(Constants.NONCE1, n1);
+        payload.Add(Constants.ID1, id1);
+        LocalMessage request = new LocalMessage(0, null, null, payload);
+
+        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.CREATED);
+        
+        OSCoreCtxDB dbOSCORE = OscoreCtxDbSingleton.getInstance();
+        
+        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
+        byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
+        OSCoreCtx osctx = dbOSCORE.getContext(id2);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
+                false, null, id1, id2, null, null, null, null);
+        
+        assert(osctx.equals(osctx2));
+        
+        
+        // Build a new Token for updating access rights, with a different 'scope'
+        
+        params = new HashMap<>();
+        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{(byte) 0xa0}));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
+        // Now the 'cnf' claim includes only a 'kid' with value the 'id'
+        // used in the first Token and identifying the OSCORE_Input_Material
+        cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KID_CBOR, Util.intToBytes(0));
+        params.put(Constants.CNF, cbor);
+        ctiStr = Base64.getEncoder().encodeToString(new byte[]{(byte) 0xa0});
+        
+        //Make introspection succeed
+        db.addToken(Base64.getEncoder().encodeToString(
+        		new byte[]{(byte) 0xa0}), params);
+        db.addCti2Client(ctiStr, "client1");  
+
+        token = new CWT(params);
+
+        // Include only the Token now. If Id1 and Nonce1 were
+        // included here too, the RS would silently ignore them
+        payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        
+        // Posting the Token through an unauthorized request.
+        // This fails since such a Token needs to include the
+        // full-fledged OSCORE_Input_Material object
+        request = new LocalMessage(0, null, null, payload);
+        response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
+        // In fact, this has to be a protected POST to /authz-info
+        // The identity of the client is the string <ID Context>:<Sender ID>,
+        // or simply <Sender ID> in case no ID Context is used with OSCORE
+        String kid = new String(id2, Constants.charset);
+        request = new LocalMessage(0, kid, null, payload);
+        response = (LocalMessage)ai.processMessage(request);
+        assert(response.getMessageCode() == Message.CREATED);
+        
+    }
+    
 }

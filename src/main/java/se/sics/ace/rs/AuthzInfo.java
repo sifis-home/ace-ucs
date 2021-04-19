@@ -381,6 +381,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        
 	    }
         
+		boolean firstOscoreAccessToken = false;
+		
 	    // The OSCORE profile is being used. The Resource Server has to determine
 	    // an available Recipient ID to offer to the Client.
     	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
@@ -495,6 +497,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(recipientId));
 	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(senderId));
 		    
+	    	// This is not a Token for updating access rights,
+	    	// but rather to establish a new OSCORE Security Context
+	    	firstOscoreAccessToken = true;
+	    	
 	    }
 	    
 	    //9. Extension point for handling other special claims in the future
@@ -584,8 +590,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    if (assignedSid != null)
 	    	rep.Add(Constants.SUB, assignedSid);
 
-	    // If the OSCORE profile is being used, return also the selected Recipient ID to the specific AuthzInfo instance 
-    	if (claims.get(Constants.CNF).getKeys().contains(Constants.OSCORE_Input_Material)) {
+	    // If the OSCORE profile is being used, and especially a new OSCORE Security Context is
+	    // being established, return also the selected Recipient ID to the specific AuthzInfo instance.
+	    //
+	    // This is not the case when a Token is posted to update access rights, by superseding an
+	    // existing Token from which the original 'cnf' claim is inherited and retained in the new Token
+    	if (firstOscoreAccessToken == true) {
     		
     		String recipientIdString = Base64.getEncoder().encodeToString(recipientId);
 	    	rep.Add(Constants.CLIENT_ID, recipientIdString);

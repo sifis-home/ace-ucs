@@ -430,8 +430,8 @@ public class TokenRepository implements AutoCloseable {
       	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
     	                      
     	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
-      	                            LOGGER.severe("Impossible to retrieve an OSCORE-related Token to supersede");
-      	                            throw new AceException("Impossible to retrieve an OSCORE-related Token to supersede");
+      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
+      	                            throw new AceException("Impossible to retrieve a Token to supersede");
     	              		  }
     	                    	
 		                      // Everything has matched - This Token is intended to update access rights, while
@@ -516,8 +516,9 @@ public class TokenRepository implements AutoCloseable {
             CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             
             if (kidC.getType().equals(CBORType.ByteString)) {
-                kid = new String(
-                        kidC.GetByteString(), Constants.charset);
+            	
+                kid = new String(kidC.GetByteString(), Constants.charset);
+                
             } else {
                 LOGGER.severe("kid is not a byte string");
                 throw new AceException("cnf contains invalid kid");
@@ -560,11 +561,16 @@ public class TokenRepository implements AutoCloseable {
                     	
                     	byte[] storedIdBytes = storedCnf.get(Constants.OSCORE_Input_Material).
                     					                     get(Constants.OS_ID).GetByteString();
-                    	String storedId = Base64.getEncoder().encodeToString(storedIdBytes);
+                    	String storedId = new String(storedIdBytes, Constants.charset);
                     	
                     	String recoveredCti = id2cti.get(storedId);
                     	
                     	if (!storedCti.equals(recoveredCti) || !storedId.equals(kid) ) {
+                            LOGGER.severe("storedCti: " + storedCti);
+                            LOGGER.severe("recoveredCti: " + recoveredCti);
+                            LOGGER.severe("storedId: " + storedId);
+                            LOGGER.severe("kid: " + kid);
+                    		
                             LOGGER.severe("Impossible to retrieve an OSCORE-related Token to supersede");
                             throw new AceException("Impossible to retrieve an OSCORE-related Token to supersede");
                     	}
@@ -659,7 +665,7 @@ public class TokenRepository implements AutoCloseable {
             // and the base64 encoded cti of this Access Token; this will be updated in case a new
             // Access Token with updated access rights (and a new cti) is posted as still associated
             // to this OSCORE input material identifier and hence to the same kid            
-            String id = Base64.getEncoder().encodeToString(osc.getId());
+            String id = new String(osc.getId(), Constants.charset);
             this.id2cti.put(id, cti);
             
         }
