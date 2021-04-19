@@ -1091,7 +1091,7 @@ public class TestOscoreAuthzInfo {
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
         
-        // Posting the Token through an unauthorized request.
+        // Posting the Token through an unprotected request.
         // This fails since such a Token needs to include the
         // full-fledged OSCORE_Input_Material object
         request = new LocalMessage(0, null, null, payload);
