@@ -1055,7 +1055,7 @@ public class TestOscoreAuthzInfo {
         
         OSCoreCtxDB dbOSCORE = OscoreCtxDbSingleton.getInstance();
         
-        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
+        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = dbOSCORE.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
@@ -1105,6 +1105,9 @@ public class TestOscoreAuthzInfo {
         request = new LocalMessage(0, kid, null, payload);
         response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
+        
+        // ... and in fact no payload is expected in the response
+        assert(response.getRawPayload() == null);
         
     }
     
