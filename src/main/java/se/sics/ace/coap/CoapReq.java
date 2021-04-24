@@ -109,7 +109,6 @@ public class CoapReq implements Message {
         if (ctx==null) {
             return null;
         }
-
         if (ctx instanceof DtlsEndpointContext) {
             Principal p = ctx.getPeerIdentity();
             if (p==null) {

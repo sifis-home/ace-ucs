@@ -1896,7 +1896,6 @@ public class TestDtlspRSGroupOSCORE {
         	// Fill the 'key' parameter
         	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	
-        	// NNN
         	if (senderId != null)
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	

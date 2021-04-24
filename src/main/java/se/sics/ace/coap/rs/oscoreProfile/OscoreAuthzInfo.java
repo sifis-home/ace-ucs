@@ -39,6 +39,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
@@ -132,7 +133,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
         CBORObject nonce = null;
         CBORObject senderIdCBOR = null;
         
-        String subject = msg.getSenderId();        
+        String subject = msg.getSenderId();
         
         // This Token POST is not protected; then the parameters Nonce1 and Id1 have to be present.
         // Otherwise, if the Token POST is protected, these parameters are not expected, and are silently ignored if present

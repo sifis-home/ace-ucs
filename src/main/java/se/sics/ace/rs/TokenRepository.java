@@ -526,7 +526,7 @@ public class TokenRepository implements AutoCloseable {
             
             // The Token POST is protected
             if (sid != null) {
-            	
+                
             	// The Token POST can be protected with OSCORE, for
             	// updating access rights as per the OSCORE profile
             	
@@ -536,7 +536,6 @@ public class TokenRepository implements AutoCloseable {
             	// A Token was found - This implies that the corresponding security association
             	// is the same one used to protect the received Token POST request
             	if (storedCti != null) {
-            		
             		// Now check that the stored Token is actually
             		// associated to an OSCORE Security Context 
             		
@@ -583,9 +582,6 @@ public class TokenRepository implements AutoCloseable {
                     	// This will overwrite the orginal 'cnf' considered above in the new Token to store.
                     	claims.put(Constants.CNF, storedCnf);
                     	
-                    	// Delete the Token to be replaced
-                    	removeToken(storedCti);
-                    	
                     	// Store the association between the same current subjectId and the CTI of the new Token
                     	this.sid2cti.put(sid, cti);
                     	
@@ -597,6 +593,9 @@ public class TokenRepository implements AutoCloseable {
                     	// Access Token with updated access rights (and a new cti) is posted as still associated
                     	// to this OSCORE input material identifier and hence to the same kid
                     	this.id2cti.put(kid, cti);
+                    	
+                    	// Delete the old Token that has been replaced
+                    	removeToken(storedCti);
                     	
                     }
                     else {
@@ -799,13 +798,13 @@ public class TokenRepository implements AutoCloseable {
 		
 		// Remove the mapping from the subject ID to cti
 		remove = new HashSet<>();
-		for (String id : this.sid2cti.keySet()) {
-			if (this.sid2cti.get(id).equals(cti)) {
-				remove.add(id);
+		for (String sid : this.sid2cti.keySet()) {
+			if (this.sid2cti.get(sid).equals(cti)) {
+				remove.add(sid);
 		    }
 		}
-		for (String id : remove) {
-			this.sid2cti.remove(id);
+		for (String sid : remove) {
+			this.sid2cti.remove(sid);
 		}
 				
 		// Remove unused kids
@@ -822,8 +821,8 @@ public class TokenRepository implements AutoCloseable {
 		// Remove unused rs nonces
 		// Relevant when joining an OSCORE Group, with the RS acting as Group Manager
 		remove = new HashSet<>();
-		for (String sid : this.sid2kid.keySet()) {
-		    if (!this.sid2rsnonce.containsKey(sid)) {
+		for (String sid : this.sid2rsnonce.keySet()) {
+		    if (!this.sid2cti.containsKey(sid)) {
 		        remove.add(sid);
 		    }
 		}
@@ -842,7 +841,6 @@ public class TokenRepository implements AutoCloseable {
 		for (String id : remove) {
 	    	this.id2cti.remove(id);
 		}
-		
 		
 		persist();
 	}

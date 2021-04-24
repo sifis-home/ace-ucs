@@ -59,6 +59,7 @@ import COSE.MessageTag;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Message;
 import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.cwt.CWT;
@@ -73,9 +74,10 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 public class TestOscorepClient2RS {
 
     /**
-     * The cnf key used in these tests
+     * The cnf keys used in these tests
      */
     private static byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static byte[] keyCnf2 = {'a', 'b', 'd', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     /**
      * The AS <-> RS key used in these tests
@@ -188,14 +190,12 @@ public class TestOscorepClient2RS {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
 
-        Response rsRes = OSCOREProfileRequests.postToken(
-              "coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
+        Response rsRes = OSCOREProfileRequests.postToken("coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
 
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         
-       Assert.assertNotNull(ctxDB.getContext(
-                "coap://localhost/helloWorld"));
+       Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));
 
        //Submit a request
        
@@ -221,8 +221,7 @@ public class TestOscorepClient2RS {
        Request deleteHello = new Request(CoAP.Code.DELETE);
        deleteHello.getOptions().setOscore(new byte[0]);
        CoapResponse deleteHelloRes = c.advanced(deleteHello);
-       assert(deleteHelloRes.getCode().equals(
-               CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+       assert(deleteHelloRes.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
     }
     
     /**
@@ -243,6 +242,138 @@ public class TestOscorepClient2RS {
         assert(res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED));
     }
     
+    
+    
+    // M.T.
+    /**
+     * Test successful submission of a token to the RS with subsequent
+     * access based on the token, followed by the submission of a new token
+     * to update access rights with subsequent access based on the new token
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testSuccessUpdateAccessRights() throws Exception {
+        //Generate a token
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx 
+            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "token3".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject osc = CBORObject.NewMap();
+        CBORObject cbor = CBORObject.NewMap();
+        
+        osc.Add(Constants.OS_MS, keyCnf2);
+        byte[] id = Util.intToBytes(1);
+        osc.Add(Constants.OS_ID, id);
+
+        cbor.Add(Constants.OSCORE_Input_Material, osc);
+        params.put(Constants.CNF, cbor);
+        CWT token = new CWT(params);
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.CNF, cbor);
+        Response asRes = new Response(CoAP.ResponseCode.CREATED);
+        asRes.setPayload(payload.EncodeToBytes());
+
+        Response rsRes = OSCOREProfileRequests.postToken("coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
+
+        assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
+        //Check that the OSCORE context has been created:
+        
+       Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));
+
+       //Submit a request
+       
+       CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
+               "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
+       
+       Request helloReq = new Request(CoAP.Code.GET);
+       helloReq.getOptions().setOscore(new byte[0]);
+       CoapResponse helloRes = c.advanced(helloReq);
+       Assert.assertEquals("Hello World!", helloRes.getResponseText());
+       
+       //Submit a forbidden request
+       
+       CoapClient c2 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+               "coap://localhost/temp", CoAP.DEFAULT_COAP_PORT), ctxDB);
+       
+       Request getTemp = new Request(CoAP.Code.GET);
+       getTemp.getOptions().setOscore(new byte[0]);
+       CoapResponse getTempRes = c2.advanced(getTemp);
+       assert(getTempRes.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+       
+       //Submit a request with unallowed method
+       Request deleteHello = new Request(CoAP.Code.DELETE);
+       deleteHello.getOptions().setOscore(new byte[0]);
+       CoapResponse deleteHelloRes = c.advanced(deleteHello);
+       assert(deleteHelloRes.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+     
+       
+       // Build a new Token for updating access rights, with a different 'scope'
+       
+       params = new HashMap<>(); 
+       params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+       params.put(Constants.CTI, CBORObject.FromObject(
+               "token4".getBytes(Constants.charset)));
+       params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+       // Now the 'cnf' claim includes only a 'kid' with value the 'id'
+       // used in the first Token and identifying the OSCORE_Input_Material
+       cbor = CBORObject.NewMap();
+       cbor.Add(Constants.COSE_KID_CBOR, Util.intToBytes(1));
+       params.put(Constants.CNF, cbor);
+       token = new CWT(params);
+       
+       // Include only the Token now. If Id1 and Nonce1 were
+       // included here too, the RS would silently ignore them
+       payload = CBORObject.NewMap();
+       payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+       
+       asRes = new Response(CoAP.ResponseCode.CREATED);
+       asRes.setPayload(payload.EncodeToBytes());
+        
+	   // Posting the Token through an OSCORE-protected request
+       // 
+       // Normally, a client understands that the Token is indeed for updating access rights,
+       // since the response from the AS does not include the 'cnf' parameter.
+       CoapResponse rsRes2 = OSCOREProfileRequests.postTokenUpdate("coap://localhost/authz-info", asRes, ctxDB);
+       assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
+       // ... and in fact no payload is expected in the response
+       assert(rsRes2.getPayload() == null);
+       
+       //Check that the OSCORE context created before is still present
+       Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));
+       
+       // Perform new requests to the RS, under the latest posted Token
+       
+       // This should now fail - Access to this resource is not granted anymore
+       helloRes = c.advanced(helloReq);
+       assert(helloRes.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+       
+       // This should now fail with FORBIDDEN, not with METHOD NOT ALLOWED
+       deleteHelloRes = c.advanced(deleteHello);
+       assert(deleteHelloRes.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+       
+       // This should now succeed - Access to this resource is now granted by the latest posted Token
+       getTempRes = c2.advanced(getTemp);
+       assert(getTempRes.getCode().equals(CoAP.ResponseCode.CONTENT));
+       Assert.assertEquals("19.0 C", getTempRes.getResponseText());
+       
+       // This should fail with METHOD NOT ALLOWED, since the latest posted Token grants access to this resource with GET
+       Request deleteTemp = new Request(CoAP.Code.DELETE);
+       deleteTemp.getOptions().setOscore(new byte[0]);
+       CoapResponse deleteTempRes = c2.advanced(deleteTemp);
+       assert(deleteTempRes.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+       
+    }
     
 
 }

@@ -40,7 +40,9 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
+import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -128,8 +130,10 @@ public class OSCOREProfileRequestsGroupOSCORE {
      *  (including scheme and hostname, and port if not default)
      * @param asResp  the response from the AS containing the token
      *      and the access information
-     * @param askForSignInfo  FIXME
-     * @param askForPubKeyEnc  FIXME
+     * @param askForSignInfo  true when requesting information on the signature algorithm in the OSCORE group, false otherwise
+     * @param askForPubKeyEnc  true when requesting information on the encoding of public keys in the OSCORE group, false otherwise
+     * @param db   the database of OSCORE Security Contexts
+     * @param usedRecipientIds   the collection of already in use OSCORE Recipient IDs, it can be null when updating access rights
      * 
      * @return  the response 
      *
@@ -140,16 +144,15 @@ public class OSCOREProfileRequestsGroupOSCORE {
     		                         OSCoreCtxDB db, List<Set<Integer>> usedRecipientIds) 
             throws AceException, OSException {
         if (asResp == null) {
-            throw new AceException(
-                    "asResp cannot be null when POSTing to authz-info");
+            throw new AceException("asResp cannot be null when POSTing to authz-info");
         }
         
         CBORObject asPayload;
+        
         try {
             asPayload = CBORObject.DecodeFromBytes(asResp.getPayload());
         } catch (CBORException e) {
-            throw new AceException("Error parsing CBOR payload: " 
-                    + e.getMessage());
+            throw new AceException("Error parsing CBOR payload: "+ e.getMessage());
         }
                
         if (!asPayload.getType().equals(CBORType.Map)) {
@@ -168,17 +171,22 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("AS response did not contain a cnf");
         }
       
+        if (!cnf.ContainsKey(Constants.OSCORE_Input_Material) || cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
+        	throw new AceException("Invalid format of cnf");
+        }
+        
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token);
-        byte[] n1 = new byte[8];
-        new SecureRandom().nextBytes(n1);
-        payload.Add(Constants.NONCE1, n1);
         
         if (askForSignInfo || askForPubKeyEnc)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
+        payload.Add(Constants.NONCE1, n1);
+        
         byte[] recipientId = null;
-        int recipientIdAsInt = -1;
+        int recipientIdAsInt = -1;        
         boolean found = false;
         
         // Determine an available Recipient ID to offer to the Resource Server as ID1
@@ -248,27 +256,30 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         payload.Add(Constants.ID1, recipientId);
         
-        CoapClient client = new CoapClient(rsAddr);
-
-        LOGGER.finest("Sending request payload: " + payload);
         
-        Response r = null;
+        
+        Response resp = null;
+        CoapClient client = new CoapClient(rsAddr);
+                
         try {
-            r = client.post(
+            LOGGER.finest("Sending request payload: " + payload);
+            resp = client.post(
                     payload.EncodeToBytes(), 
                     Constants.APPLICATION_ACE_CBOR).advanced();
         } catch (ConnectorException | IOException ex) {
-        	usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
+        	if (recipientIdAsInt != -1) {
+        		usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
+        	}
             LOGGER.severe("Connector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
         }
 
-        if (r == null) {
+        if (resp == null) {
             throw new AceException("RS did not respond");
         }
         CBORObject rsPayload;
         try {
-            rsPayload = CBORObject.DecodeFromBytes(r.getPayload());
+            rsPayload = CBORObject.DecodeFromBytes(resp.getPayload());
         } catch (CBORException e) {
             throw new AceException("Error parsing CBOR payload: " 
                     + e.getMessage());
@@ -278,31 +289,31 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("RS didn't respond with a CBOR map");
         }
         
-        CBORObject n2C = rsPayload.get(
-                CBORObject.FromObject(Constants.NONCE2));
-        if (n2C == null || !n2C.getType().equals(CBORType.ByteString)) {
-            throw new AceException(
-                    "Missing or malformed 'nonce2' in RS response");
-        }
-        
         if (askForSignInfo || askForPubKeyEnc) {
         	
+        	if (!rsPayload.getType().equals(CBORType.Map)) {
+        		throw new AceException("RS didn't respond with a CBOR map");
+        	}
         	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
         		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
         			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
-                	throw new AceException(
-                			"Missing or malformed sign_info in the RS response, although requested");
+                	throw new AceException("Missing or malformed sign_info in the RS response, although requested");
         	}
 
         }
         
+        CBORObject n2C = rsPayload.get(
+                CBORObject.FromObject(Constants.NONCE2));
+        if (n2C == null || !n2C.getType().equals(CBORType.ByteString)) {
+            throw new AceException("Missing or malformed 'nonce2' in RS response");
+        }
+                
         byte[] n2 = n2C.GetByteString();
         
         CBORObject senderIdCBOR = rsPayload.get(
                 CBORObject.FromObject(Constants.ID2));
         if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
-            throw new AceException(
-                    "Missing or malformed 'id2' in RS response");
+            throw new AceException("Missing or malformed 'id2' in RS response");
         }
         
         byte[] senderId = senderIdCBOR.GetByteString();
@@ -344,7 +355,104 @@ public class OSCOREProfileRequestsGroupOSCORE {
 						               + " has been installed while running the OSCORE profile");
         }
         
-        return r;
+        return resp;
+        
+    }
+    
+    
+    /**
+     * Sends a POST request to the /authz-info endpoint of the RS to submit an
+     * access token for updating access rights.
+     * 
+     * @param rsAddr   the full address of the /authz-info endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param asResp   the response from the AS containing the token
+     *      and the access information
+     * @param askForSignInfo  true when requesting information on the signature algorithm in the OSCORE group, false otherwise
+     * @param askForPubKeyEnc  true when requesting information on the encoding of public keys in the OSCORE group, false otherwise
+     * @param db   the database of OSCORE Security Contexts
+     * 
+     * @return  the response 
+     *
+     * @throws AceException 
+     * @throws OSException 
+     */
+    public static CoapResponse postTokenUpdate(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc,
+    		                                   OSCoreCtxDB db) 
+            throws AceException, OSException {
+        if (asResp == null) {
+            throw new AceException("asResp cannot be null when POSTing to authz-info");
+        }
+        
+        CBORObject asPayload;
+        
+        try {
+            asPayload = CBORObject.DecodeFromBytes(asResp.getPayload());
+        } catch (CBORException e) {
+            throw new AceException("Error parsing CBOR payload: " + e.getMessage());
+        }
+               
+        if (!asPayload.getType().equals(CBORType.Map)) {
+            throw new AceException("AS response was not a CBOR map");
+        }
+        
+        CBORObject token = asPayload.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
+        if (token == null) {
+            throw new AceException("AS response did not contain a token");
+        }
+        
+        if (asPayload.ContainsKey(Constants.CNF)) {
+            throw new AceException("AS response must not contain a cnf");
+        }
+        
+        CBORObject payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token);
+        
+        if (askForSignInfo || askForPubKeyEnc)
+        	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
+        
+    	CoapResponse resp = null;
+
+    	// The Token has to be posted through an OSCORE-protected request
+        LOGGER.finest("Sending request payload: " + payload);
+        CoapClient client = OSCOREProfileRequests.getClient(new InetSocketAddress(
+        		rsAddr, CoAP.DEFAULT_COAP_PORT), db);
+    	
+        Request req = new Request(CoAP.Code.POST);
+        req.getOptions().setOscore(new byte[0]);
+        req.setPayload(payload.EncodeToBytes());
+        try {
+        	resp = client.advanced(req);
+		} catch (ConnectorException | IOException ex) {
+            LOGGER.severe("Connector error: " + ex.getMessage());
+            throw new AceException(ex.getMessage());
+		}
+        
+        if (resp == null) {
+            throw new AceException("RS did not respond");
+        }
+        
+        if (askForSignInfo || askForPubKeyEnc) {
+        	
+            CBORObject rsPayload;
+            try {
+                rsPayload = CBORObject.DecodeFromBytes(resp.getPayload());
+            } catch (CBORException e) {
+                throw new AceException("Error parsing CBOR payload: " + e.getMessage());
+            }
+            
+            if (!rsPayload.getType().equals(CBORType.Map)) {
+                throw new AceException("RS didn't respond with a CBOR map");
+            }
+        	
+        	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
+        		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
+                	throw new AceException("Missing or malformed sign_info in the RS response, although requested");
+        	}
+
+        }
+        
+        return resp;
         
     }
     

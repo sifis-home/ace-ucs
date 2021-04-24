@@ -39,13 +39,16 @@ import java.util.Base64;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.ServerMessageDeliverer;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.EndpointContext;
 
+import com.mysql.jdbc.Util;
 import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -125,6 +128,7 @@ public class CoapDeliverer implements MessageDeliverer {
     public void deliverRequest(final Exchange ex) {
         Request request = ex.getCurrentRequest();
         Response r = null;
+        
         //authz-info is not under access control
         try {
             URI uri = new URI(request.getURI());
@@ -161,7 +165,7 @@ public class CoapDeliverer implements MessageDeliverer {
         } else  {
             subject = request.getSourceContext().getPeerIdentity().getName();
         }
-
+        	    
         TokenRepository tr = TokenRepository.getInstance();
         if (tr == null) {
             LOGGER.finest("TokenRepository not initialized");
@@ -203,7 +207,7 @@ public class CoapDeliverer implements MessageDeliverer {
         }
                
         String resource = request.getOptions().getUriPathString();
-        short action = (short) request.getCode().value;  
+        short action = (short) request.getCode().value;
       
         try {
             int res = TokenRepository.getInstance().canAccess(
