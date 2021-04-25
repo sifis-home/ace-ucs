@@ -417,65 +417,65 @@ public class TokenRepository implements AutoCloseable {
     	                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
     	            	  }
     	            	  
-    	              	// Check if there is a stored Token associated to this subject ID 
-    	              	String storedCti = sid2cti.get(sid);
-    	              	
-    	              	// A Token was found - This implies that the corresponding security association
-    	              	// is the same one used to protect the received Token POST request
-    	              	if (storedCti != null) {
-
-    	                      // Now check that the stored Token is actually bound to a key with that 'kid'
-      	              		  String retrievedKid = cti2kid.get(storedCti);
-      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-      	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
-    	                      
-    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
-      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
-      	                            throw new AceException("Impossible to retrieve a Token to supersede");
-    	              		  }
-    	                    	
-		                      // Everything has matched - This Token is intended to update access rights, while
-		                      // preserving the same security association used to protect this Token POST and
-		                      // associated to the Token to supersede
-		                      
-      	              		  Map<Short, CBORObject> storedClaims = cti2claims.get(storedCti);
-      	              		  CBORObject storedCnf = storedClaims.get(Constants.CNF);
-      	              		
-      	              		  // The following should never happen, being this an already stored Token
-      	                      if (storedCnf == null) {
-      	                          LOGGER.severe("The retrieved stored token has not cnf");
-      	                          throw new AceException("The retrieved stored token has no cnf");
-      	                      }
-      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
-      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
-      	                          throw new AceException("cnf claim malformed in the retrieved stored token");
-      	                      }
-      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
-      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
-      	                          throw new AceException("cnf claim malformed in the retrieved storedtoken");
-      	                      }
-    	                      
-		                      // Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
-		                      // This will overwrite the orginal 'cnf' considered above in the new Token to store.
-		                      claims.put(Constants.CNF, storedCnf);
-		                      	
-		                      // Delete the Token to be replaced
-		                      removeToken(storedCti);
-		                      	
-		                      // Store the association between the CTI of the new Token and the same current kid
-		                      this.cti2kid.put(cti, receivedKid);
-		                      
-		                      // Store the association between the same current subjectId and the CTI of the new Token
-		                      this.sid2cti.put(sid, cti);
-		                      
-		                      // The same PoP key remains in use
-		                      storeKey = false;
-    	                      	
-    	              	}
-    	              	else {
-    	                      LOGGER.severe("Impossible to retrieve the stored Token to supersede");
-    	                      throw new AceException("Impossible to retrieve the stored Token to supersede");
-    	              	}
+	    	              	// Check if there is a stored Token associated to this subject ID 
+	    	              	String storedCti = sid2cti.get(sid);
+	    	              	
+	    	              	// A Token was found - This implies that the corresponding security association
+	    	              	// is the same one used to protect the received Token POST request
+	    	              	if (storedCti != null) {
+	
+	    	                      // Now check that the stored Token is actually bound to a key with that 'kid'
+	      	              		  String retrievedKid = cti2kid.get(storedCti);
+	      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+	      	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
+	    	                      
+	    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
+	      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
+	      	                            throw new AceException("Impossible to retrieve a Token to supersede");
+	    	              		  }
+	    	                    	
+			                      // Everything has matched - This Token is intended to update access rights, while
+			                      // preserving the same security association used to protect this Token POST and
+			                      // associated to the Token to supersede
+			                      
+	      	              		  Map<Short, CBORObject> storedClaims = cti2claims.get(storedCti);
+	      	              		  CBORObject storedCnf = storedClaims.get(Constants.CNF);
+	      	              		
+	      	              		  // The following should never happen, being this an already stored Token
+	      	                      if (storedCnf == null) {
+	      	                          LOGGER.severe("The retrieved stored token has not cnf");
+	      	                          throw new AceException("The retrieved stored token has no cnf");
+	      	                      }
+	      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
+	      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
+	      	                          throw new AceException("cnf claim malformed in the retrieved stored token");
+	      	                      }
+	      	                      if (!storedCnf.getType().equals(CBORType.Map)) {
+	      	                          LOGGER.severe("Malformed cnf in the retrieved stored token");
+	      	                          throw new AceException("cnf claim malformed in the retrieved storedtoken");
+	      	                      }
+	    	                      
+			                      // Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
+			                      // This will overwrite the orginal 'cnf' considered above in the new Token to store.
+			                      claims.put(Constants.CNF, storedCnf);
+			                      	
+			                      // Store the association between the CTI of the new Token and the same current kid
+			                      this.cti2kid.put(cti, receivedKid);
+			                      
+			                      // Store the association between the same current subjectId and the CTI of the new Token
+			                      this.sid2cti.put(sid, cti);
+			                      
+			                      // The same PoP key remains in use
+			                      storeKey = false;
+			                      
+			                      // Delete the Token to be replaced
+			                      removeToken(storedCti);
+	    	                      	
+	    	              	}
+	    	              	else {
+	    	                      LOGGER.severe("Impossible to retrieve the stored Token to supersede");
+	    	                      throw new AceException("Impossible to retrieve the stored Token to supersede");
+	    	              	}
             			  
                   	  }
             		  // Else it's Case (ii), which will be handled later in processKey()
