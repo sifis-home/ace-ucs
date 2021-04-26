@@ -94,6 +94,7 @@ public class OSCOREProfileRequests {
      * @param payload  the payload of the request.  Use the GetToken 
      *  class to construct this payload
      * @param ctx  the OSCORE context shared with the AS
+     * @param db the database of the OSCORE contexts
      * 
      * @return  the response 
      *

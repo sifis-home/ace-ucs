@@ -350,7 +350,7 @@ public class Token implements Endpoint, AutoCloseable {
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
 		Object scope = null;
-		if (cbor == null ) {
+		if (cbor == null) {
 			try {
                 scope = this.db.getDefaultScope(id);
             } catch (AceException e) {
@@ -384,7 +384,9 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		//4. Check if the request has an audience or if there is a default audience
 		cbor = msg.getParameter(Constants.AUDIENCE);
-		Set<String> aud = new HashSet<>(); // The audience has to be a text string. A set is built for compatibility with other methods
+		
+		// The audience has to be a text string. A set is built for compatibility with other methods
+		Set<String> aud = new HashSet<>();
 		if (cbor == null) {
 		    try {
 		        String dAud = this.db.getDefaultAudience(id);
@@ -493,6 +495,9 @@ public class Token implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
         }
        
+        // It will be set to true if the Token is about updating access rights
+        boolean updateAccessRights = false;
+        
         String keyType = null; //Save the key type for later
 		Map<Short, CBORObject> claims = new HashMap<>();
 		
@@ -601,7 +606,7 @@ public class Token implements Endpoint, AutoCloseable {
                         if (profile == Constants.COAP_OSCORE) {
                             //Generate OSCORE cnf
                             byte[] keyB = key.getEncoded();
-                            CBORObject osc = makeOscoreCnf(keyB, id);
+                            CBORObject osc = makeOscoreCnf(keyB);
                             claims.put(Constants.CNF, osc);                           
                         } else {//Make a DTLS style psk                         
                             CBORObject keyData = CBORObject.NewMap();
@@ -627,7 +632,7 @@ public class Token implements Endpoint, AutoCloseable {
                     }
 		            
 		        } else if (cnf.ContainsKey(Constants.COSE_KID_CBOR)) {
-		            //The client requested a specific kid,
+		            // The client requested a specific kid,
 	                // assume the client knows what it's doing
 	                // i.e. that the RS has that key and can process it
 		            
@@ -757,6 +762,14 @@ public class Token implements Endpoint, AutoCloseable {
 	                   }
 		           } catch (AceException e) {
 		               this.cti--; //roll-back
+		               
+		               // If the OSCORE profile is used, and this was a first-released Token
+		               // to this client for RS in question, roll-back the counter used for
+		               // the 'id' parameter in the OSCORE Security Context
+		               if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+		            	   this.OSCORE_material_counter--;
+		               }
+		               
                        LOGGER.severe("Message processing aborted: "
                                + e.getMessage());
                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -775,6 +788,14 @@ public class Token implements Endpoint, AutoCloseable {
 		    token = AccessTokenFactory.generateToken(tokenType, claims);
 		} catch (AceException e) {
 		    this.cti--; //roll-back
+		    
+            // If the OSCORE profile is used, and this was a first-released Token
+            // to this client for RS in question, roll-back the counter used for
+            // the 'id' parameter in the OSCORE Security Context
+            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+         	   this.OSCORE_material_counter--;
+            }
+		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -787,19 +808,44 @@ public class Token implements Endpoint, AutoCloseable {
 		    }
 		} catch (AceException e) {
 		    this.cti--; //roll-back
+		    
+            // If the OSCORE profile is used, and this was a first-released Token
+            // to this client for RS in question, roll-back the counter used for
+            // the 'id' parameter in the OSCORE Security Context
+            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+         	   this.OSCORE_material_counter--;
+            }
+		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 
 		if (keyType != null && keyType.equals("PSK")) {
-		    rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+			if (profile == Constants.COAP_OSCORE) {
+				if (updateAccessRights == false) {
+					rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+				}
+				// Do not add 'cnf' if the OSCORE profile is used and
+				// the Token is released for updating access rights
+			}
+			else {
+				rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
+			}
 		}  else if (keyType != null && keyType.equals("RPK")) {
 		    Set<CBORObject> rscnfs = new HashSet<>();
             try {
                 rscnfs = makeRsCnf(aud);
             } catch (AceException e) {
                 this.cti--; //roll-back
+                
+                // If the OSCORE profile is used, and this was a first-released Token
+                // to this client for RS in question, roll-back the counter used for
+                // the 'id' parameter in the OSCORE Security Context
+                if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+             	    this.OSCORE_material_counter--;
+                }
+                
                 LOGGER.severe("Message processing aborted: "
                         + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -826,12 +872,28 @@ public class Token implements Endpoint, AutoCloseable {
 		                this.privateKey, sign);
 		    } catch (AceException | CoseException e) {
 		        this.cti--; //roll-back
+		        
+                // If the OSCORE profile is used, and this was a first-released Token
+                // to this client for RS in question, roll-back the counter used for
+                // the 'id' parameter in the OSCORE Security Context
+                if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+            	    this.OSCORE_material_counter--;
+                }
+		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
 		    if (ctx == null) {
 		        this.cti--; //roll-back
+		        
+	            // If the OSCORE profile is used, and this was a first-released Token
+	            // to this client for RS in question, roll-back the counter used for
+	            // the 'id' parameter in the OSCORE Security Context
+	            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+	            	this.OSCORE_material_counter--;
+	            }
+		        
 		        CBORObject map = CBORObject.NewMap();
 		        map.Add(Constants.ERROR, 
 		                "No common security context found for audience");
@@ -856,6 +918,14 @@ public class Token implements Endpoint, AutoCloseable {
 		    } catch (IllegalStateException | InvalidCipherTextException
 		            | CoseException | AceException e) {
 		        this.cti--; //roll-back
+		        
+	            // If the OSCORE profile is used, and this was a first-released Token
+	            // to this client for RS in question, roll-back the counter used for
+	            // the 'id' parameter in the OSCORE Security Context
+	            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+	            	this.OSCORE_material_counter--;
+	            }
+		        
 		        LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -870,6 +940,14 @@ public class Token implements Endpoint, AutoCloseable {
 		    this.db.saveCtiCounter(this.cti);
 		} catch (AceException e) {
 		    this.cti--; //roll-back
+		    
+            // If the OSCORE profile is used, and this was a first-released Token
+            // to this client for RS in question, roll-back the counter used for
+            // the 'id' parameter in the OSCORE Security Context
+            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+            	this.OSCORE_material_counter--;
+            }
+		    
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -899,24 +977,23 @@ public class Token implements Endpoint, AutoCloseable {
 	    return rscnfs;
 	}
 	
+	// TODO: extend to possibly include also Master Salt, ID Context, HKDF and ALG
 	/**
-	 * Create an OSCORE_Input_Material CBOR object.
+	 * Create the value of a 'cnf' claim as an OSCORE_Input_Material CBOR object.
 	 * 
-	 * @param key  the Master Key
-	 * @param clientId  the client identifier
-	 * @throws NoSuchAlgorithmException 
-	 * @throws AceException 
+	 * @param masterSecret  the OSCORE Master Secret
+	 * 
+	 * @return the value of a 'cnf' claim as an OSCORE_Input_Material CBOR object
 	 */
-	private CBORObject makeOscoreCnf(byte[] key, String clientId) 
-	        throws NoSuchAlgorithmException {
-	    CBORObject osc = CBORObject.NewMap();
+	private CBORObject makeOscoreCnf(byte[] masterSecret) {
 	    CBORObject osccnf = CBORObject.NewMap();
-	    osccnf.Add(Constants.OS_MS, key);
-	    osccnf.Add(Constants.OS_ID, Util.intToBytes(OSCORE_material_counter));
+	    CBORObject osc = CBORObject.NewMap();
+	    osc.Add(Constants.OS_MS, masterSecret);
+	    osc.Add(Constants.OS_ID, Util.intToBytes(OSCORE_material_counter));
 	    OSCORE_material_counter++;
 	    
-	    osc.Add(Constants.OSCORE_Input_Material, osccnf);
-	    return osc;            
+	    osccnf.Add(Constants.OSCORE_Input_Material, osc);
+	    return osccnf;  
 	}
 	
 	/**
