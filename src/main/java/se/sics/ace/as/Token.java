@@ -183,6 +183,25 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	 private int OSCORE_material_counter = 0;
 	 
+	 // NNN
+	 // M.T.
+	 /**
+	 * Store the association between the cti of an issued Acced Token
+	 * and the name of the RS (i.e. the audience) intended to consume it.
+	 */
+	 private Map<String, String> cti2rs = new HashMap<>();
+	 
+	 // NNN
+	 // M.T.
+	 /**
+	 * Relevant only when the OSCORE profile is used
+	 * 
+	 * Store the association between the cti of an issued Acced Token
+	 * and the ID identifying the OSCORE Input Material. Such an ID
+	 * is stored as a CBOR byte string.
+	 */
+	 private Map<String, CBORObject> cti2oscId = new HashMap<>();
+	 
 	 /*
 	  * XXX: Currently OSCORE alg, hkdf, salt and replay window size are fixed to default.
 	  * Do we need agility here?
@@ -387,11 +406,17 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		// The audience has to be a text string. A set is built for compatibility with other methods
 		Set<String> aud = new HashSet<>();
+		
+		// NNN
+		String rsName = ""; // used to save the Resource Server name for later, for possible update of access rights
+		String oldCti = ""; // used to track the cti of a Token to supersede, in case of update of access rights
+		
 		if (cbor == null) {
 		    try {
 		        String dAud = this.db.getDefaultAudience(id);
 		        if (dAud != null) {
 		            aud.add(dAud);
+		            rsName = new String(dAud);
 		        }
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted (checking aud): "
@@ -401,6 +426,7 @@ public class Token implements Endpoint, AutoCloseable {
 		} else {
 			  if (cbor.getType().equals(CBORType.TextString)) {
 				  aud.add(cbor.AsString());
+				  rsName = new String(cbor.AsString());
 		    } else {//error
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -420,8 +446,8 @@ public class Token implements Endpoint, AutoCloseable {
 		            + "No audience found for message");
 		    return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 		}
-
 		
+
 		//5. Check if the scope is allowed
 		Object allowedScopes = null;
         try {
@@ -484,7 +510,7 @@ public class Token implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         short profile = Constants.getProfileAbbrev(profileStr);
-        
+                
         if (tokenType != AccessTokenFactory.CWT_TYPE 
                 && tokenType != AccessTokenFactory.REF_TYPE) {
             this.cti--; //roll-back
@@ -495,7 +521,8 @@ public class Token implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_NOT_IMPLEMENTED, map);
         }
        
-        // It will be set to true if the Token is about updating access rights
+        // NNN
+        // This flag will be set to true if the Token is intended to update access rights
         boolean updateAccessRights = false;
         
         String keyType = null; //Save the key type for later
@@ -571,8 +598,7 @@ public class Token implements Endpoint, AutoCloseable {
 		                CBORObject.FromObject(allowedScopes));
 		        break;
 		    case Constants.CNF:
-		        CBORObject cnf = msg.getParameter(Constants.CNF);
-		        
+		    	CBORObject cnf = msg.getParameter(Constants.CNF);
 		        if (cnf == null) { //The client wants to use PSK
 		            keyType = "PSK"; //save for later
 		            
@@ -601,14 +627,94 @@ public class Token implements Endpoint, AutoCloseable {
 		            //Audience supports PSK, make a new PSK
                     try {
                         KeyGenerator kg = KeyGenerator.getInstance("AES");
-                        SecretKey key = kg.generateKey();
+                        
+                        // NNN
+                    	// Check if the new Token is intended to update the access rights for this client
+                        Set<String> ctiSet = new HashSet<>();
+                    	try {
+                            ctiSet = this.db.getCtis4Client(id);
+                            
+						} catch (AceException e) {
+	                        this.cti--; //roll-back
+	                        LOGGER.severe("Message processing aborted "
+	                                + "(finding cti of issues tokens): "
+	                                + e.getMessage());
+	                        return msg.failReply(
+	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+						}
+                    	
+                    	if (ctiSet.size() != 0) {
+                    		// Some Tokens have been issued to this client.
+                    		
+                    		for (String myCti : ctiSet) {
+                    			
+                    			// Check that not only the Token was released at some point in time,
+                    			// but that it is also currently stored in the Database. If so, it
+                    			// is possible to retrieve a non empty set of claims through its cti. 
+                    			try {
+									if (this.db.getClaims(myCti).size() == 0) {
+										// A Token with this cti is not active anymore.
+										// Continue with checking the next Token.
+										
+										// But first take the opportunity to clean up some other
+										// data structures, which might not have happened already
+								        this.cti2rs.remove(myCti);
+								        this.cti2oscId.remove(myCti);
+										
+										continue;
+									}
+								} catch (AceException e) {
+			                        this.cti--; //roll-back
+			                        LOGGER.severe("Message processing aborted "
+			                                + "(finding previously released token): "
+			                                + e.getMessage());
+			                        return msg.failReply(
+			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+								}
+                    			
+                    			String myRs = this.cti2rs.get(myCti);
+                    			
+                        		// Check especially if the previously released Token was intended to
+                        		// the same Resource Server intended to consume the just requested Token
+                    			if (myRs != null && rsName.equals(myRs)) {
+                            		// The new Token is intended to update access rights
+                    				
+                            		updateAccessRights = true;
+                            		oldCti = new String(myCti);
+                            		break;
+                    			}
+                    			
+                    		}
+                    	}
+                    	
                         //check if profile == OSCORE
                         if (profile == Constants.COAP_OSCORE) {
+                        	
                             //Generate OSCORE cnf
-                            byte[] keyB = key.getEncoded();
-                            CBORObject osc = makeOscoreCnf(keyB);
-                            claims.put(Constants.CNF, osc);                           
-                        } else {//Make a DTLS style psk                         
+                        	if (updateAccessRights == false) {
+	                        	SecretKey key = kg.generateKey();
+	                            byte[] masterSecret = key.getEncoded();
+	                            CBORObject osc = makeOscoreCnf(masterSecret);
+	                            claims.put(Constants.CNF, osc);
+                        	}
+                        	else {
+                        		// The new Token is intended to update access rights
+                        		CBORObject oscId = this.cti2oscId.get(oldCti);
+                        		if (oscId == null) {
+        	                        this.cti--; //roll-back
+        	                        LOGGER.severe("Message processing aborted "
+        	                                + "(finding OSCORE ID when updating access rights)");
+        	                        return msg.failReply(
+        	                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
+                        		}
+	                            CBORObject osc = makeOscoreCnfUpdateAccessRights(oscId);
+	                            claims.put(Constants.CNF, osc);
+                        	}
+                            
+                        }
+                        
+                        else {//Make a DTLS style psk
+                        	SecretKey key = kg.generateKey();
                             CBORObject keyData = CBORObject.NewMap();
                             keyData.Add(KeyKeys.KeyType.AsCBOR(), 
                                     KeyKeys.KeyType_Octet);
@@ -823,11 +929,14 @@ public class Token implements Endpoint, AutoCloseable {
 
 		if (keyType != null && keyType.equals("PSK")) {
 			if (profile == Constants.COAP_OSCORE) {
+				
+				// NNN
 				if (updateAccessRights == false) {
 					rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
 				}
 				// Do not add 'cnf' if the OSCORE profile is used and
 				// the Token is released for updating access rights
+				
 			}
 			else {
 				rsInfo.Add(Constants.CNF, claims.get(Constants.CNF));
@@ -938,16 +1047,55 @@ public class Token implements Endpoint, AutoCloseable {
 		    this.db.addToken(ctiStr, claims);
 		    this.db.addCti2Client(ctiStr, id);
 		    this.db.saveCtiCounter(this.cti);
+
+		    // NNN
+		    // In case the client has asked to use a PSK, store further associations,
+		    // to support the issuing of Access Tokens for updating access rights
+		    if (keyType != null && keyType.equals("PSK")) {
+		    
+			    this.cti2rs.put(ctiStr, rsName);
+			    
+			    if (profile == Constants.COAP_OSCORE) {
+			    	CBORObject oscId;
+			    	if (updateAccessRights == false) {
+			    		// The Token is not updating access rights, hence the identifier of the OSCORE
+			    		// Input Material is the 'id' 'OSCORE_Input_Material' element of the 'cnf' claim			    		
+			    		oscId = claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).get(Constants.OS_ID);
+			    	}
+			    	else {
+			    		// The Token is updating access rights, hence the identifier of the
+			    		// OSCORE Input Material is used as 'kid' in the 'cnf' claim of the Token
+			    		oscId = claims.get(Constants.CNF).get(Constants.COSE_KID_CBOR);
+			    	}
+			    	
+	            	this.cti2oscId.put(ctiStr, oscId);
+	            }
+			    
+			    // The just issued Token is updating access rights, hence delete the superseded Token
+			    if (updateAccessRights == true) {
+			    	removeToken(oldCti);
+			    }
+		    
+			}
+		    
+		    
 		} catch (AceException e) {
 		    this.cti--; //roll-back
+		    
+            // NNN
+            this.cti2rs.remove(ctiStr);
 		    
             // If the OSCORE profile is used, and this was a first-released Token
             // to this client for RS in question, roll-back the counter used for
             // the 'id' parameter in the OSCORE Security Context
-            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
+            if (keyType != null && keyType.equals("PSK") && profile == Constants.COAP_OSCORE &&
+            												updateAccessRights == false) {
             	this.OSCORE_material_counter--;
+            	
+            	// NNN
+            	this.cti2oscId.remove(ctiStr);
             }
-		    
+            
 		    LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -979,11 +1127,11 @@ public class Token implements Endpoint, AutoCloseable {
 	
 	// TODO: extend to possibly include also Master Salt, ID Context, HKDF and ALG
 	/**
-	 * Create the value of a 'cnf' claim as an OSCORE_Input_Material CBOR object.
+	 * Create the value of a 'cnf' claim as an "OSCORE_Input_Material" CBOR object.
 	 * 
 	 * @param masterSecret  the OSCORE Master Secret
 	 * 
-	 * @return the value of a 'cnf' claim as an OSCORE_Input_Material CBOR object
+	 * @return the value of a 'cnf' claim as an "OSCORE_Input_Material" CBOR object
 	 */
 	private CBORObject makeOscoreCnf(byte[] masterSecret) {
 	    CBORObject osccnf = CBORObject.NewMap();
@@ -996,6 +1144,23 @@ public class Token implements Endpoint, AutoCloseable {
 	    return osccnf;  
 	}
 	
+	
+	// NNN
+	/**
+	 * Create the value of a 'cnf' claim as a "kid" CBOR object.
+	 * 
+	 * @param oscId  the Identifier of the OSCORE Input Material object
+	 * 
+	 * @return the value of a 'cnf' claim as a "kid" CBOR object
+	 */
+	private CBORObject makeOscoreCnfUpdateAccessRights(CBORObject oscId) {
+	    CBORObject osccnf = CBORObject.NewMap();
+	    
+	    osccnf.Add(Constants.COSE_KID_CBOR, oscId);
+	    return osccnf;  
+	}
+
+
 	/**
 	 * Process an authorization grant message
 	 * 
@@ -1135,6 +1300,11 @@ public class Token implements Endpoint, AutoCloseable {
 	 */
 	public void removeToken(String cti) throws AceException {
 	    this.db.deleteToken(cti);
+	    
+        // NNN
+        this.cti2rs.remove(cti);
+        this.cti2oscId.remove(cti);
+	    
 	    //FIXME: Add the token to the TRL
 	}
 

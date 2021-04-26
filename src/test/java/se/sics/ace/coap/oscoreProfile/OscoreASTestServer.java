@@ -121,15 +121,21 @@ public class OscoreASTestServer
                 keyTypes, authPsk, null);        
         
         KissTime time = new KissTime();
+        
+        // Add a Token to successfully test introspection
+        //
+        // Note that this Token is not including everything expected in a Token
+        // for the OSCORE profile, especially the 'cnf' claim requiring specific
+        // preparation in the /token endpoint
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
+        db.addCti2Client(cti, "clientA");  
+        
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
