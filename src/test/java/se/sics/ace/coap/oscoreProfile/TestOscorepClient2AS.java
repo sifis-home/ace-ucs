@@ -147,5 +147,49 @@ public class TestOscorepClient2AS {
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
     }
 
+    /**
+     * Test successful retrieval of a token over OSCORE, followed
+     * by a second request for a new access token to update access rights
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testSuccessUpdateAccessRights() throws Exception { 	
+        CBORObject params = GetToken.getClientCredentialsRequest(
+                CBORObject.FromObject("rs2"),
+                CBORObject.FromObject("r_temp rw_config foobar"), null);
+        
+        Response response = OSCOREProfileRequests.getToken(
+                "coap://localhost/token", params, ctx, ctxDB);
+        
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        Map<Short, CBORObject> map = Constants.getParams(res);
+        System.out.println(map);
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(map.containsKey(Constants.CNF));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
+        
+        // Ask for a new Token for updating access rights, with a different 'scope'
+        
+        params = GetToken.getClientCredentialsRequest(
+                CBORObject.FromObject("rs2"),
+                CBORObject.FromObject("r_temp rw_config rw_light foobar"), null);
+        
+        response = OSCOREProfileRequests.getToken(
+                "coap://localhost/token", params, ctx, ctxDB);
+        
+        res = CBORObject.DecodeFromBytes(response.getPayload());
+        map = Constants.getParams(res);
+        System.out.println(map);
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(!map.containsKey(Constants.CNF)); // The 'cnf' parameter must not be present here
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config rw_light"));
+        
+    }
+    
 }
 
