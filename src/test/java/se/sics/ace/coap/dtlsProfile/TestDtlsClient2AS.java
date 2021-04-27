@@ -54,6 +54,7 @@ import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
@@ -64,7 +65,7 @@ import se.sics.ace.as.Token;
  * 
  * NOTE: This will automatically start an AS in another thread
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestDtlsClient2AS {
@@ -211,6 +212,88 @@ public class TestDtlsClient2AS {
         assert(map.containsKey(Constants.SCOPE));
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
     }
+    
+    
+    /**
+     * Test CoapToken using PSK. After having received the first token, the client
+     * sends a second request for a new access token to update access rights
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testCoapTokenUpdateAccessRights() throws Exception {
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        builder.setClientOnly();
+        builder.setSniEnabled(false);
+        builder.setPskStore(new StaticPskStore("clientA", key128));
+        //builder.setIdentity(asymmetricKey.AsPrivateKey(), 
+        //       asymmetricKey.AsPublicKey());
+        builder.setSupportedCipherSuites(new CipherSuite[]{
+                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
+        CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
+        ceb.setConnector(dtlsConnector);
+        
+        CoapClient client = new CoapClient("coaps://localhost/token");
+        client.setEndpoint(ceb.build());
+
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject("r_temp rw_config foobar"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        
+        CoapResponse response = client.post(
+                Constants.getCBOR(params).EncodeToBytes(), 
+                Constants.APPLICATION_ACE_CBOR);    
+        
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        Map<Short, CBORObject> map = Constants.getParams(res);
+        System.out.println(map);
+        
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(map.containsKey(Constants.CNF));
+        assert(map.get(Constants.CNF).ContainsKey(Constants.COSE_KEY));
+        Assert.assertEquals(3, map.get(Constants.CNF).get(Constants.COSE_KEY).size());
+        Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyId.AsCBOR()));
+        Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyType.AsCBOR()));
+        Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.Octet_K.AsCBOR()));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
+        
+        // Store the 'kid' of the symmetric PoP key for later check
+        byte[] kid = map.get(Constants.CNF).get(Constants.COSE_KEY).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        
+        
+        // Ask for a new Token for updating access rights, with a different 'scope'
+        
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        params.put(Constants.SCOPE, 
+                CBORObject.FromObject("r_temp rw_config rw_light foobar"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+        					   Constants.APPLICATION_ACE_CBOR); 
+        
+        res = CBORObject.DecodeFromBytes(response.getPayload());
+        map = Constants.getParams(res);
+        System.out.println(map);
+        
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(map.containsKey(Constants.CNF));
+        assert(map.get(Constants.CNF).ContainsKey(Constants.COSE_KEY));
+        Assert.assertEquals(2, map.get(Constants.CNF).get(Constants.COSE_KEY).size());
+        Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyId.AsCBOR()));
+        Assert.assertEquals(true, map.get(Constants.CNF).get(Constants.COSE_KEY).ContainsKey(KeyKeys.KeyType.AsCBOR()));
+        Assert.assertArrayEquals(kid, map.get(Constants.CNF).get(Constants.COSE_KEY).get(KeyKeys.KeyId.AsCBOR()).GetByteString());
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config rw_light"));
+        
+    }
+    
     
     /**
      * Test CoapIntrospect using RPK

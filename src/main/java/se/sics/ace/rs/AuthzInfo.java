@@ -106,12 +106,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * The crypto context to use with the AS
 	 */
 	private CwtCryptoCtx ctx;
-	
-	/**
-	 * The key derivation key to use with the AS
-	 */
-	private byte[] keyDerivationKey;	
-	
+		
 	/**
 	 * Flag to indicate if we need to check cnonces
 	 */
@@ -153,7 +148,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.intro = intro;
 		this.audience = audience;
 		this.ctx = ctx;
-		this.keyDerivationKey = keyDerivationKey;
 		this.checkCnonce = checkCnonce;
 		
     	for (int i = 0; i < 4; i++) {

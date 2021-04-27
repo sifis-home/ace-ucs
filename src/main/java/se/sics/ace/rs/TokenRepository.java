@@ -50,7 +50,6 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.elements.util.Bytes;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;

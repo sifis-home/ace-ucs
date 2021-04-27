@@ -99,11 +99,7 @@ public class DtlsASTestServer
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
-        profiles.add("coap_oscore");
-        Set<String> scopes = new HashSet<>();
-        scopes.add("rw_valve");
-        scopes.add("r_pressure");
-        scopes.add("foobar");
+        profiles.add("coap_dtls");
         Set<String> auds = new HashSet<>();
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -115,11 +111,25 @@ public class DtlsASTestServer
                 AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
+        
+        Set<String> scopes = new HashSet<>();
+        scopes.add("r_temp");
+        scopes.add("rw_config");
+        scopes.add("co2");
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, akey);
         
+        scopes = new HashSet<>();
+        scopes.add("r_temp");
+        scopes.add("rw_config");
+        scopes.add("rw_light");
+        scopes.add("failTokenType");
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
+                expiration, authPsk, tokenPsk, null);
+        
+        
         profiles.clear();
-        profiles.add("coap_oscore");
+        profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
@@ -156,13 +166,15 @@ public class DtlsASTestServer
 
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
-        pdp.addAccess("clientA", "rs2", "r_light");
+        pdp.addAccess("clientA", "rs2", "r_temp");
+        pdp.addAccess("clientA", "rs2", "rw_config");
+        pdp.addAccess("clientA", "rs2", "rw_light");
         pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
         
         pdp.addAccess("clientB", "rs1", "r_temp");
         pdp.addAccess("clientB", "rs1", "co2");
-        pdp.addAccess("clientB", "rs2", "r_light");
-        pdp.addAccess("clientB", "rs2", "r_config");
+        pdp.addAccess("clientB", "rs2", "rw_light");
+        pdp.addAccess("clientB", "rs2", "rw_config");
         pdp.addAccess("clientB", "rs2", "failTokenType");
         pdp.addAccess("clientB", "rs3", "rw_valve");
         pdp.addAccess("clientB", "rs3", "r_pressure");
@@ -178,10 +190,8 @@ public class DtlsASTestServer
 
         pdp.addAccess("clientD", "rs1", "r_temp");
         pdp.addAccess("clientD", "rs1", "rw_config");
-        pdp.addAccess("clientD", "rs2", "r_light");
-        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
-        pdp.addAccess("clientD", "rs1", "r_temp");
-        
+        pdp.addAccess("clientD", "rs2", "rw_light");
+        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");        
 
         pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
