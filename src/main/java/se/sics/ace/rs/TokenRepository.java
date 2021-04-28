@@ -337,11 +337,6 @@ public class TokenRepository implements AutoCloseable {
         } else {		
 		    cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
 		}
-		
-		//Check for duplicate cti
-		if (this.cti2claims.containsKey(cti)) {
-		    throw new AceException("Duplicate cti");
-		}
 
 		//Store the pop-key
 		boolean storeKey = true;
@@ -354,6 +349,24 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("Malformed cnf in token");
             throw new AceException("cnf claim malformed in token");
         }
+        
+		//Check for duplicate cti
+        boolean repostedOscoreToken = false;
+		if (this.cti2claims.containsKey(cti)) {
+			
+			if (cnf.getKeys().contains(Constants.OSCORE_Input_Material) && sid == null) {
+				// This is a re-POST of the same Token through an insecure request under the OSCORE profile.
+				//
+				// This is admitted and results in a new exchange of nonces N1 and N2, together with the
+				// establishment of a new OSCORE Security Context, which /authz-info already takes care of. 
+				//
+				// This same Token remains and no action is required here at the Token Repository later on.
+				repostedOscoreToken = true;
+			}
+			else {
+				throw new AceException("Duplicate cti");
+			}
+		}
         
         if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
@@ -650,6 +663,12 @@ public class TokenRepository implements AutoCloseable {
         else if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
         	// Coming from the /authz-info endpoint, it is ensured that
         	// this Token has been posted through an unprotected request
+        	
+        	if (repostedOscoreToken == true) {
+        		// The same Token has been reposted, to trigger the establishment
+        		// of a new OSCORE Security Context. No further action is required.
+        		return cticb;
+        	}
         	
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             
