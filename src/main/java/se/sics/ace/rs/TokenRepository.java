@@ -351,7 +351,6 @@ public class TokenRepository implements AutoCloseable {
         }
         
 		//Check for duplicate cti
-        boolean repostedOscoreToken = false;
 		if (this.cti2claims.containsKey(cti)) {
 			
 			if (cnf.getKeys().contains(Constants.OSCORE_Input_Material) && sid == null) {
@@ -361,11 +360,12 @@ public class TokenRepository implements AutoCloseable {
 				// establishment of a new OSCORE Security Context, which /authz-info already takes care of. 
 				//
 				// This same Token remains and no action is required here at the Token Repository later on.
-				repostedOscoreToken = true;
+        		return cticb;
 			}
 			else {
 				throw new AceException("Duplicate cti");
 			}
+			
 		}
         
         if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
@@ -664,12 +664,6 @@ public class TokenRepository implements AutoCloseable {
         	// Coming from the /authz-info endpoint, it is ensured that
         	// this Token has been posted through an unprotected request
         	
-        	if (repostedOscoreToken == true) {
-        		// The same Token has been reposted, to trigger the establishment
-        		// of a new OSCORE Security Context. No further action is required.
-        		return cticb;
-        	}
-        	
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
             
             String kid = new String(osc.getClientId(), Constants.charset);
@@ -681,7 +675,6 @@ public class TokenRepository implements AutoCloseable {
         	byte[] kidContextBytes = osc.getContextId();
         	
         	if (kidContextBytes != null && kidContextBytes.length != 0) {
-            	System.out.println("token repository idContext: " + kid);
         		kidContext = new String(kidContextBytes, Constants.charset);
         		subjectId = kidContext + ":";
         	}
@@ -716,7 +709,7 @@ public class TokenRepository implements AutoCloseable {
         this.cti2claims.put(cti, foo);
         
         persist();
-        
+
         return cticb;
 	}
 	

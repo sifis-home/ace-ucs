@@ -1001,9 +1001,10 @@ public class TestOscoreAuthzInfo {
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = db.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
-                false, null, id1, id2, null, null, null, null);
+                true, null, id1, id2, null, null, null, kidContext);
         
         assert(osctx.equals(osctx2));
+        
         
         //Test that the token is there and that responses are as expected
         
@@ -1102,7 +1103,7 @@ public class TestOscoreAuthzInfo {
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = dbOSCORE.getContext(id2);
         OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
-                false, null, id1, id2, null, null, null, null);
+                true, null, id1, id2, null, null, null, kidContext);
         
         assert(osctx.equals(osctx2));
 
