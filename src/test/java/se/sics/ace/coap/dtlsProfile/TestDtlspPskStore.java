@@ -143,8 +143,8 @@ public class TestDtlspPskStore {
         CBORObject identityStructure = CBORObject.NewMap();
         CBORObject cnfStructure = CBORObject.NewMap();
         CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId), kidStr.getBytes(Constants.charset));
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kidStr.getBytes(Constants.charset));
         cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
         identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
         String publicInfo = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
@@ -270,15 +270,15 @@ public class TestDtlspPskStore {
         CBORObject identityStructure = CBORObject.NewMap();
         CBORObject cnfStructure = CBORObject.NewMap();
         CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId), kid);
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
+        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);
         cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
         identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
         String psk_identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
 
     	// OLD WAY, with only the kid used as "psk_identity"
         //String psk_identity = "ourKey"; 
-
+        
         byte[] psk = store.getKey(
                 new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);

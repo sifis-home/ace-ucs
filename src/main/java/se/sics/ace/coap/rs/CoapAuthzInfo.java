@@ -31,6 +31,7 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
@@ -82,7 +83,7 @@ public class CoapAuthzInfo extends CoapResource {
         Request req = new Request(exchange.getRequestCode());
         req.setPayload(exchange.getRequestPayload());
         
-        // The Token POST may be protected with OSCORE, i.e. when updating access rights
+        // The Token POST may be protected, i.e. when updating access rights
         //
         // To cover this case, copy the information from the traversed security layer
         // into the request to process at the underlying authz-info library
@@ -93,7 +94,7 @@ public class CoapAuthzInfo extends CoapResource {
             CoapReq msg = CoapReq.getInstance(req);
             Message reply = this.ai.processMessage(msg);
             //Safe to cast, since CoapReq only ever renders a CoapRes
-            CoapRes response = (CoapRes)reply; 
+            CoapRes response = (CoapRes)reply;
             exchange.respond(response.getCode(), response.getRawPayload(),
             		Constants.APPLICATION_ACE_CBOR);
         } catch (AceException e) {

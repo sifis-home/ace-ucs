@@ -357,6 +357,7 @@ public class TokenRepository implements AutoCloseable {
         
         if (cnf.getKeys().contains(Constants.COSE_KEY_CBOR)) {
             CBORObject ckey = cnf.get(Constants.COSE_KEY_CBOR);
+            
             try {            	
               
               // The PoP key is symmetric but only its 'kid' is specified (e.g., as in the DTLS profile).
@@ -369,10 +370,31 @@ public class TokenRepository implements AutoCloseable {
                       // The Token has been posted to /authz-info through an unprotected message.
                       // The actual PoP key has to be derived using the key derivation key shared with the AS
             		  
+            		  System.out.println("unprotected");
+            		  
 	            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
 	                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
 	                      throw new AceException("Invalid cnf element: expected 'kid' in 'COSE_Key was not found");
 	            	  }
+	            	  
+	            	  // Check also that a PoP key with the same received 'kid' is not already stored.
+	            	  //
+	            	  // That would be fine for a Token posted to update access rights,
+	            	  // which must however happen through a secure POST to /authz-info
+		      	      CBORObject kidC = ckey.get(KeyKeys.KeyId.AsCBOR());
+		    	      if (kidC == null) {
+		    	    	  LOGGER.severe("kid not found in COSE_Key");
+		    	          throw new AceException("COSE_Key is missing kid");
+		    	      } else if (kidC.getType().equals(CBORType.ByteString)) {
+		    	          String kid = new String(kidC.GetByteString(), Constants.charset);
+		    	          if (kid2key.containsKey(kid) == true) {
+			    	    	  LOGGER.severe("A symmetric PoP key with the specified 'kid' is already stored");
+			    	          throw new AceException("A symmetric PoP key with the specified 'kid' is already stored");
+		    	          }
+		    	      } else {
+		    	          LOGGER.severe("kid is not a byte string");
+		    	          throw new AceException("COSE_Key contains invalid kid");
+		    	      }
 	            	  
 	                  // The salt as empty byte string has to be an array of bytes with all its
 	                  // elements set to 0x00 and with the same size of the hash output in bytes
@@ -426,8 +448,9 @@ public class TokenRepository implements AutoCloseable {
 	    	                      // Now check that the stored Token is actually bound to a key with that 'kid'
 	      	              		  String retrievedKid = cti2kid.get(storedCti);
 	      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-	      	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
-	    	                      
+	      	              		  
+	    	                      String receivedKid = new String(receivedKidBytes, Constants.charset);
+	  	                    	  	    	                      
 	    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
 	      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
 	      	                            throw new AceException("Impossible to retrieve a Token to supersede");
@@ -480,7 +503,6 @@ public class TokenRepository implements AutoCloseable {
             		  // Else it's Case (ii), which will be handled later in processKey()
             		  
             	  }
-            	  
             	  
               }
               if (storeKey) {
@@ -564,11 +586,6 @@ public class TokenRepository implements AutoCloseable {
                     	String recoveredCti = id2cti.get(storedId);
                     	
                     	if (!storedCti.equals(recoveredCti) || !storedId.equals(kid) ) {
-                            LOGGER.severe("storedCti: " + storedCti);
-                            LOGGER.severe("recoveredCti: " + recoveredCti);
-                            LOGGER.severe("storedId: " + storedId);
-                            LOGGER.severe("kid: " + kid);
-                    		
                             LOGGER.severe("Impossible to retrieve an OSCORE-related Token to supersede");
                             throw new AceException("Impossible to retrieve an OSCORE-related Token to supersede");
                     	}
@@ -750,8 +767,8 @@ public class TokenRepository implements AutoCloseable {
             CBORObject identityStructure = CBORObject.NewMap();
             CBORObject cnfStructure = CBORObject.NewMap();
             CBORObject COSEKeyStructure = CBORObject.NewMap();
-            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType), KeyKeys.KeyType_Octet);
-            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId), key.get(KeyKeys.KeyId));
+            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
+            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), key.get(KeyKeys.KeyId));
             cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
             identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
             String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
@@ -902,7 +919,7 @@ public class TokenRepository implements AutoCloseable {
 	    Set<String> ctis = new HashSet<>();
 	    for (String cti : this.cti2kid.keySet()) {
 	        if (this.cti2kid.get(cti).equals(kid)) {
-	            ctis.add(cti);
+	            ctis.add(cti);   
 	        }
 	    }
 	 
@@ -915,7 +932,7 @@ public class TokenRepository implements AutoCloseable {
                 //No claims found
                 continue;
             }
-	        
+            
           //Check if the subject matches
             CBORObject subO = claims.get(Constants.SUB);
             if (subO != null) {
@@ -948,8 +965,8 @@ public class TokenRepository implements AutoCloseable {
              if (nbf != null && nbf.AsInt64() > this.time.getCurrentTime()) {
                  //Token not valid yet
                  continue;
-             }   
-            
+             }
+             
 	        //Check the scope
              CBORObject scope = claims.get(Constants.SCOPE);
              if (scope == null) {
@@ -959,7 +976,9 @@ public class TokenRepository implements AutoCloseable {
              }
              
              if (this.scopeValidator.scopeMatchResource(scope, resource)) {
+            	 
                  if (this.scopeValidator.scopeMatch(scope, resource, action)) {
+                	 
                      //Check if we should introspect this token
                      if (intro != null) {
                          byte[] ctiB = Base64.getDecoder().decode(cti);
@@ -977,8 +996,10 @@ public class TokenRepository implements AutoCloseable {
                        //We didn't introspect, but the token is ok otherwise
                          return OK;
                      }
+                     
                  }
                  methodNA = true; //scope did match resource but not action
+                 
              }
 	    }
 

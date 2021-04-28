@@ -122,8 +122,8 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         			CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
         			if (COSEKeyStructure != null && COSEKeyStructure.getType() == CBORType.Map && COSEKeyStructure.size() == 2) {
         		
-        				if(COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyType)) == KeyKeys.KeyType_Octet &&
-        				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)) != null) {
+        				if(COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR())) == KeyKeys.KeyType_Octet &&
+        				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR())) != null) {
 
         				    byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
         				    String kidString = new String(kid, Constants.charset);

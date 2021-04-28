@@ -125,7 +125,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
             throw new AceException("Scope must be a String in KissValidator");
         }
         String[] scopes = scope.AsString().split(" ");
-        for (String subscope : scopes) {           
+        for (String subscope : scopes) {
             Map<String, Set<Short>> resources = this.myScopes.get(subscope);
             if (resources.containsKey(resourceId)) {
                 return true;

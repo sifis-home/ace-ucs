@@ -47,7 +47,6 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -448,7 +447,7 @@ public class TestDtlspClient2RS {
     	
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourPSK";
+        String kidStr = "ourDerivedPSK";
         CBORObject kid = CBORObject.FromObject(
                 kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);

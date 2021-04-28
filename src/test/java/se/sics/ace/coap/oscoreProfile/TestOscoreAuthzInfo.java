@@ -79,7 +79,9 @@ import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.rs.AuthzInfo;
+import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler4Tests;
+import se.sics.ace.rs.TokenRepository;
 
 /**
  * 
@@ -135,9 +137,12 @@ public class TestOscoreAuthzInfo {
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        Map<String, Set<Short>> myResource2 = new HashMap<>();
-        myResource2.put("co2", actions);
-        myScopes.put("r_co2", myResource2);
+        actions = new HashSet<>();
+        actions.add(Constants.GET);
+        actions.add(Constants.POST);
+        myResource = new HashMap<>();
+        myResource.put("co2", actions);
+        myScopes.put("r_co2", myResource);
         
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
@@ -721,7 +726,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
+   
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
@@ -778,8 +783,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
-
+        
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
@@ -941,21 +945,27 @@ public class TestOscoreAuthzInfo {
      * @throws CoseException 
      * @throws AceException  
      * @throws OSException 
+     * @throws IntrospectionException 
      */
     @Test
     public void testSuccess() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException, 
-            OSException {
+            OSException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
+        byte[] kidContext = null; // To possibly include the Id Context
+        
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
+        if (kidContext != null) {
+        	osc.Add(Constants.OS_CONTEXTID, kidContext);
+        }
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
@@ -993,25 +1003,50 @@ public class TestOscoreAuthzInfo {
         
         assert(osctx.equals(osctx2));
         
+        //Test that the token is there and that responses are as expected
+        
+        // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
+        // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object.
+    	String subjectId = "";
+    	String kidContextStr = null;
+    	String kidStr = new String(id2, Constants.charset);
+    	
+    	if (kidContext != null && kidContext.length != 0) {
+    		kidContextStr = new String(kidContext, Constants.charset);
+    		subjectId = kidContext + ":";
+    	}
+    	subjectId += kidStr;
+    	
+    	// Consistently with the Token Repository, the kid coincides with the subjectId
+		Assert.assertEquals(TokenRepository.OK,
+		         TokenRepository.getInstance().canAccess(
+		        		 subjectId, subjectId, "temp", Constants.GET, null));
+	       Assert.assertEquals(TokenRepository.METHODNA,
+	               TokenRepository.getInstance().canAccess(
+	            		   subjectId, subjectId, "temp", Constants.POST, null));   
+	       Assert.assertEquals(TokenRepository.FORBID,
+	               TokenRepository.getInstance().canAccess(
+	            		   subjectId, subjectId, "co2", Constants.POST, null));
         
     }
     
     
     // M.T.
     /**
-     * Test successful submission to AuthzInfo, followed by attempts
-     * to update access rights by posting a new Access Token
+     * Test successful submission to AuthzInfo, followed by an attempt to
+     * update access rights by posting a new Access Token over OSCORE
      * 
      * @throws IllegalStateException 
      * @throws InvalidCipherTextException 
      * @throws CoseException 
      * @throws AceException  
      * @throws OSException 
+     * @throws IntrospectionException 
      */
     @Test
     public void testSuccessUpdateAccessRights() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException, 
-            OSException {
+            OSException, IntrospectionException {
     	
     	// Prepare and POST a first Token, through an unprotected request.
     	// Then establish a new OSCORE Security Context
@@ -1022,10 +1057,15 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.AUD, CBORObject.FromObject("rs1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
+        byte[] kidContext = null; // To possibly include the Id Context
+        
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_ID, Util.intToBytes(0));
+        if (kidContext != null) {
+        	osc.Add(Constants.OS_CONTEXTID, kidContext);
+        }
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0f});
@@ -1062,6 +1102,32 @@ public class TestOscoreAuthzInfo {
                 false, null, id1, id2, null, null, null, null);
         
         assert(osctx.equals(osctx2));
+
+        
+        //Test that the token is there and that responses are as expected
+        
+        // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
+        // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object.
+    	String subjectId = "";
+    	String kidContextStr = null;
+    	String kidStr = new String(id2, Constants.charset);
+    	
+    	if (kidContext != null && kidContext.length != 0) {
+    		kidContextStr = new String(kidContext, Constants.charset);
+    		subjectId = kidContext + ":";
+    	}
+    	subjectId += kidStr;
+    	
+    	// Consistently with the Token Repository, the kid coincides with the subjectId
+		Assert.assertEquals(TokenRepository.OK,
+		         TokenRepository.getInstance().canAccess(
+		        		 subjectId, subjectId, "temp", Constants.GET, null));
+	       Assert.assertEquals(TokenRepository.METHODNA,
+	               TokenRepository.getInstance().canAccess(
+	            		   subjectId, subjectId, "temp", Constants.POST, null));   
+	       Assert.assertEquals(TokenRepository.FORBID,
+	               TokenRepository.getInstance().canAccess(
+	            		   subjectId, subjectId, "co2", Constants.POST, null));
         
         
         // Build a new Token for updating access rights, with a different 'scope'
@@ -1106,8 +1172,28 @@ public class TestOscoreAuthzInfo {
         response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
-        // ... and in fact no payload is expected in the response
+        // ... and in fact nothings is expected to be returned as response
         assert(response.getRawPayload() == null);
+        
+        // Test that the new token is there, and both GET and POST
+        // are consistently authorized on the "co2" resource
+        //
+        // The subjectId (used also as kid) has not changed, since the
+        // same OSCORE Master Secret is bound also to the new token
+        Assert.assertEquals(TokenRepository.OK, 
+                TokenRepository.getInstance().canAccess(
+                		subjectId, subjectId, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.OK, 
+                TokenRepository.getInstance().canAccess(
+                		subjectId, subjectId, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.METHODNA, 
+                TokenRepository.getInstance().canAccess(
+                		subjectId, subjectId, "co2", Constants.DELETE, null));
+        
+        // ... and that access to the "temp" resource is not allowed anymore
+        Assert.assertEquals(TokenRepository.FORBID, 
+                TokenRepository.getInstance().canAccess(
+                		subjectId, subjectId, "temp", Constants.GET, null));
         
     }
     
