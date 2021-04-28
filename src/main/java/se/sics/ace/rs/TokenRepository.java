@@ -662,6 +662,7 @@ public class TokenRepository implements AutoCloseable {
         	byte[] kidContextBytes = osc.getContextId();
         	
         	if (kidContextBytes != null && kidContextBytes.length != 0) {
+            	System.out.println("token repository idContext: " + kid);
         		kidContext = new String(kidContextBytes, Constants.charset);
         		subjectId = kidContext + ":";
         	}

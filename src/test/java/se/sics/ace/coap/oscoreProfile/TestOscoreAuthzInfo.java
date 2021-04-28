@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.security.SecureRandom;
 import java.sql.SQLException;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -958,6 +959,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
+        kidContext = new byte[] {0x00, 0x01};
         
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
@@ -1013,9 +1015,9 @@ public class TestOscoreAuthzInfo {
     	
     	if (kidContext != null && kidContext.length != 0) {
     		kidContextStr = new String(kidContext, Constants.charset);
-    		subjectId = kidContext + ":";
+    		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
-    	subjectId += kidStr;
+    	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
@@ -1058,6 +1060,7 @@ public class TestOscoreAuthzInfo {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
+        kidContext = new byte[] {0x00, 0x01};
         
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
@@ -1114,9 +1117,9 @@ public class TestOscoreAuthzInfo {
     	
     	if (kidContext != null && kidContext.length != 0) {
     		kidContextStr = new String(kidContext, Constants.charset);
-    		subjectId = kidContext + ":";
+    		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
-    	subjectId += kidStr;
+    	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
@@ -1167,8 +1170,7 @@ public class TestOscoreAuthzInfo {
         // In fact, this has to be a protected POST to /authz-info
         // The identity of the client is the string <ID Context>:<Sender ID>,
         // or simply <Sender ID> in case no ID Context is used with OSCORE
-        String kid = new String(id2, Constants.charset);
-        request = new LocalMessage(0, kid, null, payload);
+        request = new LocalMessage(0, subjectId, null, payload);
         response = (LocalMessage)ai.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
         
