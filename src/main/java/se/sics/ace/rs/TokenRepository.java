@@ -50,6 +50,9 @@ import java.util.Set;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.CoapOSException;
+import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -66,6 +69,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Hkdf;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -351,16 +355,32 @@ public class TokenRepository implements AutoCloseable {
         }
         
 		//Check for duplicate cti
+        boolean repostedOscoreToken = false;
+        byte[] oldOscoreRecipientId = null;
+        byte[] oldOscoreContextId = null;
 		if (this.cti2claims.containsKey(cti)) {
 			
 			if (cnf.getKeys().contains(Constants.OSCORE_Input_Material) && sid == null) {
+				
 				// This is a re-POST of the same Token through an insecure request under the OSCORE profile.
 				//
 				// This is admitted and results in a new exchange of nonces N1 and N2, together with the
 				// establishment of a new OSCORE Security Context, which /authz-info already takes care of. 
-				//
-				// This same Token remains and no action is required here at the Token Repository later on.
-        		return cticb;
+				
+				// The already stored token must also have been related to OSCORE
+				CBORObject storedCnf = this.cti2claims.get(cti).get(Constants.CNF);
+				if (storedCnf.getKeys().contains(Constants.OSCORE_Input_Material) == false) {
+					throw new AceException("Duplicate cti");
+				}
+				
+				// This same Token remains. Later on, it has to be associated with the new
+				// client identity and the old OSCORE Security Context has to be deleted.
+				repostedOscoreToken = true;
+				oldOscoreRecipientId = storedCnf.get(Constants.OSCORE_Input_Material).
+									   get(Constants.OS_CLIENTID).GetByteString();
+				oldOscoreContextId = storedCnf.get(Constants.OSCORE_Input_Material).
+						   			   get(Constants.OS_CONTEXTID).GetByteString();
+				
 			}
 			else {
 				throw new AceException("Duplicate cti");
@@ -689,12 +709,42 @@ public class TokenRepository implements AutoCloseable {
         	// Store the association between CTI and kid, with kid equal to the subjectId
             this.cti2kid.put(cti, subjectId);
             
-            // Store the association between the immutable identifier of the OSCORE input material
-            // and the base64 encoded cti of this Access Token; this will be updated in case a new
-            // Access Token with updated access rights (and a new cti) is posted as still associated
-            // to this OSCORE input material identifier and hence to the same kid            
-            String id = new String(osc.getId(), Constants.charset);
-            this.id2cti.put(id, cti);
+            if (repostedOscoreToken == true) {
+            	// The same Token has been reposted through an unprotected request
+            	
+            	// Delete the old OSCORE Security Context
+            	OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+            	OSCoreCtx oscCtx = null;
+            	if (oldOscoreContextId == null) {
+            		oscCtx = db.getContext(oldOscoreRecipientId);
+            	}
+            	else {
+            		try {
+						oscCtx = db.getContext(oldOscoreRecipientId, oldOscoreContextId);
+					} catch (CoapOSException e) {
+						e.printStackTrace();
+			            LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
+			            throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
+					}
+            	}
+            	if (oscCtx != null) {
+            		db.removeContext(oscCtx);
+            	}
+            	else {
+		            LOGGER.severe("Unable to retrieve the OSCORE Security Context to delete");
+		            throw new AceException("Unable to retrieve the OSCORE Security Context to delete");
+            	}
+            	
+            }
+            else {
+                // Store the association between the immutable identifier of the OSCORE input material
+                // and the base64 encoded cti of this Access Token; this will be updated in case a new
+                // Access Token with updated access rights (and a new cti) is posted as still associated
+                // to this OSCORE input material identifier and hence to the same kid
+            	
+	            String id = new String(osc.getId(), Constants.charset);
+	            this.id2cti.put(id, cti);
+            }
             
         }
         
