@@ -289,9 +289,6 @@ public class TestDtlspAuthzInfo {
         
        // Build a new Token for updating access rights, with a different 'scope'
         
-       req.setToken(new byte[]{0x03});
-       req.setPayload(payload2.EncodeToBytes());
-        
       // Posting the Token through an unprotected request.
       // This fails since such a Token needs to include the
       // a 'cnf' claim transporting also the actual key 'k'
@@ -309,9 +306,6 @@ public class TestDtlspAuthzInfo {
       cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
       identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
       String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
-       
-      System.out.println("using identity: " + identity);
-      System.out.println("using identity: " + identityStructure);
         
 	  req2 = new LocalMessage(0, identity, null, payload2);
 	  resp2 = (LocalMessage)ai.processMessage(req2);
