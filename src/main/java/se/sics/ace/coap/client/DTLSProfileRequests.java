@@ -39,6 +39,8 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
@@ -165,8 +167,7 @@ public class DTLSProfileRequests {
      *
      * @throws AceException 
      */
-    public static CoapResponse postToken(String rsAddr, CBORObject payload, 
-            OneKey key) throws AceException {
+    public static CoapResponse postToken(String rsAddr, CBORObject payload, OneKey key) throws AceException {
         if (payload == null) {
             throw new AceException(
                     "Payload cannot be null when POSTing to authz-info");
@@ -217,7 +218,39 @@ public class DTLSProfileRequests {
         return r;
     }
     
-    
+    /**
+     * Sends a POST request to the /authz-info endpoint of the RS to submit an
+     * access token for updating access rights.
+     * 
+     * @param rsAddr  the full address of the /authz-info endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param payload  the token received from the getToken() method
+     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
+     *  key handshake
+     * 
+     * @return  the response 
+     *
+     * @throws AceException 
+     */
+    public static CoapResponse postTokenUpdate(String rsAddr, CBORObject payload, CoapClient c) throws AceException {
+        if (payload == null) {
+            throw new AceException(
+                    "Payload cannot be null when POSTing to authz-info");
+        }
+
+        //Submit the new token
+        c.setURI(rsAddr);
+        CoapResponse tokenPostResp = null;
+        try {
+        	tokenPostResp = c.post(payload.EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);
+        } catch (ConnectorException | IOException ex) {
+            LOGGER.severe("DTLSConnector error: " + ex.getMessage());
+            throw new AceException(ex.getMessage());
+        }
+        
+        return tokenPostResp;
+    }
+        
     /**
      * Generates a Coap client for sending requests to an RS that will pass the
      *  access token through psk-identity in the DTLS handshake.

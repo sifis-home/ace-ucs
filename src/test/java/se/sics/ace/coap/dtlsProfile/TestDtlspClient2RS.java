@@ -432,6 +432,119 @@ public class TestDtlspClient2RS {
 
     
     /** 
+     * Test post to authz-info with PSK then request, followed by the submission of a
+     * new token to update access rights with subsequent access based on the new token
+     * 
+     * @throws CoseException 
+     * @throws AceException 
+     * @throws InvalidCipherTextException 
+     * @throws IllegalStateException 
+     * @throws IOException 
+     * @throws ConnectorException 
+     */
+    @Test
+    public void testPostPSKUpdateAccessRights() throws CoseException, IllegalStateException, InvalidCipherTextException,
+    											AceException, ConnectorException, IOException {
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+        String kidStr = "ourPSK2";
+        CBORObject kid = CBORObject.FromObject(
+                kidStr.getBytes(Constants.charset));
+        key.add(KeyKeys.KeyId, kid);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+               
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenPSK2".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        CBORObject payload = token.encode(ctx);
+        CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
+        CBORObject cbor = CBORObject.FromObject(r.getPayload());
+        Assert.assertNotNull(cbor);
+        
+        CoapClient c = DTLSProfileRequests.getPskClient(
+                new InetSocketAddress("localhost", 
+                        CoAP.DEFAULT_COAP_SECURE_PORT), 
+                kidStr.getBytes(Constants.charset),
+                key);
+        c.setURI("coaps://localhost/helloWorld");
+        CoapResponse r2 = c.get();
+        assert(r2.getCode().equals(CoAP.ResponseCode.CONTENT));
+        Assert.assertEquals("Hello World!", r2.getResponseText());
+        
+        //Submit a forbidden request
+        c.setURI("coaps://localhost/temp");
+        r2 = c.get();
+        assert(r2.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+        
+        //Submit a request with unallowed method
+        c.setURI("coaps://localhost/helloWorld");
+        r2 = c.delete();
+        assert(r2.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+        
+        
+        // Build a new Token for updating access rights, with a different 'scope'
+        
+        params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                "tokenPSK3".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        // Now the 'cnf' claim includes only 'kty' and 'kid'
+        // first the first Token, but not the actual key value 'k'
+        cnf = CBORObject.NewMap();
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), kid.GetByteString());
+        cnf.Add(Constants.COSE_KEY_CBOR, keyData);
+        params.put(Constants.CNF, cnf);
+        token = new CWT(params);
+        payload = token.encode(ctx);
+        
+ 	    // Posting the Token through an OSCORE-protected request
+        // 
+        // Normally, a client understands that the Token is indeed for updating access rights,
+        // since the response from the AS does not include the 'cnf' parameter.
+        CoapResponse tokenPostResp = DTLSProfileRequests.postTokenUpdate(rsAddrCS, payload, c);
+        CBORObject tokenPostRespCbor = CBORObject.FromObject(tokenPostResp.getPayload());
+        Assert.assertNotNull(tokenPostRespCbor);
+        
+        
+        // Perform new requests to the RS, under the latest posted Token
+        
+        // This should now fail - Access to this resource is not granted anymore
+        c.setURI("coaps://localhost/helloWorld");
+        r2 = c.get();
+        assert(r2.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+        
+        // This should now fail with FORBIDDEN, not with METHOD NOT ALLOWED
+        r2 = c.delete();
+        assert(r2.getCode().equals(CoAP.ResponseCode.FORBIDDEN));
+        
+        // This should now succeed - Access to this resource is now granted by the latest posted Token
+        c.setURI("coaps://localhost/temp");
+        r2 = c.get();
+        assert(r2.getCode().equals(CoAP.ResponseCode.CONTENT));
+        Assert.assertEquals("19.0 C", r2.getResponseText());
+        
+        // This should fail with METHOD NOT ALLOWED, since the latest posted Token grants access to this resource with GET
+        c.setURI("coaps://localhost/temp");
+        r2 = c.delete();
+        assert(r2.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+        
+    }  
+    
+    
+    /** 
      * Test post to authz-info with PSK to be derived then request
      * @throws CoseException 
      * @throws AceException 

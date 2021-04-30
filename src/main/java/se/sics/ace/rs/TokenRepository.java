@@ -394,16 +394,15 @@ public class TokenRepository implements AutoCloseable {
             try {            	
               
               // The PoP key is symmetric but only its 'kid' is specified (e.g., as in the DTLS profile).
-            
+    		  
               if (ckey.getKeys().contains(KeyKeys.KeyType.AsCBOR()) &&
             	  ckey.get(KeyKeys.KeyType.AsCBOR()).equals(KeyKeys.KeyType_Octet) &&
                   ckey.getKeys().contains(KeyKeys.Octet_K.AsCBOR()) == false) {
-            	  
+        		  
             	  if (sid == null) {
+            		  
                       // The Token has been posted to /authz-info through an unprotected message.
                       // The actual PoP key has to be derived using the key derivation key shared with the AS
-            		  
-            		  System.out.println("unprotected");
             		  
 	            	  if (ckey.getKeys().contains(KeyKeys.KeyId.AsCBOR()) == false) {
 	                      LOGGER.severe("Error while parsing cnf element: expected 'kid' in 'COSE_Key was not found");
@@ -462,6 +461,8 @@ public class TokenRepository implements AutoCloseable {
             		  // Since there is a non-null identity, either:
             		  //  i) the Token has been posted through a protected message to /authz-info , to update access rights; or
             		  // ii) the Token has been specified in the DTLS handshake message, as "psk_identity"
+            		  
+            		  LOGGER.severe("YYYYYYYYYYYYYYYY");
             		  
             		  // Case (i), i.e. the current Token for this security association must be superseded
             		  if (sid2kid.containsKey(sid) && sid2cti.containsKey(sid)) {

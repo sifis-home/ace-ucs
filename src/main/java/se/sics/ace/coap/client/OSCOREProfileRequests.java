@@ -396,6 +396,7 @@ public class OSCOREProfileRequests {
         		rsAddr, CoAP.DEFAULT_COAP_PORT), db);
     	
         Request req = new Request(CoAP.Code.POST);
+        req.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
         req.getOptions().setOscore(new byte[0]);
         req.setPayload(payload.EncodeToBytes());
         try {
