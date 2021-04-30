@@ -49,6 +49,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -285,10 +286,10 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-        InMemoryPskStore store = new InMemoryPskStore();
-       
+        InMemoryPskStore store = new InMemoryPskStore(); 
         String identity = Base64.getEncoder().encodeToString(
                 token.EncodeToBytes());
+        
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());

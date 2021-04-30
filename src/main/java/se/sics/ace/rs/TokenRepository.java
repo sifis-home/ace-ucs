@@ -462,8 +462,6 @@ public class TokenRepository implements AutoCloseable {
             		  //  i) the Token has been posted through a protected message to /authz-info , to update access rights; or
             		  // ii) the Token has been specified in the DTLS handshake message, as "psk_identity"
             		  
-            		  LOGGER.severe("YYYYYYYYYYYYYYYY");
-            		  
             		  // Case (i), i.e. the current Token for this security association must be superseded
             		  if (sid2kid.containsKey(sid) && sid2cti.containsKey(sid)) {
             			  

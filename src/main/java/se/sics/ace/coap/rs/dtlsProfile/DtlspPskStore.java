@@ -153,8 +153,9 @@ public class DtlspPskStore implements PskStore {
         //We don't have that key, try if the identity is an access token
         CBORObject payload = null;
         try {
-            payload = CBORObject.DecodeFromBytes(
-                    Base64.getDecoder().decode(identity));
+
+            payload = CBORObject.DecodeFromBytes(Base64.getDecoder().decode(identity));
+        	        	
         } catch (NullPointerException | CBORException e) {
             LOGGER.severe("Error decoding the psk_identity: " 
                     + e.getMessage());
