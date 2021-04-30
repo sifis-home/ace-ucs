@@ -1444,6 +1444,422 @@ public class TestOscorepClient2RSGroupOSCORE {
 
         Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
         
+        
+        /////////////////
+        //
+        // Part 13
+        //
+        /////////////////
+		
+        // Send a new Access Token to update access rights and
+        // join the same OSCORE group again with multiple roles
+        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(groupName);
+        
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	cborArrayScope.Add(cborArrayEntry);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+    	
+    	Map<Short, CBORObject> params2 = new HashMap<>();
+    	params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        params2.put(Constants.CTI, CBORObject.FromObject(
+                "token4JoinSingleRoleUpdateAccessRights".getBytes(Constants.charset))); //Need different CTI
+        params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
+        // Now the 'cnf' claim includes only a 'kid' with value the 'id'
+        // used in the first Token and identifying the OSCORE_Input_Material
+        CBORObject cbor = CBORObject.NewMap();
+        cbor.Add(Constants.COSE_KID_CBOR, Util.intToBytes(0));
+        params2.put(Constants.CNF, cbor);
+        CWT token2 = new CWT(params2);
+        
+        // Include only the Token now. If Id1 and Nonce1 were
+        // included here too, the RS would silently ignore them
+        payload = CBORObject.NewMap();
+        payload.Add(Constants.ACCESS_TOKEN, token2.encode(ctx));
+        
+        asRes = new Response(CoAP.ResponseCode.CREATED);
+        asRes.setPayload(payload.EncodeToBytes());
+        
+ 	    // Posting the Token through an OSCORE-protected request
+        // 
+        // Normally, a client understands that the Token is indeed for updating access rights,
+        // since the response from the AS does not include the 'cnf' parameter.
+        CoapResponse rsRes2 = OSCOREProfileRequestsGroupOSCORE.
+        						postTokenUpdate("coap://localhost/authz-info", asRes,
+        										askForSignInfo, askForPubKeyEnc, ctxDB);
+        assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
+        
+        Assert.assertNotNull(ctxDB.getContext(
+                "coap://localhost/" + rootGroupMembershipResource + "/" + groupName));
+        
+        rsPayload = CBORObject.DecodeFromBytes(rsRes2.getPayload());
+        // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
+        
+        // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
+        gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
+        
+        signInfo = null;
+        
+        // Group OSCORE specific values for the countersignature
+        csAlgExpected = null;
+        algCapabilitiesExpected = CBORObject.NewArray();
+        keyCapabilitiesExpected = CBORObject.NewArray();
+        csParamsExpected = null;
+        csKeyParamsExpected = null;
+        
+        // ECDSA_256
+        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        	csAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
+        	algCapabilitiesExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilitiesExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        	keyCapabilitiesExpected.Add(KeyKeys.EC2_P256); // Curve
+            csParamsExpected = CBORObject.NewArray();
+            csKeyParamsExpected = CBORObject.NewArray();
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
+        }
+        
+        // EDDSA (Ed25519)
+        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        	csAlgExpected = AlgorithmID.EDDSA.AsCBOR();
+        	algCapabilitiesExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilitiesExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        	keyCapabilitiesExpected.Add(KeyKeys.OKP_Ed25519); // Curve
+            csParamsExpected = CBORObject.NewArray();
+            csKeyParamsExpected = CBORObject.NewArray();
+            csParamsExpected = algCapabilitiesExpected; // The algorithm capabilities
+            csKeyParamsExpected = keyCapabilitiesExpected; // The key type capabilities
+        }
+        
+        csKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        
+        
+        if (askForSignInfo || askForPubKeyEnc) {
+        	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
+            Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
+            signInfo = CBORObject.NewArray();
+        	signInfo = rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO));
+        	
+	    	CBORObject signInfoExpected = CBORObject.NewArray();
+	    	CBORObject signInfoEntry = CBORObject.NewArray();
+	    	
+	    	signInfoEntry.Add(CBORObject.FromObject(groupName));
+	    	
+	    	if (csAlgExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csAlgExpected);
+	    	
+	    	if (csParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csParamsExpected);
+	    	
+	    	if (csKeyParamsExpected == null)
+	    		signInfoEntry.Add(CBORObject.Null);
+	    	else
+	    		signInfoEntry.Add(csKeyParamsExpected);
+        	
+        	if (csKeyEncExpected == null)
+        		signInfoEntry.Add(CBORObject.Null);
+        	else
+        		signInfoEntry.Add(csKeyEncExpected);
+	    	
+	        signInfoExpected.Add(signInfoEntry);
+
+        	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        requestPayload = CBORObject.NewMap();
+        
+        csAlg = null;
+		
+		algCapabilities = CBORObject.NewArray();
+		keyCapabilities = CBORObject.NewArray();
+		csParams = CBORObject.NewArray();
+			
+		// ECDSA_256
+		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+		csAlg = AlgorithmID.ECDSA_256;
+		algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		}
+			
+		// EDDSA (Ed25519)
+		if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+		csAlg = AlgorithmID.EDDSA;
+		algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+		}
+			
+		csParams.Add(algCapabilities);
+		csParams.Add(keyCapabilities);
+		
+        /////////////////
+        //
+        // Part 14
+        //
+        /////////////////
+		
+        // Send a new Join Request under the new Access Token
+        
+        System.out.println("\nPerforming Join Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
+
+        requestPayload = CBORObject.NewMap();
+        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayScope.Add(groupName);
+
+        myRoles = 0;
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Now this role is also allowed
+    	cborArrayScope.Add(myRoles);
+		
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+       
+        if (askForPubKeys) {
+           
+            getPubKeys = CBORObject.NewArray();
+            
+            getPubKeys.Add(CBORObject.True); // This must be true
+            
+            getPubKeys.Add(CBORObject.NewArray());
+            // The following is required to retrieve the public keys of both the already present group members
+            myRoles = 0;
+            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            getPubKeys.get(1).Add(myRoles);            
+            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+        	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        	getPubKeys.get(1).Add(myRoles);
+            
+            getPubKeys.Add(CBORObject.NewArray()); // This must be empty
+            
+            requestPayload.Add(Constants.GET_PUB_KEYS, getPubKeys);
+           
+        }
+        
+        if (providePublicKey) {
+            
+        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+        	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+        	if (gm_sign_nonce == null)
+        		Assert.fail("Error: the component N_S of the signature challence is null");
+        	
+            // For the time being, the client's public key can be only a COSE Key
+            publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+            
+            requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+            
+        	// Add the nonce for PoP of the Client's private key
+            cnonce = new byte[8];
+            new SecureRandom().nextBytes(cnonce);
+            requestPayload.Add(Constants.CNONCE, cnonce);
+            
+            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            offset = 0;
+            privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            
+            serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
+            serializedGMSignNonceCBOR = CBORObject.FromObject(gm_sign_nonce).EncodeToBytes();
+            serializedCSignNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
+       	    dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+       	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+       	    offset += serializedScopeCBOR.length;
+       	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
+       	    offset += serializedGMSignNonceCBOR.length;
+       	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+            
+       	    
+       	    clientSignature = computeSignature(privKey, dataToSign);
+            
+            if (clientSignature != null)
+            	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
+        	else
+        		Assert.fail("Computed signature is empty");
+            
+            joinReq = new Request(Code.POST, Type.CON);
+            joinReq.getOptions().setOscore(new byte[0]);
+            joinReq.setPayload(requestPayload.EncodeToBytes());
+            joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+            
+            c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
+            		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+            
+            // Submit the request
+            System.out.println("");
+            System.out.println("Sent Join request to GM: " + requestPayload.toString());
+            r2 = c1.advanced(joinReq);
+           
+            System.out.println("Received Join Reponse from the GM: " + CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
+            
+            Assert.assertEquals("CREATED", r2.getCode().name());
+            
+            if (r2.getOptions().getLocationPath().size() != 0) {
+    	        System.out.print("Location-Path: ");
+    	        System.out.println(r2.getOptions().getLocationPathString());
+    	        nodeResourceLocationPath = r2.getOptions().getLocationPathString();
+            }
+           
+            // The same dedicated URI has to have been returned
+            Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
+         
+            responsePayload = r2.getPayload();
+            joinResponse = CBORObject.DecodeFromBytes(responsePayload);
+            
+            Assert.assertEquals(CBORType.Map, joinResponse.getType());
+            
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
+            Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
+            // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
+            Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
+           
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
+            Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
+           
+            myMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
+           
+            // Sanity check
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
+
+            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+                Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
+            }
+           
+            // Check the presence, type and value of the signature key encoding
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
+            Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)).getType());        
+            Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_key_enc)));
+           
+            Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
+            Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
+           
+            Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
+            Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+            Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)).GetByteString());
+            Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
+            Assert.assertNotNull(csAlg);
+            Assert.assertEquals(csAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_alg)));
+           
+            // Add default values for missing parameters
+            if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
+                myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
+            if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
+                myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
+            if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
+                myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
+                  
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
+            Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
+            // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+            Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
+            
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
+            Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).getType());
+            // Assume that "coap_group_oscore" is registered with value 0 in the "ACE Groupcomm Profile" Registry of draft-ietf-ace-key-groupcomm
+            Assert.assertEquals(Constants.COAP_GROUP_OSCORE_APP, joinResponse.get(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)).AsInt32());
+           
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.EXP)));
+            Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.EXP)).getType());
+            Assert.assertEquals(1000000, joinResponse.get(CBORObject.FromObject(Constants.EXP)).AsInt32());
+           
+            if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params))) {
+                Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)).getType());
+                Assert.assertEquals(CBORObject.FromObject(csParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.cs_params)));
+            }       
+            
+            coseKeySetArray = null;
+            if (askForPubKeys) {
+                Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+                Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+               
+                // The content of the byte string should be a COSE_KeySet, to be processed accordingly
+               
+                coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
+                coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
+                Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+                
+                Assert.assertEquals(2, coseKeySetArray.size());
+               
+                peerSenderId = new byte[] { (byte) 0x52 };
+                peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+                Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+               
+                // ECDSA_256
+                if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+                    Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+                }
+               
+                // EDDSA (Ed25519)
+                if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+                    Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+                }
+               
+                peerSenderId = new byte[] { (byte) 0x77 };
+                peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+                Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+               
+                // ECDSA_256
+                if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+                    Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+                }
+               
+                // EDDSA (Ed25519)
+                if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+                    Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+                }
+                
+                Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
+                Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).getType());
+                Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
+                
+                expectedRoles = 0;
+                expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+                Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+                
+               
+            }
+            else {
+                Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
+                Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
+            }
+            
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
+            Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
+            Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+            
+        }
+    	
     }
     
     /**
