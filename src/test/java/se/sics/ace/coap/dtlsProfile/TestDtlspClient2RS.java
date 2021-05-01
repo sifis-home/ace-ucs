@@ -500,7 +500,7 @@ public class TestDtlspClient2RS {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         // Now the 'cnf' claim includes only 'kty' and 'kid'
-        // first the first Token, but not the actual key value 'k'
+        // from the first Token, but not the actual key value 'k'
         cnf = CBORObject.NewMap();
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);

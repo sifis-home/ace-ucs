@@ -1460,7 +1460,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER); // Allow this role too
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1588,18 +1588,18 @@ public class TestOscorepClient2RSGroupOSCORE {
 			
 		// ECDSA_256
 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-		csAlg = AlgorithmID.ECDSA_256;
-		algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+			csAlg = AlgorithmID.ECDSA_256;
+			algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 			
 		// EDDSA (Ed25519)
 		if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-		csAlg = AlgorithmID.EDDSA;
-		algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+			csAlg = AlgorithmID.EDDSA;
+			algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
 		}
 			
 		csParams.Add(algCapabilities);

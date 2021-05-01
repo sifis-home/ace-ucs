@@ -482,8 +482,8 @@ public class TokenRepository implements AutoCloseable {
 	      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
 	      	              		  
 	    	                      String receivedKid = new String(receivedKidBytes, Constants.charset);
-	  	                    	  	    	                      
-	    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {
+	    	                      
+	    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {	    	                    	  	
 	      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
 	      	                            throw new AceException("Impossible to retrieve a Token to supersede");
 	    	              		  }
@@ -779,7 +779,7 @@ public class TokenRepository implements AutoCloseable {
 	    
 	    if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
 	        CBORObject kidC = key.get(KeyKeys.KeyId);
-
+	        
 	        if (kidC == null) {
 	            LOGGER.severe("kid not found in COSE_Key");
 	            throw new AceException("COSE_Key is missing kid");
