@@ -110,7 +110,6 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         OneKey key = null;
         try {
         	
-        	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
         	byte[] identityStructureByte = Base64.getDecoder().decode(identity);
         	CBORObject identityStructure = CBORObject.DecodeFromBytes(identityStructureByte);
 
@@ -137,9 +136,6 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         		}
         	
         	}
-        	
-        	// OLD WAY, with only the kid used as "psk_identity"
-            // key = TokenRepository.getInstance().getKey(identity);
             
             if (key != null) {
                 return new SecretKeySpec(

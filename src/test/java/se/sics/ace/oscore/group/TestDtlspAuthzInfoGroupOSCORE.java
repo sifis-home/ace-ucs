@@ -69,11 +69,13 @@ import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Message;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 import se.sics.ace.oscore.rs.CoapAuthzInfoGroupOSCORE;
@@ -99,6 +101,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     private static CBORObject payload;
     private static CBORObject payload2;
     private static CBORObject payload3;
+    private static CBORObject payload4;
     
     private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
     
@@ -133,10 +136,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myScopes.put("r_temp", myResource);
         
         Set<Short> actions2 = new HashSet<>();
-        actions.add(Constants.GET);
-        actions.add(Constants.POST);
+        actions2.add(Constants.GET);
+        actions2.add(Constants.POST);
         Map<String, Set<Short>> myResource2 = new HashMap<>();
-        myResource.put("co2", actions2);
+        myResource2.put("co2", actions2);
         myScopes.put("rw_co2", myResource2);
         
         final String groupName = "feedca570000";
@@ -340,6 +343,22 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CWT token3 = new CWT(params3);
         payload3 = token3.encode(ctx);
         
+        
+        // Set up one more token to use, for testing the update of access rights
+        Map<Short, CBORObject> params4 = new HashMap<>(); 
+        params4.put(Constants.SCOPE, CBORObject.FromObject("rw_co2"));
+        params4.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params4.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x04}));
+        params4.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject keyData  = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+        CBORObject cnf4 = CBORObject.NewMap();
+        cnf4.Add(Constants.COSE_KEY_CBOR, keyData); // The specified 'COSE_Key' includes only key type and kid
+        params4.put(Constants.CNF, cnf4);
+        CWT token4 = new CWT(params4);
+        payload4 = token4.encode(ctx);
+        
     }
     
     /**
@@ -383,14 +402,114 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
-               
-      
+
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(
                         kid, kid, "temp", Constants.GET, null));
     }
      
+    
+    /**
+     * Test a POST to /authz-info, followed by an attempt to update
+     * access rights by posting a new Access Token over DTLS
+     * 
+     * @throws AceException 
+     * @throws IntrospectionException 
+     * @throws IOException 
+     */
+    @Test
+    public void testPOSTtokenUpdateAccessRights() 
+            throws AceException, IntrospectionException, IOException {
+        Request req = new Request(Code.POST);
+        req.setPayload(payload.EncodeToBytes());
+        AddressEndpointContext destCtx = new AddressEndpointContext(
+                new InetSocketAddress(
+                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new PreSharedKeyIdentity("psk"));
+        req.setDestinationContext(destCtx);
+        
+
+        req.setType(Type.NON);
+        req.setAcknowledged(false);
+        AddressEndpointContext srcCtx = new AddressEndpointContext(
+                new InetSocketAddress(InetAddress.getLocalHost(),
+                        CoAP.DEFAULT_COAP_PORT));
+        req.setSourceContext(srcCtx);
+        
+        req.setToken(new byte[]{0x02});
+        Exchange iex = new Exchange(req, Origin.REMOTE, null);
+        iex.setRequest(req);   
+        CoapEndpoint cep = new Builder().build();
+        cep.start();
+        iex.setEndpoint(cep);
+        CoapExchange ex = new CoapExchange(iex, dai);      
+        dai.handlePOST(ex);
+      
+        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        
+        //Test that the token is there and that responses are as expected
+        Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
+        Assert.assertArrayEquals(key128,
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
+
+        Assert.assertEquals(TokenRepository.OK, 
+                TokenRepository.getInstance().canAccess(
+                        kid, null, "temp", Constants.GET, null));
+        
+        Assert.assertEquals(TokenRepository.METHODNA,
+                TokenRepository.getInstance().canAccess(
+                        kid, null, "temp", Constants.POST, null));
+        
+        Assert.assertEquals(TokenRepository.FORBID,
+                TokenRepository.getInstance().canAccess(
+                        kid, null, "co2", Constants.POST, null));
+        
+        
+        // Build a new Token for updating access rights, with a different 'scope'
+        
+        // Posting the Token through an unprotected request.
+        // This fails since such a Token needs to include the
+        // a 'cnf' claim transporting also the actual key 'k'
+        LocalMessage req2 = new LocalMessage(0, null, null, payload4);
+        req2 = new LocalMessage(0, null, null, payload4);
+        LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
+        assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
+        String identity = Util.buildDtlsPskIdentity(kid.getBytes());
+          
+  	    req2 = new LocalMessage(0, identity, null, payload4);
+  	    resp2 = (LocalMessage)ai.processMessage(req2);
+  	    assert(resp2.getMessageCode() == Message.CREATED);
+  	  
+        // Test that the new token is there, and both GET and POST
+        // are consistently authorized on the "co2" resource
+        //
+        // The 'kid' has not changed, since the same PoP key
+        // with the same 'kid' is bound also to the new token
+  	    
+  	    
+        Assert.assertEquals(TokenRepository.OK, 
+                TokenRepository.getInstance().canAccess(
+                        kid, identity, "co2", Constants.GET, null));
+        
+        Assert.assertEquals(TokenRepository.OK, 
+                TokenRepository.getInstance().canAccess(
+                        kid, identity, "co2", Constants.POST, null));
+		
+        Assert.assertEquals(TokenRepository.METHODNA, 
+                TokenRepository.getInstance().canAccess(
+                        kid, identity, "co2", Constants.DELETE, null));
+        
+        // ... and that access to the "temp" resource is not allowed anymore
+        Assert.assertEquals(TokenRepository.FORBID, 
+                TokenRepository.getInstance().canAccess(
+                        kid, identity, "temp", Constants.GET, null));
+        
+    }
+
+    
     /**
      * Test a POST to /authz-info for accessing
      * an OSCORE group with a single role
@@ -417,7 +536,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                         CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
-        req.setToken(new byte[]{0x02});
+        req.setToken(new byte[]{0x03});
         Exchange iex = new Exchange(req, Origin.REMOTE, null);
         iex.setRequest(req);   
         CoapEndpoint cep = new Builder().build();
@@ -467,7 +586,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                         CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
-        req.setToken(new byte[]{0x03});
+        req.setToken(new byte[]{0x04});
         Exchange iex = new Exchange(req, Origin.REMOTE, null);
         iex.setRequest(req);   
         CoapEndpoint cep = new Builder().build();

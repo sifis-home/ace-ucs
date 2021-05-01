@@ -44,15 +44,12 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.CoseException;
-import COSE.KeyKeys;
-import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
@@ -60,7 +57,6 @@ import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 
@@ -541,28 +537,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            throw new AceException("cnf claim malformed in token");
 	        }
 	    	
-	    	// OLD WAY - Manual rebuilding of the 'kid' from raw information in the 'cnf' claim
-	    	/*
-	    	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
-	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
-	    		assignedKid = new String(osc.getClientId(), Constants.charset);
-	    	}
-	    	else {
-		    	OneKey popKey = TokenRepository.getInstance().getPoP(ctiStr);
-		    	
-		    	if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
-		    		assignedKid = new String(popKey.get(KeyKeys.KeyId).GetByteString(), Constants.charset);
-		    	}
-		    	else if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-		    			popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
-		    		RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(popKey.AsPublicKey());
-		    		assignedKid = new String(rpk.getName());
-		    	}
-		    	
-	    	}
-	    	*/
-	    	
-	    	// NEW WAY - Rebuild the 'kid' leveraging what already happened in the Token Repository
+	    	// Rebuild the 'kid' leveraging what already happened in the Token Repository
 	    	assignedKid = TokenRepository.getInstance().getKidByCti(ctiStr);
 	    	
 	    	// This should really not happen for a previously validated and stored Access Token

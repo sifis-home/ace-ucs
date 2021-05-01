@@ -34,7 +34,6 @@ package se.sics.ace.coap;
 import java.security.Principal;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;

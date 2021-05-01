@@ -31,7 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.coap.rs;
 
-import java.util.Arrays;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;

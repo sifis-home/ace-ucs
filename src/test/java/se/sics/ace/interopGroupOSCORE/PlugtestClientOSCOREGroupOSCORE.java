@@ -49,7 +49,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
@@ -58,20 +57,16 @@ import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
-import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
-import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
@@ -826,10 +821,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
                 "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes,
                 askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
-        
-        /*
-        assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
-        */
         
         printResponseFromRS(rsRes);
         

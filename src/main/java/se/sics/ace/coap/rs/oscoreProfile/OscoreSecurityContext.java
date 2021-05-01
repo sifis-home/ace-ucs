@@ -224,7 +224,7 @@ public class OscoreSecurityContext {
 
         byte[] finalSalt;
         
-        // NEW WAY - The final Master Salt is the concatenation of whole CBOR byte strings
+        // The final Master Salt is the concatenation of whole CBOR byte strings
         byte[] saltEncoded = null;
         byte[] n1Encoded = null;
         byte[] n2Encoded = null;
@@ -247,32 +247,6 @@ public class OscoreSecurityContext {
             System.arraycopy(n2Encoded, 0, finalSalt, n1Encoded.length, n2Encoded.length);
         }
                 
-        // OLD WAY - The final Master Salt is the concatenation of raw byte arrays
-        /*
-        if (this.salt != null) {
-            finalSalt = new byte[this.salt.length + n1.length + n2.length];
-            System.arraycopy(this.salt, 0, finalSalt, 0, this.salt.length);
-            System.arraycopy(n1, 0, finalSalt, this.salt.length, n1.length);
-            System.arraycopy(n2, 0, finalSalt, 
-                    this.salt.length + n1.length, n2.length);
-        } else {
-            finalSalt = new byte[n1.length + n2.length];
-            System.arraycopy(n1, 0, finalSalt, 0, n1.length);
-            System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
-        }*/
-        
-        
-        // OLD WAY - The IDs of Client and Resource Server are distributed by the Authorization Server
-        /*
-        if (isClient) {
-            senderId = this.clientId;
-            recipientId = this.serverId;
-        } else {
-            senderId = this.serverId;
-            recipientId = this.clientId;
-        }
-        */
-        
         if (isClient) {
             senderId = id2;
             recipientId = id1;

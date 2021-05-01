@@ -50,9 +50,6 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -65,7 +62,6 @@ import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
-import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
 import COSE.CoseException;
@@ -81,8 +77,6 @@ import se.sics.ace.as.Token;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
-import se.sics.ace.oscore.OSCOREInputMaterialObjectParameters;
 
 /**
  * Test the coap classes.
@@ -298,7 +292,6 @@ public class PlugtestClientGroupOSCORE {
         CBORObject as_y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(asY));
         asRpkData.Add(KeyKeys.EC2_X.AsCBOR(), as_x);
         asRpkData.Add(KeyKeys.EC2_Y.AsCBOR(), as_y);
-        OneKey asRPK = new OneKey(asRpkData);  
         
         //Setup RS RPK (same for all RSs)
         CBORObject rsRpkData = CBORObject.NewMap();
@@ -677,9 +670,6 @@ public class PlugtestClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -694,16 +684,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
-        /*
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        */
         
         // === Case 2.2 ===
         // The requested role is allowed in the specified group
@@ -717,9 +697,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_MONITOR);
         
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -732,17 +709,7 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        */
+
         
         // === Case 2.3 ===
         // Access to the specified group is not allowed
@@ -757,9 +724,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
         byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, 
@@ -772,15 +736,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        */
         
         // === Case 2.4 ===
         // The requested role is not allowed in the specified group
@@ -794,9 +749,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -810,16 +762,7 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        */
+
         
         // === Case 2.5 ===
         // The requested role is not allowed in the specified group
@@ -833,9 +776,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add((short)10);
         
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -849,16 +789,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        */
         
     }
     
@@ -906,12 +836,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -926,16 +850,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
         
-        /*
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        */
         
         // === Case 3.2 ===
         // Access to the specified group is not allowed
@@ -951,12 +865,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_MONITOR);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -969,16 +877,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        */
         
         
         // === Case 3.3 ===
@@ -995,12 +893,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
@@ -1013,41 +905,7 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 1);
-        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
-        assert(receivedArrayScope.get(0).size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayEntry = CBORObject.NewArray();
-        cborArrayEntry.Add(gid);
-        
-        int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayEntry.Add(expectedRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
-        cborArrayScope.Add(cborArrayEntry);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	*/
-        
+               
     }
 
     
@@ -1092,9 +950,6 @@ public class PlugtestClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_RESPONDER);
         
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1108,16 +963,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-		*/
         
         
         // === Case 4.2 ===
@@ -1134,12 +979,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
@@ -1153,40 +992,6 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 1);
-        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
-        assert(receivedArrayScope.get(0).size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayEntry = CBORObject.NewArray();
-        cborArrayEntry.Add(gid);
-        
-        int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	cborArrayEntry.Add(expectedRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
-        cborArrayScope.Add(cborArrayEntry);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	*/
             	
     }
     
@@ -1211,13 +1016,9 @@ public class PlugtestClientGroupOSCORE {
         rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), RS_y);
         rpkData.Add(KeyKeys.EC2_D.AsCBOR(), RS_d);
         OneKey key = new OneKey(rpkData);
-
-    	// OLD SETUP
-        //OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
     	
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), 
                 key.AsPublicKey());
         builder.setRpkTrustAll();
@@ -1240,20 +1041,7 @@ public class PlugtestClientGroupOSCORE {
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);
         printResponseFromAS(response);
-        
-        /*
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        System.out.println(map);
-        assert(map.containsKey(Constants.AUD));
-        assert(map.get(Constants.AUD).AsString().equals("actuators"));
-        assert(map.containsKey(Constants.SCOPE));
-        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
-        assert(map.containsKey(Constants.ACTIVE));
-        assert(map.get(Constants.ACTIVE).isTrue());
-        assert(map.containsKey(Constants.CTI));
-        assert(map.containsKey(Constants.EXP));
-        */
+
     }
     // End tests with the AS
     
@@ -1286,9 +1074,6 @@ public class PlugtestClientGroupOSCORE {
     	int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	//scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
     	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1416,10 +1201,7 @@ public class PlugtestClientGroupOSCORE {
         myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	
+    	    	
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1474,17 +1256,7 @@ public class PlugtestClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
-       	   
+                   	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
             if (clientSignature != null)
@@ -1725,12 +1497,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -1857,12 +1623,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayScope.Add(cborArrayRoles);
-    	
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -1912,16 +1672,6 @@ public class PlugtestClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -2158,9 +1908,6 @@ public class PlugtestClientGroupOSCORE {
         int myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	scopeEntry.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // scopeEntry.Add(Constants.GROUP_OSCORE_REQUESTER);
         
         cborArrayScope.Add(scopeEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
@@ -2291,10 +2038,7 @@ public class PlugtestClientGroupOSCORE {
         myRoles = 0;
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // cborArrayScope.Add(Constants.GROUP_OSCORE_REQUESTER);
-        
+    	        
         byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -2344,16 +2088,6 @@ public class PlugtestClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             
@@ -2596,12 +2330,6 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	scopeEntry.Add(myRoles);
     	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-        // CBORObject cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// scopeEntry.Add(cborArrayRoles);
-    	
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -2732,13 +2460,7 @@ public class PlugtestClientGroupOSCORE {
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
-    	
-    	// OLD VERSION WITH ROLE OR CBOR ARRAY OF ROLES
-    	// cborArrayRoles = CBORObject.NewArray();
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_REQUESTER);
-    	// cborArrayRoles.Add(Constants.GROUP_OSCORE_RESPONDER);
-    	// cborArrayScope.Add(cborArrayRoles);
-    	
+
     	byteStringScope = cborArrayScope.EncodeToBytes();
         requestPayload.Add(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
@@ -2788,16 +2510,6 @@ public class PlugtestClientGroupOSCORE {
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
-            
-            // Old version, concatenating the plain bytes rather than the serialization of CBOR byte strings
-            /*
-       	    byte [] dataToSign = new byte [byteStringScope.length + gm_sign_nonce.length + cnonce.length];
-       	    System.arraycopy(byteStringScope, 0, dataToSign, offset, byteStringScope.length);
-       	    offset += byteStringScope.length;
-       	    System.arraycopy(gm_sign_nonce, 0, dataToSign, offset, gm_sign_nonce.length);
-       	    offset += gm_sign_nonce.length;
-       	    System.arraycopy(cnonce, 0, dataToSign, offset, cnonce.length);
-       	    */
        	   
        	    byte[] clientSignature = computeSignature(privKey, dataToSign);
             

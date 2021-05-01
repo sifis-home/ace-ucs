@@ -35,8 +35,6 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,8 +44,6 @@ import java.util.Set;
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
@@ -74,7 +70,6 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TestConfig;
-import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -84,6 +79,7 @@ import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
+import se.sics.ace.Util;
 
 /**
  * Test the DTLSProfileAuthzInfo class.
@@ -276,15 +272,15 @@ public class TestDtlspAuthzInfo {
        //Test that the token is there and that responses are as expected
        Assert.assertEquals(TokenRepository.OK,
                 TokenRepository.getInstance().canAccess(
-                        kid, kid, "temp", Constants.GET, null));
+                        kid, null, "temp", Constants.GET, null));
        
        Assert.assertEquals(TokenRepository.METHODNA,
                TokenRepository.getInstance().canAccess(
-                       kid, kid, "temp", Constants.POST, null));
+                       kid, null, "temp", Constants.POST, null));
        
        Assert.assertEquals(TokenRepository.FORBID,
                TokenRepository.getInstance().canAccess(
-                       kid, kid, "co2", Constants.POST, null));
+                       kid, null, "co2", Constants.POST, null));
         
         
        // Build a new Token for updating access rights, with a different 'scope'
@@ -296,16 +292,8 @@ public class TestDtlspAuthzInfo {
       req2 = new LocalMessage(0, null, null, payload2);
       LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
       assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
-        
-      // NEW WAY, where a structure with "cnf" is used as "psk_identity"
-      CBORObject identityStructure = CBORObject.NewMap();
-      CBORObject cnfStructure = CBORObject.NewMap();
-      CBORObject COSEKeyStructure = CBORObject.NewMap();
-      COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-      COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid.getBytes());
-      cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-      identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-      String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
+      
+      String identity = Util.buildDtlsPskIdentity(kid.getBytes());
         
 	  req2 = new LocalMessage(0, identity, null, payload2);
 	  resp2 = (LocalMessage)ai.processMessage(req2);
@@ -330,7 +318,6 @@ public class TestDtlspAuthzInfo {
       Assert.assertEquals(TokenRepository.FORBID, 
               TokenRepository.getInstance().canAccess(
                       kid, identity, "temp", Constants.GET, null));
-      
         
     }
          

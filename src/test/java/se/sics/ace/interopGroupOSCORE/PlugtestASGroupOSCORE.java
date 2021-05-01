@@ -252,7 +252,6 @@ public class PlugtestASGroupOSCORE
         rpkData.Add(KeyKeys.EC2_X.AsCBOR(), C_x);
         rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), C_y);
         OneKey akey_c = new OneKey(rpkData);
-        String clientId = new RawPublicKeyIdentity(akey_c.AsPublicKey()).getName();
         
         // Build the RS public key (the same one for all the RSs)
         rpkData = CBORObject.NewMap();

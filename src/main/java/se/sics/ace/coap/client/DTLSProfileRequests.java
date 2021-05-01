@@ -39,8 +39,6 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
@@ -49,7 +47,6 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -62,6 +59,7 @@ import COSE.KeyKeys;
 import COSE.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -341,20 +339,9 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
-
-        // NEW WAY, where a structure with "cnf" is used as "psk_identity"
-        CBORObject identityStructure = CBORObject.NewMap();
-        CBORObject cnfStructure = CBORObject.NewMap();
-        CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);
-        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-        String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());      
         
-        // OLD WAY, with only the kid used as "psk_identity"
-        // String identity = new String(kid, Constants.charset);
-        
+        String identity = Util.buildDtlsPskIdentity(kid);
+                
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         store.addKnownPeer(serverAddress, identity, 
                 key.get(KeyKeys.Octet_K).GetByteString());

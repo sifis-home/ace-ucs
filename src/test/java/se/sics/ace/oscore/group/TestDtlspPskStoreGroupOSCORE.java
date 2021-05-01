@@ -249,20 +249,9 @@ public class TestDtlspPskStoreGroupOSCORE {
     @Test
     public void testInvalidPskId() throws Exception {
 
-    	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
     	String kidStr = "blah";
-        CBORObject identityStructure = CBORObject.NewMap();
-        CBORObject cnfStructure = CBORObject.NewMap();
-        CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kidStr.getBytes(Constants.charset));
-        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-        String publicInfo = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
+    	String publicInfo = Util.buildDtlsPskIdentity(kidStr.getBytes(Constants.charset));
     	SecretKey key = store.getKey(new PskPublicInformation(publicInfo));
-
-    	// OLD WAY, with only the kid used as "psk_identity"
-        // SecretKey key = store.getKey(new PskPublicInformation("blah"));
     	
         Assert.assertNull(key);
     }
@@ -377,19 +366,8 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
-    	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
-        CBORObject identityStructure = CBORObject.NewMap();
-        CBORObject cnfStructure = CBORObject.NewMap();
-        CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);
-        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-        String psk_identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
-
-    	// OLD WAY, with only the kid used as "psk_identity"
-        // String psk_identity = "ourKey"; 
-
+        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
+        
         byte[] psk = store.getKey(
                 new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
@@ -540,20 +518,8 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
+        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
         
-    	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
-        CBORObject identityStructure = CBORObject.NewMap();
-        CBORObject cnfStructure = CBORObject.NewMap();
-        CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);
-        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-        String psk_identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
-
-    	// OLD WAY, with only the kid used as "psk_identity"
-        // String psk_identity = "ourKey"; 
-
         byte[] psk = store.getKey(
                 new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
@@ -598,19 +564,8 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
-    	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
-        CBORObject identityStructure = CBORObject.NewMap();
-        CBORObject cnfStructure = CBORObject.NewMap();
-        CBORObject COSEKeyStructure = CBORObject.NewMap();
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-        COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), kid);
-        cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-        identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-        String psk_identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
-
-    	// OLD WAY, with only the kid used as "psk_identity"
-        // String psk_identity = "ourKey"; 
-
+        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
+        
         byte[] psk = store.getKey(
                 new PskPublicInformation(psk_identity)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);

@@ -69,6 +69,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Hkdf;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -776,9 +777,10 @@ public class TokenRepository implements AutoCloseable {
 	        throws AceException, CoseException {
 	    
 	    String kid = null;
+	    CBORObject kidC = null;
 	    
 	    if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
-	        CBORObject kidC = key.get(KeyKeys.KeyId);
+	        kidC = key.get(KeyKeys.KeyId);
 	        
 	        if (kidC == null) {
 	            LOGGER.severe("kid not found in COSE_Key");
@@ -824,21 +826,9 @@ public class TokenRepository implements AutoCloseable {
         }
         
         else { //Take the kid as sid
+        	String identity = Util.buildDtlsPskIdentity(kidC.GetByteString());
         	
-        	// NEW WAY, where a structure with "cnf" is used as "psk_identity"
-            CBORObject identityStructure = CBORObject.NewMap();
-            CBORObject cnfStructure = CBORObject.NewMap();
-            CBORObject COSEKeyStructure = CBORObject.NewMap();
-            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()), KeyKeys.KeyType_Octet);
-            COSEKeyStructure.Add(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR()), key.get(KeyKeys.KeyId));
-            cnfStructure.Add(Constants.COSE_KEY_CBOR, COSEKeyStructure);
-            identityStructure.Add(CBORObject.FromObject(Constants.CNF), cnfStructure);
-            String identity = Base64.getEncoder().encodeToString(identityStructure.EncodeToBytes());
             this.sid2kid.put(identity, kid);
-            
-            // OLD WAY, with only the kid used as "psk_identity"
-            //this.sid2kid.put(kid, kid);
-            
         	this.sid2cti.put(identity, cti);
         }  
         

@@ -2549,7 +2549,7 @@ public class PlugtestRSGroupOSCORE {
         CBORObject csParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P-256 for countersignatures
-        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        // countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
         
         // Uncomment to set EDDSA with curve Ed25519 for countersignatures
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();

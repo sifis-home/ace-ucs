@@ -60,7 +60,6 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
-import se.sics.ace.coap.CoapRes;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 
 

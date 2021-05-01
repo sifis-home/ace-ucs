@@ -59,7 +59,6 @@ import COSE.MessageTag;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
-import se.sics.ace.Message;
 import se.sics.ace.Util;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.cwt.CWT;
