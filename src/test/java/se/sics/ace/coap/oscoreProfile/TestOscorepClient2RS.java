@@ -73,11 +73,23 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 public class TestOscorepClient2RS {
 
     /**
-     * The cnf keys used in these tests
+     * The cnf keys used in these tests as OSCORE Master Secrets
      */
     private static byte[] keyCnf = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static byte[] keyCnf2 = {'a', 'b', 'd', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
+    /**
+     * The OSCORE Master Salts used in these tests
+     */
+    private static byte[] salt = {'a', 'b', 'e', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    private static byte[] salt2 = {'a', 'b', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    
+    /**
+     * The OSCORE ID Contexts used in these tests
+     */
+    private static byte[] kidContext = {'a', 'b'};
+    private static byte[] kidContext2 = {'c', 'd'};
+    
     /**
      * The AS <-> RS key used in these tests
      */
@@ -176,6 +188,8 @@ public class TestOscorepClient2RS {
         CBORObject osc = CBORObject.NewMap();
         
         osc.Add(Constants.OS_MS, keyCnf);
+        osc.Add(Constants.OS_SALT, salt);
+        osc.Add(Constants.OS_CONTEXTID, kidContext);
         byte[] id = Util.intToBytes(0);
         osc.Add(Constants.OS_ID, id);
 
@@ -269,6 +283,8 @@ public class TestOscorepClient2RS {
         CBORObject cbor = CBORObject.NewMap();
         
         osc.Add(Constants.OS_MS, keyCnf2);
+        osc.Add(Constants.OS_SALT, salt2);
+        osc.Add(Constants.OS_CONTEXTID, kidContext);
         byte[] id = Util.intToBytes(1);
         osc.Add(Constants.OS_ID, id);
 
