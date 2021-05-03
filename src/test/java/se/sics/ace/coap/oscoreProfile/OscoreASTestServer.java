@@ -37,6 +37,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.core.coap.CoAP;
+
 import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
@@ -199,7 +201,8 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS("AS", db, pdp, time, asymmKey);
+        as = new OscoreAS("AS", db, pdp, time, asymmKey,"token", "introspect",
+                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1);
         as.start();
         System.out.println("Server starting");
     }

@@ -65,7 +65,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
  * sender_id = asId
  * recipient_id = rs/client id
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreAS extends CoapServer implements AutoCloseable {
@@ -109,7 +109,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             OneKey asymmetricKey, int port) 
                     throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
-                null, false);
+                null, false, (short)0);
     }
     
     
@@ -129,7 +129,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
-                CoAP.DEFAULT_COAP_PORT, null, false);
+                CoAP.DEFAULT_COAP_PORT, null, false, (short)0);
     }
     
     
@@ -150,7 +150,8 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set
-     * @param setAudHeader  insert the AUD as header in the CWT.  
+     * @param setAudHeader  insert the AUD as header in the CWT.
+     * @param masterSaltSize  the size in bytes of the Master Salt to provide. It can be 0 to not provide a Master Salt
      * 
      * @throws AceException 
      * @throws OSException 
@@ -159,11 +160,11 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId, CoapDBConnector db,
             PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
-            boolean setAudHeader) throws AceException, OSException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
+            boolean setAudHeader, short masterSaltSize) throws AceException, OSException {
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader, masterSaltSize);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
-        
+                
         if (introspectName != null) {
             if (asymmetricKey == null) {
                 this.i = new Introspect(pdp, db, time, null);
