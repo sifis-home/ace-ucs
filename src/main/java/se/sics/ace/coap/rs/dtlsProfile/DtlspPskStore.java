@@ -91,7 +91,14 @@ public class DtlspPskStore implements PskStore {
     
     @Override
     public SecretKey getKey(PskPublicInformation identity) {
+    	
         return getKey(identity.getPublicInfoAsString());
+        
+        /*
+        // Placeholder for binary psk_identity
+        return getKey(identity.getBytes());
+        */
+        
     }
    
     /**
@@ -101,6 +108,10 @@ public class DtlspPskStore implements PskStore {
      * @param identity  the String identity of the key
      * @return  the bytes of the key
      */
+    /*
+    // Placeholder for binary psk_identity
+    private SecretKey getKey(byte[] identity)
+    */
     private SecretKey getKey(String identity) {
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
@@ -111,6 +122,12 @@ public class DtlspPskStore implements PskStore {
         try {
         	
         	byte[] identityStructureByte = Base64.getDecoder().decode(identity);
+        	
+        	/*
+            // Placeholder for binary psk_identity
+        	byte[] identityStructureByte = identity;
+        	*/
+        	
         	CBORObject identityStructure = CBORObject.DecodeFromBytes(identityStructureByte);
 
         	if (identityStructure != null && identityStructure.getType() == CBORType.Map && identityStructure.size() == 1) {
@@ -149,17 +166,30 @@ public class DtlspPskStore implements PskStore {
         //We don't have that key, try if the identity is an access token
         CBORObject payload = null;
         try {
-
+        	
+        	// OLD
             payload = CBORObject.DecodeFromBytes(Base64.getDecoder().decode(identity));
-        	        	
+        	
+            /*
+            // Placeholder for binary psk_identity
+            payload = CBORObject.DecodeFromBytes(identity);
+            */
+                    	
         } catch (NullPointerException | CBORException e) {
             LOGGER.severe("Error decoding the psk_identity: " 
                     + e.getMessage());
             return null;
         }
         
-        //We may have an access token, continue processing it        
+        //We may have an access token, continue processing it
         LocalMessage message = new LocalMessage(0, identity, null, payload);
+        
+        /*
+        // Placeholder for binary psk_identity
+        String identityStr = Base64.getEncoder().encodeToString(identity);
+        LocalMessage message = new LocalMessage(0, identityStr, null, payload);
+        */
+        
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
         if (res.getMessageCode() == Message.CREATED) {

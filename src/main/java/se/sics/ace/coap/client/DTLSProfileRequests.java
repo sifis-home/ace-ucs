@@ -289,8 +289,16 @@ public class DTLSProfileRequests {
                 token.EncodeToBytes());
         
         LOGGER.finest("Adding key for: " + serverAddress.toString());
+        
         store.addKnownPeer(serverAddress, identity, 
+                key.get(KeyKeys.Octet_K).GetByteString());        
+        /*
+        // Placeholder for binary psk_identity
+        PskPublicInformation pskInfo = new PskPublicInformation(identity, token.EncodeToBytes());
+        store.addKnownPeer(serverAddress, pskInfo, 
                 key.get(KeyKeys.Octet_K).GetByteString());
+        */
+
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)

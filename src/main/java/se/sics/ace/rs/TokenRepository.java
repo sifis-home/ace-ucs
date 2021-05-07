@@ -759,7 +759,7 @@ public class TokenRepository implements AutoCloseable {
         this.cti2claims.put(cti, foo);
         
         persist();
-
+        
         return cticb;
 	}
 	

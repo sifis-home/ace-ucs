@@ -288,5 +288,19 @@ public class CoapDeliverer implements MessageDeliverer {
     public void deliverResponse(Exchange exchange, Response response) {
         this.d.deliverResponse(exchange, response);        
     }
+    
+
+    public byte[] GetBytes(String str)
+    {
+        char[] chars = str.toCharArray();
+        byte[] bytes = new byte[chars.length * 2];
+        for (int i = 0; i < chars.length; i++)
+        {
+            bytes[i * 2] = (byte) (chars[i] >> 8);
+            bytes[i * 2 + 1] = (byte) chars[i];
+        }
+
+        return bytes;
+    }
 
 }
