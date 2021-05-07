@@ -109,7 +109,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             OneKey asymmetricKey, int port) 
                     throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
-                null, false, (short)0);
+                null, false, (short)0, false);
     }
     
     
@@ -129,7 +129,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
             OneKey asymmetricKey) throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
-                CoAP.DEFAULT_COAP_PORT, null, false, (short)0);
+                CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false);
     }
     
     
@@ -152,6 +152,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      *                AS, can be null to use default set
      * @param setAudHeader  insert the AUD as header in the CWT.
      * @param masterSaltSize  the size in bytes of the Master Salt to provide. It can be 0 to not provide a Master Salt
+     * @param provideIdContext  true if the Id Context has to provided, or false otherwise
      * 
      * @throws AceException 
      * @throws OSException 
@@ -160,8 +161,8 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId, CoapDBConnector db,
             PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
-            boolean setAudHeader, short masterSaltSize) throws AceException, OSException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader, masterSaltSize);
+            boolean setAudHeader, short masterSaltSize, boolean provideIdContext) throws AceException, OSException {
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader, masterSaltSize, provideIdContext);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
                 

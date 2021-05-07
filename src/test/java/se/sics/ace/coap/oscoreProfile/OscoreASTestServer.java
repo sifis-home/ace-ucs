@@ -202,7 +202,7 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failProfile");
         
         as = new OscoreAS("AS", db, pdp, time, asymmKey,"token", "introspect",
-                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1);
+                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true);
         as.start();
         System.out.println("Server starting");
     }
