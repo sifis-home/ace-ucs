@@ -953,9 +953,26 @@ public class Token implements Endpoint, AutoCloseable {
 		
 		CBORObject rsInfo = CBORObject.NewMap();
 		try {
+			
+			boolean includeProfile = false;
+			
 		    if (!this.db.hasDefaultProfile(id)) {
-		        rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+		    	// This client supports multiple profiles; need to specify the exact one to use
+		    	includeProfile = true;
 		    }
+		    else {
+		    	CBORObject profileParameter = msg.getParameter(Constants.PROFILE);
+		    	if (profileParameter != null && profileParameter.equals(CBORObject.Null)) {
+			    	// The client has requested an explicit indication of the profile to use
+		    		includeProfile = true;
+		    	}
+		    }
+
+		    if (includeProfile == true) {
+		    	rsInfo.Add(Constants.PROFILE, CBORObject.FromObject(profile));
+		    }
+		    // Otherwise, no need to explicitly indicate the used profile
+		    
 		} catch (AceException e) {
 		    this.cti--; //roll-back
 		    
