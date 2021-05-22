@@ -178,7 +178,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		//1. Check whether it is a CWT or REF type
 	    if (token.getType().equals(CBORType.ByteString)) {
 	        try {
-                claims = processRefrenceToken(token);
+                claims = processReferenceToken(token);
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -632,7 +632,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    protected synchronized Map<Short, CBORObject> processRefrenceToken(CBORObject token)
+    protected synchronized Map<Short, CBORObject> processReferenceToken(CBORObject token)
                 throws AceException, IntrospectionException {
 		// This should be a CBOR String
         if (token.getType() != CBORType.ByteString) {

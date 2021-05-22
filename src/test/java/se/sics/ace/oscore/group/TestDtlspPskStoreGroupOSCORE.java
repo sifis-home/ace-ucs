@@ -250,8 +250,9 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testInvalidPskId() throws Exception {
 
     	String kidStr = "blah";
-    	String publicInfo = Util.buildDtlsPskIdentity(kidStr.getBytes(Constants.charset));
-    	SecretKey key = store.getKey(new PskPublicInformation(publicInfo));
+    	byte[] publicInfoBytes = Util.buildDtlsPskIdentity(kidStr.getBytes(Constants.charset));
+        String publicInfoStr = Base64.getEncoder().encodeToString(publicInfoBytes);
+    	SecretKey key = store.getKey(new PskPublicInformation(publicInfoStr));
     	
         Assert.assertNull(key);
     }
@@ -327,13 +328,12 @@ public class TestDtlspPskStoreGroupOSCORE {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
 
-        CBORObject tokenCB = token.encode(ctx);
-           
-        String psk_identity = Base64.getEncoder().encodeToString(
-                tokenCB.EncodeToBytes()); 
-
+        CBORObject tokenCB = token.encode(ctx);        
+        byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
+        
         byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+                new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
      
@@ -366,10 +366,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
-        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
+        byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
         
-        byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+        byte[] psk = store.getKey(new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -417,12 +417,11 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
-           
-        String psk_identity = Base64.getEncoder().encodeToString(
-                tokenCB.EncodeToBytes()); 
-
+        byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
+        
         byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+                new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -471,12 +470,11 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
-           
-        String psk_identity = Base64.getEncoder().encodeToString(
-                tokenCB.EncodeToBytes()); 
-
+        byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
+        
         byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+                new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
 
@@ -518,10 +516,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
-        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
+        byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
         
-        byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+        byte[] psk = store.getKey(new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     
@@ -564,10 +562,10 @@ public class TestDtlspPskStoreGroupOSCORE {
                 coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
-        String psk_identity = Util.buildDtlsPskIdentity(kid.GetByteString());
+        byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
+        String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
         
-        byte[] psk = store.getKey(
-                new PskPublicInformation(psk_identity)).getEncoded();
+        byte[] psk = store.getKey(new PskPublicInformation(pskIdentityStr, pskIdentityBytes)).getEncoded();
         Assert.assertArrayEquals(key128 ,psk);
     }
     

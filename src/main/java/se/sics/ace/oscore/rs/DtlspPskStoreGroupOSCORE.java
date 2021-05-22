@@ -92,7 +92,13 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
 
     @Override
     public SecretKey getKey(PskPublicInformation identity) {
-        return getKey(identity.getPublicInfoAsString());
+    	
+    	// This profile expects opaque bytes as "psk_identity" on the wire.
+    	// If character strings were also used, an alternative method
+    	// would have to be invoked here to process it accordingly,
+    	// such as getKey(identity.getPublicInfoAsString())
+    	
+    	return getKey(identity.getBytes(), identity);
     }
     
     /**
@@ -101,7 +107,7 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
      * @param identity  the String identity of the key
      * @return  the bytes of the key
      */
-    private SecretKey getKey(String identity) {
+    private SecretKey getKey(byte[] rawIdentity, PskPublicInformation originalIdentity) {
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
             return null;
@@ -110,12 +116,19 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         OneKey key = null;
         try {
         	
-        	byte[] identityStructureByte = Base64.getDecoder().decode(identity);
-        	CBORObject identityStructure = CBORObject.DecodeFromBytes(identityStructureByte);
+        	CBORObject identityStructure;
+        	
+        	try {
+        		identityStructure = CBORObject.DecodeFromBytes(rawIdentity);
+        	}
+        	catch (CBORException e) {
+                LOGGER.severe("Error: " + e.getMessage());
+                return null;
+        	}
 
         	if (identityStructure != null && identityStructure.getType() == CBORType.Map && identityStructure.size() == 1) {
 
-        		CBORObject cnfStructure = identityStructure.get(CBORObject.FromObject(Constants.CNF));
+        		CBORObject cnfStructure = identityStructure.get(Constants.CNF);
         		if (cnfStructure != null && cnfStructure.getType() == CBORType.Map && cnfStructure.size() == 1) {
 
         			CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
@@ -128,6 +141,10 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         				    String kidString = new String(kid, Constants.charset);
         				    
         					key = TokenRepository.getInstance().getKey(kidString);
+        					
+        	           	    // For correct storage in the DTLS Key Store, change the originally received
+        	           	    // key identity from the "psk_identity" on the wire to only the "kid" included in it
+        	            	originalIdentity.normalize(kidString);
         					
         				}
         				
@@ -149,16 +166,20 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         //We don't have that key, try if the identity is an access token
         CBORObject payload = null;
         try {
-            payload = CBORObject.DecodeFromBytes(
-                    Base64.getDecoder().decode(identity));
+            payload = CBORObject.DecodeFromBytes(rawIdentity);
         } catch (NullPointerException | CBORException e) {
             LOGGER.severe("Error decoding the psk_identity: " 
                     + e.getMessage());
             return null;
         }
         
-        //We may have an access token, continue processing it        
-        LocalMessage message = new LocalMessage(0, identity, null, payload);
+        //We may have an access token, continue processing it
+        
+   	    // For correct storage in the DTLS Key Store, change the originally received
+   	    // the base 64 serialization of what seen as "psk_identity" on the wire
+        String identityStr = Base64.getEncoder().encodeToString(rawIdentity);
+        LocalMessage message = new LocalMessage(0, identityStr, null, payload);
+        
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
         if (res.getMessageCode() == Message.CREATED) {
@@ -173,6 +194,10 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
             String ctiStr = Base64.getEncoder().encodeToString(
                     cti.GetByteString());
             try {
+           	     // For correct storage in the Key Store of the DTLS handshake, change the originally received
+           	     // key identity to the base 64 serialization of what seen as "psk_identity" on the wire
+             	 originalIdentity.normalize(identityStr);
+            	
                  key = TokenRepository.getInstance().getPoP(ctiStr);
                  return new SecretKeySpec(
                          key.get(KeyKeys.Octet_K).GetByteString(), "AES");

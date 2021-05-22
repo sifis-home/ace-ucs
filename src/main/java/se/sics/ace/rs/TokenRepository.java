@@ -826,10 +826,8 @@ public class TokenRepository implements AutoCloseable {
         }
         
         else { //Take the kid as sid
-        	String identity = Util.buildDtlsPskIdentity(kidC.GetByteString());
-        	
-            this.sid2kid.put(identity, kid);
-        	this.sid2cti.put(identity, cti);
+            this.sid2kid.put(kid, kid);
+        	this.sid2cti.put(kid, cti);
         }  
         
         this.cti2kid.put(cti, kid);

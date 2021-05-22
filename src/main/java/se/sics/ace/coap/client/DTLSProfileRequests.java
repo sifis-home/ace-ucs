@@ -47,6 +47,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -284,21 +285,15 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-        InMemoryPskStore store = new InMemoryPskStore(); 
-        String identity = Base64.getEncoder().encodeToString(
-                token.EncodeToBytes());
+        InMemoryPskStore store = new InMemoryPskStore();
         
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         
-        store.addKnownPeer(serverAddress, identity, 
-                key.get(KeyKeys.Octet_K).GetByteString());        
-        /*
-        // Placeholder for binary psk_identity
-        PskPublicInformation pskInfo = new PskPublicInformation(identity, token.EncodeToBytes());
-        store.addKnownPeer(serverAddress, pskInfo, 
-                key.get(KeyKeys.Octet_K).GetByteString());
-        */
-
+        byte[] identityBytes = token.EncodeToBytes();
+        String identityStr = Base64.getEncoder().encodeToString(identityBytes);
+        PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
+        store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
+                
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
@@ -347,12 +342,14 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
-        
-        String identity = Util.buildDtlsPskIdentity(kid);
-                
+
         LOGGER.finest("Adding key for: " + serverAddress.toString());
-        store.addKnownPeer(serverAddress, identity, 
-                key.get(KeyKeys.Octet_K).GetByteString());
+        
+        byte[] identityBytes = Util.buildDtlsPskIdentity(kid);
+        String identityStr = Base64.getEncoder().encodeToString(identityBytes);
+        PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
+        store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
+        
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder()

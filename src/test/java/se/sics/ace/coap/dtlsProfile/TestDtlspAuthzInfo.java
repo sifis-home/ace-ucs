@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -293,9 +294,7 @@ public class TestDtlspAuthzInfo {
       LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
       assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
       
-      String identity = Util.buildDtlsPskIdentity(kid.getBytes());
-        
-	  req2 = new LocalMessage(0, identity, null, payload2);
+	  req2 = new LocalMessage(0, kid, null, payload2);
 	  resp2 = (LocalMessage)ai.processMessage(req2);
 	  assert(resp2.getMessageCode() == Message.CREATED);
 	  
@@ -306,18 +305,18 @@ public class TestDtlspAuthzInfo {
       // with the same 'kid' is bound also to the new token
       Assert.assertEquals(TokenRepository.OK, 
               TokenRepository.getInstance().canAccess(
-                      kid, identity, "co2", Constants.GET, null));
+                      kid, kid, "co2", Constants.GET, null));
       Assert.assertEquals(TokenRepository.OK, 
               TokenRepository.getInstance().canAccess(
-                      kid, identity, "co2", Constants.POST, null));
+                      kid, kid, "co2", Constants.POST, null));
       Assert.assertEquals(TokenRepository.METHODNA, 
               TokenRepository.getInstance().canAccess(
-                      kid, identity, "co2", Constants.DELETE, null));
+                      kid, kid, "co2", Constants.DELETE, null));
       
       // ... and that access to the "temp" resource is not allowed anymore
       Assert.assertEquals(TokenRepository.FORBID, 
               TokenRepository.getInstance().canAccess(
-                      kid, identity, "temp", Constants.GET, null));
+                      kid, kid, "temp", Constants.GET, null));
         
     }
          

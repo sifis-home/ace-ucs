@@ -1001,9 +1001,7 @@ public class TestAuthzInfoGroupOSCORE {
         LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
         assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
         
-        String identity = Util.buildDtlsPskIdentity(kid.GetByteString());
-        
-  	    req2 = new LocalMessage(0, identity, null, token2.encode(ctx));
+  	    req2 = new LocalMessage(0, kidStr, null, token2.encode(ctx));
   	    resp2 = (LocalMessage)ai.processMessage(req2);
   	    assert(resp2.getMessageCode() == Message.CREATED);
         
