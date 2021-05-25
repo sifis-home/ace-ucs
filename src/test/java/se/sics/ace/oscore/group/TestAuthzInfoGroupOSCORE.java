@@ -257,7 +257,7 @@ public class TestAuthzInfoGroupOSCORE {
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
         pdp.addIntrospectAccess("rs2"); // Enabling introspection for the OSCORE Group Manager
-        i = new Introspect(pdp, db, new KissTime(), key);
+        i = new Introspect(pdp, db, new KissTime(), key, null);
         
         // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
@@ -1001,7 +1001,9 @@ public class TestAuthzInfoGroupOSCORE {
         LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
         assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
         
-  	    req2 = new LocalMessage(0, kidStr, null, token2.encode(ctx));
+        String identityStr = Base64.getEncoder().encodeToString(kid.GetByteString());
+  	    req2 = new LocalMessage(0, identityStr, null, token2.encode(ctx));
+  	    
   	    resp2 = (LocalMessage)ai.processMessage(req2);
   	    assert(resp2.getMessageCode() == Message.CREATED);
         

@@ -118,10 +118,12 @@ public class TestOscoreIntrospection {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        byte[] senderId = "rs1".getBytes(Constants.charset);
-        byte[] recipientId = "AS".getBytes(Constants.charset);
+    	
+        byte[] senderId = new byte[] {0x11};
+        byte[] recipientId = new byte[] {0x00};
         OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
                 senderId, recipientId, null, null, null, null);
+                
         OscoreIntrospection i = new OscoreIntrospection(ctx, "coap://localhost/introspect", ctxDB);
         Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
         assert(map.containsKey(Constants.AUD));

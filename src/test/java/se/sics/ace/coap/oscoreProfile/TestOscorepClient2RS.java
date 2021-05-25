@@ -141,11 +141,16 @@ public class TestOscorepClient2RS {
     public static void setUp() throws OSException {
         srv = new RunTestServer();
         srv.run();
-        //Initialize a fake context
+        
+        //Initialize a fake context        
+        byte[] senderId  = new byte[] {(byte) 0xff, (byte) 0xff, (byte) 0xff};
+        byte[] recipientId  = new byte[] {(byte) 0xff, (byte) 0xff, (byte) 0xfe};
         osctx = new OSCoreCtx(keyCnf, true, null, 
-                "clientA".getBytes(Constants.charset),
-                "rs1".getBytes(Constants.charset),
+        		senderId,
+        		recipientId,
                 null, null, null, null);
+        
+        
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
         
@@ -206,10 +211,11 @@ public class TestOscorepClient2RS {
         Response rsRes = OSCOREProfileRequests.postToken("coap://localhost/authz-info", asRes, ctxDB, usedRecipientIds);
 
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
-        //Check that the OSCORE context has been created:
         
-       Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));
+        //Check that the OSCORE context has been created:
+        Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));
 
+        
        //Submit a request
        
        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
@@ -218,7 +224,9 @@ public class TestOscorepClient2RS {
        Request helloReq = new Request(CoAP.Code.GET);
        helloReq.getOptions().setOscore(new byte[0]);
        CoapResponse helloRes = c.advanced(helloReq);
+       
        Assert.assertEquals("Hello World!", helloRes.getResponseText());
+       
        
        //Submit a forbidden request
        

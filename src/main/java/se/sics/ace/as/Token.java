@@ -227,6 +227,16 @@ public class Token implements Endpoint, AutoCloseable {
 	  */
 	 private Map<String, IdContextInfo> idContextInfoMap = new HashMap<>(); 
 	 
+	 /**
+	  * Mapping between security identities of the peers and their names; it can be null
+	  * 
+	  * This is relevant especially for the OSCORE profile, since all peers are registered in the
+	  * AS database by nicknames. Instead, their OSCORE identities as retrieved from incoming OSCORE
+	  * messages are structured base64 strings encoding the Context ID and Sender ID for that peer 
+	 */ 
+	private Map<String, String> peerIdentitiesToNames = null;
+	 
+	 
 	/**
 	 * Constructor using default set of claims.
 	 * 
@@ -239,8 +249,9 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @throws AceException  if fetching the cti from the database fails
 	 */	
 	public Token(String asId, PDP pdp, DBConnector db, 
-	        TimeProvider time, OneKey privateKey) throws AceException {
-	    this(asId, pdp, db, time, privateKey, defaultClaims, false, (short)0, false);
+	        TimeProvider time, OneKey privateKey,
+	        Map<String, String> peerIdentitiesToNames) throws AceException {
+	    this(asId, pdp, db, time, privateKey, defaultClaims, false, (short)0, false, peerIdentitiesToNames);
 	}
 	
 	/**   
@@ -261,9 +272,10 @@ public class Token implements Endpoint, AutoCloseable {
      * @throws AceException  if fetching the cti from the database fails
      */
     public Token(String asId, PDP pdp, DBConnector db, 
-            TimeProvider time, OneKey privateKey, Set<Short> claims, 
-            boolean setAudInCwtHeader) throws AceException {
-        this(asId, pdp, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false);
+            TimeProvider time, OneKey privateKey,
+            Set<Short> claims, boolean setAudInCwtHeader,
+            Map<String, String> peerIdentitiesToNames) throws AceException {
+        this(asId, pdp, db, time, privateKey, claims, setAudInCwtHeader, (short)0, false, peerIdentitiesToNames);
     }
 	
 	
@@ -283,14 +295,18 @@ public class Token implements Endpoint, AutoCloseable {
      * introspection
      * @param masterSaltSize  the size in bytes of the OSCORE Master Salt
      * @param provideIdContext  true if the OSCORE Id Context has to be provided, false otherwise
+     * @param peerIdentitiesToNames  mapping between security identities of the peers and their names; it can be null
      * 
      * @throws AceException  if fetching the cti from the database fails
 	 */
 	public Token(String asId, PDP pdp, DBConnector db, 
             TimeProvider time, OneKey privateKey, Set<Short> claims, 
-            boolean setAudInCwtHeader, short masterSaltSize, boolean provideIdContext) throws AceException {
+            boolean setAudInCwtHeader, short masterSaltSize, boolean provideIdContext,
+            Map<String, String> peerIdentitiesToNames) throws AceException {
+		
 		Set<Short> localClaims = claims;
-        if(localClaims == null) {
+        
+		if(localClaims == null) {
 			localClaims = defaultClaims;
 		}
 
@@ -327,6 +343,7 @@ public class Token implements Endpoint, AutoCloseable {
         this.setAudHeader = setAudInCwtHeader;
         this.masterSaltSize = masterSaltSize;
         this.provideIdContext = provideIdContext;
+        this.peerIdentitiesToNames = peerIdentitiesToNames;
         
 	}
 
@@ -348,6 +365,18 @@ public class Token implements Endpoint, AutoCloseable {
                     + "unauthorized client: " + id);
             return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
 		}
+		
+		if (peerIdentitiesToNames != null) {
+		    id = peerIdentitiesToNames.get(id);
+		    if (id == null) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "unauthorized client: " + id);
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+		    }
+		}
+		
 		try {
             if (!this.pdp.canAccessToken(id)) {
                 CBORObject map = CBORObject.NewMap();
@@ -387,7 +416,19 @@ public class Token implements Endpoint, AutoCloseable {
 	 * @return  the reply
 	 */
 	private Message processCC(Message msg) {
-	    String id = msg.getSenderId();  
+	    String id = msg.getSenderId();
+	    
+		if (peerIdentitiesToNames != null) {
+		    id = peerIdentitiesToNames.get(id);
+		    if (id == null) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "unauthorized client: " + id);
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+		    }
+		}
+	    
 		//3. Check if the request has a scope
 		CBORObject cbor = msg.getParameter(Constants.SCOPE);
 		Object scope = null;
@@ -472,7 +513,7 @@ public class Token implements Endpoint, AutoCloseable {
 		//5. Check if the scope is allowed
 		Object allowedScopes = null;
         try {
-            allowedScopes = this.pdp.canAccess(msg.getSenderId(), aud, scope);
+            allowedScopes = this.pdp.canAccess(id, aud, scope);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted (checking permissions): "
                     + e.getMessage());
@@ -1456,7 +1497,7 @@ public class Token implements Endpoint, AutoCloseable {
 		 
 		 // Retrieve the next unassigned IdContext for this Resource Server,
 		 // using the smallest possible size in bytes.
-		 // That is, first consume all the Id Context of 1 byte in size, then
+		 // That is, first consume all the Id Contexts of 1 byte in size, then
 		 // all the Id Contexts of 2 bytes in size, and so on up to 4 bytes in size.
 		 synchronized public byte[] getIdContext() {
 

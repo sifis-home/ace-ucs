@@ -154,7 +154,7 @@ public class TestDtlspAuthzInfo {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02}); 
+        CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02});
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -215,7 +215,8 @@ public class TestDtlspAuthzInfo {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
         
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
@@ -264,7 +265,9 @@ public class TestDtlspAuthzInfo {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
@@ -287,7 +290,7 @@ public class TestDtlspAuthzInfo {
        // Build a new Token for updating access rights, with a different 'scope'
         
       // Posting the Token through an unprotected request.
-      // This fails since such a Token needs to include the
+      // This fails since such a Token needs to include
       // a 'cnf' claim transporting also the actual key 'k'
       LocalMessage req2 = new LocalMessage(0, null, null, payload2);
       req2 = new LocalMessage(0, null, null, payload2);

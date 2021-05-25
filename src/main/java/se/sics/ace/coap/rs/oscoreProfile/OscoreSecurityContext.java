@@ -212,12 +212,10 @@ public class OscoreSecurityContext {
      * @param isClient
      * @param n1  the client's nonce
      * @param n2  the server's nonce
-     * @param id1  the Recipient ID offered by the client, i.e. the Sender ID of the Resource Server
-     * @param n2  the Recipient ID offered by the Resource Server, i.e. the Sender ID of the Client
      * @return  an OSCORE context based on this object 
      * @throws OSException 
      */
-    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2, byte[] id1, byte[] id2) 
+    public OSCoreCtx getContext(boolean isClient, byte[] n1, byte[] n2) 
             throws OSException {
         byte[] senderId;
         byte[] recipientId;
@@ -248,12 +246,20 @@ public class OscoreSecurityContext {
         }
                 
         if (isClient) {
+        	/*
             senderId = id2;
             recipientId = id1;
+            */
+            senderId = this.clientId;
+            recipientId = this.serverId;
             
         } else {
+        	/*
             senderId = id1;
             recipientId = id2;
+            */
+            senderId = this.serverId;
+            recipientId = this.clientId;
         }
         
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 

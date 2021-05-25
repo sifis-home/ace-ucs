@@ -60,7 +60,7 @@ import se.sics.ace.as.Token;
  * Create an instance of this server with the constructor then call
  * CoapsAS.start();
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class DtlsAS extends CoapServer implements AutoCloseable {
@@ -155,15 +155,15 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
             String introspectName, int port, Set<Short> claims, 
             boolean setAudHeader) 
                     throws AceException, CoseException {
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader, null);
         this.token = new CoapDtlsEndpoint(tokenName, this.t);
         add(this.token);
         
         if (introspectName != null) {
             if (asymmetricKey == null) {
-                this.i = new Introspect(pdp, db, time, null);
+                this.i = new Introspect(pdp, db, time, null, null);
             } else {
-                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey(), null);
             }
             this.introspect = new CoapDtlsEndpoint(introspectName, this.i);
             add(this.introspect);    

@@ -71,7 +71,7 @@ import se.sics.ace.rs.TokenRepository;
  * It's specific task is to match requests against existing access tokens
  * to see if the request is authorized.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class CoapDeliverer implements MessageDeliverer {
@@ -209,6 +209,25 @@ public class CoapDeliverer implements MessageDeliverer {
         try {
             int res = TokenRepository.getInstance().canAccess(
                     kid, subject, resource, action, this.i);
+            
+            // In case an error response is returned, it will be a Request Creation Hints message.
+            // 
+            // The message will include 'kid' as the "key identifier of a key used in the
+            // existing security association between the client and the RS". Note that:
+            //
+            // - For the DTLS profile, this is already what the RS stores as 'kid'
+            //
+            // - For the OSCORE profile, this has to actually be the identifier of
+            //   the OSCORE Input Material, which has to be separately retrieved
+            
+            // Check if the security association was an OSCORE Security Context
+            if (tr.getOscoreId(subject) != null) {
+            	
+            	// The 'kid' included in the Creation Hints message will
+            	// will be the identifier of the OSCORE Input Material
+            	kid = tr.getOscoreId(subject);
+            }
+            
             switch (res) {
             case TokenRepository.OK :
                 this.d.deliverRequest(ex);

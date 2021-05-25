@@ -55,7 +55,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * The OAuth 2.0 Introspection endpoint.
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class Introspect implements Endpoint, AutoCloseable {
@@ -91,6 +91,16 @@ public class Introspect implements Endpoint, AutoCloseable {
      */
     private OneKey keyPair;
     
+	 /**
+	  * Mapping between security identities of the peers and their names; it can be null
+	  * 
+	  * This is relevant especially for the OSCORE profile, since all peers are registered in the
+	  * AS database by nicknames. Instead, their OSCORE identities as retrieved from incoming OSCORE
+	  * messages are structured base64 strings encoding the Context ID and Sender ID for that peer 
+	 */ 
+	private static Map<String, String> peerIdentitiesToNames = null;
+	
+    
     /**
      * Constructor.
      * 
@@ -98,11 +108,13 @@ public class Introspect implements Endpoint, AutoCloseable {
      * @param db  the database connector
      * @param time  the time provider
      * @param keyPair the asymmetric key pair of the AS or null
+     * @param peerIdentitiesToNames  mapping between security identities of the peers and their names; it can be null
      *
      * @throws AceException  if fetching the cti from the database fails
      */
     public Introspect(PDP pdp, DBConnector db, 
-            TimeProvider time, OneKey keyPair) throws AceException {
+            TimeProvider time, OneKey keyPair,
+            Map<String, String> peerIdentitiesToNames) throws AceException {
         if (pdp == null) {
             LOGGER.severe("Introspect endpoint's PDP was null");
             throw new AceException(
@@ -122,6 +134,7 @@ public class Introspect implements Endpoint, AutoCloseable {
         this.db = db;
         this.time = time;  
         this.keyPair = keyPair;
+        this.peerIdentitiesToNames = peerIdentitiesToNames;
     }
     
     
@@ -136,6 +149,18 @@ public class Introspect implements Endpoint, AutoCloseable {
         	    
 	    //1. Check that this RS is allowed to introspect	    
 	    String id = msg.getSenderId();
+	    
+		if (peerIdentitiesToNames != null) {
+		    id = peerIdentitiesToNames.get(id);
+		    if (id == null) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
+	            LOGGER.log(Level.INFO, "Message processing aborted: "
+	                    + "unauthorized client: " + id);
+	            return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+		    }
+		}
+	    
         PDP.IntrospectAccessLevel accessLevel;
         try {
             accessLevel = this.pdp.getIntrospectAccessLevel(id);

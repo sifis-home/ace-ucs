@@ -73,7 +73,7 @@ import se.sics.ace.examples.SQLConnector;
 
 /**
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  */
 public class TestAuthzInfo {
     
@@ -141,7 +141,7 @@ public class TestAuthzInfo {
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
-        i = new Introspect(pdp, db, new KissTime(), key);
+        i = new Introspect(pdp, db, new KissTime(), key, null);
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
@@ -693,8 +693,11 @@ public class TestAuthzInfo {
         Assert.assertArrayEquals(cti.GetByteString(), 
                 new byte[]{0x12});
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String storedKid = Base64.getEncoder().encodeToString(kidStr.getBytes(Constants.charset));
         Assert.assertEquals(1, TokenRepository.getInstance().canAccess(
-                kidStr, "client1", "temp", Constants.GET, null));
+                storedKid, "client1", "temp", Constants.GET, null));
         db.deleteToken(ctiStr);
     }
 }

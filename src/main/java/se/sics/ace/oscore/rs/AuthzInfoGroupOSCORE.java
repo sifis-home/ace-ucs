@@ -278,13 +278,6 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
     	    
-    	    // TODO: REMOVE DEBUG PRINT
-    	    // System.out.println("AuthzInfoGroupOSCORE " + sid);
-    	    
-    	    // TODO: REMOVE DEBUG PRINT
-    	    // System.out.println("AuthzInfoGroupOSCORE " + sid.AsString());
-    	    // System.out.println("AuthzInfoGroupOSCORE " + Base64.getEncoder().encodeToString(rsnonce));
-    	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
     		

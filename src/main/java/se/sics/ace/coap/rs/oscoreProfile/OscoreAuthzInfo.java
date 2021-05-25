@@ -65,7 +65,7 @@ import se.sics.ace.rs.TokenRepository;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreAuthzInfo extends AuthzInfo {
@@ -222,7 +222,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	        OSCoreCtx ctx;
 	        try {
 	        	byte[] senderId = senderIdCBOR.GetByteString();        	
-	            ctx = osc.getContext(false, n1, n2, senderId, recipientId);
+	            ctx = osc.getContext(false, n1, n2);
 	            
 	            OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
 	            

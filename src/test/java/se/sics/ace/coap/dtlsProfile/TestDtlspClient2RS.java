@@ -72,6 +72,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 
 /**
  * Tests a client running the DTLS profile.
+ * 
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
@@ -700,7 +701,7 @@ public class TestDtlspClient2RS {
         CoapResponse r = c.get();
         Assert.assertEquals("FORBIDDEN", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+        Assert.assertEquals("{2: h'6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());
     }
     
     /**
@@ -743,6 +744,6 @@ public class TestDtlspClient2RS {
         CoapResponse r = c.post("blah", MediaTypeRegistry.APPLICATION_JSON);
         Assert.assertEquals("METHOD_NOT_ALLOWED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+        Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());
     }
 }

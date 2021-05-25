@@ -32,6 +32,7 @@
 package se.sics.ace.coap;
 
 import java.security.Principal;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -56,7 +57,7 @@ import se.sics.ace.Message;
 /**
  * A CoAP request implementing the Message interface for the ACE library.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class CoapReq implements Message {
@@ -128,12 +129,16 @@ public class CoapReq implements Message {
             if (clientSenderId == null) {
                 return null;
             }
+            
+            // The identity is a string with format ["A" + ":" +] "B", where A and B are
+            // the base64 encoding of the ContextID (if present) and of the SenderID.
             String senderId = "";
-            if (idContext != null && idContext.length != 0) {
-                senderId += new String(idContext, Constants.charset);
+            if (idContext != null && idContext.length != 0) {            	
+            	senderId += Base64.getEncoder().encodeToString(idContext);
                 senderId += ":";
             }
-            senderId += new String(clientSenderId, Constants.charset);
+            senderId += Base64.getEncoder().encodeToString(clientSenderId);
+            
             return senderId;
         }
         

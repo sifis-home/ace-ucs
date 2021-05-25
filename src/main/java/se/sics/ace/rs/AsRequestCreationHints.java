@@ -33,6 +33,7 @@ package se.sics.ace.rs;
 
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -47,7 +48,7 @@ import se.sics.ace.Constants;
 /**
  * This class manages the creation of AS Request Creation Hints at the RS.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class AsRequestCreationHints {
@@ -115,8 +116,10 @@ public class AsRequestCreationHints {
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.AS, this.asUri);          
         if (kid != null) {
-            byte[] kidB = kid.getBytes(Constants.charset);
-            cbor.Add(Constants.KID, kidB);
+        	if (kid != null) {
+	            byte[] kidB = Base64.getDecoder().decode(kid);
+	            cbor.Add(Constants.KID, kidB);
+        	}
         }
         if (this.includeScope) {
             if (req == null) {

@@ -163,6 +163,11 @@ public class TokenRepository implements AutoCloseable {
 	private Map<String, String>id2cti;
 	
 	/**
+	 * Map a subject identity to an OSCORE input material identifier
+	 */
+	private Map<String, String>sid2id;
+	
+	/**
 	 * Map a subject identity to the rsnonce possibly provided upon Token posting
 	 * This is relevant when joining an OSCORE Group, with the RS acting as Group Manager
 	 */
@@ -263,6 +268,7 @@ public class TokenRepository implements AutoCloseable {
 	    this.sid2kid = new HashMap<>();
 	    this.sid2cti = new HashMap<>();
 	    this.id2cti = new HashMap<>();
+	    this.sid2id = new HashMap<>();
 	    this.sid2rsnonce = new HashMap<>();
 	    this.scopeValidator = scopeValidator;
 	    this.time = time;
@@ -419,7 +425,8 @@ public class TokenRepository implements AutoCloseable {
 		    	    	  LOGGER.severe("kid not found in COSE_Key");
 		    	          throw new AceException("COSE_Key is missing kid");
 		    	      } else if (kidC.getType().equals(CBORType.ByteString)) {
-		    	          String kid = new String(kidC.GetByteString(), Constants.charset);
+		    	    	  String kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
+		    	    	  
 		    	          if (kid2key.containsKey(kid) == true) {
 			    	    	  LOGGER.severe("A symmetric PoP key with the specified 'kid' is already stored");
 			    	          throw new AceException("A symmetric PoP key with the specified 'kid' is already stored");
@@ -482,8 +489,8 @@ public class TokenRepository implements AutoCloseable {
 	      	              		  String retrievedKid = cti2kid.get(storedCti);
 	      	              		  byte[] receivedKidBytes = ckey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
 	      	              		  
-	    	                      String receivedKid = new String(receivedKidBytes, Constants.charset);
-	    	                      
+	      	              		  String receivedKid = Base64.getEncoder().encodeToString(receivedKidBytes);
+	      	              		  
 	    	                      if (!retrievedKid.equals(sid2kid.get(sid)) || !retrievedKid.equals(receivedKid)) {	    	                    	  	
 	      	                            LOGGER.severe("Impossible to retrieve a Token to supersede");
 	      	                            throw new AceException("Impossible to retrieve a Token to supersede");
@@ -569,10 +576,8 @@ public class TokenRepository implements AutoCloseable {
             String kid = null;
             CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
             
-            if (kidC.getType().equals(CBORType.ByteString)) {
-            	
-                kid = new String(kidC.GetByteString(), Constants.charset);
-                
+            if (kidC.getType().equals(CBORType.ByteString)) {            	
+            	kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
             } else {
                 LOGGER.severe("kid is not a byte string");
                 throw new AceException("cnf contains invalid kid");
@@ -614,8 +619,8 @@ public class TokenRepository implements AutoCloseable {
                     	
                     	byte[] storedIdBytes = storedCnf.get(Constants.OSCORE_Input_Material).
                     					                     get(Constants.OS_ID).GetByteString();
-                    	String storedId = new String(storedIdBytes, Constants.charset);
                     	
+                    	String storedId = Base64.getEncoder().encodeToString(storedIdBytes);
                     	String recoveredCti = id2cti.get(storedId);
                     	
                     	if (!storedCti.equals(recoveredCti) || !storedId.equals(kid) ) {
@@ -628,7 +633,7 @@ public class TokenRepository implements AutoCloseable {
                     	// and associated to the Token to supersede
                     	
                     	// Copy the "full" 'cnf' claim of the Token to replace into the new Token to store.
-                    	// This will overwrite the orginal 'cnf' considered above in the new Token to store.
+                    	// This will overwrite the original 'cnf' considered above in the new Token to store.
                     	claims.put(Constants.CNF, storedCnf);
                     	
                     	// Store the association between the same current subjectId and the CTI of the new Token
@@ -685,9 +690,8 @@ public class TokenRepository implements AutoCloseable {
         	// this Token has been posted through an unprotected request
         	
             OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
-            
-            String kid = new String(osc.getClientId(), Constants.charset);
-            
+            String kid = Base64.getEncoder().encodeToString(osc.getClientId());
+
             // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
             // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object
         	String subjectId = "";
@@ -695,7 +699,7 @@ public class TokenRepository implements AutoCloseable {
         	byte[] kidContextBytes = osc.getContextId();
         	
         	if (kidContextBytes != null && kidContextBytes.length != 0) {
-        		kidContext = new String(kidContextBytes, Constants.charset);
+        		kidContext = Base64.getEncoder().encodeToString(kidContextBytes);        		
         		subjectId = kidContext + ":";
         	}
         	subjectId += kid;
@@ -742,8 +746,13 @@ public class TokenRepository implements AutoCloseable {
                 // Access Token with updated access rights (and a new cti) is posted as still associated
                 // to this OSCORE input material identifier and hence to the same kid
             	
-	            String id = new String(osc.getId(), Constants.charset);
+            	String id = Base64.getEncoder().encodeToString(osc.getId());
 	            this.id2cti.put(id, cti);
+	            
+                // Store the association between the subjectId and
+	            // the immutable identifier of the OSCORE input material
+	            this.sid2id.put(subjectId, id);
+	            
             }
             
         }
@@ -785,8 +794,8 @@ public class TokenRepository implements AutoCloseable {
 	        if (kidC == null) {
 	            LOGGER.severe("kid not found in COSE_Key");
 	            throw new AceException("COSE_Key is missing kid");
-	        } else if (kidC.getType().equals(CBORType.ByteString)) {
-	            kid = new String(kidC.GetByteString(), Constants.charset);
+	        } else if (kidC.getType().equals(CBORType.ByteString)) {	            
+	        	kid = Base64.getEncoder().encodeToString(kidC.GetByteString());
 	        } else {
 	            LOGGER.severe("kid is not a byte string");
 	            throw new AceException("COSE_Key contains invalid kid");
@@ -906,6 +915,13 @@ public class TokenRepository implements AutoCloseable {
 		}
 		for (String id : remove) {
 	    	this.id2cti.remove(id);
+	    	
+	    	// Remove the mapping from the subject ID to the OSCORE Input Material ID
+	    	for (String sid: sid2id.keySet()) {
+	    		if (sid2id.get(sid).equals(id))
+	    			sid2id.remove(sid);
+	    	}
+	    	
 		}
 		
 		persist();
@@ -1192,6 +1208,21 @@ public class TokenRepository implements AutoCloseable {
 	public String getCti(String sid) {
 	    if (sid != null) {
 	    		return sid2cti.get(sid);
+	    }
+	    return null;
+	}
+	
+	
+	/**
+	 * Get the OSCORE Input Material ID by the subject id.
+	 * 
+	 * @param sid  the subject id
+	 * 
+	 * @return  the OSCORE Input Material ID
+	 */
+	public String getOscoreId(String sid) {
+	    if (sid != null) {
+	    		return sid2id.get(sid);
 	    }
 	    return null;
 	}

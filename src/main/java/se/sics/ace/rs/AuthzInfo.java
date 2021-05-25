@@ -44,6 +44,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.eclipse.californium.oscore.CoapOSException;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORObject;
@@ -415,6 +416,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        	
 		        	int maxIdValue;
 		        	
+	    			byte[] contextId = new byte[0];
+	    			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
+	    				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
+	    			}
+		        	
 			        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
 			        for (int idSize = 1; idSize <= 4; idSize++) {
 			        	
@@ -440,7 +446,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 				        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
 				        			
 				        			// Double check in the database of OSCORE Security Contexts
-				        			if (db.getContext(recipientId) != null) {
+				        			if (db.getContext(recipientId,  contextId) != null) {
 				        				
 				        				// A Security Context with this Recipient ID exists and was not tracked!
 				        				// Update the local list of used Recipient IDs, then move on to the next candidate
@@ -463,7 +469,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		        				// Update the local list of used Recipient IDs, then move on to the next candidate
 		        				usedRecipientIds.get(idSize - 1).add(j);
 		        				continue;
-			        		}
+			        		} catch (CoapOSException e) {
+			    		        LOGGER.severe("Error while accessing the database of OSCORE Security Contexts");
+			    	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+							}
 			        			
 				        }
 				        

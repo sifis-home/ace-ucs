@@ -70,7 +70,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the introspection endpoint library.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestIntrospect {
@@ -179,7 +179,7 @@ public class TestIntrospect {
         pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs3", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
-        i = new Introspect(pdp, db, time, publicKey);
+        i = new Introspect(pdp, db, time, publicKey, null);
     }
     
     

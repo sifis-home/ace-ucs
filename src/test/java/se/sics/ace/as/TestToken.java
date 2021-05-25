@@ -72,7 +72,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the token endpoint class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestToken {
@@ -354,7 +354,7 @@ public class TestToken {
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
     
     /**
@@ -810,7 +810,7 @@ public class TestToken {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
         t = new Token("testAS2", pdp, db, new KissTime(),
-                privateKey, tokenConfig, false);
+                privateKey, tokenConfig, false, null);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
@@ -833,7 +833,7 @@ public class TestToken {
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);     
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
     
     /**

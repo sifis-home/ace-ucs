@@ -479,14 +479,18 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(null, params, ctx, null);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK, 
                 tr.canAccess(rpk, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.METHODNA, 
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.POST, null));
+                tr.canAccess(kidStr, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -534,8 +538,12 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(null, params, ctx, null);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.OK, 
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -589,8 +597,12 @@ public class TestTokenRepositoryGroupOSCORE {
         tr.addToken(null, params, ctx, null);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.OK, 
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -628,15 +640,18 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
+                tr.canAccess(kidStr, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -684,8 +699,12 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
         
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -738,8 +757,12 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
         
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
+        Assert.assertEquals(TokenRepository.OK,
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -777,14 +800,18 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
 
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
+                tr.canAccess(kidStr, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -832,8 +859,12 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
 
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
@@ -886,8 +917,12 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
 
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+                tr.canAccess(kidStr, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));

@@ -158,7 +158,7 @@ public class TestOscoreAuthzInfo {
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         pdp.addIntrospectAccess("rs1");
-        i = new Introspect(pdp, db, new KissTime(), key);
+        i = new Introspect(pdp, db, new KissTime(), key, null);
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), 
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
@@ -1009,16 +1009,16 @@ public class TestOscoreAuthzInfo {
         
         assert(osctx.equals(osctx2));
         
-        //Test that the token is there and that responses are as expected
+        // Test that the token is there and that responses are as expected
         //
-        // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
-        // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object.
+        // The identities are strings with format ["A" + ":" +] "B", where A and B are
+        // the base64 encoding of the ContextID (if present) and of the SenderID.
     	String subjectId = "";
     	String kidContextStr = null;
-    	String kidStr = new String(id2, Constants.charset);
-    	
-    	if (kidContext != null && kidContext.length != 0) {
-    		kidContextStr = new String(kidContext, Constants.charset);
+    	String kidStr = Base64.getEncoder().encodeToString(id2);
+
+    	if (kidContext != null && kidContext.length != 0) {    		
+    		kidContextStr = Base64.getEncoder().encodeToString(kidContext);
     		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
     	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();
@@ -1061,11 +1061,11 @@ public class TestOscoreAuthzInfo {
         assert(osctx.equals(osctx2));
         
         subjectId = "";
-    	kidContextStr = null;
-    	kidStr = new String(id2, Constants.charset);
+    	kidContextStr = null;    	
+    	kidStr = Base64.getEncoder().encodeToString(id2);
     	
-    	if (kidContext != null && kidContext.length != 0) {
-    		kidContextStr = new String(kidContext, Constants.charset);
+    	if (kidContext != null && kidContext.length != 0) {    		
+    		kidContextStr = Base64.getEncoder().encodeToString(kidContext);
     		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
     	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();
@@ -1160,14 +1160,14 @@ public class TestOscoreAuthzInfo {
 
         //Test that the token is there and that responses are as expected
         
-        // The subject ID stored in the Token Repository has format: i) IdContext:SenderID;
-        // or ii) SenderID, if the IdContext is not in the OSCORE Security Context Object.
+        // The identities are strings with format ["A" + ":" +] "B", where A and B are
+        // the base64 encoding of the ContextID (if present) and of the SenderID.
     	String subjectId = "";
     	String kidContextStr = null;
-    	String kidStr = new String(id2, Constants.charset);
+    	String kidStr = Base64.getEncoder().encodeToString(id2);
     	
     	if (kidContext != null && kidContext.length != 0) {
-    		kidContextStr = new String(kidContext, Constants.charset);
+    		kidContextStr = Base64.getEncoder().encodeToString(kidContext);
     		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
     	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();
@@ -1210,10 +1210,10 @@ public class TestOscoreAuthzInfo {
         
         subjectId = "";
     	kidContextStr = null;
-    	kidStr = new String(id2, Constants.charset);
+       	kidStr = Base64.getEncoder().encodeToString(id2);
     	
     	if (kidContext != null && kidContext.length != 0) {
-    		kidContextStr = new String(kidContext, Constants.charset);
+    		kidContextStr = Base64.getEncoder().encodeToString(kidContext);
     		subjectId = (new StringBuilder()).append(kidContextStr).append(":").toString();
     	}
     	subjectId = (new StringBuilder()).append(subjectId).append(kidStr).toString();

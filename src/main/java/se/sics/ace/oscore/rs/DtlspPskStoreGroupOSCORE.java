@@ -138,8 +138,8 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR())) != null) {
 
         				    byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
-        				    String kidString = new String(kid, Constants.charset);
         				    
+        				    String kidString = Base64.getEncoder().encodeToString(kid);
         					key = TokenRepository.getInstance().getKey(kidString);
         					
         	           	    // For correct storage in the DTLS Key Store, change the originally received

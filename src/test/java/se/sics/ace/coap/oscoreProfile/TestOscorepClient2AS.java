@@ -103,9 +103,10 @@ public class TestOscorepClient2AS {
      */
     @BeforeClass
     public static void setUp() throws OSException {
-        ctx = new OSCoreCtx(key128, true, null, 
-                "clientA".getBytes(Constants.charset),
-                "AS".getBytes(Constants.charset),
+    	
+    	ctx = new OSCoreCtx(key128, true, null, 
+    			new byte[] {0x01},
+    			new byte[] {0x00},
                 null, null, null, null);
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();

@@ -717,14 +717,7 @@ public class TestOscorepRSGroupOSCORE {
             	return;
             }
             
-            // TODO: REMOVE DEBUG PRINT
-            // System.out.println("xxx @GM sid " + subject);
-            // System.out.println("yyy @GM kid " + TokenRepository.getInstance().getKid(subject));
-            
             String rsNonceString = TokenRepository.getInstance().getRsnonce(subject);
-            
-            // TODO: REMOVE DEBUG PRINT
-            // System.out.println("xxx @GM rsnonce " + rsNonceString);
             
             if(rsNonceString == null) {
             	// Return an error response, with a new nonce for PoP of the Client's private key in the next Join Request

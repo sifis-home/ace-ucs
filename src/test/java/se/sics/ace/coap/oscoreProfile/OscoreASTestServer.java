@@ -61,7 +61,7 @@ import se.sics.ace.examples.KissTime;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreASTestServer
@@ -72,7 +72,33 @@ public class OscoreASTestServer
     private static CoapDBConnector db = null;
     private static OscoreAS as = null;
     private static KissPDP pdp = null;
+    
+    // The map has as key the name of a Client or Resource Server,
+    // and as value the OSCORE identity of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerNamesToIdentities = new HashMap<>();
+    
+    
+    // The map has as key the OSCORE identity of the Client or Resource Server,
+    // and as value the name of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerIdentitiesToNames = new HashMap<>();
+    
+    
+    // The inner map has as key the name of a Client or Resource Server, and
+    // as value the OSCORE identity that this specific AS has with that peer.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> myIdentities = new HashMap<>();
   
+    // OSCORE Context ID used to communicate with Clients and Resource Server (it can be null)
+    private static byte[] idContext = null;
+    
     /**
      * The OSCORE AS for testing, autostarted by tests needing this.
      *  
@@ -95,6 +121,10 @@ public class OscoreASTestServer
                 CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
         
+        String myName = "AS";
+        String myIdentity = buildOscoreIdentity(new byte[] {0x00}, idContext);
+        String peerIdentity;
+        
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_oscore");
@@ -115,6 +145,10 @@ public class OscoreASTestServer
         scopes.add("co2");
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x11}, idContext);
+        peerNamesToIdentities.put("rs1", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "rs1");
+        myIdentities.put("rs1", myIdentity);
         
         scopes = new HashSet<>();
         scopes.add("r_temp");
@@ -123,6 +157,10 @@ public class OscoreASTestServer
         scopes.add("failTokenType");
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x12}, idContext);
+        peerNamesToIdentities.put("rs2", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "rs2");
+        myIdentities.put("rs2", myIdentity);
         
         
         profiles.clear();
@@ -130,7 +168,13 @@ public class OscoreASTestServer
         keyTypes.clear();
         keyTypes.add("PSK");        
         db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+                keyTypes, authPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x01}, idContext);
+        peerNamesToIdentities.put("clientA", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "clientA");
+        myIdentities.put("clientA", myIdentity);
+        
+        
         
         KissTime time = new KissTime();
         
@@ -201,8 +245,10 @@ public class OscoreASTestServer
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS("AS", db, pdp, time, asymmKey,"token", "introspect",
-                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true);
+        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect",
+                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
+                          peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
+        
         as.start();
         System.out.println("Server starting");
     }
@@ -216,6 +262,24 @@ public class OscoreASTestServer
         as.stop();
         pdp.close();
       
+    }
+    
+    private static String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
+    	
+    	if (senderId == null)
+    		return null;
+    	
+    	String identity = "";
+    	
+    	if (contextId != null) {
+    		identity += Base64.getEncoder().encodeToString(contextId);
+    		identity += ":";
+    	}
+    	
+    	identity += Base64.getEncoder().encodeToString(senderId);
+    	
+    	return identity;
+    	
     }
     
 }

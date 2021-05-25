@@ -396,7 +396,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
+        
         
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
@@ -447,7 +450,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
+        
         
         //Test that the token is there and that responses are as expected
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
@@ -544,7 +550,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapExchange ex = new CoapExchange(iex, dai2);      
         dai2.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x03, 0x04}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x03, 0x04};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
         
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
@@ -594,7 +602,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         CoapExchange ex = new CoapExchange(iex, dai2);      
         dai2.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x05, 0x06}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x05, 0x06};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
         
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));

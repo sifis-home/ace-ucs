@@ -73,7 +73,7 @@ import se.sics.ace.examples.KissValidator;
 /**
  * Tests for the TokenRepository class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestTokenRepository {
@@ -451,14 +451,18 @@ public class TestTokenRepository {
         tr.addToken(null, params, ctx, null);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.OK, 
                 tr.canAccess(rpk, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.METHODNA, 
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.POST, null));
+                tr.canAccess(kidStr, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -493,15 +497,18 @@ public class TestTokenRepository {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
         Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
+                tr.canAccess(kidStr, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -535,14 +542,18 @@ public class TestTokenRepository {
         params.put(Constants.CNF, cnf);
         tr.addToken(null, params, ctx, null);
 
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
         Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
+                tr.canAccess(kidStr, null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess(rpk, null, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
+                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
@@ -619,18 +630,19 @@ public class TestTokenRepository {
         
         TokenRepository tr2 = new TokenRepository(valid,
                 TestConfig.testFilePath + "testTokens.json" , ctx, null, 0, new KissTime());
+
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
-        //Assert.assertEquals(TokenRepository.OK,
-        //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
-        //                new KissTime(), null));
         Assert.assertEquals(TokenRepository.OK,
-                tr2.canAccess(ourKey, null, "temp", Constants.GET, null));  
+                tr2.canAccess(kidStr, null, "temp", Constants.GET, null));  
         Assert.assertEquals(TokenRepository.UNAUTHZ,
                 tr2.canAccess("otherKey", null, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.METHODNA,
-                tr2.canAccess(ourKey, null, "temp", Constants.POST, null)); 
+                tr2.canAccess(kidStr, null, "temp", Constants.POST, null)); 
         Assert.assertEquals(TokenRepository.FORBID,
-                tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
+                tr2.canAccess(kidStr, null, "co2", Constants.GET, null)); 
         tr2.close();
 
         //re-create the original TR

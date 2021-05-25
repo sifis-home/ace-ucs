@@ -512,7 +512,7 @@ public class TestTokenGroupOSCORE {
         Set<String> rs11 = Collections.singleton("rs11");
         pdp.addOSCOREGroupManagers("rs11", rs11);
         
-        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
     
     /**
@@ -1961,7 +1961,7 @@ public class TestTokenGroupOSCORE {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
         t = new Token("testAS2", pdp, db, new KissTime(),
-                privateKey, tokenConfig, false);
+                privateKey, tokenConfig, false, null);
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
@@ -1984,7 +1984,7 @@ public class TestTokenGroupOSCORE {
         assert(claims.containsKey(Constants.CTI));
         assert(claims.size() == 1);     
         db.deleteToken(ctiStr);
-        t = new Token("AS", pdp, db, new KissTime(), privateKey); 
+        t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
     
     /**

@@ -195,6 +195,11 @@ public class OSCOREProfileRequestsGroupOSCORE {
         	
 	        	int maxIdValue;
 	        	
+    			byte[] contextId = new byte[0];
+    			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
+    				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
+    			}
+	        	
 		        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
 		        for (int idSize = 1; idSize <= 4; idSize++) {
 		        	
@@ -216,7 +221,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
 			        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
 			        			
 			        			// Double check in the database of OSCORE Security Contexts
-			        			if (db.getContext(recipientId) != null) {
+			        			if (db.getContext(recipientId, contextId) != null) {
 			        				
 			        				// A Security Context with this Recipient ID exists and was not tracked!
 			        				// Update the local list of used Recipient IDs, then move on to the next candidate
@@ -328,7 +333,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
         
-        OSCoreCtx ctx = osc.getContext(true, n1, n2, recipientId, senderId);
+        OSCoreCtx ctx = osc.getContext(true, n1, n2);
         
         synchronized(db) {
         	
