@@ -186,10 +186,10 @@ public class TestAuthzInfoGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg = null;
+        AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
-        CBORObject csParams = CBORObject.NewArray();
+        CBORObject signParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -199,7 +199,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         // ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-        	csAlg = AlgorithmID.ECDSA_256;
+        	signAlg = AlgorithmID.ECDSA_256;
         	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
@@ -207,15 +207,15 @@ public class TestAuthzInfoGroupOSCORE {
         
         // EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-        	csAlg = AlgorithmID.EDDSA;
+        	signAlg = AlgorithmID.EDDSA;
         	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
         }
 
-    	csParams.Add(algCapabilities);
-    	csParams.Add(keyCapabilities);     
-        final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
+        signParams.Add(algCapabilities);
+        signParams.Add(keyCapabilities);     
+        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -231,14 +231,15 @@ public class TestAuthzInfoGroupOSCORE {
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
     			                          Util.bytesToInt(groupIdEpoch),
+    			                          Constants.GROUP_OSCORE_GROUP_MODE,
     			                          prefixMonitorNames,
     			                          nodeNameSeparator,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,
-    			                          csAlg,
-    			                          csParams,
-    			                          csKeyEnc,
+    			                          signAlg,
+    			                          signParams,
+    			                          pubKeyEnc,
     			                          null);
         
     	// Add this OSCORE group to the set of active groups

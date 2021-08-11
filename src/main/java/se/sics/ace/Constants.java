@@ -869,6 +869,22 @@ public class Constants {
 	 */
 
     /**
+     * The OSCORE group uses only the group mode
+     */
+    public static final short GROUP_OSCORE_GROUP_MODE = 1;
+    
+    /**
+     * The OSCORE group uses both the group mode and the pairwise mode
+     */
+    public static final short GROUP_OSCORE_GROUP_PAIRWISE_MODE = 2;
+    
+    /**
+     * The OSCORE group uses only the pairwise mode
+     */
+    public static final short GROUP_OSCORE_PAIRWISE_MODE = 3;
+    
+    
+    /**
      * Requester role
      */
     public static final short GROUP_OSCORE_REQUESTER = 1;

@@ -104,11 +104,15 @@ public class GroupInfo {
 	private int maxGroupIdEpochValue;
 	private int groupIdEpoch;
 	
-	private AlgorithmID alg = null;
+	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	
 	private AlgorithmID hkdf = null;
-	private AlgorithmID csAlg = null;
-	private CBORObject csParams = null;
-	private CBORObject csKeyEnc = null;
+	private CBORObject pubKeyEnc = null;
+	
+	private AlgorithmID alg = null;
+	private AlgorithmID signAlg = null;
+	private CBORObject signParams = null;
+	
 	private CBORObject groupPolicies = null;
 	
 	private int version; // Version of the current symmetric keying material
@@ -124,12 +128,13 @@ public class GroupInfo {
 	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
 	 * @param groupIdEpochSize    the size in bytes of the byte array representation of the Epoch part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdEpoch        the current value of the Epoch part of the OSCORE Group ID as a positive integer.
+	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
 	 * @param senderIdSize        the size in bytes of Sender IDs in the OSCORE Group. Up to 4 bytes, same for all Sender IDs in the OSCORE group.
 	 * @param alg                 the AEAD algorithm used in the OSCORE group.
 	 * @param hkdf                the HKDF used in the OSCORE group.
-	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
-	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
+	 * @param signAlg             the signature algorithm used in the OSCORE group.
+	 * @param signParams          the parameters of the signature algorithm used in the OSCORE group.
+	 * @param pubKeyEnc           the format of the public keys used in the OSCORE group.
 	 * @param groupPolicies		  the map of group policies used in the OSCORE group, or Null for building one with default values
 	 */
     public GroupInfo(final String groupName,
@@ -139,14 +144,15 @@ public class GroupInfo {
     		         final byte[] groupIdPrefix,
     		         final int groupIdEpochSize,
     		         final int groupIdEpoch,
+    		         final int mode,
     		         final String prefixMonitorNames,
     		         final String nodeNameSeparator,
     		         final int senderIdSize,
     		         final AlgorithmID alg,
     		         final AlgorithmID hkdf,
-    		         final AlgorithmID csAlg,
-    		         final CBORObject csParams,
-    		         final CBORObject csKeyEnc,
+    		         final AlgorithmID signAlg,
+    		         final CBORObject signParams,
+    		         final CBORObject pubKeyEnc,
     		         final CBORObject groupPolicies) {
     	
     	this.version = 0;
@@ -161,14 +167,15 @@ public class GroupInfo {
     	setGroupIdPrefix(groupIdPrefix);
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
+    	this.mode = mode;
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
     	
     	setAlg(alg);
     	setHkdf(hkdf);
-    	setCsAlg(csAlg);
-    	setCsParams(csParams);
-    	setCsKeyEnc(csKeyEnc);
+    	setSignAlg(signAlg);
+    	setSignParams(signParams);
+    	setPubKeyEnc(pubKeyEnc);
     	
     	if (senderIdSize < 1)
     		this.senderIdSize = 1;
@@ -206,6 +213,16 @@ public class GroupInfo {
         	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
         	this.groupPolicies = defaultGroupPolicies;
     	}
+    	
+    }
+    
+    /** Retrieve the mode(s) of operation used in the group
+     * 
+     * @return  The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+     */
+    synchronized public final int getMode() {
+    	
+    	return this.mode;
     	
     }
     
@@ -467,75 +484,73 @@ public class GroupInfo {
     }
     
     /**
-     * @return  the countersignature algorithm used in the group
+     * @return  the signature algorithm used in the group
      */
-    synchronized public final AlgorithmID getCsAlg() {
+    synchronized public final AlgorithmID getSignAlg() {
     	
-    	return this.csAlg;
+    	return this.signAlg;
     	
     }
     
     /**
-     *  Set the countersignature algorithm used in the group
-     * @param csAlg
+     *  Set the signature algorithm used in the group
+     * @param signAlg
      */
-    synchronized public void setCsAlg(final AlgorithmID csAlg) {
+    synchronized public void setSignAlg(final AlgorithmID signAlg) {
     	
-    	if (csAlg == null)
-    		this.csAlg = AlgorithmID.EDDSA;
+    	if (signAlg == null)
+    		this.signAlg = AlgorithmID.EDDSA;
     	else
-    		this.csAlg = csAlg;
+    		this.signAlg = signAlg;
     	
     }    
     
     /**
-     * @return  the countersignature algorithm used in the group
+     * @return  the parameters of the signature algorithm used in the group
      */
-    synchronized public final CBORObject getCsParams() {
+    synchronized public final CBORObject getSignParams() {
     	
-    	return this.csParams;
+    	return this.signParams;
     	
     }
 
     /**
-     * Set the countersignature parameters used in the group
-     * @param csParams
+     * Set the parameters of the signature algorithm used in the group
+     * @param signParams
      * 
      * @return true of the parameters were successfully set, false otherwise
      */
-    synchronized public boolean setCsParams(final CBORObject csParams) {
+    synchronized public boolean setSignParams(final CBORObject signParams) {
 
-    	if (csParams.getType() != CBORType.Array)
+    	if (signParams.getType() != CBORType.Array)
     		return false;
     	
-    	this.csParams = csParams;
+    	this.signParams = signParams;
     	
     	return true;
     	
     }
     
     /**
-     * @return encoding of the key of the countersignature algorithm 
-     *      used in the group
+     * @return format of the public keys used in the group
      */
-    synchronized public final CBORObject getCsKeyEnc() {
+    synchronized public final CBORObject getPubKeyEnc() {
     	
-    	return this.csKeyEnc;
+    	return this.pubKeyEnc;
     	
     }
     
     /**
-     *  Set the encoding of the key of the countersignature algorithm used
-     *   in the group
-     * @param csKeyEnc  the encoding
+     *  Set the format of the public keys used in the group
+     * @param pubKeyEnc  the public key format
      * @return  true if the encoding was successfully set, false otherwise
      */
-    synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
+    synchronized public boolean setPubKeyEnc(final CBORObject pubKeyEnc) {
     	
-    	if (csKeyEnc.getType() != CBORType.Integer)
+    	if (pubKeyEnc.getType() != CBORType.Integer)
     		return false;
     	
-    	this.csKeyEnc = csKeyEnc;
+    	this.pubKeyEnc = pubKeyEnc;
     	return true;
     	
     }

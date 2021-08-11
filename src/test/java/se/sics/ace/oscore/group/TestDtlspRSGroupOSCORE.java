@@ -452,10 +452,10 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
-        	if (targetedGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+        	if (targetedGroup.getSignParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
         	
         	myResponse.Add(Constants.KEY, myMap);
         	
@@ -545,18 +545,18 @@ public class TestDtlspRSGroupOSCORE {
 			CBORObject signInfoEntry = CBORObject.NewArray();
 			CBORObject errorResponseMap = CBORObject.NewMap();
 			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
-			signInfoEntry.Add(targetedGroup.getCsAlg().AsCBOR()); // 'sign_alg' element
-			CBORObject arrayElem = targetedGroup.getCsParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
+			signInfoEntry.Add(targetedGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
+			CBORObject arrayElem = targetedGroup.getSignParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
 	    	if (arrayElem == null)
 	    		signInfoEntry.Add(CBORObject.Null);
 	    	else
 	    		signInfoEntry.Add(arrayElem);
-	    	arrayElem = targetedGroup.getCsParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
+	    	arrayElem = targetedGroup.getSignParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
 	    	if (arrayElem == null)
 	    		signInfoEntry.Add(CBORObject.Null);
 	    	else
 	    		signInfoEntry.Add(arrayElem);
-	    	signInfoEntry.Add(targetedGroup.getCsKeyEnc()); // 'pub_key_enc' element
+	    	signInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
 		    signInfo.Add(signInfoEntry);
 		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
         	
@@ -816,14 +816,14 @@ public class TestDtlspRSGroupOSCORE {
 				}
         		        		
         		// Sanity check on the type of public key
-        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
-        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
-        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
+        		if (myGroup.getSignAlg().equals(AlgorithmID.ECDSA_256) ||
+        		    myGroup.getSignAlg().equals(AlgorithmID.ECDSA_384) ||
+        		    myGroup.getSignAlg().equals(AlgorithmID.ECDSA_512)) {
             		
         			// Invalid public key format
-        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
-                   		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
-                   		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsParams().get(1).get(1))) // key capability: curve
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+                   		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
+                   		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getSignParams().get(1).get(1))) // key capability: curve
         			{ 
 
                 			myGroup.deallocateSenderId(senderId);
@@ -836,12 +836,12 @@ public class TestDtlspRSGroupOSCORE {
 
         		}
             		
-        		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
+        		if (myGroup.getSignAlg().equals(AlgorithmID.EDDSA)) {
         			
         			// Invalid public key format
-        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(0).get(0)) || // alg capability: key type
-               			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsParams().get(1).get(0)) || // key capability: key type
-               			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(1).get(1))) // key capability: curve
+        			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+               			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
+               			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getSignParams().get(1).get(1))) // key capability: curve
         			{
 
                 			myGroup.deallocateSenderId(senderId);
@@ -906,14 +906,14 @@ public class TestDtlspRSGroupOSCORE {
                 int offset = 0;
                 
                 byte[] serializedScopeCBOR = scope.EncodeToBytes();
-                byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
-                byte[] serializedCSignNonceCBOR = cnonce.EncodeToBytes();
-           	    byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+                byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
+                byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
+           	    byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
            	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
            	    offset += serializedScopeCBOR.length;
-           	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
-           	    offset += serializedGMSignNonceCBOR.length;
-           	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+           	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
+           	    offset += serializedGMNonceCBOR.length;
+           	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
            	    
            	    int countersignKeyCurve = 0;
            	    
@@ -1014,10 +1014,10 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, myGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
-        	if (myGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, myGroup.getCsParams());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, myGroup.getSignAlg().AsCBOR());
+        	if (myGroup.getSignParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, myGroup.getSignParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, myGroup.getPubKeyEnc());
         	        	
         	joinResponse.Add(Constants.KEY, myMap);
         	
@@ -1896,10 +1896,10 @@ public class TestDtlspRSGroupOSCORE {
         	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_alg, targetedGroup.getCsAlg().AsCBOR());
-        	if (targetedGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params, targetedGroup.getCsParams());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_enc, targetedGroup.getCsKeyEnc());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+        	if (targetedGroup.getSignParams().size() != 0)
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
         	
         	myResponse.Add(Constants.KEY, myMap);
         	
@@ -2233,14 +2233,14 @@ public class TestDtlspRSGroupOSCORE {
             }
         	
 			// Sanity check on the type of public key        		
-			if (targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
-			    targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
-				targetedGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
+			if (targetedGroup.getSignAlg().equals(AlgorithmID.ECDSA_256) ||
+			    targetedGroup.getSignAlg().equals(AlgorithmID.ECDSA_384) ||
+				targetedGroup.getSignAlg().equals(AlgorithmID.ECDSA_512)) {
 				
 				// Invalid public key format
-				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getCsParams().get(1).get(1))) // key capability: curve
+				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getSignParams().get(1).get(1))) // key capability: curve
 				{ 
 				        
 				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
@@ -2250,12 +2250,12 @@ public class TestDtlspRSGroupOSCORE {
 			
 			}
 			
-			if (targetedGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
+			if (targetedGroup.getSignAlg().equals(AlgorithmID.EDDSA)) {
 			
 				// Invalid public key format
-				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(0).get(0)) || // alg capability: key type
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getCsParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getCsParams().get(1).get(1))) // key capability: curve
+				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getSignParams().get(1).get(1))) // key capability: curve
 				{
 				            
 				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
@@ -2337,14 +2337,14 @@ public class TestDtlspRSGroupOSCORE {
 			int offset = 0;
 			
 			byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
-			byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
-			byte[] serializedCSignNonceCBOR = cnonce.EncodeToBytes();
-			byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCSignNonceCBOR.length];
+			byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
+			byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
+			byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
 			System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
 			offset += serializedScopeCBOR.length;
-			System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
-			offset += serializedGMSignNonceCBOR.length;
-			System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
+			System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
+			offset += serializedGMNonceCBOR.length;
+			System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 			
 			int countersignKeyCurve = 0;
 
@@ -2493,10 +2493,10 @@ public class TestDtlspRSGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 
         // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg = null;
+        AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
-        CBORObject csParams = CBORObject.NewArray();
+        CBORObject signParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P-256 for countersignatures
         // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -2506,7 +2506,7 @@ public class TestDtlspRSGroupOSCORE {
         
         // ECDSA_256
         if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-        	csAlg = AlgorithmID.ECDSA_256;
+        	signAlg = AlgorithmID.ECDSA_256;
         	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
@@ -2514,15 +2514,15 @@ public class TestDtlspRSGroupOSCORE {
         
         // EDDSA (Ed25519)
         if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-        	csAlg = AlgorithmID.EDDSA;
+        	signAlg = AlgorithmID.EDDSA;
         	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
         }
 
-    	csParams.Add(algCapabilities);
-    	csParams.Add(keyCapabilities);
-        final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
+        signParams.Add(algCapabilities);
+        signParams.Add(keyCapabilities);
+        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -2538,14 +2538,15 @@ public class TestDtlspRSGroupOSCORE {
     			                          groupIdPrefix,
     			                          groupIdEpoch.length,
     			                          Util.bytesToInt(groupIdEpoch),
+    			                          Constants.GROUP_OSCORE_GROUP_MODE,
     			                          prefixMonitorNames,
     			                          nodeNameSeparator,
     			                          senderIdSize,
     			                          alg,
     			                          hkdf,
-    			                          csAlg,
-    			                          csParams,
-    			                          csKeyEnc,
+    			                          signAlg,
+    			                          signParams,
+    			                          pubKeyEnc,
     			                          null);
         
     	myGroup.setStatus(true);
