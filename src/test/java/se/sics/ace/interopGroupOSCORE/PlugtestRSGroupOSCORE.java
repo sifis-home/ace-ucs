@@ -1291,6 +1291,8 @@ public class PlugtestRSGroupOSCORE {
     			
     		}
     		
+    		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+    		
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
 			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
 			myResponse.Add(Constants.PEER_ROLES, peerRoles);
@@ -1577,6 +1579,8 @@ public class PlugtestRSGroupOSCORE {
 	    			
 	    		}
     		}
+    		
+    		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     		
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
 			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));

@@ -634,7 +634,7 @@ public class TestOscorepClient2RSGroupOSCORE {
               
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -790,7 +790,7 @@ public class TestOscorepClient2RSGroupOSCORE {
               
         Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -915,6 +915,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         myObject = CBORObject.DecodeFromBytes(r7.getPayload());
         Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
+        Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
+        
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
@@ -1063,6 +1069,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         myObject = CBORObject.DecodeFromBytes(r8.getPayload());
         Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
+        Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
+        
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
@@ -1207,7 +1219,7 @@ public class TestOscorepClient2RSGroupOSCORE {
               
         Assert.assertEquals(true, KeyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, KeyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, KeyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, KeyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -1755,7 +1767,7 @@ public class TestOscorepClient2RSGroupOSCORE {
                   
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
             Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-            // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+            // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
             Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
             
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -2187,7 +2199,7 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -2347,7 +2359,7 @@ public class TestOscorepClient2RSGroupOSCORE {
               
         Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, keyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, keyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
@@ -2472,6 +2484,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         myObject = CBORObject.DecodeFromBytes(r7.getPayload());
         Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
+        Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
+        
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
@@ -2617,6 +2635,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         myObject = CBORObject.DecodeFromBytes(r8.getPayload());
         Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
+        Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
+        Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
+        
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
@@ -2782,7 +2806,7 @@ public class TestOscorepClient2RSGroupOSCORE {
               
         Assert.assertEquals(true, KeyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.NUM)));
         Assert.assertEquals(CBORType.Integer, KeyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).getType());
-        // This assumes that the Group Manager did not rekeyed the group upon previous nodes' joining
+        // This assumes that the Group Manager did not rekey the group upon previous nodes' joining
         Assert.assertEquals(0, KeyDistributionResponse.get(CBORObject.FromObject(Constants.NUM)).AsInt32());
         
         Assert.assertEquals(true, KeyDistributionResponse.ContainsKey(CBORObject.FromObject(Constants.ACE_GROUPCOMM_PROFILE)));
