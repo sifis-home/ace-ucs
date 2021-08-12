@@ -43,31 +43,54 @@ package se.sics.ace.oscore;
 		/**
 		 * 'group_SenderID' - Group OSCORE Countersignature Algorithm value
 		 */
-	    // Assume that "group_SenderID" is registered with label 8 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+	    // Assume that "group_SenderID" is registered with label 7 in the
+	    // "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
 		public static final short group_SenderID = 7; // Major type 2 (byte string)
 	 
 		/**
-		 * 'cs_alg' - Group OSCORE Countersignature Algorithm value
+		 *  'cs_key_enc' - Group OSCORE Public Key Encoding Value
 		 */
-	    // Assume that "cs_alg" is registered with label 9 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short sign_alg = 8; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
+		// Assume that "pub_key_enc" is registered with label 8 in the
+		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		public static final short pub_key_enc = 8; // Major type 0 (unsigned integer) or 1 (negative integer)
 		
 		/**
-		 *  'cs_params' - Group OSCORE Countersignature algorithm Parameter Value
+		 *  'sign_enc_alg' - Group OSCORE Signature Encryption Algorithm value 
 		 */
-		// Assume that "cs_params" is registered with label 10 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short sign_params = 9; // Major type 5 (map)
+		public static final short sign_enc_alg = 9; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
 		
 		/**
-		 *  'cs_key_enc' - Group OSCORE Countersignature Key Encoding Value
+		 * 'sign_alg' - Group OSCORE Signature Algorithm value
 		 */
-		// Assume that "cs_key_enc" is registered with label 12 in the "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
-		public static final short pub_key_enc = 10; // Major type 0 (unsigned integer) or 1 (negative integer)
+	    // Assume that "sign_alg" is registered with label 10 in the
+		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		public static final short sign_alg = 10; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
+		
+		/**
+		 *  'sign_params' - Group OSCORE Signature Algorithm Parameters value
+		 */
+		// Assume that "sign_params" is registered with label 11 in the
+		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		public static final short sign_params = 11; // Major type 4 (array)
+		
+		/**
+		 * 'ecdh_alg' - Group OSCORE Pairwise Key Agreement Algorithm value
+		 */
+	    // Assume that "ecdh_alg" is registered with label 12 in the
+		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		public static final short ecdh_alg = 12; // Major type 0 (unsigned integer) or 1 (negative integer) or 3 (text string)
+		
+		/**
+		 *  'ecdh_params' - Group OSCORE Pairwise Key Agreement Algorithm Parameters value
+		 */
+		// Assume that "ecdh_params" is registered with label 13 in the
+		// "OSCORE Security Context Parameters" Registry of draft-ietf-ace-oscore-profile
+		public static final short ecdh_params = 13; // Major type 4 (array)
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
-	    public static final String[] CONTEXT_PARAMETER = {"ms", "hkdf", "alg", "salt", "contextId", "group_SenderID",
-	    		                                          "cs_alg", "cs_params", "cs_key_enc", "clientId", "serverId",};
+	    public static final String[] CONTEXT_PARAMETER = {"id", "version", "ms", "hkdf", "alg", "salt", "contextId",
+	    		"group_senderId, pub_key_enc", "sign_enc_alg", "sign_alg", "sign_params", "ecdh_alg", "ecdh_params"};
 	 
  }

@@ -62,6 +62,8 @@ public class GroupInfo {
 	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
+	private AlgorithmID hkdf = null;
+	private CBORObject pubKeyEnc = null;
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 includes as elements Sender IDs with size 1 byte.
@@ -106,12 +108,15 @@ public class GroupInfo {
 	
 	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
 	
-	private AlgorithmID hkdf = null;
-	private CBORObject pubKeyEnc = null;
-	
-	private AlgorithmID alg = null;
+	// Specific to the group mode
+	private AlgorithmID signEncAlg = null;
 	private AlgorithmID signAlg = null;
 	private CBORObject signParams = null;
+
+	// Specific to the pairwise mode
+	private AlgorithmID alg = null;
+	private AlgorithmID ecdhAlg = null;
+	private CBORObject ecdhParams = null;
 	
 	private CBORObject groupPolicies = null;
 	
@@ -128,14 +133,19 @@ public class GroupInfo {
 	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
 	 * @param groupIdEpochSize    the size in bytes of the byte array representation of the Epoch part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdEpoch        the current value of the Epoch part of the OSCORE Group ID as a positive integer.
-	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
-	 * @param senderIdSize        the size in bytes of Sender IDs in the OSCORE Group. Up to 4 bytes, same for all Sender IDs in the OSCORE group.
-	 * @param alg                 the AEAD algorithm used in the OSCORE group.
-	 * @param hkdf                the HKDF used in the OSCORE group.
-	 * @param signAlg             the signature algorithm used in the OSCORE group.
-	 * @param signParams          the parameters of the signature algorithm used in the OSCORE group.
+	 * @param prefixMonitorNames  the prefix string used to build the name of a group member acting as monitor.
+	 * @param nodeNameSeparator   the string separator used to build the name of a group member non acting as monitor.
+	 * @param senderIdSize        the size in bytes of Sender IDs. Up to 4 bytes, same for all Sender IDs in the OSCORE group.
+	 * @param hkdf                the HKDF Algorithm.
 	 * @param pubKeyEnc           the format of the public keys used in the OSCORE group.
-	 * @param groupPolicies		  the map of group policies used in the OSCORE group, or Null for building one with default values
+	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	 * @param signEncAlg          the Signature Encryption Algorithm if the group mode is used, or null otherwise
+	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param signParams          the parameters of the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param alg                 the AEAD algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhAlg             the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -144,15 +154,18 @@ public class GroupInfo {
     		         final byte[] groupIdPrefix,
     		         final int groupIdEpochSize,
     		         final int groupIdEpoch,
-    		         final int mode,
     		         final String prefixMonitorNames,
     		         final String nodeNameSeparator,
     		         final int senderIdSize,
-    		         final AlgorithmID alg,
     		         final AlgorithmID hkdf,
+    		         final CBORObject pubKeyEnc,
+    		         final int mode,
+    		         final AlgorithmID signEncAlg,
     		         final AlgorithmID signAlg,
     		         final CBORObject signParams,
-    		         final CBORObject pubKeyEnc,
+    		         final AlgorithmID alg,
+    		         final AlgorithmID ecdhAlg,
+    		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies) {
     	
     	this.version = 0;
@@ -171,11 +184,22 @@ public class GroupInfo {
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
     	
-    	setAlg(alg);
     	setHkdf(hkdf);
-    	setSignAlg(signAlg);
-    	setSignParams(signParams);
     	setPubKeyEnc(pubKeyEnc);
+    	
+    	// The group mode is used
+    	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    		setSignEncAlg(signEncAlg);
+	    	setSignAlg(signAlg);
+	    	setSignParams(signParams);
+    	}
+    	
+    	// The pairwise mode is used
+    	if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    		setAlg(alg);
+	    	setEcdhAlg(ecdhAlg);
+	    	setEcdhParams(ecdhParams);
+    	}
     	
     	if (senderIdSize < 1)
     		this.senderIdSize = 1;
@@ -440,28 +464,6 @@ public class GroupInfo {
     }
     
     /**
-     * @return the AEAD algorithm used in the group
-     */
-    synchronized public final AlgorithmID getAlg() {
-    	
-    	return this.alg;
-    	
-    }
-    
-    /**
-     *  Set the AEAD algorithm used in the group
-     * @param alg
-     */
-    synchronized public void setAlg(final AlgorithmID alg) {
-    	
-    	if (alg == null)
-			this.alg = AlgorithmID.AES_CCM_16_64_128;
-    	else
-    		this.alg = alg;
-    	
-    }
-    
-    /**
      * @return the KDF used in the group
      */
     synchronized public final AlgorithmID getHkdf() {
@@ -484,7 +486,29 @@ public class GroupInfo {
     }
     
     /**
-     * @return  the signature algorithm used in the group
+     * @return the Signature Encryption Algorithm used in the group for the group mode
+     */
+    synchronized public final AlgorithmID getSignEncAlg() {
+    	
+    	return this.signEncAlg;
+    	
+    }
+    
+    /**
+     *  Set the Signature Encryption Algorithm used in the group for the group mode
+     * @param signEncAlg
+     */
+    synchronized public void setSignEncAlg(final AlgorithmID signEncAlg) {
+    	
+    	if (signEncAlg == null)
+			this.signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+    	else
+    		this.signEncAlg = signEncAlg;
+    	
+    }
+    
+    /**
+     * @return  the Signature Algorithm used in the group for the group mode
      */
     synchronized public final AlgorithmID getSignAlg() {
     	
@@ -493,7 +517,7 @@ public class GroupInfo {
     }
     
     /**
-     *  Set the signature algorithm used in the group
+     *  Set the Signature Algorithm used in the group for the group mode
      * @param signAlg
      */
     synchronized public void setSignAlg(final AlgorithmID signAlg) {
@@ -506,7 +530,7 @@ public class GroupInfo {
     }    
     
     /**
-     * @return  the parameters of the signature algorithm used in the group
+     * @return  the parameters of the Signature Algorithm used in the group for the group mode
      */
     synchronized public final CBORObject getSignParams() {
     	
@@ -515,7 +539,7 @@ public class GroupInfo {
     }
 
     /**
-     * Set the parameters of the signature algorithm used in the group
+     * Set the parameters of the Signature Algorithm used in the group for the group mode
      * @param signParams
      * 
      * @return true of the parameters were successfully set, false otherwise
@@ -526,6 +550,76 @@ public class GroupInfo {
     		return false;
     	
     	this.signParams = signParams;
+    	
+    	return true;
+    	
+    }
+    
+    /**
+     * @return the AEAD Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final AlgorithmID getAlg() {
+    	
+    	return this.alg;
+    	
+    }
+    
+    /**
+     *  Set the AEAD Algorithm used in the group for the pairwise mode
+     * @param alg
+     */
+    synchronized public void setAlg(final AlgorithmID alg) {
+    	
+    	if (alg == null)
+			this.alg = AlgorithmID.AES_CCM_16_64_128;
+    	else
+    		this.alg = alg;
+    	
+    }
+    
+    /**
+     * @return the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final AlgorithmID getEcdhAlg() {
+    	
+    	return this.ecdhAlg;
+    	
+    }
+    
+    /**
+     *  Set the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhAlg
+     */
+    synchronized public void setEcdhAlg(final AlgorithmID ecdhAlg) {
+    	
+    	if (ecdhAlg == null)
+			this.ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+    	else
+    		this.ecdhAlg = ecdhAlg;
+    	
+    }
+    
+    /**
+     * @return  the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final CBORObject getEcdhParams() {
+    	
+    	return this.ecdhParams;
+    	
+    }
+
+    /**
+     * Set the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhParams
+     * 
+     * @return true of the parameters were successfully set, false otherwise
+     */
+    synchronized public boolean setEcdhParams(final CBORObject ecdhParams) {
+
+    	if (ecdhParams.getType() != CBORType.Array)
+    		return false;
+    	
+    	this.ecdhParams = ecdhParams;
     	
     	return true;
     	
@@ -802,7 +896,7 @@ public class GroupInfo {
     		if (roles != (1 << Constants.GROUP_OSCORE_MONITOR))
     			return false;
     	}
-    	// THe node is not a monitor
+    	// The node is not a monitor
     	else {
     		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
     			return false;

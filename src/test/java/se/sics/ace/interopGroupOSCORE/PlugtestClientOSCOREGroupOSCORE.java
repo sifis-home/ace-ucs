@@ -159,10 +159,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
     private static final String groupName = new String("feedca570000");
     
     // Uncomment to set ECDSA with curve P-256 for countersignatures
-    // private static int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    // private static int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
     
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
-    private static int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+    private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
     
     /**
      * @param args
@@ -192,7 +192,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	CBORObject d = null;
     	
     	// ECDSA_256
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
             rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
@@ -207,7 +207,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             C1keyPair = new OneKey(rpkData);
        	}
     	// EDDSA (Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
             rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
@@ -221,7 +221,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	}
         
         // Setup the public key of the group members
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
             rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
@@ -245,7 +245,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             C3pubKey = new OneKey(rpkData);            
        	}
     	// EDDSA (Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
             rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
@@ -414,7 +414,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         CBORObject signKeyParamsExpected = CBORObject.NewArray();
 
         // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
             
             // The algorithm capabilities
@@ -426,7 +426,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         }
 
         // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
                 // The algorithm capabilities
@@ -599,12 +599,12 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
 
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
         }
        
@@ -621,7 +621,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
         final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
-        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
        
         AlgorithmID signAlg = null;
@@ -632,7 +632,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         CBORObject signKeyParams = CBORObject.NewArray();
         
         // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	signAlg = AlgorithmID.ECDSA_256;
         	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
@@ -640,7 +640,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         }
         
         // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	signAlg = AlgorithmID.EDDSA;
         	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
@@ -655,7 +655,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
        
         Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+        Assert.assertEquals(signEncAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
@@ -664,8 +664,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
             myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
             myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
               
@@ -710,7 +708,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
-            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
@@ -718,7 +716,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
            
             // EDDSA (Ed25519)
-            if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
@@ -731,7 +729,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
-            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
@@ -739,7 +737,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
            
             // EDDSA (Ed25519)
-            if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
@@ -841,7 +839,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         CBORObject signKeyParamsExpected = CBORObject.NewArray();
 
         // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
             
             // The algorithm capabilities
@@ -853,7 +851,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         }
 
         // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
                 // The algorithm capabilities
@@ -1021,12 +1019,12 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
 
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32() || countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
         }
        
@@ -1043,7 +1041,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
                                       (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
         final byte[] senderId = new byte[] { (byte) 0x25 };
         final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
-        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
+        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
        
         AlgorithmID signAlg = null;
@@ -1054,7 +1052,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         CBORObject signKeyParams = CBORObject.NewArray();
         
         // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
         	signAlg = AlgorithmID.ECDSA_256;
         	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
@@ -1062,7 +1060,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         }
         
         // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
         	signAlg = AlgorithmID.EDDSA;
         	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
         	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
@@ -1077,7 +1075,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
        
         Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
-        Assert.assertEquals(alg.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)));
+        Assert.assertEquals(signEncAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
         Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)).GetByteString());
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
@@ -1086,8 +1084,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
             myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
-        if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.alg)) == false)
-            myMap.Add(OSCOREInputMaterialObjectParameters.alg, AlgorithmID.AES_CCM_16_64_128);
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)) == false)
             myMap.Add(OSCOREInputMaterialObjectParameters.salt, CBORObject.FromObject(new byte[0]));
        
@@ -1132,7 +1128,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
-            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
@@ -1140,7 +1136,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
            
             // EDDSA (Ed25519)
-            if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
@@ -1153,7 +1149,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
-            if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
@@ -1161,7 +1157,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
            
             // EDDSA (Ed25519)
-            if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
                 Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
                 Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
@@ -1205,9 +1201,9 @@ public class PlugtestClientOSCOREGroupOSCORE {
         byte[] clientSignature = null;
 
         try {
-     	   if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+     	   if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
    	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
-     	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+     	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
       			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
      	   else {
      		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported

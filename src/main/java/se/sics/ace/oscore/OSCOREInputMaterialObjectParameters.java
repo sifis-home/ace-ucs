@@ -49,19 +49,19 @@ import se.sics.ace.AceException;
  public class OSCOREInputMaterialObjectParameters {
 
 		/**
+		 *  'id' - OSCORE Input Material Identifier
+		 */
+		public static final short id = 0;  // Major type 2 (byte string)
+	 
+		/**
 		 *  'version' - OSCORE Master Secret Value
 		 */
-		public static final short version = 0;  // Major type 0 (unsigned integer)
+		public static final short version = 1;  // Major type 0 (unsigned integer)
 	 
 		/**
 		 *  'ms' - OSCORE Master Secret Value
 		 */
-		public static final short ms = 1;  // Major type 2 (byte string)
-		
-		/**
-		 *  'id' - OSCORE Input Material Identifier
-		 */
-		public static final short id = 2;  // Major type 2 (byte string)
+		public static final short ms = 2;  // Major type 2 (byte string)
 		
 		/**
 		 *  'hkdf' - OSCORE HKDF value
@@ -81,24 +81,12 @@ import se.sics.ace.AceException;
 		/**
 		 *  'contextId' - OSCORE ID Context Value
 		 */
-		public static final short contextId = 6; // Major type 2 (byte string)
-		
-		/**
-		 *  'clientId' - OSCORE Sender ID value of the client, OSCORE Recipient ID value of the server
-		 */
-		public static final short clientId = 92;  // Major type 2 (byte string)
-		
-		/**
-		 *  'serverId' - OSCORE Sender ID value of the server, OSCORE Recipient ID value of the client
-		 */
-		public static final short serverId = 93; // Major type 2 (byte string)
-		
+		public static final short contextId = 6; // Major type 2 (byte string)		
 		
 		/**
 	     * The string values for the OSCORE Security Context Object parameter abbreviations (use for debugging)
 	     */
-	    public static final String[] CONTEXT_PARAMETER = {"ms", "clientId", "serverId", "hkdf", 
-	            "alg", "salt", "contextId"};
+	    public static final String[] CONTEXT_PARAMETER = {"id", "version", "ms", "hkdf", "alg", "salt", "contextId"};
 	    
 	    /**
 	     * Takes a CBORObject that is a map and transforms it

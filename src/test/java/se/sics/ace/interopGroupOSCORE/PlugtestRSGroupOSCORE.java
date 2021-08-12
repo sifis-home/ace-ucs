@@ -479,16 +479,25 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Fill the 'key' parameter
         	// Note that no Sender ID is included
-        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
-        	if (targetedGroup.getSignParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
-        	
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        	    // The group mode is used
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+        	    if (targetedGroup.getSignParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	}
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        	    // The pairwise mode is used
+        	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
+        	    if (targetedGroup.getEcdhParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
+        	}
         	myResponse.Add(Constants.KEY, myMap);
         	
         	// The current version of the symmetric keying material
@@ -948,21 +957,21 @@ public class PlugtestRSGroupOSCORE {
            	    offset += serializedGMSignNonceCBOR.length;
            	    System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
                 
-           	    int countersignKeyCurve = 0;
+           	    int signKeyCurve = 0;
            	    
            	    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-					countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+					signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
            	    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-					countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+					signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
            	    
            	    // This should never happen, due to the previous sanity checks
-           	    if (countersignKeyCurve == 0) {
+           	    if (signKeyCurve == 0) {
            	    	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
             		return;
            	    }
            	    
            	    // Invalid Client's PoP signature
-           	    if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+           	    if (!verifySignature(signKeyCurve, pubKey, dataToSign, rawClientSignature)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
@@ -1040,20 +1049,29 @@ public class PlugtestRSGroupOSCORE {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
         	if (senderId != null) {
     			// The joining node is not a monitor
         		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
         	}
-        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, myGroup.getSignAlg().AsCBOR());
-        	if (myGroup.getSignParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, myGroup.getSignParams());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, myGroup.getPubKeyEnc());
-        	        	
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        	    // The group mode is used
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+        	    if (targetedGroup.getSignParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	}
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        	    // The pairwise mode is used
+        	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
+        	    if (targetedGroup.getEcdhParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
+        	}        	
         	joinResponse.Add(Constants.KEY, myMap);
         	
         	// If backward security has to be preserved:
@@ -1923,17 +1941,29 @@ public class PlugtestRSGroupOSCORE {
         	byte[] senderId = Utils.hexToBytes(targetedGroup.getGroupMemberName(subject));
         	
         	// Fill the 'key' parameter
-        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
+        	if (senderId != null) {
+        		// The joining node is not a monitor
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.group_SenderID, senderId);
+        	}
         	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
-        	myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
         	myMap.Add(OSCOREInputMaterialObjectParameters.salt, targetedGroup.getMasterSalt());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.ms, targetedGroup.getMasterSecret());
         	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
-        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
-        	if (targetedGroup.getSignParams().size() != 0)
-        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
         	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
-        	
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        	    // The group mode is used
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+        	    if (targetedGroup.getSignParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	}
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        	    // The pairwise mode is used
+        	    myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+        	    myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
+        	    if (targetedGroup.getEcdhParams().size() != 0)
+        	        myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
+        	}
         	myResponse.Add(Constants.KEY, myMap);
         	
         	// The current version of the symmetric keying material
@@ -2381,21 +2411,21 @@ public class PlugtestRSGroupOSCORE {
 			offset += serializedGMSignNonceCBOR.length;
 			System.arraycopy(serializedCSignNonceCBOR, 0, dataToSign, offset, serializedCSignNonceCBOR.length);
 			
-			int countersignKeyCurve = 0;
+			int signKeyCurve = 0;
 
 			if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-			    countersignKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
 			else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-			    countersignKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
 			// This should never happen, due to the previous sanity checks
-			if (countersignKeyCurve == 0) {
+			if (signKeyCurve == 0) {
 			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
 			    return;
 			}
 
 			// Invalid Client's PoP signature
-			if (!verifySignature(countersignKeyCurve, pubKey, dataToSign, rawClientSignature)) {
+			if (!verifySignature(signKeyCurve, pubKey, dataToSign, rawClientSignature)) {
         		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
         		return;
 			}
@@ -2531,41 +2561,41 @@ public class PlugtestRSGroupOSCORE {
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
-        // Group OSCORE specific values for the AEAD algorithm and HKDF
-        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
 
-        // Group OSCORE specific values for the countersignature
+        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+
+        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
         AlgorithmID signAlg = null;
         CBORObject algCapabilities = CBORObject.NewArray();
         CBORObject keyCapabilities = CBORObject.NewArray();
         CBORObject signParams = CBORObject.NewArray();
         
         // Uncomment to set ECDSA with curve P-256 for countersignatures
-        // countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
+        // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
         
         // Uncomment to set EDDSA with curve Ed25519 for countersignatures
-        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+        int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
         
         // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-        	signAlg = AlgorithmID.ECDSA_256;
-        	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-        	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-        	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            signAlg = AlgorithmID.ECDSA_256;
+            algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+            keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+            keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
         }
-        
+
         // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-        	signAlg = AlgorithmID.EDDSA;
-        	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-        	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-        	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            signAlg = AlgorithmID.EDDSA;
+            algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+            keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+            keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
         }
 
         signParams.Add(algCapabilities);
         signParams.Add(keyCapabilities);
-        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
         
         final int senderIdSize = 1; // Up to 4 bytes
 
@@ -2575,22 +2605,25 @@ public class PlugtestRSGroupOSCORE {
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
     	GroupInfo myGroup = new GroupInfo(groupName,
-    									  masterSecret,
-    			                          masterSalt,
-    			                          groupIdPrefixSize,
-    			                          groupIdPrefix,
-    			                          groupIdEpoch.length,
-    			                          Util.bytesToInt(groupIdEpoch),
-    			                          Constants.GROUP_OSCORE_GROUP_MODE,
-    			                          prefixMonitorNames,
-    			                          nodeNameSeparator,
-    			                          senderIdSize,
-    			                          alg,
-    			                          hkdf,
-    			                          signAlg,
-    			                          signParams,
-    			                          pubKeyEnc,
-    			                          null);
+						                  masterSecret,
+						                  masterSalt,
+						                  groupIdPrefixSize,
+						                  groupIdPrefix,
+						                  groupIdEpoch.length,
+						                  Util.bytesToInt(groupIdEpoch),
+						                  prefixMonitorNames,
+						                  nodeNameSeparator,
+						                  senderIdSize,
+						                  hkdf,
+						                  pubKeyEnc,
+						                  mode,
+						                  signEncAlg,
+						                  signAlg,
+						                  signParams,
+						                  null,
+						                  null,
+						                  null,
+						                  null);
         
     	myGroup.setStatus(true);
     	
@@ -2605,10 +2638,10 @@ public class PlugtestRSGroupOSCORE {
         
         OneKey testKey = null;
  		
- 		if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
  			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
     	
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
     		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
         
     	byte[] testKeyBytes = testKey.EncodeToBytes();
@@ -2639,11 +2672,11 @@ public class PlugtestRSGroupOSCORE {
     	String rpkStr1 = "";
     	
     	// Store the public key of the group member with Sender ID 'idClient2' (ECDSA_256)
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
     		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
     	
     	// Store the public key of the group member with Sender ID 'idClient2' (EDDSA - Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
     		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
     	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
@@ -2669,11 +2702,11 @@ public class PlugtestRSGroupOSCORE {
     	String rpkStr2 = "";
     	
     	// Store the public key of the group member with Sender ID 'idClient3' (ECDSA_256)
-    	if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
     		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     	
     	// Store the public key of the group member with Sender ID 'idClient3' (EDDSA - Ed25519)
-    	if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
     		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     	
     	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
@@ -2929,21 +2962,21 @@ public class PlugtestRSGroupOSCORE {
     /**
      * Verify the correctness of a digital signature
      * 
-     * @param countersignKeyCurve   Elliptic curve used to process the signature, encoded as in RFC 8152
+     * @param signKeyCurve   Elliptic curve used to process the signature, encoded as in RFC 8152
      * @param pubKey   Public key of the signer, used to verify the signature
      * @param signedData   Data over which the signature has been computed
      * @param expectedSignature   Signature to verify
      * @return True is the signature verifies correctly, false otherwise
      */
-    public static boolean verifySignature(int countersignKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
+    public static boolean verifySignature(int signKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
     	Signature mySignature = null;
     	boolean success = false;
     	
         try {
-      	   if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32())
+      	   if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
     	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
-      	   else if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+      	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
        			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
      	   else {
      		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
