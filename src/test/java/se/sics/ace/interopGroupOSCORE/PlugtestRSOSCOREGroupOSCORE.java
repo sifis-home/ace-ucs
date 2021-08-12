@@ -2142,6 +2142,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
             
         	Response coapResponse = new Response(CoAP.ResponseCode.DELETED);
 
+        	delete();
         	exchange.respond(coapResponse);
         	
         }
@@ -2537,6 +2538,67 @@ public class PlugtestRSOSCOREGroupOSCORE {
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
         
+        
+    	String tokenFile = TestConfig.testFilePath + "tokens.json";
+    	//Delete lingering old token files
+    	new File(tokenFile).delete();
+        
+        //Set up COSE parameters
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx 
+            = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
+
+        
+        // Set up the inner Authz-Info library
+        ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
+        	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
+        
+        // Provide the authz-info endpoint with the set of active OSCORE groups
+        ai.setActiveGroups(activeGroups);
+      
+        // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
+        // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
+        // 
+        // If provided, a proper Introspection Handler would require to take care of multiple audiences,
+        // rather than of a single RS as IntrospectionHandler4Tests does. This is already admitted in the
+        // Java interface IntrospectionHandler.
+      
+        //Add a test token to authz-info
+        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        Map<Short, CBORObject> params = new HashMap<>(); 
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.CTI, CBORObject.FromObject(
+                   "token1".getBytes(Constants.charset)));
+        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+
+        OneKey key = new OneKey();
+        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+      
+        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+        CBORObject kidC = CBORObject.FromObject(kid);
+        key.add(KeyKeys.KeyId, kidC);
+        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+
+        CBORObject cnf = CBORObject.NewMap();
+        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+        params.put(Constants.CNF, cnf);
+        CWT token = new CWT(params);
+        ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));  
+      
+  	    AsRequestCreationHints asi 
+  	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
+  	    Resource hello = new HelloWorldResource();
+  	    Resource temp = new TempResource();
+  	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
+  	    Resource join = new GroupOSCOREJoinResource(groupName);
+        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
+        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
+  	    join.add(nodesSubResource);
+  	    Resource authzInfo = new CoapAuthzInfo(ai);
+      
+  
     	// Create the OSCORE group
         final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                 					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -2562,6 +2624,27 @@ public class PlugtestRSOSCOREGroupOSCORE {
         
         // Uncomment to set EDDSA with curve Ed25519 for countersignatures
         int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+        
+    	/*
+    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
+        
+        OneKey testKey = null;
+ 		
+ 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
+        
+    	byte[] testKeyBytes = testKey.EncodeToBytes();
+    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
+    	System.out.println(testKeyBytesBase64);
+    	
+    	OneKey testPublicKey = testKey.PublicKey();
+    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
+    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
+    	System.out.println(testPublicKeyBytesBase64);
+    	*/
         
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -2618,26 +2701,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	OneKey myKey;
     	
     	
-    	/*
-    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
-        
-        OneKey testKey = null;
- 		
- 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
- 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-    	
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
-        
-    	byte[] testKeyBytes = testKey.EncodeToBytes();
-    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
-    	System.out.println(testKeyBytesBase64);
-    	
-    	OneKey testPublicKey = testKey.PublicKey();
-    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
-    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
-    	System.out.println(testPublicKeyBytesBase64);
-    	*/
+
     	
     	
     	// Add a group member
@@ -2703,66 +2767,11 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
     	activeGroups.put(groupName, myGroup);
-    	
-    	String tokenFile = TestConfig.testFilePath + "tokens.json";
-    	//Delete lingering old token files
-    	new File(tokenFile).delete();
-        
-        //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
-
-        
-        // Set up the inner Authz-Info library
-        ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
-        
-        // Provide the authz-info endpoint with the set of active OSCORE groups
-        ai.setActiveGroups(activeGroups);
-      
-        // The related test in TestDtlspClientGroupOSCORE still works with this server even with a single
-        // AuthzInfoGroupOSCORE 'ai', but only because 'ai' is constructed with a null Introspection Handler.
-        // 
-        // If provided, a proper Introspection Handler would require to take care of multiple audiences,
-        // rather than of a single RS as IntrospectionHandler4Tests does. This is already admitted in the
-        // Java interface IntrospectionHandler.
-      
-        //Add a test token to authz-info
-        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                   "token1".getBytes(Constants.charset)));
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
-        CBORObject kidC = CBORObject.FromObject(kid);
-        key.add(KeyKeys.KeyId, kidC);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-        CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put(Constants.CNF, cnf);
-        CWT token = new CWT(params);
-        ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));  
-      
-  	    AsRequestCreationHints asi 
-  	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
-  	    Resource hello = new HelloWorldResource();
-  	    Resource temp = new TempResource();
-  	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
-  	    Resource join = new GroupOSCOREJoinResource(groupName);
-        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
-        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
-  	    join.add(nodesSubResource);
-  	    Resource authzInfo = new CoapAuthzInfo(ai);
-      
+  	    
+  	    
+  	    
+  	    
+  	    
   	    rs = new CoapServer();
   	    rs.add(hello);
   	    rs.add(temp);

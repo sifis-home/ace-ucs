@@ -256,10 +256,6 @@ public class TestOscorepRSGroupOSCORE {
         actions4.add(Constants.POST);
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000", myResource4);
-        
-        //Create the OSCORE Group(s)
-        if (!OSCOREGroupCreation(groupName, signKeyCurve))
-        	return;
 
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
@@ -359,6 +355,9 @@ public class TestOscorepRSGroupOSCORE {
         Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
   	    join.add(nodesSubResource);
       
+        //Create the OSCORE Group(s)
+        if (!OSCOREGroupCreation(groupName, signKeyCurve))
+        	return;
   	    
         rs = new CoapServer();
         rs.add(hello);
@@ -2337,6 +2336,7 @@ public class TestOscorepRSGroupOSCORE {
             
         	Response coapResponse = new Response(CoAP.ResponseCode.DELETED);
 
+        	delete();
         	exchange.respond(coapResponse);
         	
         }

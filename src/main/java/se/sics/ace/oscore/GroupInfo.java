@@ -1009,7 +1009,12 @@ public class GroupInfo {
     /**
      * Remove the group member identified by the specified identity
      * 
-     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members
+     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members under
+     * the same Group ID value. The relinquished Sender ID can be separately stored to be made available again
+     * when changing the Group ID value following a group rekeying.
+     * 
+     * Note that this method does not delete the sub-resource associated to the removed group member.
+     * The Group Manager has to separately do that _before_ invoking this method. 
      * 
      * @param subject   The node's identity based on the secure association with the GM 
      * @return True if an entry for the group member was found and removed, false otherwise

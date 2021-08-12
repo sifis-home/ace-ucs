@@ -2153,7 +2153,8 @@ public class PlugtestRSGroupOSCORE {
         	// Respond to the Group Leaving Request
             
         	Response coapResponse = new Response(CoAP.ResponseCode.DELETED);
-
+        	
+        	delete();
         	exchange.respond(coapResponse);
         	
         }
@@ -2552,173 +2553,6 @@ public class PlugtestRSGroupOSCORE {
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
         
-    	// Create the OSCORE group
-        final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
-                					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
-                					  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
-                					  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
-
-        final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
-                					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
-
-        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
-
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
-
-        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
-        AlgorithmID signAlg = null;
-        CBORObject algCapabilities = CBORObject.NewArray();
-        CBORObject keyCapabilities = CBORObject.NewArray();
-        CBORObject signParams = CBORObject.NewArray();
-        
-        // Uncomment to set ECDSA with curve P-256 for countersignatures
-        // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
-        
-        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
-        int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
-        
-        // ECDSA_256
-        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            signAlg = AlgorithmID.ECDSA_256;
-            algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-            keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-            keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
-        }
-
-        // EDDSA (Ed25519)
-        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            signAlg = AlgorithmID.EDDSA;
-            algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-            keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-            keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
-        }
-
-        signParams.Add(algCapabilities);
-        signParams.Add(keyCapabilities);
-        
-        final int senderIdSize = 1; // Up to 4 bytes
-
-        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
-        // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
-    	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
-    	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
-    	
-    	GroupInfo myGroup = new GroupInfo(groupName,
-						                  masterSecret,
-						                  masterSalt,
-						                  groupIdPrefixSize,
-						                  groupIdPrefix,
-						                  groupIdEpoch.length,
-						                  Util.bytesToInt(groupIdEpoch),
-						                  prefixMonitorNames,
-						                  nodeNameSeparator,
-						                  senderIdSize,
-						                  hkdf,
-						                  pubKeyEnc,
-						                  mode,
-						                  signEncAlg,
-						                  signAlg,
-						                  signParams,
-						                  null,
-						                  null,
-						                  null,
-						                  null);
-        
-    	myGroup.setStatus(true);
-    	
-    	byte[] mySid;
-    	String myName;
-    	String mySubject;
-    	OneKey myKey;
-    	
-    	
-    	/*
-    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
-        
-        OneKey testKey = null;
- 		
- 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
- 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
-    	
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
-        
-    	byte[] testKeyBytes = testKey.EncodeToBytes();
-    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
-    	System.out.println(testKeyBytesBase64);
-    	
-    	OneKey testPublicKey = testKey.PublicKey();
-    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
-    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
-    	System.out.println(testPublicKeyBytesBase64);
-    	*/
-    	
-    	
-    	// Add a group member
-    	mySid = idClient2;
-    	if (!myGroup.allocateSenderId(mySid))
-    		stop();
-    	myName = myGroup.allocateNodeName(mySid);
-    	mySubject = "clientX";
-    	
-    	
-    	int roles = 0;
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	
-    	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
-    		return;
-    	
-    	String rpkStr1 = "";
-    	
-    	// Store the public key of the group member with Sender ID 'idClient2' (ECDSA_256)
-    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
-    	
-    	// Store the public key of the group member with Sender ID 'idClient2' (EDDSA - Ed25519)
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
-    	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
-    	
-    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(mySid, myKey.AsCBOR());
-    	
-    	// Add a group member
-    	mySid = idClient3;
-    	if (!myGroup.allocateSenderId(mySid))
-    		stop();
-    	myName = myGroup.allocateNodeName(mySid);
-    	mySubject = "clientY";
-    	
-    	roles = 0;
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
-    	
-    	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
-    		return;
-    	
-    	String rpkStr2 = "";
-    	
-    	// Store the public key of the group member with Sender ID 'idClient3' (ECDSA_256)
-    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
-    	
-    	// Store the public key of the group member with Sender ID 'idClient3' (EDDSA - Ed25519)
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
-    	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
-    	
-    	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-    	myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-    	myGroup.storePublicKey(mySid, myKey.AsCBOR()); 	
-    	
-    	
-    	// Add this OSCORE group to the set of active groups
-    	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(groupName, myGroup);
     	
     	String tokenFile = TestConfig.testFilePath + "tokens.json";
     	//Delete lingering old token files
@@ -2797,6 +2631,174 @@ public class PlugtestRSGroupOSCORE {
   	    join.add(nodesSubResource);
   	    Resource authzInfo = new CoapAuthzInfoGroupOSCORE(ai);
       
+  	    
+  	    // Create the OSCORE group
+  	    final byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
+  	                                  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
+  	                                  (byte) 0x09, (byte) 0x0A, (byte) 0x0B, (byte) 0x0C,
+  	                                  (byte) 0x0D, (byte) 0x0E, (byte) 0x0F, (byte) 0x10 };
+
+    	final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
+  	                                  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
+
+  	    final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+  	    final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
+
+  	    int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+
+  	    final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+  	    AlgorithmID signAlg = null;
+  	    CBORObject algCapabilities = CBORObject.NewArray();
+  	    CBORObject keyCapabilities = CBORObject.NewArray();
+  	    CBORObject signParams = CBORObject.NewArray();
+
+  	    // Uncomment to set ECDSA with curve P-256 for countersignatures
+  	    // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+  	    // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+  	    int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+
+    	/*
+    	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)
+        
+        OneKey testKey = null;
+ 		
+ 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
+ 			testKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
+    	
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+    		testKey = OneKey.generateKey(AlgorithmID.EDDSA);
+        
+    	byte[] testKeyBytes = testKey.EncodeToBytes();
+    	String testKeyBytesBase64 = Base64.getEncoder().encodeToString(testKeyBytes);
+    	System.out.println(testKeyBytesBase64);
+    	
+    	OneKey testPublicKey = testKey.PublicKey();
+    	byte[] testPublicKeyBytes = testPublicKey.EncodeToBytes();
+    	String testPublicKeyBytesBase64 = Base64.getEncoder().encodeToString(testPublicKeyBytes);
+    	System.out.println(testPublicKeyBytesBase64);
+    	*/
+  	    
+  	    // ECDSA_256
+  	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+  	    	signAlg = AlgorithmID.ECDSA_256;
+  	    	algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+  	    	keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+  	    	keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+  	    }
+
+  	    // EDDSA (Ed25519)
+  	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+  	    	signAlg = AlgorithmID.EDDSA;
+  	    	algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+  	    	keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+  	      	keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+  	    }
+
+  	    signParams.Add(algCapabilities);
+  	    signParams.Add(keyCapabilities);  
+
+  	    final int senderIdSize = 1; // Up to 4 bytes
+
+  	    // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+  	    // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
+  	    final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
+  	    byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
+
+  	    GroupInfo myGroup = new GroupInfo(groupName,
+  	                                      masterSecret,
+  	                                      masterSalt,
+  	                                      groupIdPrefixSize,
+  	                                      groupIdPrefix,
+  	                                      groupIdEpoch.length,
+  	                                      Util.bytesToInt(groupIdEpoch),
+  	                                      prefixMonitorNames,
+  	                                      nodeNameSeparator,
+  	                                      senderIdSize,
+  	                                      hkdf,
+  	                                      pubKeyEnc,
+  	                                      mode,
+  	                                      signEncAlg,
+  	                                      signAlg,
+  	                                      signParams,
+  	                                      null,
+  	                                      null,
+  	                                      null,
+  	                                      null);
+
+  	    myGroup.setStatus(true);
+
+  	    byte[] mySid;
+  	    String myName;
+  	    String mySubject;
+  	    OneKey myKey;
+
+  	    // Add a group member
+  	    mySid = idClient2;
+  	    if (!myGroup.allocateSenderId(mySid))
+  	    	stop();
+  	    myName = myGroup.allocateNodeName(mySid);
+  	    mySubject = "clientX";
+	  	
+	  	
+  	    int roles = 0;
+  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+	  	
+  	    if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
+  	    	return;
+	  	
+  	    String rpkStr1 = "";
+	  	
+  	    // Store the public key of the group member with Sender ID 'idClient2' (ECDSA_256)
+  	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
+  	    	rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+	  	
+  	    // Store the public key of the group member with Sender ID 'idClient2' (EDDSA - Ed25519)
+  	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+  	    	rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+	  	
+  	    myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+	  	
+  	    // Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+  	    myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+  	    myGroup.storePublicKey(mySid, myKey.AsCBOR());
+	  	
+  	    // Add a group member
+  	    mySid = idClient3;
+  	    if (!myGroup.allocateSenderId(mySid))
+  	    	stop();
+  	    myName = myGroup.allocateNodeName(mySid);
+  	    mySubject = "clientY";
+	  	
+  	    roles = 0;
+  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+	  	
+  	    if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
+  	    	return;
+	  	
+  	    String rpkStr2 = "";
+	  	
+  	    // Store the public key of the group member with Sender ID 'idClient3' (ECDSA_256)
+  	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
+  	    	rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
+	  	
+  	    // Store the public key of the group member with Sender ID 'idClient3' (EDDSA - Ed25519)
+  	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
+  	    	rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+	  	
+  	    myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+	  	
+  	    // Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
+  	    myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
+  	    myGroup.storePublicKey(mySid, myKey.AsCBOR()); 	
+	  	
+	  	
+  	    // Add this OSCORE group to the set of active groups
+  	    // If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
+  	    activeGroups.put(groupName, myGroup);
+  	      	    
+  	    
   	    rs = new CoapServer();
   	    rs.add(hello);
   	    rs.add(temp);
