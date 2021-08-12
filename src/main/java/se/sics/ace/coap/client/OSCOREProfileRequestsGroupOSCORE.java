@@ -131,7 +131,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @param asResp  the response from the AS containing the token
      *      and the access information
      * @param askForSignInfo  true when requesting information on the signature algorithm in the OSCORE group, false otherwise
-     * @param askForPubKeyEnc  true when requesting information on the encoding of public keys in the OSCORE group, false otherwise
      * @param db   the database of OSCORE Security Contexts
      * @param usedRecipientIds   the collection of already in use OSCORE Recipient IDs, it can be null when updating access rights
      * 
@@ -140,7 +139,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc,
+    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo,
     		                         OSCoreCtxDB db, List<Set<Integer>> usedRecipientIds) 
             throws AceException, OSException {
         if (asResp == null) {
@@ -178,7 +177,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token);
         
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         byte[] n1 = new byte[8];
@@ -294,7 +293,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("RS didn't respond with a CBOR map");
         }
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	
         	if (!rsPayload.getType().equals(CBORType.Map)) {
         		throw new AceException("RS didn't respond with a CBOR map");
@@ -374,7 +373,6 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @param asResp   the response from the AS containing the token
      *      and the access information
      * @param askForSignInfo  true when requesting information on the signature algorithm in the OSCORE group, false otherwise
-     * @param askForPubKeyEnc  true when requesting information on the encoding of public keys in the OSCORE group, false otherwise
      * @param db   the database of OSCORE Security Contexts
      * 
      * @return  the response 
@@ -382,9 +380,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static CoapResponse postTokenUpdate(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForPubKeyEnc,
-    		                                   OSCoreCtxDB db) 
-            throws AceException, OSException {
+    public static CoapResponse postTokenUpdate(String rsAddr, Response asResp,
+    										   boolean askForSignInfo, OSCoreCtxDB db) throws AceException, OSException {
         if (asResp == null) {
             throw new AceException("asResp cannot be null when POSTing to authz-info");
         }
@@ -413,7 +410,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token);
         
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
     	CoapResponse resp = null;
@@ -437,7 +434,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("RS did not respond");
         }
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	
             CBORObject rsPayload;
             try {

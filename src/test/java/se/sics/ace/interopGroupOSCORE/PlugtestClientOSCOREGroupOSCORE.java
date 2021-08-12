@@ -350,7 +350,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     public static void testSuccessGroupOSCORESingleRole() throws Exception {
 
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
         boolean askForPubKeys = true;
         boolean providePublicKey = true;
         
@@ -390,8 +389,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes,
-                askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
+                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes, askForSignInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         
         printResponseFromRS(rsRes);
@@ -437,10 +435,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -466,10 +464,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -775,7 +773,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     public static void testSuccessGroupOSCOREMultipleRoles() throws Exception {
 
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
         boolean askForPubKeys = true;
         boolean providePublicKey = true;
         
@@ -816,8 +813,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         asRes.setPayload(payload.EncodeToBytes());
         
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes,
-                askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
+                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info", asRes, askForSignInfo, ctxDB, usedRecipientIds);
         
         printResponseFromRS(rsRes);
         
@@ -862,10 +858,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -891,10 +887,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 

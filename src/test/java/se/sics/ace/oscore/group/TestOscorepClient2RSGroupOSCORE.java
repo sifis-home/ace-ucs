@@ -299,7 +299,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     public void testSuccessGroupOSCORESingleRole() throws Exception {
 
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
         boolean askForPubKeys = true;
         boolean providePublicKey = true;
         
@@ -346,7 +345,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
+                "coap://localhost/authz-info", asRes, askForSignInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         
@@ -393,7 +392,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -1497,8 +1496,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Normally, a client understands that the Token is indeed for updating access rights,
         // since the response from the AS does not include the 'cnf' parameter.
         CoapResponse rsRes2 = OSCOREProfileRequestsGroupOSCORE.
-        						postTokenUpdate("coap://localhost/authz-info", asRes,
-        										askForSignInfo, askForPubKeyEnc, ctxDB);
+        						postTokenUpdate("coap://localhost/authz-info", asRes, askForSignInfo, ctxDB);
         assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
         
         Assert.assertNotNull(ctxDB.getContext(
@@ -1544,7 +1542,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -1872,7 +1870,6 @@ public class TestOscorepClient2RSGroupOSCORE {
     public void testSuccessGroupOSCOREMultipleRoles() throws Exception {
 
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
         boolean askForPubKeys = true;
         boolean providePublicKey = true;
         
@@ -1920,7 +1917,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://localhost/authz-info", asRes, askForSignInfo, askForPubKeyEnc, ctxDB, usedRecipientIds);
+                "coap://localhost/authz-info", asRes, askForSignInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
         
@@ -1966,7 +1963,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();

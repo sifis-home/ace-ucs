@@ -290,7 +290,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
@@ -324,7 +323,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
@@ -373,7 +372,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -1411,7 +1410,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -1446,7 +1444,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
@@ -1495,7 +1493,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -2656,7 +2654,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -2686,7 +2683,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
@@ -2735,7 +2732,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -3762,7 +3759,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -3793,7 +3789,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
@@ -3842,7 +3838,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -5134,7 +5130,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
         boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -5164,7 +5159,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
@@ -5213,7 +5208,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -6263,7 +6258,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token2.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
  	    // Posting the Token through an OSCORE-protected request
@@ -6314,7 +6309,7 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -6638,7 +6633,6 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
@@ -6669,7 +6663,7 @@ public class TestDtlspClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrC, payload, null);
@@ -6718,7 +6712,7 @@ public class TestDtlspClientGroupOSCORE {
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();

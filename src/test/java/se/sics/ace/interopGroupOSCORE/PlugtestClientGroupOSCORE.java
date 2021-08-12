@@ -1066,7 +1066,6 @@ public class PlugtestClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {
         Map<Short, CBORObject> params = new HashMap<>();
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -1095,7 +1094,7 @@ public class PlugtestClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
@@ -1150,10 +1149,10 @@ public class PlugtestClientGroupOSCORE {
         	signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        final CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -1179,10 +1178,10 @@ public class PlugtestClientGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -1478,7 +1477,6 @@ public class PlugtestClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException, Exception {
         Map<Short, CBORObject> params = new HashMap<>();
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -1508,7 +1506,7 @@ public class PlugtestClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
@@ -1562,10 +1560,10 @@ public class PlugtestClientGroupOSCORE {
         	signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        final CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -1591,10 +1589,10 @@ public class PlugtestClientGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -1887,7 +1885,6 @@ public class PlugtestClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
         boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -1916,7 +1913,7 @@ public class PlugtestClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
@@ -1971,10 +1968,10 @@ public class PlugtestClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        final CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -2000,10 +1997,10 @@ public class PlugtestClientGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
@@ -2298,7 +2295,6 @@ public class PlugtestClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
-    	boolean askForPubKeyEnc = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
@@ -2328,7 +2324,7 @@ public class PlugtestClientGroupOSCORE {
         // The payload is a CBOR including also the Access Token
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx1));
-        if (askForSignInfo || askForPubKeyEnc)
+        if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
         rsAuthzInfo =  "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info";
@@ -2383,10 +2379,10 @@ public class PlugtestClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        final CBORObject signKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
         /*
-        if (askForSignInfo || askForPubKeyEnc) {
+        if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
             Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType());
             signInfo = CBORObject.NewArray();
@@ -2412,10 +2408,10 @@ public class PlugtestClientGroupOSCORE {
 	    	else
 	    		signInfoEntry.Add(signKeyParamsExpected);
         	
-        	if (signKeyEncExpected == null)
+        	if (pubKeyEncExpected == null)
         		signInfoEntry.Add(CBORObject.Null);
         	else
-        		signInfoEntry.Add(signKeyEncExpected);
+        		signInfoEntry.Add(pubKeyEncExpected);
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
