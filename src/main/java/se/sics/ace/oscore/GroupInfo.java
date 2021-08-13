@@ -150,6 +150,8 @@ public class GroupInfo {
 	 * @param ecdhAlg             the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
 	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
 	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
+	 * @param ecdhParams          the asymmetric key pair of the Group Manager
+	 * @param groupPolicies		  the public key of the Group Manager, according to the format used in the group
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,

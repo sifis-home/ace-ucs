@@ -39,6 +39,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
@@ -111,16 +112,17 @@ public class TestDtlspClientGroupOSCORE {
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
     private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
     
-    // Uncomment to set curve X25519 for pairwise key derivation
-    private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
-
     // Uncomment to set curve P-256 for pairwise key derivation
     // private static int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    
+    // Uncomment to set curve X25519 for pairwise key derivation
+    private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
     
     private static String groupKeyPair;
     private static String groupKeyPairUpdate;
     private static String strPublicKeyPeer1;
     private static String strPublicKeyPeer2;
+    private static String gmPublicKeyStr;
     
     private static String rsAddrC;
     private static String rsAddrCS;
@@ -198,6 +200,9 @@ public class TestDtlspClientGroupOSCORE {
     	    // Public key to be received for the group member with Sender ID 0x77 (ECDSA_256)
     	    strPublicKeyPeer2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     		
+    	    // Public key of the Group Manager (ECDSA_256)
+    	    gmPublicKeyStr = "pQMmAQIgASFYICI2ZYymdbti17JGI9sEU6O5BTO3w7IhzBwsc8TpGdVAIlggdwkWvEyXw8RmBPQwsGFwx7PWBiYzdWYowxGA+ju2Whs=";
+    	    
     	}
 
     	// EDDSA asymmetric keys
@@ -215,6 +220,9 @@ public class TestDtlspClientGroupOSCORE {
     	    // Public key to be received for the group member with Sender ID 0x77 (EDDSA - Ed25519)
     	    strPublicKeyPeer2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
     		
+    	    // Public key of the Group Manager (EDDSA - Ed25519)
+    	    gmPublicKeyStr = "pAMnAQEgBiFYIMbsZl6Be9BkNA58JLuToR6OwHNc5IeQ+cRY9/o0C4yj";
+    	    
     	}
     	
     }
@@ -774,6 +782,28 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
         
         /////////////////
@@ -1953,7 +1983,29 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
-         
+        
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
         
         /////////////////
         //
@@ -3262,6 +3314,29 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());        
         
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
+        
 		/////////////////
 		//
 		// Part 2
@@ -4437,6 +4512,28 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
         
         /////////////////
@@ -5881,6 +5978,29 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
         
         
         /////////////////
@@ -7460,6 +7580,28 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
     
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+                                    joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+
+        byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+
+        CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+
+        CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+
+        Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
         
         /////////////////
         //

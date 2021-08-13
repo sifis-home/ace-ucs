@@ -38,6 +38,7 @@ import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
@@ -820,6 +821,7 @@ public class PlugtestRSGroupOSCORE {
         	
         	String nodeName = null;
         	byte[] senderId = null;
+		    int signKeyCurve = 0;
         	        	
         	// Assign a Sender ID to the joining node, unless it is a monitor
         	if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
@@ -984,7 +986,6 @@ public class PlugtestRSGroupOSCORE {
 
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
-    			    int signKeyCurve = 0;
 
     			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
     			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
@@ -1196,6 +1197,34 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Group Policies
         	joinResponse.Add(Constants.GROUP_POLICIES, myGroup.getGroupPolicies());
+        	
+        	
+        	// Public key of the Group Manager together with proof-of-possession evidence
+        	byte[] kdcNonce = new byte[8];
+        	new SecureRandom().nextBytes(kdcNonce);
+        	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
+
+        	OneKey publicKey = targetedGroup.getGmPublicKey();
+        	joinResponse.Add(Constants.KDC_CRED, publicKey.AsCBOR().EncodeToBytes());
+
+        	PrivateKey gmPrivKey;
+        	try {
+        	    gmPrivKey = targetedGroup.getGmKeyPair().AsPrivateKey();
+        	} catch (CoseException e) {
+        	    System.err.println("Error when computing the GM PoP evidence " + e.getMessage());
+        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+        	    return;
+        	}
+        	byte[] gmSignature = Util.computeSignature(signKeyCurve,gmPrivKey, kdcNonce);
+
+        	if (gmSignature != null) {
+        	    joinResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
+        	}
+        	else {
+        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+        	    return;
+        	}
+        	
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
         	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
@@ -2697,9 +2726,15 @@ public class PlugtestRSGroupOSCORE {
 
   	    // Uncomment to set ECDSA with curve P-256 for countersignatures
   	    // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
-
+  	    
   	    // Uncomment to set EDDSA with curve Ed25519 for countersignatures
   	    int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+  	    
+  	    // Uncomment to set curve P-256 for pairwise key derivation
+  	    // int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+  	    
+  	    // Uncomment to set curve X25519 for pairwise key derivation
+  	    int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
 
     	/*
     	// Generate a pair of asymmetric keys and print them in base 64 (whole version, then public only)

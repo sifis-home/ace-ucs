@@ -38,11 +38,13 @@ import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
+import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -115,6 +117,11 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // Public key of the a client already in the OSCORE group, with Sender ID 'idClient3' (ECDSA_256)
     private static String c3X_ECDSA = "9DFA6D63FD1515761460B7B02D54F8D7345819D2E5576C160D3148CC7886D5F1";
     private static String c3Y_ECDSA = "76C81A0C1A872F1730C10317AB4F3616238FB23A08719E8B982B2D9321A2EF7D";
+    
+    // Public key of the Group Manager (ECDSA_256)
+    private static String gmX_ECDSA = "2236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540";
+    private static String gmY_ECDSA = "770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B";
+
     /* */
     /* */
     
@@ -130,12 +137,16 @@ public class PlugtestClientOSCOREGroupOSCORE {
     
     // Public key of the a client already in the OSCORE group, with Sender ID 'idClient3' (Ed25519)
     private static String c3X_EDDSA = "105B8C6A8C88019BF0C354592934130BAA8007399CC2AC3BE845884613D5BA2E";
+    
+    // Public key of the Group Manager (Ed25519)
+    private static String gmX_EDDSA = "C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3";
     /* */
     /* */
     
     private static OneKey C1keyPair = null;
     private static OneKey C2pubKey = null;
     private static OneKey C3pubKey = null;
+    private static OneKey gmPubKey = null;
     
     /* END LIST OF KEYS */
     
@@ -164,11 +175,11 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
     private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
     
-    // Uncomment to set curve X25519 for pairwise key derivation
-    private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
-    
     // Uncomment to set curve P-256 for pairwise key derivation
     // private static int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    
+    // Uncomment to set curve X25519 for pairwise key derivation
+    private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
     
     /**
      * @param args
@@ -226,7 +237,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             C1keyPair = new OneKey(rpkData);
     	}
         
-        // Setup the public key of the group members
+        // Setup the public key of the group members and of the Group Manager
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
@@ -248,9 +259,20 @@ public class PlugtestClientOSCOREGroupOSCORE {
             y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3Y_ECDSA));
             rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
             rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
-            C3pubKey = new OneKey(rpkData);            
+            C3pubKey = new OneKey(rpkData);     
+            
+            rpkData = CBORObject.NewMap();
+            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                    AlgorithmID.ECDSA_256.AsCBOR());
+            rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
+            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_ECDSA));
+            y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmY_ECDSA));
+            rpkData.Add(KeyKeys.EC2_X.AsCBOR(), x);
+            rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
+            gmPubKey = new OneKey(rpkData); 
        	}
-    	// EDDSA (Ed25519)
+    	// EDDSA (Ed25519) and of the Group Manager
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
@@ -269,6 +291,15 @@ public class PlugtestClientOSCOREGroupOSCORE {
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3X_EDDSA));
             rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
             C3pubKey = new OneKey(rpkData);
+            
+            rpkData = CBORObject.NewMap();
+            rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
+                    AlgorithmID.EDDSA.AsCBOR());
+            rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+            x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_EDDSA));
+            rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
+            gmPubKey = new OneKey(rpkData);
     	}
         
         int testcase = Integer.parseInt(args[0]);
@@ -652,7 +683,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         printResponseFromRS(r2.advanced());
        
-        /*
+        
         Assert.assertEquals("CREATED", r2.getCode().name());
        
         byte[] responsePayload = r2.getPayload();
@@ -660,6 +691,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
        
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
        
+        /*
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
         // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
@@ -836,8 +868,34 @@ public class PlugtestClientOSCOREGroupOSCORE {
 		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
-		*/
 		
+
+	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+	    Assert.assertArrayEquals(gmPubKey.AsCBOR().EncodeToBytes(),
+	                             joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+		*/
+	    
+	    
+	    // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+	    byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+	    CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+	    byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+	
+	    CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+	    CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+	    PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+	
+        // Invalid Client's PoP signature
+        if (!Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence)) {
+        	Assert.fail("Invalid GM's PoP evidence");
+        }
+        
     }
     
     // === Case 2 ===
@@ -1141,7 +1199,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         printResponseFromRS(r2.advanced());
         
-        /*
+
         Assert.assertEquals("CREATED", r2.getCode().name());
        
         byte[] responsePayload = r2.getPayload();
@@ -1149,6 +1207,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
        
         Assert.assertEquals(CBORType.Map, joinResponse.getType());
        
+        
+        /*
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
         // Assume that "Group_OSCORE_Input_Material object" is registered with value 0 in the "ACE Groupcomm Key" Registry of draft-ietf-ace-key-groupcomm
@@ -1325,7 +1385,33 @@ public class PlugtestClientOSCOREGroupOSCORE {
 		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_POLICIES)));
         Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
+        
+        
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+		Assert.assertArrayEquals(gmPubKey.AsCBOR().EncodeToBytes(),
+		                            joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
         */
+        
+        
+	    // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+	    byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+	    CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+	    byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
+	
+	    CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+	    CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+	    PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+	
+        // Invalid Client's PoP signature
+        if (!Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence)) {
+        	Assert.fail("Invalid GM's PoP evidence");
+        }
 
     }
     

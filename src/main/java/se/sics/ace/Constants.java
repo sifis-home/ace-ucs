@@ -985,9 +985,24 @@ public class Constants {
      public static final short PEER_IDENTIFIERS = 210;
      
      /**
+      * Value for the label "kdc_nonce" in the Join Response message
+      */
+     public static final short KDC_NONCE = 211;
+     
+     /**
+      * Value for the label "kdc_cred" in the Join Response message
+      */
+     public static final short KDC_CRED = 212;
+     
+     /**
+      * Value for the label "kdc_cred_verify" in the Join Response message
+      */
+     public static final short KDC_CRED_VERIFY = 213;
+     
+     /**
       * Value for the label "group_senderId" in the Key Renewal Response message
       */
-     public static final short GROUP_SENDER_ID = 211;
+     public static final short GROUP_SENDER_ID = 214;
      
      /**
       * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
