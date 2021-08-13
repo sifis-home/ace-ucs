@@ -42,6 +42,7 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.AlgorithmID;
+import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Util;
 import se.sics.ace.Constants;
@@ -123,6 +124,9 @@ public class GroupInfo {
 	private int version; // Version of the current symmetric keying material
 	private boolean status; // True if the group is currently active, false otherwise
 	
+	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a COSE key
+	private OneKey gmPublicKey; // The public key of the Group Manager, according to the format used in the group
+	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
 	 * 
@@ -166,7 +170,9 @@ public class GroupInfo {
     		         final AlgorithmID alg,
     		         final AlgorithmID ecdhAlg,
     		         final CBORObject ecdhParams,
-    		         final CBORObject groupPolicies) {
+    		         final CBORObject groupPolicies,
+    		         final OneKey gmKeyPair,
+    		         final OneKey gmPublicKey) {
     	
     	this.version = 0;
     	this.status = false;
@@ -238,6 +244,9 @@ public class GroupInfo {
         	this.groupPolicies = defaultGroupPolicies;
     	}
     	
+    	this.gmKeyPair = gmKeyPair;
+    	this.gmPublicKey = gmPublicKey;
+    	
     }
     
     /** Retrieve the mode(s) of operation used in the group
@@ -267,6 +276,46 @@ public class GroupInfo {
     synchronized public void setStatus(final boolean status) {
     	
     	this.status = status;
+    	
+    }
+    
+    /** Retrieve the asymmetric key pair of the Group Manager
+     * 
+     * @return  The asymmetric key pair of the Group Manager
+     */
+    synchronized public final OneKey getGmKeyPair() {
+    	
+    	return this.gmKeyPair;
+    	
+    }
+    
+    /** 
+     * Set the asymmetric key pair of the Group Manager
+     * @param The new asymmetric key pair of the Group Manager
+     */
+    synchronized public void setGmKeyPair(OneKey gmKeyPair) {
+    	
+    	this.gmKeyPair = gmKeyPair;
+    	
+    }
+    
+    /** Retrieve the public key of the Group Manager
+     * 
+     * @return  The public key of the Group Manager
+     */
+    synchronized public final OneKey getGmPublicKey() {
+    	
+    	return this.gmPublicKey;
+    	
+    }
+    
+    /** 
+     * Set the public key of the Group Manager
+     * @param The new public key of the Group Manager
+     */
+    synchronized public void setGmPublicKey(OneKey gmPublicKey) {
+    	
+    	this.gmPublicKey = gmPublicKey;
     	
     }
     

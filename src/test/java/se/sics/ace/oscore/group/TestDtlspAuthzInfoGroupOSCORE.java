@@ -218,6 +218,27 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
+    	// Set the asymmetric key pair and public key of the Group Manager
+    	String gmKeyPairStr = "";
+    	String gmPublicKeyStr = "";
+    	OneKey gmKeyPair = null;
+    	OneKey gmPublicKey = null;
+
+    	// Store the asymmetric key pair and public key of the Group Manager (ECDSA_256)
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+    	    gmKeyPairStr = "pgMmAQIgASFYICI2ZYymdbti17JGI9sEU6O5BTO3w7IhzBwsc8TpGdVAIlggdwkWvEyXw8RmBPQwsGFwx7PWBiYzdWYowxGA+ju2WhsjWCBKe4RKTJfvke0jKqVkydXTc/IJlkf56b0/5kF6DQ+RrQ==";
+    	    gmPublicKeyStr = "pQMmAQIgASFYICI2ZYymdbti17JGI9sEU6O5BTO3w7IhzBwsc8TpGdVAIlggdwkWvEyXw8RmBPQwsGFwx7PWBiYzdWYowxGA+ju2Whs=";
+    	}
+    	    
+    	// Store the asymmetric key pair and public key of the Group Manager (EDDSA - Ed25519)
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+    	    gmKeyPairStr = "pQMnAQEgBiFYIMbsZl6Be9BkNA58JLuToR6OwHNc5IeQ+cRY9/o0C4yjI1gg0KLOEbK6YUsEiQO3JjjvSjsK9W4aYMb7Zwawwa2KFPs=";
+    	    gmPublicKeyStr = "pAMnAQEgBiFYIMbsZl6Be9BkNA58JLuToR6OwHNc5IeQ+cRY9/o0C4yj";
+    	}
+
+    	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmKeyPairStr)));
+    	gmPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	
     	GroupInfo myGroup = new GroupInfo(groupName,
 						                  masterSecret,
 						                  masterSalt,
@@ -237,7 +258,9 @@ public class TestDtlspAuthzInfoGroupOSCORE {
 						                  null,
 						                  null,
 						                  null,
-						                  null);
+    			                          null,
+    			                          gmKeyPair,
+    			                          gmPublicKey);
         
     	// Add this OSCORE group to the set of active OSCORE groups
     	activeGroups.put(groupName, myGroup);
