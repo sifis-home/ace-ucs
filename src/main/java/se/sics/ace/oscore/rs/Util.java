@@ -1,18 +1,14 @@
 package se.sics.ace.oscore.rs;
 
-/**
- * FIXME
- *
- */
+
 public class Util {
 
     /**
-     * FIXME
-     * @param str FIXME
-     * @return FIXME
-     * @str   the hexadecimal string to be converted into a byte array
+     * Convert a hexadecimal string into a byte array
      * 
-     * Return the byte array representation of the original string
+     * @param str   the hexadecimal string to be converted into a byte array
+     * @return   the byte array resulting from the conversion
+     * 
      */
     public static byte[] hexStringToByteArray(final String str) {
         int len = str.length();

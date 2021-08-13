@@ -79,6 +79,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.TestConfig;
+import se.sics.ace.Util;
 import se.sics.ace.coap.client.DTLSProfileRequests;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -603,7 +604,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
             
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -1333,7 +1334,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -1787,7 +1788,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
             
-        	byte[] clientSignature = computeSignature(privKey, dataToSign);
+        	byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         	if (clientSignature != null)
         	    requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -2528,7 +2529,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -3095,7 +3096,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
             
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -3817,7 +3818,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -4271,7 +4272,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
        	   
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -5013,7 +5014,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -5715,7 +5716,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -6440,7 +6441,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -6801,7 +6802,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-       	    clientSignature = computeSignature(privKey, dataToSign);
+       	    clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -7288,7 +7289,7 @@ public class TestDtlspClientGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
             
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -8035,7 +8036,7 @@ public class TestDtlspClientGroupOSCORE {
         offset += serializedGMNonceCBOR.length;
         System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
 
-        byte[] clientSignature = computeSignature(privKey, dataToSign);
+        byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
 
         if (clientSignature != null)
             requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -8287,64 +8288,6 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals("METHOD_NOT_ALLOWED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
-    }
-    
-    /**
-     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
-     * 
-     * @param privKey  private key used to sign
-     * @param dataToSign  content to sign
-     * @return The computed signature
-     
-     */
-    public byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {
-
-        Signature mySignature = null;
-        byte[] clientSignature = null;
-
-        try {
-     	   if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-   	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
-     	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-      			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
-     	   else {
-     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-     		  Assert.fail("Unsupported signature algorithm");
-     	   }
-            
-        }
-        catch (NoSuchAlgorithmException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsupported signature algorithm");
-        }
-        catch (NoSuchProviderException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsopported security provider for signature computing");
-        }
-        
-        try {
-            if (mySignature != null)
-                mySignature.initSign(privKey);
-            else
-                Assert.fail("Signature algorithm has not been initialized");
-        }
-        catch (InvalidKeyException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Invalid key excpetion - Invalid private key");
-        }
-        
-        try {
-        	if (mySignature != null) {
-	            mySignature.update(dataToSign);
-	            clientSignature = mySignature.sign();
-        	}
-        } catch (SignatureException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Failed signature computation");
-        }
-        
-        return clientSignature;
-        
     }
     
 }

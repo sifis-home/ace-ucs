@@ -980,9 +980,14 @@ public class Constants {
      public static final short PEER_ROLES = 209;
      
      /**
+      * Value for the label "peer_identifiers" in the Join Response message
+      */
+     public static final short PEER_IDENTIFIERS = 210;
+     
+     /**
       * Value for the label "group_senderId" in the Key Renewal Response message
       */
-     public static final short GROUP_SENDER_ID = 210;
+     public static final short GROUP_SENDER_ID = 211;
      
      /**
       * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message

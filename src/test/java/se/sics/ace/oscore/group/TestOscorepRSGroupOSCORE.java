@@ -1107,7 +1107,7 @@ public class TestOscorepRSGroupOSCORE {
         				
         		}
         		
-        		// Retrieve the proof-of-possession nonce and signature from the Client
+        		// Retrieve the proof-of-possession nonce and evidence from the Client
         		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
             	
         		// A client nonce must be included for proof-of-possession for joining OSCORE groups
@@ -1124,70 +1124,76 @@ public class TestOscorepRSGroupOSCORE {
             		return;
                 }
             	        		
-        		// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
-            	CBORObject clientSignature = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+        		// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
+            	CBORObject clientPopEvidence = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
-            	// A client signature must be included for proof-of-possession for joining OSCORE groups
-            	if (clientSignature == null) {
+            	// A client PoP evidence must be included
+            	if (clientPopEvidence == null) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
             	}
 
-            	// The client signature must be wrapped in a binary string for joining OSCORE groups
-            	if (!clientSignature.getType().equals(CBORType.ByteString)) {
+            	// The client PoP evidence must be wrapped in a binary string
+            	if (!clientPopEvidence.getType().equals(CBORType.ByteString)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
             	
-            	byte[] rawClientSignature = clientSignature.GetByteString();
+            	byte[] rawClientPopEvidence = clientPopEvidence.GetByteString();
         		
             	PublicKey pubKey = null;
                 try {
 					pubKey = publicKey.AsPublicKey();
 				} catch (CoseException e) {
 					System.out.println(e.getMessage());
-					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
             		return;
 				}
                 if (pubKey == null) {
-                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
             		return;
                 }
 
                 int offset = 0;
                 
-                byte[] serializedScopeCBOR = scope.EncodeToBytes();
+                byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
                 byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
                 byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
-           	    byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
-           	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
-           	    offset += serializedScopeCBOR.length;
-           	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
-           	    offset += serializedGMNonceCBOR.length;
-           	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
-                
-            	
-           	    int signKeyCurve = 0;
-           	    
-           	    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-					signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-           	    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-					signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
-           	    
-           	    // This should never happen, due to the previous sanity checks
-           	    if (signKeyCurve == 0) {
-           	    	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
-            		return;
-           	    }
-           	    
-           	    // Invalid Client's PoP signature
-           	    if (!verifySignature(signKeyCurve, pubKey, dataToSign, rawClientSignature)) {
-            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-            		return;
-           	    }
+                byte[] popInput = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+                System.arraycopy(serializedScopeCBOR, 0, popInput, offset, serializedScopeCBOR.length);
+                offset += serializedScopeCBOR.length;
+                System.arraycopy(serializedGMNonceCBOR, 0, popInput, offset, serializedGMNonceCBOR.length);
+                offset += serializedGMNonceCBOR.length;
+                System.arraycopy(serializedCNonceCBOR, 0, popInput, offset, serializedCNonceCBOR.length);
+
+                // The group mode is used. The PoP evidence is a signature
+                if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+                    int signKeyCurve = 0;
+
+                    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+                        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+                    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+                        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+
+                    // This should never happen, due to the previous sanity checks
+                    if (signKeyCurve == 0) {
+                        exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+                        return;
+                    }
+
+                    // Invalid Client's PoP signature
+                    if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
+                    	byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
+                    	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+                        return;
+                    }
+                }
+                // Only the pairwise mode is used. The PoP evidence is a MAC
+                else {
+                    // TODO
+                }
         		
             	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
@@ -2559,33 +2565,33 @@ public class TestOscorepRSGroupOSCORE {
 
 			
 			
-			// Check the proof-of-possession signature over (scope | rsnonce | cnonce), using the Client's public key
-			CBORObject clientSignature = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+			// Check the PoP evidence over (scope | rsnonce | cnonce), using the Client's public key
+			CBORObject clientPopEvidence = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
 
-			// A client signature must be included for proof-of-possession
-			if (clientSignature == null) {
+			// A client PoP evidence must be included
+			if (clientPopEvidence == null) {
 			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' cannot be Null");
 			    return;
 			}
 
-			// The client signature must be wrapped in a binary string for joining OSCORE groups
-			if (!clientSignature.getType().equals(CBORType.ByteString)) {
+			// The client PoP evidence must be wrapped in a binary string for joining OSCORE groups
+			if (!clientPopEvidence.getType().equals(CBORType.ByteString)) {
 			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' must be a CBOR byte string");
 			    return;
 			}
 
-			byte[] rawClientSignature = clientSignature.GetByteString();
+			byte[] rawClientPopEvidence = clientPopEvidence.GetByteString();
         	
 			PublicKey pubKey = null;
 			try {
 			    pubKey = publicKey.AsPublicKey();
 			} catch (CoseException e) {
 			    System.out.println(e.getMessage());
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
 			    return;
 			}
 			if (pubKey == null) {
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP signature");
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
 			    return;
 			}
 
@@ -2616,31 +2622,39 @@ public class TestOscorepRSGroupOSCORE {
 			byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
 			byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
 			byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
-			byte[] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
-			System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
+			byte[] popInput = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+			System.arraycopy(serializedScopeCBOR, 0, popInput, offset, serializedScopeCBOR.length);
 			offset += serializedScopeCBOR.length;
-			System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
+			System.arraycopy(serializedGMNonceCBOR, 0, popInput, offset, serializedGMNonceCBOR.length);
 			offset += serializedGMNonceCBOR.length;
-			System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
+			System.arraycopy(serializedCNonceCBOR, 0, popInput, offset, serializedCNonceCBOR.length);
 			
-			int signKeyCurve = 0;
-
-			if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-			else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
-
-			// This should never happen, due to the previous sanity checks
-			if (signKeyCurve == 0) {
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
-			    return;
+			// The group mode is used. The PoP evidence is a signature
+			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+				int signKeyCurve = 0;
+	
+				if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+				    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+				else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+				    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+	
+				// This should never happen, due to the previous sanity checks
+				if (signKeyCurve == 0) {
+				    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+				    return;
+				}
+	
+				// Invalid Client's PoP signature
+				if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid PoP MAC");
+	        		return;
+				}
 			}
-
-			// Invalid Client's PoP signature
-			if (!verifySignature(signKeyCurve, pubKey, dataToSign, rawClientSignature)) {
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
-        		return;
+			// Only the pairwise mode is used. The PoP evidence is a MAC
+			else {
+				// TODO
 			}
+			
 			
 			byte[] senderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
 			
@@ -2998,63 +3012,5 @@ public class TestOscorepRSGroupOSCORE {
     	}
     	
     }
-    
-    /**
-     * Verify the correctness of a digital signature
-     * 
-     * @param signKeyCurve   Elliptic curve used to process the signature, encoded as in RFC 8152
-     * @param pubKey   Public key of the signer, used to verify the signature
-     * @param signedData   Data over which the signature has been computed
-     * @param expectedSignature   Signature to verify
-     * @return True if the signature verifies correctly, false otherwise
-     */
-    public static boolean verifySignature(int signKeyCurve, PublicKey pubKey, byte[] signedData, byte[] expectedSignature) {
 
-        Signature mySignature = null;
-        boolean success = false;
-        
-        try {
-           if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-                    mySignature = Signature.getInstance("SHA256withECDSA");
-           else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-                mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
-           else {
-               // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-              Assert.fail("Unsupported signature algorithm");
-           }
-             
-         }
-         catch (NoSuchAlgorithmException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Unsupported signature algorithm");
-         }
-         catch (NoSuchProviderException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Unsopported security provider for signature computing");
-         }
-         
-         try {
-             if (mySignature != null)
-                 mySignature.initVerify(pubKey);
-             else
-                 Assert.fail("Signature algorithm has not been initialized");
-         }
-         catch (InvalidKeyException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Invalid key excpetion - Invalid public key");
-         }
-         
-         try {
-             if (mySignature != null) {
-                 mySignature.update(signedData);
-                 success = mySignature.verify(expectedSignature);
-             }
-         } catch (SignatureException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Failed signature verification");
-         }
-         
-         return success;
-
-    }
 }

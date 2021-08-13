@@ -624,7 +624,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
        	    offset += serializedGMSignNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
                    	   
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -1113,7 +1113,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
        	    offset += serializedGMNonceCBOR.length;
        	    System.arraycopy(serializedCNonceCBOR, 0, dataToSign, offset, serializedCNonceCBOR.length);
                    	   
-       	    byte[] clientSignature = computeSignature(privKey, dataToSign);
+       	    byte[] clientSignature = Util.computeSignature(signKeyCurve, privKey, dataToSign);
             
             if (clientSignature != null)
             	requestPayload.Add(Constants.CLIENT_CRED_VERIFY, clientSignature);
@@ -1330,63 +1330,5 @@ public class PlugtestClientOSCOREGroupOSCORE {
     }
     
     // End tests with the Group Manager
-    
-    /**
-     * Compute a signature, using the same algorithm and private key used in the OSCORE group to join
-     * 
-     * @param privKey  private key used to sign
-     * @param dataToSign  content to sign
-     * @return The computed signature
-     
-     */
-    public static byte[] computeSignature(PrivateKey privKey, byte[] dataToSign) {
-
-        Signature mySignature = null;
-        byte[] clientSignature = null;
-
-        try {
-     	   if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-   	   	   		mySignature = Signature.getInstance("SHA256withECDSA");
-     	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-      			mySignature = Signature.getInstance("NonewithEdDSA", "EdDSA");
-     	   else {
-     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-     		  Assert.fail("Unsupported signature algorithm");
-     	   }
-            
-        }
-        catch (NoSuchAlgorithmException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsupported signature algorithm");
-        }
-        catch (NoSuchProviderException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsopported security provider for signature computing");
-        }
-        
-        try {
-            if (mySignature != null)
-                mySignature.initSign(privKey);
-            else
-                Assert.fail("Signature algorithm has not been initialized");
-        }
-        catch (InvalidKeyException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Invalid key excpetion - Invalid private key");
-        }
-        
-        try {
-        	if (mySignature != null) {
-	            mySignature.update(dataToSign);
-	            clientSignature = mySignature.sign();
-        	}
-        } catch (SignatureException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Failed signature computation");
-        }
-        
-        return clientSignature;
-        
-    }
     
 }
