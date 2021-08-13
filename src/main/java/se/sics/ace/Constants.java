@@ -945,49 +945,59 @@ public class Constants {
      public static final short ACE_GROUPCOMM_PROFILE = 38;
      
      /**
-      * Value for the label "sign_info" in the Token POST request/response and in the Join Response message
+      * Value for the label "sign_info" in the Token POST request/response and in the error response to the Join Request
       */
      public static final short SIGN_INFO = 203;
      
      /**
+      * Value for the label "ecdh_info" in the Token POST request/response and in the error response to the Join Request
+      */
+     public static final short ECDH_INFO = 204;
+     
+     /**
+      * Value for the label "gm_dh_pub_keys" in the Token POST request/response and in the error response to the Join Request
+      */
+     public static final short GM_DH_PUB_KEYS = 205;
+     
+     /**
       * Value for the label "kdcchallenge" in the Token POST response
       */
-     public static final short KDCCHALLENGE = 205;
+     public static final short KDCCHALLENGE = 206;
      
      /**
       * Value for the label "num" in the Join Response message
       */
-     public static final short NUM = 206;
+     public static final short NUM = 207;
      
      /**
       * Value for the label "group_policies" in the Join Response message
       */
-     public static final short GROUP_POLICIES = 207;
+     public static final short GROUP_POLICIES = 208;
      
      /**
       * Value for the label "peer_roles" in the Join Response message
       */
-     public static final short PEER_ROLES = 208;
+     public static final short PEER_ROLES = 209;
      
      /**
       * Value for the label "group_senderId" in the Key Renewal Response message
       */
-     public static final short GROUP_SENDER_ID = 209;
+     public static final short GROUP_SENDER_ID = 210;
      
      /**
       * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
       */
-     public static final short GID = 210;
+     public static final short GID = 211;
      
      /**
       * Value for the label "gname" in the Group Name and URI Retrieval Response message
       */
-     public static final short GNAME = 211;
+     public static final short GNAME = 212;
      
      /**
       * Value for the label "guri" in the Group Name and URI Retrieval Response message
       */
-     public static final short GURI = 212;
+     public static final short GURI = 213;
      
      
      /**

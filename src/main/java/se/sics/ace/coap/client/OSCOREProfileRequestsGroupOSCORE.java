@@ -139,7 +139,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo,
+    public static Response postToken(String rsAddr, Response asResp, boolean askForSignInfo, boolean askForEcdhInfo,
     		                         OSCoreCtxDB db, List<Set<Integer>> usedRecipientIds) 
             throws AceException, OSException {
         if (asResp == null) {
@@ -179,6 +179,9 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
+        
+        if (askForEcdhInfo)
+        	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
         
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
@@ -295,13 +298,20 @@ public class OSCOREProfileRequestsGroupOSCORE {
         
         if (askForSignInfo) {
         	
-        	if (!rsPayload.getType().equals(CBORType.Map)) {
-        		throw new AceException("RS didn't respond with a CBOR map");
-        	}
-        	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
+        	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) &&
+        		rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
         			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
-                	throw new AceException("Missing or malformed sign_info in the RS response, although requested");
+                	throw new AceException("Malformed sign_info in the RS response");
+        	}
+
+        }
+        
+        if (askForEcdhInfo) {
+        	
+        	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)) &&
+        		rsPayload.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType() != CBORType.Array) {
+        			usedRecipientIds.get(recipientId.length - 1).remove(recipientIdAsInt);
+                	throw new AceException("Malformed ecdh_info in the RS response");
         	}
 
         }
@@ -380,8 +390,8 @@ public class OSCOREProfileRequestsGroupOSCORE {
      * @throws AceException 
      * @throws OSException 
      */
-    public static CoapResponse postTokenUpdate(String rsAddr, Response asResp,
-    										   boolean askForSignInfo, OSCoreCtxDB db) throws AceException, OSException {
+    public static CoapResponse postTokenUpdate(String rsAddr, Response asResp, boolean askForSignInfo,
+    										   boolean askForEcdhInfo, OSCoreCtxDB db) throws AceException, OSException {
         if (asResp == null) {
             throw new AceException("asResp cannot be null when POSTing to authz-info");
         }
@@ -413,6 +423,9 @@ public class OSCOREProfileRequestsGroupOSCORE {
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
         
+        if (askForEcdhInfo)
+        	payload.Add(Constants.ECDH_INFO, CBORObject.Null);
+        
     	CoapResponse resp = null;
 
     	// The Token has to be posted through an OSCORE-protected request
@@ -434,22 +447,31 @@ public class OSCOREProfileRequestsGroupOSCORE {
             throw new AceException("RS did not respond");
         }
         
+        CBORObject rsPayload;
+        try {
+            rsPayload = CBORObject.DecodeFromBytes(resp.getPayload());
+        } catch (CBORException e) {
+            throw new AceException("Error parsing CBOR payload: " + e.getMessage());
+        }
+        
+        if (!rsPayload.getType().equals(CBORType.Map)) {
+            throw new AceException("RS didn't respond with a CBOR map");
+        }
+        
         if (askForSignInfo) {
+        	        	
+        	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) &&
+        		rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
+                	throw new AceException("Malformed sign_info in the RS response");
+        	}
+
+        }
+        
+        if (askForEcdhInfo) {
         	
-            CBORObject rsPayload;
-            try {
-                rsPayload = CBORObject.DecodeFromBytes(resp.getPayload());
-            } catch (CBORException e) {
-                throw new AceException("Error parsing CBOR payload: " + e.getMessage());
-            }
-            
-            if (!rsPayload.getType().equals(CBORType.Map)) {
-                throw new AceException("RS didn't respond with a CBOR map");
-            }
-        	
-        	if (!rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)) ||
-        		 rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO)).getType() != CBORType.Array) {
-                	throw new AceException("Missing or malformed sign_info in the RS response, although requested");
+        	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)) &&
+        		rsPayload.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType() != CBORType.Array) {
+                	throw new AceException("Malformed ecdh_info in the RS response");
         	}
 
         }

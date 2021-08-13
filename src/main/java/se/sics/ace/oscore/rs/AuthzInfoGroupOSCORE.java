@@ -132,6 +132,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject token = null;
 	    CBORObject cbor = null;
 	    boolean provideSignInfo = false;
+	    boolean provideEcdhInfo = false;
 	    boolean invalid = false;
 	    
 	    try {
@@ -147,7 +148,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    	
 	    // The payload of the Token POST message is a map. Retrieve the Token from it.
 	    // This is a possible case when the joining node asks the Group Manager for
-	    // information on the signature algorithm and parameters used in the OSCORE group.
+	    // information on the algorithms and parameters used in the OSCORE group.
 	    if (cbor.getType().equals(CBORType.Map)) {
 	    		
 	    	token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
@@ -157,6 +158,13 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	    			provideSignInfo = true;
 	    		}
 	    		else invalid = true;
+	    	}
+	    	
+	    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+	    	    if (cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).equals(CBORObject.Null)) {
+	    	        provideEcdhInfo = true;
+	    	    }
+	    	    else invalid = true;
 	    	}
 	    	
 	    }
@@ -282,42 +290,87 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
     		
 			    		
-	    	if (provideSignInfo) {
-    	    
-	    		CBORObject signInfo = CBORObject.NewArray();
-	    	
-				for (String groupName : groupNames) {
-					
-		        	// Retrieve the entry for the target group, using the name of the OSCORE group
-		        	GroupInfo myGroup = this.activeGroups.get(groupName);
-					
-					CBORObject signInfoEntry = CBORObject.NewArray();
-					
-					signInfoEntry.Add(CBORObject.FromObject(groupName)); // 'id' element
-					
-					signInfoEntry.Add(myGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
-			    	
-					CBORObject arrayElem = myGroup.getSignParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
-			    	if (arrayElem == null)
-			    		signInfoEntry.Add(CBORObject.Null);
-			    	else
-			    		signInfoEntry.Add(arrayElem);
-			    	
-			    	arrayElem = myGroup.getSignParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
-			    	if (arrayElem == null)
-			    		signInfoEntry.Add(CBORObject.Null);
-			    	else
-			    		signInfoEntry.Add(arrayElem);
-			    	
-			    	signInfoEntry.Add(myGroup.getPubKeyEnc()); // 'pub_key_enc' element
-			    	
-				    signInfo.Add(signInfoEntry);
-				    
-				}
+    	    if (provideSignInfo || provideEcdhInfo) {
+    	        
+    	        CBORObject signInfo = CBORObject.NewArray();
+    	        CBORObject ecdhInfo = CBORObject.NewArray();
 
-		    	rep.Add(Constants.SIGN_INFO, signInfo);
-		    
-	    	}
+    	        for (String groupName : groupNames) {
+    	            
+    	            // Retrieve the entry for the target group, using the name of the OSCORE group
+    	            GroupInfo myGroup = this.activeGroups.get(groupName);
+    	            
+    	            // The group uses the group mode
+    	            if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    	            
+    	                CBORObject signInfoEntry = CBORObject.NewArray();
+    	                
+    	                // 'id' element
+    	                signInfoEntry.Add(CBORObject.FromObject(groupName));
+    	                
+    	                // 'sign_alg' element
+    	                signInfoEntry.Add(myGroup.getSignAlg().AsCBOR());
+    	                
+    	                // 'sign_parameters' element (The algorithm capabilities)
+    	                CBORObject arrayElem = myGroup.getSignParams().get(0);
+    	                if (arrayElem == null)
+    	                    signInfoEntry.Add(CBORObject.Null);
+    	                else
+    	                    signInfoEntry.Add(arrayElem);
+    	                
+    	                // 'sign_key_parameters' element (The key type capabilities)
+    	                arrayElem = myGroup.getSignParams().get(1);
+    	                if (arrayElem == null)
+    	                    signInfoEntry.Add(CBORObject.Null);
+    	                else
+    	                    signInfoEntry.Add(arrayElem);
+    	                
+    	                // 'pub_key_enc' element
+    	                signInfoEntry.Add(myGroup.getPubKeyEnc());
+
+    	                signInfo.Add(signInfoEntry);
+    	            }
+    	            
+    	            // The group uses the pairwise mode
+    	            if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    	            
+    	                CBORObject signEcdhEntry = CBORObject.NewArray();
+    	                
+    	                // 'id' element
+    	                signEcdhEntry.Add(CBORObject.FromObject(groupName));
+    	                
+    	                // 'ecdh_alg' element
+    	                signEcdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
+    	                
+    	                // 'ecdh_parameters' element (The algorithm capabilities)
+    	                CBORObject arrayElem = myGroup.getEcdhParams().get(0);
+    	                if (arrayElem == null)
+    	                    signEcdhEntry.Add(CBORObject.Null);
+    	                else
+    	                    signEcdhEntry.Add(arrayElem);
+    	                
+    	                // 'ecdh_key_parameters' element (The key type capabilities)
+    	                arrayElem = myGroup.getEcdhParams().get(1);
+    	                if (arrayElem == null)
+    	                    signEcdhEntry.Add(CBORObject.Null);
+    	                else
+    	                    signEcdhEntry.Add(arrayElem);
+    	                
+    	                // 'pub_key_enc' element
+    	                signEcdhEntry.Add(myGroup.getPubKeyEnc());
+
+    	                signInfo.Add(signEcdhEntry);
+    	            }
+    	            
+    	        }
+
+    	        if (provideSignInfo && signInfo.size() != 0)
+    	            rep.Add(Constants.SIGN_INFO, signInfo);
+    	        
+    	        if (provideEcdhInfo && ecdhInfo.size() != 0)
+    	            rep.Add(Constants.ECDH_INFO, signInfo);
+
+    	    }
     		
     	}
 	    

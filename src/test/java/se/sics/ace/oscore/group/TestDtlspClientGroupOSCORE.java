@@ -110,6 +110,12 @@ public class TestDtlspClientGroupOSCORE {
     // Uncomment to set EDDSA with curve Ed25519 for countersignatures
     private static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
     
+    // Uncomment to set curve X25519 for pairwise key derivation
+    private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
+
+    // Uncomment to set curve P-256 for pairwise key derivation
+    // private static int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+    
     private static String groupKeyPair;
     private static String groupKeyPairUpdate;
     private static String strPublicKeyPeer1;
@@ -290,6 +296,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
+    	boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
@@ -340,6 +347,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -369,6 +377,33 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
+        
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+        }
+        
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
@@ -406,6 +441,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
                 
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -1410,6 +1486,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
+    	boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -1461,6 +1538,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -1490,6 +1568,33 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
+        
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+        }
+        
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
@@ -1527,6 +1632,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -2654,6 +2800,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
+    	boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -2700,6 +2847,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -2729,6 +2877,33 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
+        
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+        }
+        
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
@@ -2766,6 +2941,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -3759,6 +3975,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
+    	boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -3806,6 +4023,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -3835,6 +4053,33 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
+        
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+        }
+        
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
@@ -3872,6 +4117,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
         
         CoapClient c = DTLSProfileRequests.getRpkClient(key, rsRPK);
@@ -5130,6 +5416,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
         boolean askForSignInfo = true;
+        boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
     	
@@ -5176,6 +5463,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
  	    // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -5205,6 +5493,33 @@ public class TestDtlspClientGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
+        
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+        }
+        
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
         
@@ -5242,6 +5557,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(
@@ -6633,6 +6989,7 @@ public class TestDtlspClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         String groupName = new String("feedca570000");
     	boolean askForSignInfo = true;
+    	boolean askForEcdhInfo = true;
     	boolean askForPubKeys = true;
     	boolean providePublicKey = true;
         
@@ -6680,6 +7037,7 @@ public class TestDtlspClientGroupOSCORE {
         byte[] gm_nonce = cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
         CBORObject signInfo = null;
+        CBORObject ecdhInfo = null;
         
         // Group OSCORE specific values for the countersignature
         CBORObject signAlgExpected = null;
@@ -6708,6 +7066,31 @@ public class TestDtlspClientGroupOSCORE {
                 // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
+        }
+        
+        // Group OSCORE specific values for the pairwise key derivation
+        CBORObject ecdhAlgExpected = AlgorithmID.ECDH_SS_HKDF_256.AsCBOR();
+        CBORObject ecdhParamsExpected = CBORObject.NewArray();
+        CBORObject ecdhKeyParamsExpected = CBORObject.NewArray();
+
+        // P-256
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+        }
+
+        // X25519
+        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+        // The algorithm capabilities
+        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+
+        // The key type capabilities
+        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
         }
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
@@ -6746,6 +7129,47 @@ public class TestDtlspClientGroupOSCORE {
 	        signInfoExpected.Add(signInfoEntry);
 
         	Assert.assertEquals(signInfo, signInfoExpected);
+        }
+        
+        if (askForEcdhInfo) {
+            Assert.assertEquals(false, cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = cbor.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+                
+            }
         }
         
         CoapClient c = DTLSProfileRequests.getPskClient(

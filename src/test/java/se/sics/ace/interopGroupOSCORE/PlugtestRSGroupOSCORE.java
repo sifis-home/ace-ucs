@@ -565,8 +565,11 @@ public class PlugtestRSGroupOSCORE {
         	
         	CBORObject joinRequest = CBORObject.DecodeFromBytes(requestPayload);
         	
-        	// Prepare a 'sign_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
-    		CBORObject signInfo = CBORObject.NewArray();
+        	CBORObject errorResponseMap = CBORObject.NewMap();
+
+        	// Prepare the 'sign_info' and 'ecdh_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
+        	CBORObject signInfo = CBORObject.NewArray();
+        	CBORObject ecdhInfo = CBORObject.NewArray();
 				
         	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getName());
@@ -583,23 +586,45 @@ public class PlugtestRSGroupOSCORE {
             	return;
         	}
         	
-			CBORObject signInfoEntry = CBORObject.NewArray();
-			CBORObject errorResponseMap = CBORObject.NewMap();
-			signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
-			signInfoEntry.Add(targetedGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
-			CBORObject arrayElem = targetedGroup.getSignParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
-	    	if (arrayElem == null)
-	    		signInfoEntry.Add(CBORObject.Null);
-	    	else
-	    		signInfoEntry.Add(arrayElem);
-	    	arrayElem = targetedGroup.getSignParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
-	    	if (arrayElem == null)
-	    		signInfoEntry.Add(CBORObject.Null);
-	    	else
-	    		signInfoEntry.Add(arrayElem);
-	    	signInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
-		    signInfo.Add(signInfoEntry);
-		    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
+        	// The group mode is used
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        	    CBORObject signInfoEntry = CBORObject.NewArray();
+        	    signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
+        	    signInfoEntry.Add(targetedGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
+        	    CBORObject arrayElem = targetedGroup.getSignParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
+        	    if (arrayElem == null)
+        	        signInfoEntry.Add(CBORObject.Null);
+        	    else
+        	        signInfoEntry.Add(arrayElem);
+        	    arrayElem = targetedGroup.getSignParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
+        	    if (arrayElem == null)
+        	        signInfoEntry.Add(CBORObject.Null);
+        	    else
+        	        signInfoEntry.Add(arrayElem);
+        	    signInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
+        	    signInfo.Add(signInfoEntry);
+        	    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
+        	}
+
+        	// The pairwise mode is used
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        	    CBORObject ecdhInfoEntry = CBORObject.NewArray();
+        	    ecdhInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
+        	    ecdhInfoEntry.Add(targetedGroup.getEcdhAlg().AsCBOR()); // 'ecdh_alg' element
+        	    CBORObject arrayElem = targetedGroup.getEcdhParams().get(0); // 'ecdh_parameters' element (The algorithm capabilities)
+        	    if (arrayElem == null)
+        	        ecdhInfoEntry.Add(CBORObject.Null);
+        	    else
+        	        ecdhInfoEntry.Add(arrayElem);
+        	    arrayElem = targetedGroup.getEcdhParams().get(1); // 'ecdh_key_parameters' element (The key type capabilities)
+        	    if (arrayElem == null)
+        	        ecdhInfoEntry.Add(CBORObject.Null);
+        	    else
+        	        ecdhInfoEntry.Add(arrayElem);
+        	    ecdhInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
+        	    ecdhInfo.Add(ecdhInfoEntry);
+        	    errorResponseMap.Add(Constants.ECDH_INFO, ecdhInfo);
+        	}
             
 		    // The payload of the join request must be a CBOR Map
         	if (!joinRequest.getType().equals(CBORType.Map)) {
