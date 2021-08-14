@@ -76,8 +76,8 @@ public class GroupInfo {
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
 	// Each map has as value the public keys of the group members as COSE Keys (CBOR Maps).
-	// The map key (label) is the integer representation of the Sender ID of the group member.
-	private List<Map<Integer, CBORObject>> publicKeyRepo = new ArrayList<Map<Integer, CBORObject>>();
+	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
+	private List<Map<CBORObject, CBORObject>> publicKeyRepo = new ArrayList<Map<CBORObject, CBORObject>>();
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
@@ -218,7 +218,7 @@ public class GroupInfo {
     		
         	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
-    		publicKeyRepo.add(new HashMap<Integer, CBORObject>());
+    		publicKeyRepo.add(new HashMap<CBORObject, CBORObject>());
     		
         	// Empty sets of roles; one set for each possible Sender ID size in bytes.
         	// The set with index 0 refers to Sender IDs with size 1 byte
@@ -1088,7 +1088,7 @@ public class GroupInfo {
     /**
      * Return the public keys of the current group members
      * 
-     * @return  The set of public keys of the current group member with Sender ID 'sid' from the public key repo.
+     * @return  The set of public keys of the current group members
      */
     // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
     synchronized public Set<CBORObject> getPublicKeys() {
@@ -1099,7 +1099,10 @@ public class GroupInfo {
     	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
     		
     		// Retrieve each public key
-    		for (Map.Entry<Integer, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
+    		
+    		// NNN
+    		// for (Map.Entry<Integer, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
+    		for (Map.Entry<CBORObject, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
     			publicKeys.add(pair.getValue());
     		}
     		
@@ -1121,15 +1124,17 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return null;
     	
-    	return this.publicKeyRepo.get(sid.length - 1).get(Util.bytesToInt(sid));
+    	// NNN
+    	// return this.publicKeyRepo.get(sid.length - 1).get(Util.bytesToInt(sid));
+    	return this.publicKeyRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));
     	
     }
     
     /**
      *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
      *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-     * @param sid
-     * @param key
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @param key   The public key of the group member
      * @return  true if it worked, false if it failed
      */
     synchronized public boolean storePublicKey(final byte[] sid, final CBORObject key) {
@@ -1140,7 +1145,9 @@ public class GroupInfo {
     	if (key.getType() != CBORType.Map)
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).put(Util.bytesToInt(sid), key);
+    	// NNN
+    	// this.publicKeyRepo.get(sid.length - 1).put(Util.bytesToInt(sid), key);
+    	this.publicKeyRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), key);
     	
     	return true;
     	
@@ -1159,10 +1166,10 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
+    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(CBORObject.FromObject(sid)))
     		return false;
     	
-    	this.publicKeyRepo.get(sid.length - 1).remove(Util.bytesToInt(sid));
+    	this.publicKeyRepo.get(sid.length - 1).remove(CBORObject.FromObject(sid));
     	
     	return true;
     	

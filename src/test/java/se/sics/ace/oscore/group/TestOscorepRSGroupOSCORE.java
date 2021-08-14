@@ -971,7 +971,7 @@ public class TestOscorepRSGroupOSCORE {
         			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
-        		
+
         		// Invalid format of 'get_pub_keys'
         		if (getPubKeys.getType().equals(CBORType.Array)) {
 	        		if ( getPubKeys.size() != 3 ||
@@ -987,7 +987,7 @@ public class TestOscorepRSGroupOSCORE {
 	            		
 	        		}
         		}
-        		
+
         		// Invalid format of 'get_pub_keys'
         		if (getPubKeys.getType().equals(CBORType.Array)) {
 	    			for (int i = 0; i < getPubKeys.get(1).size(); i++) {
@@ -995,7 +995,6 @@ public class TestOscorepRSGroupOSCORE {
 	    				// express a valid combination of roles encoded in the AIF data model
 	    				if (!getPubKeys.get(1).get(i).getType().equals(CBORType.Integer) ||
 	    					!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
-	    					
 	                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
 	            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
 	                		return;
@@ -1003,7 +1002,7 @@ public class TestOscorepRSGroupOSCORE {
 	    				}
 	    			}
         		}
-        		
+
         		providePublicKeys = true;
         		
         	}
@@ -1014,7 +1013,7 @@ public class TestOscorepRSGroupOSCORE {
         	String nodeName = null;
         	byte[] senderId = null;
             int signKeyCurve = 0;
-        	        	
+
         	// Assign a Sender ID to the joining node, unless it is a monitor
         	if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
             	// For the sake of testing, a particular Sender ID is used as known to be available.
@@ -1022,14 +1021,14 @@ public class TestOscorepRSGroupOSCORE {
                 
             	myGroup.allocateSenderId(senderId);
         	}
-        	
+
         	nodeName = myGroup.allocateNodeName(senderId);
         	
         	if (nodeName == null) {
         		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when assigning a node name");
         		return;
         	}
-        	
+
         	// Retrieve 'client_cred'
         	CBORObject clientCred = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED));
         	
@@ -1045,7 +1044,6 @@ public class TestOscorepRSGroupOSCORE {
         	
         	// Process the public key of the joining node
         	else if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
-        		
         		// client_cred must be byte string
         		if (!clientCred.getType().equals(CBORType.ByteString)) {
         			myGroup.deallocateSenderId(senderId);
@@ -1216,6 +1214,18 @@ public class TestOscorepRSGroupOSCORE {
         		
         	}
         	
+        	if (myGroup.isGroupMember(subject) == true) {
+        		// This node is re-joining the group without having left
+        		
+            	String oldNodeName = myGroup.getGroupMemberName(subject);
+            	
+            	Resource staleResource = getChild("nodes").getChild(oldNodeName);
+        		this.getChild("nodes").getChild(oldNodeName).delete(staleResource);
+        		
+        		myGroup.removeGroupMemberBySubject(subject);
+        		
+        	}
+        	
         	if (!myGroup.addGroupMember(senderId, nodeName, roleSet, subject)) {
         		// The joining node is not a monitor; its node name is its Sender ID encoded as a String
     			if (senderId != null) {
@@ -1228,7 +1238,7 @@ public class TestOscorepRSGroupOSCORE {
     			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when adding the new group member");
         		return;
         	}
-
+        	
         	// Create and add the sub-resource associated to the new group member
         	try {
         		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
@@ -1246,6 +1256,7 @@ public class TestOscorepRSGroupOSCORE {
 				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when creating the node sub-resource");
         		return;
     		}
+
         	Set<Short> actions = new HashSet<>();
         	actions.add(Constants.GET);
         	actions.add(Constants.PUT);
@@ -1315,28 +1326,34 @@ public class TestOscorepRSGroupOSCORE {
         	// Expiration time in seconds, after which the OSCORE Security Context
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
-        	
+
         	if (providePublicKeys) {
-        		
+        		System.err.println("XXXXXXXXXXXxx1");
         		CBORObject coseKeySet = CBORObject.NewArray();
         		CBORObject peerRoles = CBORObject.NewArray();
         		
         		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
         		
+            	System.err.println("XXXXXXXXXXXxx2 " + publicKeys.size());
         		for (CBORObject publicKey : publicKeys) {
-        			
+        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+        			System.err.println("Sender ID " + Utils.bytesToHex(peerSenderId) + " " + publicKey);
+        		}
+            	
+        		for (CBORObject publicKey : publicKeys) {
+        			System.err.println("XXXXXXXXXXXxx3");
         			// This should never happen; silently ignore
         			if (publicKey == null)
         				continue;
-        			
+
         			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        			
+        			System.err.println("Sender ID " + Utils.bytesToHex(peerSenderId) + " " + publicKey);
         			// Skip the public key of the just-added joining node
         			if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
         				continue;
         			
         			boolean includePublicKey = false;
-        			
+                	
         			// Public keys of all group members are requested
         			if (getPubKeys.equals(CBORObject.Null)) {
         				includePublicKey = true;
@@ -1346,7 +1363,7 @@ public class TestOscorepRSGroupOSCORE {
         				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
         					int filterRoles = getPubKeys.get(1).get(i).AsInt32();
         					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);        					
-        					
+        					System.err.println("XXXXXXXXXXXxx4 " + Utils.bytesToHex(peerSenderId));
         					// The owner of this public key does not have all its roles indicated in this AIF integer filter
         					if (filterRoles != (filterRoles & memberRoles)) {
         						continue;
@@ -1359,6 +1376,7 @@ public class TestOscorepRSGroupOSCORE {
         			}
         			
         			if (includePublicKey) {
+        				System.err.println("XXXXXXXXXXXxx5");
 	        			coseKeySet.Add(publicKey);
 	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
         			}
@@ -2326,7 +2344,7 @@ public class TestOscorepRSGroupOSCORE {
         	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
         	publicKeyCopy.Remove(COSE.KeyKeys.KeyId.AsCBOR());
         	publicKeyCopy.Add(COSE.KeyKeys.KeyId.AsCBOR(), senderId);
-        	        	
+        	
             targetedGroup.deletePublicKey(oldSenderId);
         	
         	// Store this client's public key

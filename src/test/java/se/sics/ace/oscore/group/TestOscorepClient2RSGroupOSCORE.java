@@ -750,9 +750,9 @@ public class TestOscorepClient2RSGroupOSCORE {
             OneKey peerPublicKey;
             byte[] peerSenderIdFromResponse;
            
-            peerSenderId = new byte[] { (byte) 0x52 };
+            peerSenderId = new byte[] { (byte) 0x77 };
             peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
@@ -770,10 +770,10 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
             }
-           
-            peerSenderId = new byte[] { (byte) 0x77 };
+            
+            peerSenderId = new byte[] { (byte) 0x52 };
             peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
@@ -792,13 +792,17 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
             }
             
-            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
+			Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
             Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).getType());
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
             expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+            expectedRoles = 0;
+            expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
             
            
         }
@@ -1045,9 +1049,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(3, coseKeySetArray.size());
        
         // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x52 };
+        peerSenderId = new byte[] { (byte) 0x77 };
         peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -1065,14 +1069,13 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
         }
-       
         
-        // Retrieve and check the public key of this exact requester node
-        peerSenderId = new byte[] { (byte) 0x25 };
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-        
+       
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
@@ -1089,13 +1092,12 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key of this exact requester node
+        peerSenderId = new byte[] { (byte) 0x25 };
         peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-       
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
@@ -1115,12 +1117,14 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
-        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
+        
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
+
         
         
         /////////////////
@@ -1193,11 +1197,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         Assert.assertEquals(2, coseKeySetArray.size());
         
-        
         // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x52 };
+        peerSenderId = new byte[] { (byte) 0x77 };
         peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -1216,11 +1219,10 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        
         // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -1239,14 +1241,16 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
+                
         Assert.assertEquals(2, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
-        
-        expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+        
+        expectedRoles = 0;
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         
@@ -1744,7 +1748,8 @@ public class TestOscorepClient2RSGroupOSCORE {
             // The following is required to retrieve the public keys of both the already present group members
             myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-            getPubKeys.get(1).Add(myRoles);            
+            getPubKeys.get(1).Add(myRoles);
+            myRoles = 0;
             myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
         	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
         	getPubKeys.get(1).Add(myRoles);
@@ -1806,7 +1811,7 @@ public class TestOscorepClient2RSGroupOSCORE {
             System.out.println("");
             System.out.println("Sent Join request to GM: " + requestPayload.toString());
             r2 = c1.advanced(joinReq);
-           
+            
             System.out.println("Received Join Reponse from the GM: " + CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
             
             Assert.assertEquals("CREATED", r2.getCode().name());
@@ -1819,7 +1824,7 @@ public class TestOscorepClient2RSGroupOSCORE {
            
             // The same dedicated URI has to have been returned
             Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
-         
+            
             responsePayload = r2.getPayload();
             joinResponse = CBORObject.DecodeFromBytes(responsePayload);
             
@@ -1887,23 +1892,23 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
                 Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
             }       
-            
+
             coseKeySetArray = null;
             if (askForPubKeys) {
                 Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
                 Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
                
                 // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-               
+                
                 coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
                 coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
                 Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
                 
                 Assert.assertEquals(2, coseKeySetArray.size());
                
-                peerSenderId = new byte[] { (byte) 0x52 };
+                peerSenderId = new byte[] { (byte) 0x77 };
                 peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
                 Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
                
                 // ECDSA_256
@@ -1921,10 +1926,10 @@ public class TestOscorepClient2RSGroupOSCORE {
                     Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
                     Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
                 }
-               
-                peerSenderId = new byte[] { (byte) 0x77 };
+                
+                peerSenderId = new byte[] { (byte) 0x52 };
                 peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
                 Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
                
                 // ECDSA_256
@@ -1949,9 +1954,13 @@ public class TestOscorepClient2RSGroupOSCORE {
                 
                 expectedRoles = 0;
                 expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+                expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
                 Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
                 
-               
+                expectedRoles = 0;
+                expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+                Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
+                
             }
             else {
                 Assert.assertEquals(false, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
@@ -1962,6 +1971,28 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(3600, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_KEY_CHECK_INTERVAL)).AsInt32());
             Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
             
+
+    		// Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
+            Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
+    				 				 joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+            
+    		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+    		
+        	gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+        	rawGmPopEvidence = gmPopEvidence.GetByteString();
+        	
+        	kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        	gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
+        	gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+            
+        	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        	
         }
     	
     }
@@ -2406,9 +2437,10 @@ public class TestOscorepClient2RSGroupOSCORE {
             OneKey peerPublicKey;
             byte[] peerSenderIdFromResponse;
            
-            peerSenderId = new byte[] { (byte) 0x52 };
+            
+            peerSenderId = new byte[] { (byte) 0x77 };
             peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
@@ -2426,10 +2458,10 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
             }
-           
-            peerSenderId = new byte[] { (byte) 0x77 };
+            
+            peerSenderId = new byte[] { (byte) 0x52 };
             peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+            peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
             // ECDSA_256
@@ -2447,17 +2479,18 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
                 Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
             }
-            
+           
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
             Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).getType());
             Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
             
             int expectedRoles = 0;
             expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+            expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+            
             expectedRoles = 0;
             expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-            expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
             Assert.assertEquals(expectedRoles, joinResponse.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
            
         }
@@ -2703,10 +2736,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         OneKey peerPublicKey;
         byte[] peerSenderIdFromResponse;
         
+        
         // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x52 };
+        peerSenderId = new byte[] { (byte) 0x77 };
         peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -2724,14 +2758,13 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
         }
-       
         
-        // Retrieve and check the public key of this exact requester node
-        peerSenderId = new byte[] { (byte) 0x25 };
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-        
+       
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
@@ -2748,13 +2781,12 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
-        
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key of this exact requester node
+        peerSenderId = new byte[] { (byte) 0x25 };
         peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-       
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
@@ -2775,12 +2807,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         int expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
+        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
-        Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(2).AsInt32());
         
         
         /////////////////
@@ -2852,9 +2884,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         
         // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x52 };
+        peerSenderId = new byte[] { (byte) 0x77 };
         peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -2872,12 +2904,11 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
         }
-
         
-        // Retrieve and check the public key this same node in the group
-        peerSenderId = senderId;
+        // Retrieve and check the public key of another node in the group
+        peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -2895,12 +2926,12 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
         }
+
         
-        
-        // Retrieve and check the public key of another node in the group
-        peerSenderId = new byte[] { (byte) 0x77 };
+        // Retrieve and check the public key this same node in the group
+        peerSenderId = senderId;
         peerSenderIdFromResponse = coseKeySetArray.get(2).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
@@ -2919,14 +2950,15 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
         }
         
+        
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
         
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(0).AsInt32());
         expectedRoles = 0;
         expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         Assert.assertEquals(expectedRoles, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).get(1).AsInt32());
         
         

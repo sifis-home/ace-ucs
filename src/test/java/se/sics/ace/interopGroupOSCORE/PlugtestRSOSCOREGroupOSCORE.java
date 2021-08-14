@@ -1016,6 +1016,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		
         	}
         	
+        	if (myGroup.isGroupMember(subject) == true) {
+        		// This node is re-joining the group without having left
+        		
+            	String oldNodeName = myGroup.getGroupMemberName(subject);
+            	
+            	Resource staleResource = getChild("nodes").getChild(oldNodeName);
+        		this.getChild("nodes").getChild(oldNodeName).delete(staleResource);
+        		
+        		myGroup.removeGroupMemberBySubject(subject);
+        		
+        	}
+        	
         	if (!myGroup.addGroupMember(senderId, nodeName, roleSet, subject)) {
         		// The joining node is not a monitor; its node name is its Sender ID encoded as a String
     			if (senderId != null) {
