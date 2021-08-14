@@ -1099,9 +1099,6 @@ public class GroupInfo {
     	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
     		
     		// Retrieve each public key
-    		
-    		// NNN
-    		// for (Map.Entry<Integer, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
     		for (Map.Entry<CBORObject, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
     			publicKeys.add(pair.getValue());
     		}
@@ -1124,8 +1121,6 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return null;
     	
-    	// NNN
-    	// return this.publicKeyRepo.get(sid.length - 1).get(Util.bytesToInt(sid));
     	return this.publicKeyRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));
     	
     }
@@ -1145,8 +1140,6 @@ public class GroupInfo {
     	if (key.getType() != CBORType.Map)
     		return false;
     	
-    	// NNN
-    	// this.publicKeyRepo.get(sid.length - 1).put(Util.bytesToInt(sid), key);
     	this.publicKeyRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), key);
     	
     	return true;
