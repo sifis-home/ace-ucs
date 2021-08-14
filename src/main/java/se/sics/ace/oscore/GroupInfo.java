@@ -139,7 +139,6 @@ public class GroupInfo {
 	 * @param groupIdEpoch        the current value of the Epoch part of the OSCORE Group ID as a positive integer.
 	 * @param prefixMonitorNames  the prefix string used to build the name of a group member acting as monitor.
 	 * @param nodeNameSeparator   the string separator used to build the name of a group member non acting as monitor.
-	 * @param senderIdSize        the size in bytes of Sender IDs. Up to 4 bytes, same for all Sender IDs in the OSCORE group.
 	 * @param hkdf                the HKDF Algorithm.
 	 * @param pubKeyEnc           the format of the public keys used in the OSCORE group.
 	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
@@ -162,7 +161,6 @@ public class GroupInfo {
     		         final int groupIdEpoch,
     		         final String prefixMonitorNames,
     		         final String nodeNameSeparator,
-    		         final int senderIdSize,
     		         final AlgorithmID hkdf,
     		         final CBORObject pubKeyEnc,
     		         final int mode,
@@ -191,6 +189,7 @@ public class GroupInfo {
     	this.mode = mode;
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
+
     	
     	setHkdf(hkdf);
     	setPubKeyEnc(pubKeyEnc);
@@ -209,17 +208,8 @@ public class GroupInfo {
 	    	setEcdhParams(ecdhParams);
     	}
     	
-    	if (senderIdSize < 1)
-    		this.senderIdSize = 1;
-    	else if (senderIdSize > 4)
-    		this.senderIdSize = 4;
-    	else
-    		this.senderIdSize = senderIdSize;
-    	
-    	if (senderIdSize == 4)
-    		this.maxSenderIdValue = (1 << 31) - 1;
-    	else
-    		this.maxSenderIdValue = (1 << (senderIdSize * 8)) - 1;
+    	this.senderIdSize = 1;
+    	this.maxSenderIdValue = 255;
     	
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.

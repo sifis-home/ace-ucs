@@ -182,8 +182,6 @@ public class TestDtlspPskStoreGroupOSCORE {
 
         signParams.Add(algCapabilities);
         signParams.Add(keyCapabilities);  
-        
-        final int senderIdSize = 1; // Up to 4 bytes
 
         // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
         // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
@@ -227,7 +225,6 @@ public class TestDtlspPskStoreGroupOSCORE {
 						                  Util.bytesToInt(groupIdEpoch),
 						                  prefixMonitorNames,
 						                  nodeNameSeparator,
-						                  senderIdSize,
 						                  hkdf,
 						                  pubKeyEnc,
 						                  mode,

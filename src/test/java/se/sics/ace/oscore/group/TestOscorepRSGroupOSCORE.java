@@ -2804,9 +2804,6 @@ public class TestOscorepRSGroupOSCORE {
         
     	signParams.Add(algCapabilities);
     	signParams.Add(keyCapabilities);     
-
-        
-        final int senderIdSize = 1; // Up to 4 bytes
         
         if (activeGroups.containsKey(groupName)) {
         	
@@ -2850,7 +2847,6 @@ public class TestOscorepRSGroupOSCORE {
     			                          Util.bytesToInt(groupIdEpoch),
     			                          prefixMonitorNames,
     			                          nodeNameSeparator,
-    			                          senderIdSize,
     			                          hkdf,
     			                          pubKeyEnc,
     			                          mode,

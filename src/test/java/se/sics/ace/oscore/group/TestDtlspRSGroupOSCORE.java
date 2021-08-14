@@ -2736,8 +2736,6 @@ public class TestDtlspRSGroupOSCORE {
 	  	signParams.Add(algCapabilities);
 	  	signParams.Add(keyCapabilities);  
 	
-	  	final int senderIdSize = 1; // Up to 4 bytes
-	
 	  	// Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
 	  	// The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
 	  	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
@@ -2773,7 +2771,6 @@ public class TestDtlspRSGroupOSCORE {
 	  	                                  Util.bytesToInt(groupIdEpoch),
 	  	                                  prefixMonitorNames,
 	  	                                  nodeNameSeparator,
-	  	                                  senderIdSize,
 	  	                                  hkdf,
 	  	                                  pubKeyEnc,
 	  	                                  mode,
