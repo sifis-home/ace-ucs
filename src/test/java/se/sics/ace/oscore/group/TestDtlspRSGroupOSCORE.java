@@ -1103,59 +1103,58 @@ public class TestDtlspRSGroupOSCORE {
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
         	if (providePublicKeys) {
-        		
-        		CBORObject coseKeySet = CBORObject.NewArray();
-        		CBORObject peerRoles = CBORObject.NewArray();
-        		
-        		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
-        		
-        		for (CBORObject publicKey : publicKeys) {
-        			
-        			// This should never happen; silently ignore
-        			if (publicKey == null)
-        				continue;
-        			
-        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        			
-        			// Skip the public key of the just-added joining node
-        			if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
-        				continue;
-        			
-        			boolean includePublicKey = false;
-        			
-        			// Public keys of all group members are requested
-        			if (getPubKeys.equals(CBORObject.Null)) {
-        				includePublicKey = true;
-        			}
-        			// Only public keys of group members with certain roles are requested
-        			else {
-        				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-        					int filterRoles = getPubKeys.get(1).get(i).AsInt32();
-        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);        					
-        					
-        					// The owner of this public key does not have all its roles indicated in this AIF integer filter
-        					if (filterRoles != (filterRoles & memberRoles)) {
-        						continue;
-        					}
-        					else {
-        						includePublicKey = true;
-        						break;
-        					}
-        				}
-        			}
-        			
-        			if (includePublicKey) {
-	        			coseKeySet.Add(publicKey);
-	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
-        			}
-        			
-        		}
-        			
-    			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-    			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-    			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
-        		
-        		// Debug:
+        	    CBORObject coseKeySet = CBORObject.NewArray();
+        	    CBORObject peerRoles = CBORObject.NewArray();
+        	    CBORObject peerIdentifiers = CBORObject.NewArray();
+        	    
+        	    Map<CBORObject, CBORObject> publicKeys = myGroup.getPublicKeys();
+        	    
+        	    for (CBORObject sid : publicKeys.keySet()) {
+        	        // This should never happen; silently ignore
+        	        if (publicKeys.get(sid) == null)
+        	            continue;
+
+        	        byte[] peerSenderId = sid.GetByteString();
+        	        // Skip the public key of the just-added joining node
+        	        if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
+        	            continue;
+        	        
+        	        boolean includePublicKey = false;
+        	        
+        	        // Public keys of all group members are requested
+        	        if (getPubKeys.equals(CBORObject.Null)) {
+        	            includePublicKey = true;
+        	        }
+        	        // Only public keys of group members with certain roles are requested
+        	        else {
+        	            for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+        	                int filterRoles = getPubKeys.get(1).get(i).AsInt32();
+        	                int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
+        	                // The owner of this public key does not have all its roles indicated in this AIF integer filter
+        	                if (filterRoles != (filterRoles & memberRoles)) {
+        	                    continue;
+        	                }
+        	                else {
+        	                    includePublicKey = true;
+        	                    break;
+        	                }
+        	            }
+        	        }
+        	        
+        	        if (includePublicKey) {
+        	            coseKeySet.Add(publicKeys.get(sid));
+        	            peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+        	            peerIdentifiers.Add(peerSenderId);
+        	        }
+
+        	    }
+        	    
+        	    byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+        	    joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+        	    joinResponse.Add(Constants.PEER_ROLES, peerRoles);
+        	    joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+        	    
+        	    // Debug:
         		// 1) Print 'kid' as equal to the Sender ID of the key owner
         		// 2) Print 'kty' of each public key
         		/*
@@ -1301,38 +1300,40 @@ public class TestDtlspRSGroupOSCORE {
         	}
             
         	// Respond to the Public Key Request
-            
+
         	CBORObject myResponse = CBORObject.NewMap();
-    		CBORObject coseKeySet = CBORObject.NewArray();
-    		CBORObject peerRoles = CBORObject.NewArray();
-    		
-    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
-    		
-    		for (CBORObject publicKey : publicKeys) {
-    			
-    			// This should never happen; silently ignore
-    			if (publicKey == null)
-    				continue;
-    			
-    			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-    			// This should never happen; silently ignore
-    			if (peerSenderId == null)
-    				continue;
-    			
-    			coseKeySet.Add(publicKey);
-    			peerRoles.Add(targetedGroup.getGroupMemberRoles(peerSenderId));
-    			
-    		}
-    		
-    		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
-    		
-			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-			myResponse.Add(Constants.PEER_ROLES, peerRoles);
-    			
-        	
+        	CBORObject coseKeySet = CBORObject.NewArray();
+        	CBORObject peerRoles = CBORObject.NewArray();
+        	CBORObject peerIdentifiers = CBORObject.NewArray();
+
+        	Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
+
+        	for (CBORObject sid : publicKeys.keySet()) {
+        	    
+        	    // This should never happen; silently ignore
+        	    if (publicKeys.get(sid) == null)
+        	        continue;
+        	    
+        	    byte[] peerSenderId = sid.GetByteString();
+        	    // This should never happen; silently ignore
+        	    if (peerSenderId == null)
+        	        continue;
+        	    
+        	    coseKeySet.Add(publicKeys.get(sid));
+        	    peerRoles.Add(targetedGroup.getGroupMemberRoles(peerSenderId));
+        	    peerIdentifiers.Add(peerSenderId);
+        	    
+        	}
+
+        	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+
+        	byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
+        	myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+        	myResponse.Add(Constants.PEER_ROLES, peerRoles);
+        	myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+
         	byte[] responsePayload = myResponse.EncodeToBytes();
-        	
+
         	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
         	coapResponse.setPayload(responsePayload);
         	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
@@ -1506,118 +1507,123 @@ public class TestDtlspRSGroupOSCORE {
     	    }
     		
     		
-        	// Respond to the Public Key Request
-            
-        	CBORObject myResponse = CBORObject.NewMap();
-    		CBORObject coseKeySet = CBORObject.NewArray();
-    		CBORObject peerRoles = CBORObject.NewArray();
-    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
-    		Set<Integer> requestedRoles = new HashSet<Integer>();
-    		Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
-    		
-    		// Provide the public keys of all the group members
-    		if (getPubKeys.equals(CBORObject.Null)) {
-    			
-    			for (CBORObject publicKey : publicKeys) {
-    				
-	    			// This should never happen; silently ignore
-	    			if (publicKey == null)
-	    				continue;
-	    			
-	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-	    			// This should never happen; silently ignore
-	    			if (memberSenderId == null)
-	    				continue;
-	
-	    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
-	    			
-	    			coseKeySet.Add(publicKey);
-	    			peerRoles.Add(memberRoles);
-	    			
-    			}
-    			
-    		}
-    		// Provide the public keys based on the specified filtering
-    		else {
-    		
-	    		// Retrieve the inclusion flag
-				boolean inclusionFlag = getPubKeys.get(0).getType().equals(CBORType.Boolean);
-	    		
-	    		// Retrieve and store the combination of roles specified in the request
-	    		for (int i = 0; i < getPubKeys.get(1).size(); i++) {
-	    			requestedRoles.add((getPubKeys.get(1).get(i).AsInt32()));
-	    		}
-	    		
-	    		// Retrieve and store the Sender IDs specified in the request
-	    		for (int i = 0; i < getPubKeys.get(2).size(); i++) {
-	    			byte[] myArray = getPubKeys.get(2).get(i).GetByteString();
-	    			ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
-	    			requestedSenderIDs.add(myBuffer);
-	    		}
-    		
-	    		for (CBORObject publicKey : publicKeys) {
-	    			
-	    			// This should never happen; silently ignore
-	    			if (publicKey == null)
-	    				continue;
-	    			
-	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-	    			// This should never happen; silently ignore
-	    			if (memberSenderId == null)
-	    				continue;
-	
-	    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
-	    			
-	    			boolean include = false;
-	    			
-					for (Integer filter : requestedRoles) {
-						int filterRoles = filter.intValue();
-						
-						// The role(s) of the key owner match with the role filter
-						if (filterRoles == (filterRoles & memberRoles)) {
-							
-							// This public key has to be included anyway,
-							// regardless the Sender ID of the key owner
-							if (inclusionFlag) {
-								include = true;
-							}
-							// This public key has to be included only if the Sender ID
-							// of the key owner is not in the node identifier filter
-							else if (!requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
-								include = true;
-							}
-							// Stop going through the role filter anyway;
-							// this public key has not to be included
-							break;
-						}	
-					}
-	    			
-	    			if(!include) {
-	    				// This public has to be included if the Sender ID of the key owner is in the node identifier filter
-	    				if (inclusionFlag && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
-	    					include = true;
-	    				}
-	    				// This public has to be included if the Sender ID of the key owner is not in the node identifier filter
-	    				else if (!inclusionFlag && !requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
-	    					include = true;
-	    				}
-	    			}
-	    			
-	    			if (include) {
-	    				
-		    			coseKeySet.Add(publicKey);
-		    			peerRoles.Add(memberRoles);
-		    			
-	    			}
-	    			
-	    		}
-    		}
-    		
-    		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+    	 // Respond to the Public Key Request
+
+    	    CBORObject myResponse = CBORObject.NewMap();
+    	    CBORObject coseKeySet = CBORObject.NewArray();
+    	    CBORObject peerRoles = CBORObject.NewArray();
+    	    CBORObject peerIdentifiers = CBORObject.NewArray();
+    	    Set<Integer> requestedRoles = new HashSet<Integer>();
+    	    Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
+
+    	    Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
+
+    	    // Provide the public keys of all the group members
+    	    if (getPubKeys.equals(CBORObject.Null)) {
+    	        
+    	        for (CBORObject sid : publicKeys.keySet()) {
+    	            
+    	            // This should never happen; silently ignore
+    	            if (publicKeys.get(sid) == null)
+    	                continue;
+    	            
+    	            byte[] memberSenderId = sid.GetByteString();
+    	            // This should never happen; silently ignore
+    	            if (memberSenderId == null)
+    	                continue;
+
+    	            int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
+    	            
+    	            coseKeySet.Add(publicKeys.get(sid));
+    	            peerRoles.Add(memberRoles);
+    	            peerIdentifiers.Add(memberSenderId);
+    	            
+    	        }
+    	        
+    	    }
+    	    // Provide the public keys based on the specified filtering
+    	    else {
+
+    	        // Retrieve the inclusion flag
+    	        boolean inclusionFlag = getPubKeys.get(0).getType().equals(CBORType.Boolean);
+    	        
+    	        // Retrieve and store the combination of roles specified in the request
+    	        for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+    	            requestedRoles.add((getPubKeys.get(1).get(i).AsInt32()));
+    	        }
+    	        
+    	        // Retrieve and store the Sender IDs specified in the request
+    	        for (int i = 0; i < getPubKeys.get(2).size(); i++) {
+    	            byte[] myArray = getPubKeys.get(2).get(i).GetByteString();
+    	            ByteBuffer myBuffer = ByteBuffer.wrap(myArray);
+    	            requestedSenderIDs.add(myBuffer);
+    	        }
+
+    	        for (CBORObject sid : publicKeys.keySet()) {
+    	            
+    	            // This should never happen; silently ignore
+    	            if (publicKeys.get(sid) == null)
+    	                continue;
+    	            
+    	            byte[] memberSenderId = sid.GetByteString();
+    	            // This should never happen; silently ignore
+    	            if (memberSenderId == null)
+    	                continue;
+
+    	            int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
+    	            
+    	            boolean include = false;
+    	            
+    	            for (Integer filter : requestedRoles) {
+    	                int filterRoles = filter.intValue();
+    	                
+    	                // The role(s) of the key owner match with the role filter
+    	                if (filterRoles == (filterRoles & memberRoles)) {
+    	                    
+    	                    // This public key has to be included anyway,
+    	                    // regardless the Sender ID of the key owner
+    	                    if (inclusionFlag) {
+    	                        include = true;
+    	                    }
+    	                    // This public key has to be included only if the Sender ID
+    	                    // of the key owner is not in the node identifier filter
+    	                    else if (!requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+    	                        include = true;
+    	                    }
+    	                    // Stop going through the role filter anyway;
+    	                    // this public key has not to be included
+    	                    break;
+    	                }	
+    	            }
+    	            
+    	            if(!include) {
+    	                // This public has to be included if the Sender ID of the key owner is in the node identifier filter
+    	                if (inclusionFlag && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+    	                    include = true;
+    	                }
+    	                // This public has to be included if the Sender ID of the key owner is not in the node identifier filter
+    	                else if (!inclusionFlag && !requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
+    	                    include = true;
+    	                }
+    	            }
+    	            
+    	            if (include) {
+    	                
+    	                coseKeySet.Add(publicKeys.get(sid));
+    	                peerRoles.Add(memberRoles);
+    	                peerIdentifiers.Add(memberSenderId);
+    	                
+    	            }
+    	            
+    	        }
+    	    }
+
+    	    myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     		
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
 			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
 			myResponse.Add(Constants.PEER_ROLES, peerRoles);
+			myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	

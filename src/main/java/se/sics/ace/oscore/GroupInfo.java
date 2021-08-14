@@ -1091,16 +1091,16 @@ public class GroupInfo {
      * @return  The set of public keys of the current group members
      */
     // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
-    synchronized public Set<CBORObject> getPublicKeys() {
+    synchronized public Map<CBORObject, CBORObject> getPublicKeys() {
     	
-    	Set<CBORObject> publicKeys = new HashSet<>();
+    	Map<CBORObject, CBORObject> publicKeys = new HashMap<CBORObject, CBORObject>();
     	
     	// Go through each size of Sender ID, i.e. from 1 (i=0) to 4 (i=3) bytes
     	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
     		
     		// Retrieve each public key
     		for (Map.Entry<CBORObject, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
-    			publicKeys.add(pair.getValue());
+    			publicKeys.put(pair.getKey(), pair.getValue());
     		}
     		
     	}

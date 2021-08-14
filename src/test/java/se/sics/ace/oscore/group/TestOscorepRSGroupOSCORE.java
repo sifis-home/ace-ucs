@@ -1328,26 +1328,18 @@ public class TestOscorepRSGroupOSCORE {
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
 
         	if (providePublicKeys) {
-        		System.err.println("XXXXXXXXXXXxx1");
         		CBORObject coseKeySet = CBORObject.NewArray();
         		CBORObject peerRoles = CBORObject.NewArray();
+        		CBORObject peerIdentifiers = CBORObject.NewArray();
         		
-        		Set<CBORObject> publicKeys = myGroup.getPublicKeys();
-        		
-            	System.err.println("XXXXXXXXXXXxx2 " + publicKeys.size());
-        		for (CBORObject publicKey : publicKeys) {
-        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        			System.err.println("Sender ID " + Utils.bytesToHex(peerSenderId) + " " + publicKey);
-        		}
+        		Map<CBORObject, CBORObject> publicKeys = myGroup.getPublicKeys();
             	
-        		for (CBORObject publicKey : publicKeys) {
-        			System.err.println("XXXXXXXXXXXxx3");
+        		for (CBORObject sid : publicKeys.keySet()) {
         			// This should never happen; silently ignore
-        			if (publicKey == null)
+        			if (publicKeys.get(sid) == null)
         				continue;
 
-        			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        			System.err.println("Sender ID " + Utils.bytesToHex(peerSenderId) + " " + publicKey);
+        			byte[] peerSenderId = sid.GetByteString();
         			// Skip the public key of the just-added joining node
         			if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
         				continue;
@@ -1362,8 +1354,7 @@ public class TestOscorepRSGroupOSCORE {
         			else {
         				for (int i = 0; i < getPubKeys.get(1).size(); i++) {
         					int filterRoles = getPubKeys.get(1).get(i).AsInt32();
-        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);        					
-        					System.err.println("XXXXXXXXXXXxx4 " + Utils.bytesToHex(peerSenderId));
+        					int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
         					// The owner of this public key does not have all its roles indicated in this AIF integer filter
         					if (filterRoles != (filterRoles & memberRoles)) {
         						continue;
@@ -1376,9 +1367,9 @@ public class TestOscorepRSGroupOSCORE {
         			}
         			
         			if (includePublicKey) {
-        				System.err.println("XXXXXXXXXXXxx5");
-	        			coseKeySet.Add(publicKey);
+	        			coseKeySet.Add(publicKeys.get(sid));
 	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+	        			peerIdentifiers.Add(peerSenderId);
         			}
 
         		}
@@ -1386,6 +1377,7 @@ public class TestOscorepRSGroupOSCORE {
     			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
     			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
     			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
+    			joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         			
         		
         		// Debug:
@@ -1537,22 +1529,24 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject myResponse = CBORObject.NewMap();
     		CBORObject coseKeySet = CBORObject.NewArray();
     		CBORObject peerRoles = CBORObject.NewArray();
+    		CBORObject peerIdentifiers = CBORObject.NewArray();
     		
-    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
+    		Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
     		
-    		for (CBORObject publicKey : publicKeys) {
+    		for (CBORObject sid : publicKeys.keySet()) {
     			
     			// This should never happen; silently ignore
-    			if (publicKey == null)
+    			if (publicKeys.get(sid) == null)
     				continue;
     			
-    			byte[] peerSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+    			byte[] peerSenderId = sid.GetByteString();
     			// This should never happen; silently ignore
     			if (peerSenderId == null)
     				continue;
     			
-    			coseKeySet.Add(publicKey);
+    			coseKeySet.Add(publicKeys.get(sid));
     			peerRoles.Add(targetedGroup.getGroupMemberRoles(peerSenderId));
+    			peerIdentifiers.Add(peerSenderId);
     			
     		}
     		
@@ -1560,8 +1554,9 @@ public class TestOscorepRSGroupOSCORE {
     		
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
 			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-			myResponse.Add(Constants.PEER_ROLES, peerRoles);	
-        	
+			myResponse.Add(Constants.PEER_ROLES, peerRoles);
+			myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	
         	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
@@ -1742,28 +1737,31 @@ public class TestOscorepRSGroupOSCORE {
         	CBORObject myResponse = CBORObject.NewMap();
     		CBORObject coseKeySet = CBORObject.NewArray();
     		CBORObject peerRoles = CBORObject.NewArray();
-    		Set<CBORObject> publicKeys = targetedGroup.getPublicKeys();
+    		CBORObject peerIdentifiers = CBORObject.NewArray();
     		Set<Integer> requestedRoles = new HashSet<Integer>();
     		Set<ByteBuffer> requestedSenderIDs = new HashSet<ByteBuffer>();
+    		
+    		Map<CBORObject, CBORObject> publicKeys = targetedGroup.getPublicKeys();
     		
     		// Provide the public keys of all the group members
     		if (getPubKeys.equals(CBORObject.Null)) {
     			
-    			for (CBORObject publicKey : publicKeys) {
+    			for (CBORObject sid : publicKeys.keySet()) {
     				
 	    			// This should never happen; silently ignore
-	    			if (publicKey == null)
+	    			if (publicKeys.get(sid) == null)
 	    				continue;
 	    			
-	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+	    			byte[] memberSenderId = sid.GetByteString();
 	    			// This should never happen; silently ignore
 	    			if (memberSenderId == null)
 	    				continue;
 	
 	    			int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
 	    			
-	    			coseKeySet.Add(publicKey);
+	    			coseKeySet.Add(publicKeys.get(sid));
 	    			peerRoles.Add(memberRoles);
+	    			peerIdentifiers.Add(memberSenderId);
 	    			
     			}
     			
@@ -1786,13 +1784,13 @@ public class TestOscorepRSGroupOSCORE {
 	    			requestedSenderIDs.add(myBuffer);
 	    		}
     		
-	    		for (CBORObject publicKey : publicKeys) {
+	    		for (CBORObject sid : publicKeys.keySet()) {
 	    			
 	    			// This should never happen; silently ignore
-	    			if (publicKey == null)
+	    			if (publicKeys.get(sid) == null)
 	    				continue;
 	    			
-	    			byte[] memberSenderId = publicKey.get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+	    			byte[] memberSenderId = sid.GetByteString();
 	    			// This should never happen; silently ignore
 	    			if (memberSenderId == null)
 	    				continue;
@@ -1836,8 +1834,9 @@ public class TestOscorepRSGroupOSCORE {
 	    			
 	    			if (include) {
 	    				
-		    			coseKeySet.Add(publicKey);
+		    			coseKeySet.Add(publicKeys.get(sid));
 		    			peerRoles.Add(memberRoles);
+		    			peerIdentifiers.Add(memberSenderId);
 		    			
 	    			}
 	    			
@@ -1849,6 +1848,7 @@ public class TestOscorepRSGroupOSCORE {
 			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
 			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
 			myResponse.Add(Constants.PEER_ROLES, peerRoles);
+			myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	

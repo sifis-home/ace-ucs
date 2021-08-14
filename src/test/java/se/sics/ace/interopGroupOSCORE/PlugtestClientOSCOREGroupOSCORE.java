@@ -806,12 +806,17 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
             Assert.assertEquals(2, coseKeySetArray.size());
            
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
+            Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
+            Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).size());
+            
             byte[] peerSenderId;
             OneKey peerPublicKey;
             byte[] peerSenderIdFromResponse;
            
             peerSenderId = new byte[] { (byte) 0x77 };
-            peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+            peerSenderIdFromResponse = joinResponse.
+                    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(0).GetByteString();
             peerPublicKey = C3pubKey;
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
@@ -832,7 +837,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
             
             peerSenderId = new byte[] { (byte) 0x52 };
-            peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+            peerSenderIdFromResponse = joinResponse.
+                    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(1).GetByteString();
             peerPublicKey = C2pubKey;
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
@@ -1328,12 +1334,17 @@ public class PlugtestClientOSCOREGroupOSCORE {
             Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
             Assert.assertEquals(2, coseKeySetArray.size());
            
+            Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
+            Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
+            Assert.assertEquals(2, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).size());
+            
             byte[] peerSenderId;
             OneKey peerPublicKey;
             byte[] peerSenderIdFromResponse;
            
             peerSenderId = new byte[] { (byte) 0x77 };
-            peerSenderIdFromResponse = coseKeySetArray.get(0).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+            peerSenderIdFromResponse = joinResponse.
+                    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(0).GetByteString();
             peerPublicKey = C3pubKey;
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
@@ -1354,7 +1365,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
             }
             
             peerSenderId = new byte[] { (byte) 0x52 };
-            peerSenderIdFromResponse = coseKeySetArray.get(1).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
+            peerSenderIdFromResponse = joinResponse.
+                    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(1).GetByteString();
             peerPublicKey = C2pubKey;
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
