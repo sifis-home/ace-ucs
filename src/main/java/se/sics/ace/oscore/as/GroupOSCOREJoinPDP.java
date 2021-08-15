@@ -48,6 +48,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -480,7 +481,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        		  if (roleSet <= 0)
 		        			  throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
 		        		  
-		        		  Set<Integer> roleIdSet = Constants.getGroupOSCORERoles(roleSet);
+		        		  Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
 		        		  short[] roleIdArray = new short[roleIdSet.size()];
 		        		  int index = 0;
 		        		  for (Integer elem : roleIdSet)
@@ -520,7 +521,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 		        	      
 		        		  int grantedRoles = 0;
 	        	    	  for (String foo : allowedRoles)
-	        	    		  grantedRoles = Constants.addGroupOSCORERole(grantedRoles, rolesToInt.get(foo));
+	        	    		  grantedRoles = Util.addGroupOSCORERole(grantedRoles, rolesToInt.get(foo));
 	        	    	  cborArrayScopeEntry.Add(grantedRoles);
 		        	      
 		        	      cborArrayScope.Add(cborArrayScopeEntry);

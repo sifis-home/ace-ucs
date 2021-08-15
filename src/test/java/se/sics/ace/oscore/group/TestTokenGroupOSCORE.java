@@ -63,6 +63,7 @@ import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
 import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
+import se.sics.ace.Util;
 import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Token;
 import se.sics.ace.cwt.CWT;
@@ -928,7 +929,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
         
         cborArrayScope.Add(cborArrayEntry);
@@ -962,7 +963,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -977,7 +978,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1012,7 +1013,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_MONITOR);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_MONITOR);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1027,7 +1028,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1062,7 +1063,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         
@@ -1078,7 +1079,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1106,7 +1107,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	
@@ -1134,7 +1135,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
+    	myRoles = Util.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1162,7 +1163,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1204,7 +1205,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1239,7 +1240,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1254,7 +1255,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
     	
@@ -1289,7 +1290,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_MONITOR);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_MONITOR);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1304,7 +1305,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1339,7 +1340,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1354,7 +1355,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         
@@ -1382,7 +1383,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
         
         cborArrayScope.Add(cborArrayEntry);
@@ -1409,7 +1410,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
+    	myRoles = Util.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
         
         cborArrayScope.Add(cborArrayEntry);
@@ -1436,7 +1437,7 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
         
         cborArrayScope.Add(cborArrayEntry);
@@ -1478,8 +1479,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
     	
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1513,8 +1514,8 @@ public class TestTokenGroupOSCORE {
         
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1529,8 +1530,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1557,8 +1558,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1592,7 +1593,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1607,8 +1608,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	    	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1642,7 +1643,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1657,8 +1658,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     		
     	cborArrayScope.Add(cborArrayEntry);
@@ -1700,8 +1701,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1735,8 +1736,8 @@ public class TestTokenGroupOSCORE {
         
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_RESPONDER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1751,8 +1752,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
      	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1779,8 +1780,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1814,7 +1815,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1829,8 +1830,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -1864,7 +1865,7 @@ public class TestTokenGroupOSCORE {
         assert(cborArrayEntry.get(1).getType().equals(CBORType.Integer));
         
         expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
         assert(cborArrayEntry.get(1).AsInt32() == expectedRoles);
         
         assert(!params.containsKey(Constants.PROFILE));
@@ -1879,8 +1880,8 @@ public class TestTokenGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);

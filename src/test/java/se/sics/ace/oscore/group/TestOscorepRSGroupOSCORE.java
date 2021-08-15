@@ -911,7 +911,7 @@ public class TestOscorepRSGroupOSCORE {
         		}
         		Set<Integer> roleIdSet = new HashSet<Integer>();
         		try {
-            		roleIdSet = Constants.getGroupOSCORERoles(roleSet);
+            		roleIdSet = Util.getGroupOSCORERoles(roleSet);
         		}
         		catch(AceException e) {
         			System.err.println(e.getMessage());
@@ -2910,7 +2910,7 @@ public class TestOscorepRSGroupOSCORE {
     	mySubject = "clientX";
     	
     	int roles = 0;
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
     	
     	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
     		return false;
@@ -2941,8 +2941,8 @@ public class TestOscorepRSGroupOSCORE {
     	mySubject = "clientY";
     	
     	roles = 0;
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-    	roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+    	roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
     	
     	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
     		return false;

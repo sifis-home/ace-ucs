@@ -1053,91 +1053,13 @@ public class Constants {
       */
      public static final short POLICY_EXP_DELTA = 3;
      
-     /**
-      * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
-      * 
-      * @param currentRoleSet  the current set of roles
-      * @param newRole  the role to add to the current set
-      * 
-       * @return  the updated role set
-       * @throws AceException  if the role identifier is less than 1
-      */
-     public static int addGroupOSCORERole (int currentRoleSet, short newRole) throws AceException{
-
-    	 if (newRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
-    	 
-    	 int updatedRoleSet = 0;
-    	 updatedRoleSet = currentRoleSet | (1 << newRole);
-    	 
-    	 return updatedRoleSet; 
-    	 
-     }     
      
      /**
-      * Remove 'oldRole' from the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
-      * 
-      * @param currentRoleSet  the current set of roles
-      * @param oldRole  the role to remove from the current set
-      * 
-       * @return  the updated role set
-       * @throws AceException  if the role identifier is less than 1
+      * COSE Header Parameters
+      * https://www.iana.org/assignments/cose/cose.xhtml
       */
-     public static int removeGroupOSCORERole (int currentRoleSet, short oldRole) throws AceException{
-
-    	 if (oldRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
-    	 
-    	 int updatedRoleSet = 0;
-    	 updatedRoleSet = currentRoleSet & (~(1 << oldRole));
-    	 
-    	 return updatedRoleSet; 
-    	 
-     }
-        
-     /**
-      * Check if a role set includes a specified role, encoded using the AIF-OSCORE-GROUPCOMM data model
-      * 
-      * @param roleSet  the set of roles
-      * @param role  the role to remove from the current set
-      * 
-       * @return  true if the role set includes the specified role, false otherwise
-       * @throws AceException  if the role identifier is less than 1
-      */
-     public static boolean checkGroupOSCORERole (int roleSet, short role) throws AceException {
-
-    	 if (role < 1) throw new AceException("Invalid identifier of Group OSCORE role");
-    	 
-    	 return ((roleSet & (1 << role)) != 0);
-    	 
-     }
-     
-     /**
-      * Return the array of roles included in the specified role set, encoded using the AIF-OSCORE-GROUPCOMM data model
-      * 
-      * @param roleSet  the set of roles, encoded using the AIF-OSCORE-GROUPCOMM data model
-      * 
-       * @return  The set of role identifiers specified in the role set
-       * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
-      */
-     
-     
-     public static Set<Integer> getGroupOSCORERoles (int roleSet) throws AceException {
-    	 
-    	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
-    	 
-    	 Set<Integer> mySet = new HashSet<Integer>();
-    	 int roleIdentifier = 0;
-    	 
-    	 while (roleSet != 0) {
-    		 roleSet = roleSet >>> 1;
-    	 	 roleIdentifier++;
-    	 	 if ((roleSet & 1) != 0) {
-    	 		 mySet.add(Integer.valueOf(roleIdentifier));
-    	 	 }
-    	 }
-    	 
-    	 return mySet;
-    	 
-     }
-     
+     public static final int COSE_HEADER_PARAM_X5CHAIN = 33;
+     public static final int COSE_HEADER_PARAM_CWT = 36;
+     public static final int COSE_HEADER_PARAM_KID2 = 37;
      
 }

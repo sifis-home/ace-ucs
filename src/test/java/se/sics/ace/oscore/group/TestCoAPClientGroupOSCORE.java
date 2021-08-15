@@ -58,6 +58,7 @@ import com.upokecenter.cbor.CBORType;
 import COSE.OneKey;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.Util;
 import se.sics.ace.as.Token;
 
 /**
@@ -248,7 +249,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -281,7 +282,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	        
         cborArrayScope.Add(cborArrayEntry);
@@ -313,7 +314,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -345,7 +346,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	        
         cborArrayScope.Add(cborArrayEntry);
@@ -378,7 +379,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, (short)10);
+    	myRoles = Util.addGroupOSCORERole(myRoles, (short)10);
     	cborArrayEntry.Add(myRoles);
     	 
         cborArrayScope.Add(cborArrayEntry);
@@ -442,8 +443,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -476,8 +477,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid2);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -510,8 +511,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
     	
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -548,7 +549,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(expectedRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -596,7 +597,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
         
         cborArrayScope.Add(cborArrayEntry);
@@ -628,8 +629,8 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
     	cborArrayScope.Add(cborArrayEntry);
@@ -666,7 +667,7 @@ public class TestCoAPClientGroupOSCORE {
         cborArrayEntry.Add(gid);
         
         int expectedRoles = 0;
-        expectedRoles = Constants.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(expectedRoles);
     	
         cborArrayScope.Add(cborArrayEntry);

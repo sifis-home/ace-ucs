@@ -721,7 +721,7 @@ public class PlugtestRSGroupOSCORE {
         		}
         		Set<Integer> roleIdSet = new HashSet<Integer>();
         		try {
-            		roleIdSet = Constants.getGroupOSCORERoles(roleSet);
+            		roleIdSet = Util.getGroupOSCORERoles(roleSet);
         		}
         		catch(AceException e) {
         			System.err.println(e.getMessage());
@@ -2854,7 +2854,7 @@ public class PlugtestRSGroupOSCORE {
 	  	
 	  	
   	    int roles = 0;
-  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+  	    roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
 	  	
   	    if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
   	    	return;
@@ -2883,8 +2883,8 @@ public class PlugtestRSGroupOSCORE {
   	    mySubject = "clientY";
 	  	
   	    roles = 0;
-  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
-  	    roles = Constants.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
+  	    roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_REQUESTER);
+  	    roles = Util.addGroupOSCORERole(roles, Constants.GROUP_OSCORE_RESPONDER);
 	  	
   	    if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
   	    	return;

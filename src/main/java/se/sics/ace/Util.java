@@ -8,6 +8,8 @@ import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.Base64;
+import java.util.HashSet;
+import java.util.Set;
 
 import org.junit.Assert;
 
@@ -226,6 +228,92 @@ public class Util {
          
          return success;
 
+    }
+    
+    /**
+     * Add 'newRole' to the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param currentRoleSet  the current set of roles
+     * @param newRole  the role to add to the current set
+     * 
+      * @return  the updated role set
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static int addGroupOSCORERole (int currentRoleSet, short newRole) throws AceException{
+
+   	 if (newRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+   	 
+   	 int updatedRoleSet = 0;
+   	 updatedRoleSet = currentRoleSet | (1 << newRole);
+   	 
+   	 return updatedRoleSet; 
+   	 
+    }
+    
+    /**
+     * Remove 'oldRole' from the role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param currentRoleSet  the current set of roles
+     * @param oldRole  the role to remove from the current set
+     * 
+      * @return  the updated role set
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static int removeGroupOSCORERole (int currentRoleSet, short oldRole) throws AceException{
+
+   	 if (oldRole < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+   	 
+   	 int updatedRoleSet = 0;
+   	 updatedRoleSet = currentRoleSet & (~(1 << oldRole));
+   	 
+   	 return updatedRoleSet; 
+   	 
+    }
+       
+    /**
+     * Check if a role set includes a specified role, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param roleSet  the set of roles
+     * @param role  the role to remove from the current set
+     * 
+      * @return  true if the role set includes the specified role, false otherwise
+      * @throws AceException  if the role identifier is less than 1
+     */
+    public static boolean checkGroupOSCORERole (int roleSet, short role) throws AceException {
+
+   	 if (role < 1) throw new AceException("Invalid identifier of Group OSCORE role");
+   	 
+   	 return ((roleSet & (1 << role)) != 0);
+   	 
+    }
+    
+    /**
+     * Return the array of roles included in the specified role set, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+     * @param roleSet  the set of roles, encoded using the AIF-OSCORE-GROUPCOMM data model
+     * 
+      * @return  The set of role identifiers specified in the role set
+      * @throws AceException  if the reserved role is requested (identifier 1, hence 'roleSet' has an odd value)
+     */
+    
+    
+    public static Set<Integer> getGroupOSCORERoles (int roleSet) throws AceException {
+   	 
+   	 if ((roleSet % 2) == 1) throw new AceException("Invalid identifier of Group OSCORE role");
+   	 
+   	 Set<Integer> mySet = new HashSet<Integer>();
+   	 int roleIdentifier = 0;
+   	 
+   	 while (roleSet != 0) {
+   		 roleSet = roleSet >>> 1;
+   	 	 roleIdentifier++;
+   	 	 if ((roleSet & 1) != 0) {
+   	 		 mySet.add(Integer.valueOf(roleIdentifier));
+   	 	 }
+   	 }
+   	 
+   	 return mySet;
+   	 
     }
     
 }

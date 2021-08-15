@@ -401,7 +401,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayEntry.Add(myRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -597,7 +597,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayScope.Add(groupName);
 
         myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
     	cborArrayScope.Add(myRoles);
                 
     	byteStringScope = cborArrayScope.EncodeToBytes();
@@ -612,10 +612,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             getPubKeys.Add(CBORObject.NewArray());
             // The following is required to retrieve the public keys of both the already present group members 
             myRoles = 0;
-            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
-            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
         	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
@@ -933,8 +933,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayEntry.Add(groupName);
         
     	int myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayEntry.Add(myRoles);
     	
         cborArrayScope.Add(cborArrayEntry);
@@ -1129,8 +1129,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         cborArrayScope.Add(groupName);
         
     	myRoles = 0;
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-    	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
     	cborArrayScope.Add(myRoles);
         
         byteStringScope = cborArrayScope.EncodeToBytes();
@@ -1145,10 +1145,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
             getPubKeys.Add(CBORObject.NewArray());
             // The following is required to retrieve the public keys of both the already present group members
             myRoles = 0;
-            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
-            myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
-        	myRoles = Constants.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+            myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+        	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
         	getPubKeys.get(1).Add(myRoles);
             
             getPubKeys.Add(CBORObject.NewArray()); // This must be empty
