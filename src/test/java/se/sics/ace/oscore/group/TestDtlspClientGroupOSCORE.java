@@ -1706,10 +1706,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		// Part 12
+		//
+		/////////////////
+		
+        // Send a Group Manager Public Key Request, using the GET method
+		
+        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+                
+        Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+        CoapResponse r13 = c.advanced(GmPubKeyReq);
+        
+        System.out.println("");
+        System.out.println("Sent Public Key GET request to GM");
+
+        Assert.assertEquals("CONTENT", r13.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+        
+        gmPublicKeyRetrieved = null;
+        gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        switch (pubKeyEnc.AsInt32()) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of Group Manager public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            default:
+                Assert.fail("Invalid format of Group Manager public key");
+        }
+        if (gmPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of Group Manager public key");
+        Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+                            gmPublicKeyRetrieved.AsCBOR());
+        
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+    	gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+    	rawGmPopEvidence = gmPopEvidence.GetByteString();
+    	
+    	gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+    	
+    	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
         
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -1721,14 +1791,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -1737,12 +1807,12 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
     }
     
@@ -3193,9 +3263,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		// Part 12
+		//
+		/////////////////
+		
+        // Send a Group Manager Public Key Request, using the GET method
+		
+        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+        
+        c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+                
+        Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+        CoapResponse r13 = c.advanced(GmPubKeyReq);
+        
+        System.out.println("");
+        System.out.println("Sent Public Key GET request to GM");
+
+        Assert.assertEquals("CONTENT", r13.getCode().name());
+        
+        myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+        Assert.assertEquals(CBORType.Map, myObject.getType());
+        
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+        
+        gmPublicKeyRetrieved = null;
+        gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of Group Manager public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            default:
+                Assert.fail("Invalid format of Group Manager public key");
+        }
+        if (gmPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of Group Manager public key");
+        Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+                            gmPublicKeyRetrieved.AsCBOR());
+        
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+    	gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+    	rawGmPopEvidence = gmPopEvidence.GetByteString();
+    	
+    	gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+    	
+    	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));        
+        
+        
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -3207,14 +3348,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -3223,12 +3364,12 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
     }
     
@@ -4752,9 +4893,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		//Part 12
+		//
+		/////////////////
+		
+		//Send a Group Manager Public Key Request, using the GET method
+		
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		
+		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+		
+		Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+		CoapResponse r13 = c.advanced(GmPubKeyReq);
+		
+		System.out.println("");
+		System.out.println("Sent Public Key GET request to GM");
+		
+		Assert.assertEquals("CONTENT", r13.getCode().name());
+		
+		myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+		Assert.assertEquals(CBORType.Map, myObject.getType());
+		
+		//Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+		
+		gmPublicKeyRetrieved = null;
+		gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+		switch (pubKeyEnc.AsInt32()) {
+		case Constants.COSE_HEADER_PARAM_CWT:
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+		    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+		else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+		    // Retrieve the public key from the CWT
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of Group Manager public key");
+		}
+		break;
+		case Constants.COSE_HEADER_PARAM_X5CHAIN:
+		// Retrieve the public key from the certificate
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of public key");
+		}
+		break;
+		default:
+		Assert.fail("Invalid format of Group Manager public key");
+		}
+		if (gmPublicKeyRetrieved == null)
+		Assert.fail("Invalid format of Group Manager public key");
+		Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+		            gmPublicKeyRetrieved.AsCBOR());
+		
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+		gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+		rawGmPopEvidence = gmPopEvidence.GetByteString();
+		
+		gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+		
+		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
+        
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -4766,14 +4978,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -4782,12 +4994,12 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
     }
     
@@ -6239,9 +6451,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		//Part 12
+		//
+		/////////////////
+		
+		//Send a Group Manager Public Key Request, using the GET method
+		
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		
+		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+		
+		Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+		CoapResponse r13 = c.advanced(GmPubKeyReq);
+		
+		System.out.println("");
+		System.out.println("Sent Public Key GET request to GM");
+		
+		Assert.assertEquals("CONTENT", r13.getCode().name());
+		
+		myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+		Assert.assertEquals(CBORType.Map, myObject.getType());
+		
+		//Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+		
+		gmPublicKeyRetrieved = null;
+		gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+		switch (pubKeyEnc) {
+		case Constants.COSE_HEADER_PARAM_CWT:
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+		    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+		else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+		    // Retrieve the public key from the CWT
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of Group Manager public key");
+		}
+		break;
+		case Constants.COSE_HEADER_PARAM_X5CHAIN:
+		// Retrieve the public key from the certificate
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of public key");
+		}
+		break;
+		default:
+		Assert.fail("Invalid format of Group Manager public key");
+		}
+		if (gmPublicKeyRetrieved == null)
+		Assert.fail("Invalid format of Group Manager public key");
+		Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+		            gmPublicKeyRetrieved.AsCBOR());
+		
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+		gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+		rawGmPopEvidence = gmPopEvidence.GetByteString();
+		
+		gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+		
+		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
+        
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -6253,14 +6536,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -6269,12 +6552,12 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
     }
     
@@ -7929,9 +8212,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		//Part 12
+		//
+		/////////////////
+		
+		//Send a Group Manager Public Key Request, using the GET method
+		
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		
+		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+		
+		Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+		CoapResponse r13 = c.advanced(GmPubKeyReq);
+		
+		System.out.println("");
+		System.out.println("Sent Public Key GET request to GM");
+		
+		Assert.assertEquals("CONTENT", r13.getCode().name());
+		
+		myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+		Assert.assertEquals(CBORType.Map, myObject.getType());
+		
+		//Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+		
+		gmPublicKeyRetrieved = null;
+		gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+		switch (pubKeyEnc.AsInt32()) {
+		case Constants.COSE_HEADER_PARAM_CWT:
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+		    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+		else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+		    // Retrieve the public key from the CWT
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of Group Manager public key");
+		}
+		break;
+		case Constants.COSE_HEADER_PARAM_X5CHAIN:
+		// Retrieve the public key from the certificate
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of public key");
+		}
+		break;
+		default:
+		Assert.fail("Invalid format of Group Manager public key");
+		}
+		if (gmPublicKeyRetrieved == null)
+		Assert.fail("Invalid format of Group Manager public key");
+		Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+		            gmPublicKeyRetrieved.AsCBOR());
+		
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+		gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+		rawGmPopEvidence = gmPopEvidence.GetByteString();
+		
+		gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+		
+		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
+        
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -7943,14 +8297,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -7959,17 +8313,17 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
         
         /////////////////
         //
-        // Part 13
+        // Part 14
         //
         /////////////////
 		
@@ -8127,7 +8481,7 @@ public class TestDtlspClientGroupOSCORE {
 		
         /////////////////
         //
-        // Part 14
+        // Part 15
         //
         /////////////////
 		
@@ -9936,9 +10290,80 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, myObject.size());
         
         
+		/////////////////
+		//
+		//Part 12
+		//
+		/////////////////
+		
+		//Send a Group Manager Public Key Request, using the GET method
+		
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		
+		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
+		
+		Request GmPubKeyReq = new Request(Code.GET, Type.CON);
+		CoapResponse r13 = c.advanced(GmPubKeyReq);
+		
+		System.out.println("");
+		System.out.println("Sent Public Key GET request to GM");
+		
+		Assert.assertEquals("CONTENT", r13.getCode().name());
+		
+		myObject = CBORObject.DecodeFromBytes(r13.getPayload());
+		Assert.assertEquals(CBORType.Map, myObject.getType());
+		
+		//Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+		Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
+		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+		
+		gmPublicKeyRetrieved = null;
+		gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+		switch (pubKeyEnc) {
+		case Constants.COSE_HEADER_PARAM_CWT:
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+		    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+		else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+		    // Retrieve the public key from the CWT
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of Group Manager public key");
+		}
+		break;
+		case Constants.COSE_HEADER_PARAM_X5CHAIN:
+		// Retrieve the public key from the certificate
+		if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+		    // TODO
+		}
+		else {
+		    Assert.fail("Invalid format of public key");
+		}
+		break;
+		default:
+		Assert.fail("Invalid format of Group Manager public key");
+		}
+		if (gmPublicKeyRetrieved == null)
+		Assert.fail("Invalid format of Group Manager public key");
+		Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+		            gmPublicKeyRetrieved.AsCBOR());
+		
+		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
+		
+		gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
+		rawGmPopEvidence = gmPopEvidence.GetByteString();
+		
+		gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+		
+		Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
+        
+        
         /////////////////
         //
-        // Part 12
+        // Part 13
         //
         /////////////////
 		
@@ -9950,14 +10375,14 @@ public class TestDtlspClientGroupOSCORE {
                 
         Request LeavingGroupReq = new Request(Code.DELETE, Type.CON);
         
-        CoapResponse r13 = c.advanced(LeavingGroupReq);
+        CoapResponse r14 = c.advanced(LeavingGroupReq);
 
         System.out.println("");
         System.out.println("Sent Group Leaving Request to the node sub-resource at the GM");
         
-        Assert.assertEquals("DELETED", r13.getCode().name());
+        Assert.assertEquals("DELETED", r14.getCode().name());
         
-        responsePayload = r13.getPayload();
+        responsePayload = r14.getPayload();
         
         // Send a Version Request, not as a member any more
         
@@ -9966,12 +10391,12 @@ public class TestDtlspClientGroupOSCORE {
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
         VersionReq = new Request(Code.GET, Type.CON);
-        CoapResponse r14 = c.advanced(VersionReq);
+        CoapResponse r15 = c.advanced(VersionReq);
         
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r14.getCode().name());
+        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
         
 }   
     
