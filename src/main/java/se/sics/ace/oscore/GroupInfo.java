@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.oscore;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -46,6 +48,7 @@ import COSE.OneKey;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.Util;
 import se.sics.ace.Constants;
+import se.sics.ace.Hkdf;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -63,6 +66,7 @@ public class GroupInfo {
 	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
+	private byte[] groupEncryptionKey = null;
 	private AlgorithmID hkdf = null;
 	private int pubKeyEnc; // the format of public keys used in the group
 	
@@ -179,6 +183,7 @@ public class GroupInfo {
     	
     	setGroupName(groupName);
     	
+    	setHkdf(hkdf);
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
     	
@@ -190,14 +195,13 @@ public class GroupInfo {
     	this.pubKeyEnc = pubKeyEnc;
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
-
-    	setHkdf(hkdf);
     	
     	// The group mode is used
     	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     		setSignEncAlg(signEncAlg);
 	    	setSignAlg(signAlg);
 	    	setSignParams(signParams);
+	    	setGroupEncryptionKey();
     	}
     	
     	// The pairwise mode is used
@@ -377,6 +381,59 @@ public class GroupInfo {
     		this.masterSalt = new byte[masterSalt.length];
     		System.arraycopy(masterSalt, 0, this.masterSalt, 0, masterSalt.length);
     	}
+    	
+    }
+    
+    /**
+     *  Retrieve the OSCORE Group Encryption Key
+     * @return  the Group Encryption Key, or null in case of error
+     */
+    synchronized public final byte[] getGroupEncryptionKey() {
+    	
+    	if (this.groupEncryptionKey == null || this.mode == Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
+    		return null;
+    	
+    	byte[] myArray = new byte[this.groupEncryptionKey.length];
+    	System.arraycopy(this.groupEncryptionKey, 0, myArray, 0, this.groupEncryptionKey.length);
+    	return myArray;
+    	
+    }
+    
+    /**
+     * Set the OSCORE Group Encryption Key
+     * 
+     */
+    synchronized public void setGroupEncryptionKey() {
+    	
+    	CBORObject info = CBORObject.NewArray();
+    	
+    	 // 'id'
+    	byte[] emptyArray = new byte[0];
+    	info.Add(emptyArray);
+    	
+    	// 'id_context'
+    	info.Add(getGroupId());
+    	
+    	// 'alg_aead'
+    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.Integer)
+        	info.Add(this.getSignEncAlg().AsCBOR().AsInt32());
+    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.TextString)
+        	info.Add(this.getSignEncAlg().AsCBOR().AsString());
+    	
+    	// 'type'
+    	info.Add("Group Encryption Key");
+    	
+    	// 'L'
+    	int L = getKeyLengthSignatureEncryptionAlgorithm();
+    	info.Add(L);
+    	
+    	try {
+			this.groupEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
+		} catch (InvalidKeyException e) {
+			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+		}
     	
     }
     
@@ -1190,5 +1247,29 @@ public class GroupInfo {
     	return this.senderIdSize;
     	
     }
+
+    /**
+     *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group
+     * @return  the key length (in bytes) for the Signature Encryption Algorithm
+     */
+	private int getKeyLengthSignatureEncryptionAlgorithm() {
+
+		int keyLength = 0;
+	    
+		if (this.signEncAlg != null && this.mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		
+			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
+				this.signEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_128 )
+				keyLength = 16;
+			
+			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
+				this.signEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_256 )
+					keyLength = 32;
+		
+		}
+	    
+	    return keyLength;
+		
+	}
     
 }

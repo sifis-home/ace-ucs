@@ -250,10 +250,8 @@ public class TestOscorepRSGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/pub-key", actions3);
         actions3 = new HashSet<>();
         actions3.add(Constants.GET);
-        
-        // NNN
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", actions3);
-        
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/verif-data", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/num", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
         myResource3.put(rootGroupMembershipResource + "/" + groupName + "/policies", actions3);
@@ -282,10 +280,8 @@ public class TestOscorepRSGroupOSCORE {
         // For each OSCORE group, include the associated group-membership resource and its sub-resources
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/pub-key"));
-        
-        // NNN
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key"));
-        
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/verif-data"));        
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/num"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
@@ -357,11 +353,12 @@ public class TestOscorepRSGroupOSCORE {
         // Add the /pub-key sub-resource
         Resource pubKeySubResource = new GroupOSCORESubResourcePubKey("pub-key");
         join.add(pubKeySubResource);
-        
-        // NNN
         // Add the /gm-pub-key sub-resource
         Resource gmPubKeySubResource = new GroupOSCORESubResourcePubKey("gm-pub-key");
         join.add(gmPubKeySubResource);
+        // Add the /verif-data sub-resource
+        Resource verifDataSubResource = new GroupOSCORESubResourcePubKey("verif-data");
+        join.add(verifDataSubResource);
         
         // Add the /num sub-resource
         Resource numSubResource = new GroupOSCORESubResourceNum("num");
@@ -1879,9 +1876,7 @@ public class TestOscorepRSGroupOSCORE {
         }
         
     }
-    
-    
-    // NNN
+
     /**
      * Definition of the Group OSCORE group-membership sub-resource /gm-pub-key
      */
@@ -2007,6 +2002,145 @@ public class TestOscorepRSGroupOSCORE {
 				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
         		return;
         	}
+
+        	byte[] responsePayload = myResponse.EncodeToBytes();
+        	
+        	Response coapResponse = new Response(CoAP.ResponseCode.CONTENT);
+        	coapResponse.setPayload(responsePayload);
+        	coapResponse.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+
+        	exchange.respond(coapResponse);
+
+        }
+    
+    }
+    
+    /**
+     * Definition of the Group OSCORE group-membership sub-resource /verif-data
+     */
+    public static class GroupOSCORESubResourceVerifData extends CoapResource {
+    	
+		/**
+         * Constructor
+         * @param resId  the resource identifier
+         */
+        public GroupOSCORESubResourceVerifData(String resId) {
+            
+            // set resource identifier
+            super(resId);
+            
+            // set display name
+            getAttributes().setTitle("Group OSCORE Group-Membership Sub-Resource \"verif-data\" " + resId);
+            
+        }
+
+        @Override
+        public void handleGET(CoapExchange exchange) {
+        	System.out.println("GET request reached the GM");
+        	
+        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
+        	
+        	// This should never happen if active groups are maintained properly
+        	if (targetedGroup == null) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	return;
+        	}
+        	
+        	String groupName = targetedGroup.getGroupName();
+        	
+        	// This should never happen if active groups are maintained properly
+  	  		if (!groupName.equals(this.getParent().getName())) {
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+  				return;
+  			}
+        	
+        	String subject = null;
+        	Request request = exchange.advanced().getCurrentRequest();
+            
+            try {
+				subject = CoapReq.getInstance(request).getSenderId();
+			} catch (AceException e) {
+			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
+			}
+            if (subject == null) {
+            	// At this point, this should not really happen, due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	return;
+            }
+        	
+            boolean allowed = false;
+        	if (!targetedGroup.isGroupMember(subject)) {
+        		
+        		// The requester is not a current group member.
+        		
+        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+            	
+        		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
+            	int[] roleSetToken = getRolesFromToken(subject, groupName);
+            	if (roleSetToken == null) {
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		return;
+            	}
+            	else {
+            		for (int index = 0; index < roleSetToken.length; index++) {
+            			if ((role & roleSetToken[index]) != 0) {
+                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+            				allowed = true;
+            				break;
+            			}
+            		}
+            	}
+            	
+        	}
+        	if (!allowed) {
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to a non-member acting as a Verifier");
+        		return;
+        	}
+        	
+        	// Respond to the Public Key Request
+            
+        	CBORObject myResponse = CBORObject.NewMap();
+        	
+        	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
+        	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
+        	
+        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	CBORObject myMap = CBORObject.NewMap();
+        	
+        	// Fill the 'key' parameter
+        	// Note that no Sender ID is included
+        	myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, targetedGroup.getHkdf().AsCBOR());
+        	myMap.Add(OSCOREInputMaterialObjectParameters.contextId, targetedGroup.getGroupId());
+        	myMap.Add(GroupOSCOREInputMaterialObjectParameters.pub_key_enc, targetedGroup.getPubKeyEnc());
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+        		// The group mode is used
+        		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg, targetedGroup.getSignEncAlg().AsCBOR());
+            	myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, targetedGroup.getSignAlg().AsCBOR());
+            	if (targetedGroup.getSignParams().size() != 0)
+            		myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_params, targetedGroup.getSignParams());
+        	}
+        	if (targetedGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+        		// The pairwise mode is used
+        		myMap.Add(OSCOREInputMaterialObjectParameters.alg, targetedGroup.getAlg().AsCBOR());
+            	myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_alg, targetedGroup.getEcdhAlg().AsCBOR());
+            	if (targetedGroup.getEcdhParams().size() != 0)
+            		myMap.Add(GroupOSCOREInputMaterialObjectParameters.ecdh_params, targetedGroup.getEcdhParams());
+        	}
+        	
+        	myResponse.Add(Constants.KEY, myMap);
+        	
+    		myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
+    		
+    		// CBOR Value assigned to the coap_group_oscore profile.
+        	myResponse.Add(Constants.ACE_GROUPCOMM_PROFILE, CBORObject.FromObject(Constants.COAP_GROUP_OSCORE_APP));
+        	
+        	// Expiration time in seconds, after which the OSCORE Security Context
+        	// derived from the 'k' parameter is not valid anymore.
+        	myResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
+
+        	myResponse.Add(Constants.GROUP_KEY_ENC, targetedGroup.getGroupEncryptionKey());
+        	
 
         	byte[] responsePayload = myResponse.EncodeToBytes();
         	

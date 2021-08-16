@@ -1007,17 +1007,22 @@ public class Constants {
      /**
       * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
       */
-     public static final short GID = 211;
+     public static final short GID = 215;
      
      /**
       * Value for the label "gname" in the Group Name and URI Retrieval Response message
       */
-     public static final short GNAME = 212;
+     public static final short GNAME = 216;
      
      /**
       * Value for the label "guri" in the Group Name and URI Retrieval Response message
       */
-     public static final short GURI = 213;
+     public static final short GURI = 217;
+     
+     /**
+      * Value for the label "group_key_enc" in the Signature Verification Data Response message
+      */
+     public static final short GROUP_KEY_ENC = 218;
      
      
      /**

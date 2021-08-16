@@ -1756,10 +1756,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(CBORType.ByteString, myObject.getType());
         Assert.assertEquals(0, myObject.size());
         
-        
-        
-        // NNN
-        
+
         /////////////////
         //
         // Part 12
