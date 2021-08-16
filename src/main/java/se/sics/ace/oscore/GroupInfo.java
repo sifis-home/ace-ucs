@@ -97,6 +97,10 @@ public class GroupInfo {
 	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
 	private Map<String, CBORObject> identities2senderIDs = new HashMap<String, CBORObject>();
 	
+	// The value of each map entry is the "Birth GID" (CBOR byte string) of that group member.
+	// The map (key) label is the node name of the group member.
+	private Map<String, CBORObject> birthGIDs = new HashMap<String, CBORObject>();
+	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
 	
@@ -984,9 +988,13 @@ public class GroupInfo {
     			return false;
     		setGroupMemberRoles(sid, roles);
 	    	setSenderIdToIdentity(subject, sid);
+	    	
     	}
     	
     	this.identities2nodeNames.put(subject, name);
+    	
+    	CBORObject gidCbor = CBORObject.FromObject(getGroupId());
+    	this.birthGIDs.put(name, gidCbor);
     	
     	return true;
     	
@@ -1036,6 +1044,41 @@ public class GroupInfo {
     	this.identities2senderIDs.put(subject, CBORObject.FromObject(sid));
     	
     }    
+    
+    /**
+     * Return the Birth GID of the group member identified by the specified node name
+     * 
+     * @param senderId   The node name of the group member
+     * 
+     * @return The Birth GID of the Group Member, or null in case of error
+     */
+    synchronized public byte[] getBirthGid(final String nodeName) {
+    
+    	byte[] birthGid = null;
+    	CBORObject birthGidCbor;
+    	
+    	birthGidCbor = birthGIDs.get(nodeName);
+    	
+    	if (birthGidCbor != null)
+    		birthGid = birthGidCbor.GetByteString();
+    	
+    	return birthGid;
+    	
+    }
+    
+    /**
+     * Remove the Birth GID of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     */
+    synchronized public void deleteBirthGid(final String nodeName) {
+    	
+    	birthGIDs.remove(nodeName);
+    	
+    }
+    
+    
     
     /**
      * Return the roles of the group member identified by the specified node name
@@ -1116,8 +1159,11 @@ public class GroupInfo {
 	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
 	    	
 	    	deletePublicKey(sid);
-    	
+	    	
     	}
+    	
+    	String nodeName = getGroupMemberName(subject);
+    	this.birthGIDs.remove(nodeName);
     	
     	this.identities2nodeNames.remove(subject);
     	this.identities2senderIDs.remove(subject);

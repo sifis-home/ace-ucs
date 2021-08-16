@@ -1243,12 +1243,13 @@ public class TestOscorepRSGroupOSCORE {
         	if (!myGroup.addGroupMember(senderId, nodeName, roleSet, subject)) {
         		// The joining node is not a monitor; its node name is its Sender ID encoded as a String
     			if (senderId != null) {
-    				myGroup.deallocateSenderId(senderId);
+    				myGroup.deallocateSenderId(senderId);    				
     			}
     			// The joining node is a monitor; it got a node name but not a Sender ID
     			else {
     				myGroup.deallocateNodeName(nodeName);
     			}
+    			myGroup.deleteBirthGid(nodeName);
     			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when adding the new group member");
         		return;
         	}
@@ -2701,7 +2702,7 @@ public class TestOscorepRSGroupOSCORE {
         		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
-            	
+        	
         	targetedGroup.removeGroupMemberBySubject(subject);
         	
         	// Respond to the Group Leaving Request

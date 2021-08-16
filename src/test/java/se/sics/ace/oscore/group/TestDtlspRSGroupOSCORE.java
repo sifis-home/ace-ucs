@@ -1012,6 +1012,7 @@ public class TestDtlspRSGroupOSCORE {
     			else {
     				myGroup.deallocateNodeName(nodeName);
     			}
+    			myGroup.deleteBirthGid(nodeName);
     			exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when adding the new group member");
         		return;
         	}
