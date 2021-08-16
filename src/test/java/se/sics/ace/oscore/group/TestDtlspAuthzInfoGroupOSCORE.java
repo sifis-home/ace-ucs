@@ -35,6 +35,8 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.security.Provider;
+import java.security.Security;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -43,6 +45,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.CoAP;
@@ -66,7 +69,7 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -128,6 +131,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
             throws CoseException, AceException, IOException, 
             IllegalStateException, InvalidCipherTextException {
         
+    	final Provider PROVIDER = new BouncyCastleProvider();
+    	final Provider EdDSA = new EdDSASecurityProvider();
+    	Security.insertProviderAt(PROVIDER, 1);
+    	Security.insertProviderAt(EdDSA, 0);
+    	
         //Set up DTLSProfileTokenRepository
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
@@ -176,7 +184,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-        final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
+        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CWT;
+        
+        // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+        // If true, the UCCS encoding is used, otherwise the CWT encodding is used
+        final boolean uccsPreferredToCWT = true;
 
         int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
 
@@ -220,7 +232,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	String gmKeyPairStr = "";
     	String gmPublicKeyStr = "";
     	OneKey gmKeyPair = null;
-    	OneKey gmPublicKey = null;
+    	OneKey gmPublicKeyOneKey = null;
+    	CBORObject gmPublicKey = null;
 
     	// Store the asymmetric key pair and public key of the Group Manager (ECDSA_256)
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -235,7 +248,22 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	}
 
     	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmKeyPairStr)));
-    	gmPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	
+    	gmPublicKeyOneKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_CWT:
+            if (uccsPreferredToCWT == true)
+                gmPublicKey = Util.oneKeyToUccs(gmPublicKeyOneKey, "");
+            else {
+                // Build/retrieve a CWT including the public key
+                // TODO
+            }
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // Build/retrieve the certificate including the public key
+            // TODO
+            break;
+    	}
     	
     	GroupInfo myGroup = new GroupInfo(groupName,
 						                  masterSecret,

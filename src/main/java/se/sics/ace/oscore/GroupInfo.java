@@ -64,7 +64,7 @@ public class GroupInfo {
 	private byte[] masterSecret;
 	private byte[] masterSalt;
 	private AlgorithmID hkdf = null;
-	private CBORObject pubKeyEnc = null;
+	private int pubKeyEnc; // the format of public keys used in the group
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 includes as elements Sender IDs with size 1 byte.
@@ -75,7 +75,7 @@ public class GroupInfo {
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
-	// Each map has as value the public keys of the group members as COSE Keys (CBOR Maps).
+	// Each map has as value the public keys of the group members, according to the format used in the group.
 	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
 	private List<Map<CBORObject, CBORObject>> publicKeyRepo = new ArrayList<Map<CBORObject, CBORObject>>();
 	
@@ -124,8 +124,8 @@ public class GroupInfo {
 	private int version; // Version of the current symmetric keying material
 	private boolean status; // True if the group is currently active, false otherwise
 	
-	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a COSE key
-	private OneKey gmPublicKey; // The public key of the Group Manager, according to the format used in the group
+	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a OneKey object
+	private CBORObject gmPublicKey; // The public key of the Group Manager, according to the format used in the group
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -162,7 +162,7 @@ public class GroupInfo {
     		         final String prefixMonitorNames,
     		         final String nodeNameSeparator,
     		         final AlgorithmID hkdf,
-    		         final CBORObject pubKeyEnc,
+    		         final int pubKeyEnc,
     		         final int mode,
     		         final AlgorithmID signEncAlg,
     		         final AlgorithmID signAlg,
@@ -172,7 +172,7 @@ public class GroupInfo {
     		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies,
     		         final OneKey gmKeyPair,
-    		         final OneKey gmPublicKey) {
+    		         final CBORObject gmPublicKey) {
     	
     	this.version = 0;
     	this.status = false;
@@ -187,12 +187,11 @@ public class GroupInfo {
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
     	this.mode = mode;
+    	this.pubKeyEnc = pubKeyEnc;
     	this.prefixMonitorNames = prefixMonitorNames;
     	this.nodeNameSeparator = nodeNameSeparator;
 
-    	
     	setHkdf(hkdf);
-    	setPubKeyEnc(pubKeyEnc);
     	
     	// The group mode is used
     	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
@@ -291,21 +290,21 @@ public class GroupInfo {
     	
     }
     
-    /** Retrieve the public key of the Group Manager
+    /** Retrieve the public key of the Group Manager, according to the format used in the group
      * 
      * @return  The public key of the Group Manager
      */
-    synchronized public final OneKey getGmPublicKey() {
+    synchronized public final CBORObject getGmPublicKey() {
     	
     	return this.gmPublicKey;
     	
     }
     
     /** 
-     * Set the public key of the Group Manager
+     * Set the public key of the Group Manager, according to the format used in the group
      * @param The new public key of the Group Manager
      */
-    synchronized public void setGmPublicKey(OneKey gmPublicKey) {
+    synchronized public void setGmPublicKey(CBORObject gmPublicKey) {
     	
     	this.gmPublicKey = gmPublicKey;
     	
@@ -669,24 +668,9 @@ public class GroupInfo {
     /**
      * @return format of the public keys used in the group
      */
-    synchronized public final CBORObject getPubKeyEnc() {
+    synchronized public final int getPubKeyEnc() {
     	
     	return this.pubKeyEnc;
-    	
-    }
-    
-    /**
-     *  Set the format of the public keys used in the group
-     * @param pubKeyEnc  the public key format
-     * @return  true if the encoding was successfully set, false otherwise
-     */
-    synchronized public boolean setPubKeyEnc(final CBORObject pubKeyEnc) {
-    	
-    	if (pubKeyEnc.getType() != CBORType.Integer)
-    		return false;
-    	
-    	this.pubKeyEnc = pubKeyEnc;
-    	return true;
     	
     }
 
@@ -1090,7 +1074,6 @@ public class GroupInfo {
      * 
      * @return  The set of public keys of the current group members
      */
-    // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
     synchronized public Map<CBORObject, CBORObject> getPublicKeys() {
     	
     	Map<CBORObject, CBORObject> publicKeys = new HashMap<CBORObject, CBORObject>();
@@ -1115,7 +1098,6 @@ public class GroupInfo {
      * @param sid   Sender ID of the group member associated to the public key.
      * @return  the public key 'key' of the group member.
      */
-    // The format of the public key is the raw CBOR Map encoding it as COSE Key. 
     synchronized public CBORObject getPublicKey(final byte[] sid) {
     	
     	if (sid.length < 1 || sid.length > 4)
@@ -1127,7 +1109,6 @@ public class GroupInfo {
     
     /**
      *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
-     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
      * @param sid   Sender ID of the group member associated to the public key.
      * @param key   The public key of the group member
      * @return  true if it worked, false if it failed
@@ -1149,7 +1130,6 @@ public class GroupInfo {
 
     /**
      *  Remove the public key of the group member indicated by the provided Sender ID
-     *  The format of the public key is the raw CBOR Map encoding it as COSE Key. 
      *  
      * @param sid   Sender ID of the group member associated to the public key.
      * @return  True if the public key was found and removed, false otherwise

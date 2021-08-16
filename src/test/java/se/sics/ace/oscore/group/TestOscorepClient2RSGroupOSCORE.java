@@ -109,6 +109,10 @@ public class TestOscorepClient2RSGroupOSCORE {
     // Uncomment to set curve X25519 for pairwise key derivation
     private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
     
+    // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+    // If true, the UCCS encoding is used, otherwise the CWT encodding is used
+    private static boolean uccsPreferredToCWT = true;
+    
     /**
      * The cnf key used in these tests
      */
@@ -431,7 +435,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
         
-        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT);
         
         
         if (askForSignInfo) {
@@ -604,10 +608,24 @@ public class TestOscorepClient2RSGroupOSCORE {
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-            // For the time being, the client's public key can be only a COSE Key
             OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
-            requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+            CBORObject encodedPublicKey = null;
+            switch (pubKeyEncExpected.AsInt32()) {
+            	case Constants.COSE_HEADER_PARAM_CWT:
+            		if (uccsPreferredToCWT == true)
+            			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            		else {
+            			// Build/retrieve a CWT including the public key
+            			// TODO
+            		}
+            		break;
+            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            		// Build/retrieve the certificate including the public key
+            		// TODO
+            		break;
+            }
+        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
             
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -696,8 +714,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
-       
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        
+        int pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
+        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
        
@@ -733,18 +753,14 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
         }       
         
-        CBORObject coseKeySetArray = null;
+        CBORObject pubKeysArray = null;
+        
         if (askForPubKeys) {
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
-            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+            Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
            
-            // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-           
-            byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-            coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-            Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-            
-            Assert.assertEquals(2, coseKeySetArray.size());
+            pubKeysArray = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS));
+            Assert.assertEquals(2, pubKeysArray.size());
            
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
             Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
@@ -752,28 +768,59 @@ public class TestOscorepClient2RSGroupOSCORE {
             
             byte[] peerSenderId;
             OneKey peerPublicKey;
+            OneKey peerPublicKeyRetrieved = null;
+            CBORObject peerPublicKeyRetrievedEncoded;
             byte[] peerSenderIdFromResponse;
-           
+            
+            
             peerSenderId = new byte[] { (byte) 0x77 };
             peerSenderIdFromResponse = joinResponse.
  				   get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(0).GetByteString();
             peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-           
+            
+            peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+            switch (pubKeyEnc) {
+	            case Constants.COSE_HEADER_PARAM_CWT:
+	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	                    // Retrieve the public key from the CWT
+	                	// TODO
+	                }
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	                // Retrieve the public key from the certificate
+	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+	            		// TODO
+	            	}
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            default:
+	            	Assert.fail("Invalid format of public key");
+            }
+            if (peerPublicKeyRetrieved == null)
+            	Assert.fail("Invalid format of public key");
+            
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
             }
            
             // EDDSA (Ed25519)
             if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
             }
             
             peerSenderId = new byte[] { (byte) 0x52 };
@@ -782,20 +829,48 @@ public class TestOscorepClient2RSGroupOSCORE {
             peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
            
+            peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+            switch (pubKeyEnc) {
+	            case Constants.COSE_HEADER_PARAM_CWT:
+	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	                    // Retrieve the public key from the CWT
+	                	// TODO
+	                }
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	                // Retrieve the public key from the certificate
+	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+	            		// TODO
+	            	}
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            default:
+	                Assert.fail("Invalid format of public key");
+	        }
+            if (peerPublicKeyRetrieved == null)
+            	Assert.fail("Invalid format of public key");
+            
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
             }
            
             // EDDSA (Ed25519)
             if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
             }
             
             
@@ -827,20 +902,46 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
-        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
-        Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
-				 				 joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+ 
+        OneKey gmPublicKeyRetrieved = null;
+        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                	// TODO
+                }
+                else {
+                	Assert.fail("Invalid format of Group Manager public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            default:
+            	Assert.fail("Invalid format of Group Manager public key");
+        }
+        if (gmPublicKeyRetrieved == null)
+        	Assert.fail("Invalid format of Group Manager public key");
+        Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+        					gmPublicKeyRetrieved.AsCBOR());
         
 		byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
 		
     	CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
     	byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
     	
-    	CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
-    	CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
-    	PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+    	PublicKey gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
         
     	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
 
@@ -896,7 +997,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -1040,21 +1141,17 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
-        Assert.assertEquals(CBORType.ByteString, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
-        
-        // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-       
-        byte[] coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-        Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+        pubKeysArray = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS));
+        Assert.assertEquals(3, pubKeysArray.size());
         
         byte[] peerSenderId;
         OneKey peerPublicKey;
+        OneKey peerPublicKeyRetrieved = null;
+        CBORObject peerPublicKeyRetrievedEncoded;
         byte[] peerSenderIdFromResponse;
         int expectedRoles = 0;
-        
-        Assert.assertEquals(3, coseKeySetArray.size());
-       
+               
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
         Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).size());
@@ -1064,22 +1161,46 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerSenderIdFromResponse = myObject.
                 get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(0).GetByteString();
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         // Retrieve and check the public key of another node in the group
@@ -1089,20 +1210,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         // Retrieve and check the public key of this exact requester node
@@ -1112,20 +1256,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(2);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
@@ -1201,15 +1368,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
-        Assert.assertEquals(CBORType.ByteString, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
-        
-        // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-       
-        coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-        Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        
-        Assert.assertEquals(2, coseKeySetArray.size());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+        pubKeysArray = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS));
+        Assert.assertEquals(2, pubKeysArray.size());
         
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
         Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
@@ -1222,20 +1383,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         // Retrieve and check the public key of another node in the group
@@ -1245,20 +1429,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
                 
@@ -1328,7 +1535,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -1412,10 +1619,24 @@ public class TestOscorepClient2RSGroupOSCORE {
                 
         requestPayload = CBORObject.NewMap();
         
-        // For the time being, the client's public key can be only a COSE Key
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
 
-        requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        CBORObject encodedPublicKey = null;
+        switch (pubKeyEncExpected.AsInt32()) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (uccsPreferredToCWT == true)
+                    encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+                else {
+                    // Build/retrieve a CWT including the public key
+                    // TODO
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Build/retrieve the certificate including the public key
+                // TODO
+                break;
+        }
+        requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
 
         // Add the nonce for PoP of the Client's private key
         byte[] cnonce = new byte[8];
@@ -1669,7 +1890,7 @@ public class TestOscorepClient2RSGroupOSCORE {
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
         
-        pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT);
         
         
         if (askForSignInfo) {
@@ -1787,10 +2008,24 @@ public class TestOscorepClient2RSGroupOSCORE {
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-            // For the time being, the client's public key can be only a COSE Key
             publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
-            requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+            encodedPublicKey = null;
+            switch (pubKeyEncExpected.AsInt32()) {
+                case Constants.COSE_HEADER_PARAM_CWT:
+                    if (uccsPreferredToCWT == true)
+                        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+                    else {
+                        // Build/retrieve a CWT including the public key
+                        // TODO
+                    }
+                    break;
+                case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                    // Build/retrieve the certificate including the public key
+                    // TODO
+                    break;
+            }
+            requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
             
         	// Add the nonce for PoP of the Client's private key
             cnonce = new byte[8];
@@ -1876,8 +2111,10 @@ public class TestOscorepClient2RSGroupOSCORE {
             // Check the presence, type and value of the public key encoding
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
             Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-            Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
-           
+            Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+            
+            pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
+            
             Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
             Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
            
@@ -1913,40 +2150,60 @@ public class TestOscorepClient2RSGroupOSCORE {
                 Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
             }       
 
-            coseKeySetArray = null;
+            pubKeysArray = null;
+            
             if (askForPubKeys) {
                 Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
-                Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+                Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
                
-                // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-                
-                coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-                coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-                Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-                
-                Assert.assertEquals(2, coseKeySetArray.size());
+                pubKeysArray = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS));
+                Assert.assertEquals(2, pubKeysArray.size());
                
                 peerSenderId = new byte[] { (byte) 0x77 };
                 peerSenderIdFromResponse = joinResponse.
                 						   get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(0).GetByteString();
-                
-                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
                 Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
+
+                peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
+                
+                peerPublicKeyRetrieved = null;
+                peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+                switch (pubKeyEnc) {
+                    case Constants.COSE_HEADER_PARAM_CWT:
+                        if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                            peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                        else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                            // Retrieve the public key from the CWT
+                            // TODO
+                        }
+                        else {
+                            Assert.fail("Invalid format of public key");
+                        }
+                        break;
+                    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                        // Retrieve the public key from the certificate
+                        // TODO
+                        break;
+                    default:
+                        Assert.fail("Invalid format of public key");
+                }
+                if (peerPublicKeyRetrieved == null)
+                    Assert.fail("Invalid format of public key");
                
                 // ECDSA_256
                 if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                    Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                    Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
                 }
                
                 // EDDSA (Ed25519)
                 if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                    Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                    Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
                 }
                 
                 peerSenderId = new byte[] { (byte) 0x52 };
@@ -1956,20 +2213,44 @@ public class TestOscorepClient2RSGroupOSCORE {
                 peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
                 Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
                
+                peerPublicKeyRetrieved = null;
+                peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+                switch (pubKeyEnc) {
+                    case Constants.COSE_HEADER_PARAM_CWT:
+                        if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                            peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                        else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                            // Retrieve the public key from the CWT
+                            // TODO
+                        }
+                        else {
+                            Assert.fail("Invalid format of public key");
+                        }
+                        break;
+                    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                        // Retrieve the public key from the certificate
+                        // TODO
+                        break;
+                    default:
+                        Assert.fail("Invalid format of public key");
+                }
+                if (peerPublicKeyRetrieved == null)
+                    Assert.fail("Invalid format of public key");
+                
                 // ECDSA_256
                 if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                    Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                    Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
                 }
                
                 // EDDSA (Ed25519)
                 if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                    Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                    Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                    Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                    Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
                 }
                 
                 Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
@@ -2000,21 +2281,47 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
             Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
-            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
-            Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
-    				 				 joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
             Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+            
+            gmPublicKeyRetrieved = null;
+            gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+            switch (pubKeyEnc) {
+                case Constants.COSE_HEADER_PARAM_CWT:
+                    if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                        gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                    else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                        // Retrieve the public key from the CWT
+                        // TODO
+                    }
+                    else {
+                        Assert.fail("Invalid format of Group Manager public key");
+                    }
+                    break;
+                case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                    // Retrieve the public key from the certificate
+                    if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+                        // TODO
+                    }
+                    else {
+                        Assert.fail("Invalid format of public key");
+                    }
+                    break;
+                default:
+                    Assert.fail("Invalid format of Group Manager public key");
+            }
+            if (gmPublicKeyRetrieved == null)
+                Assert.fail("Invalid format of Group Manager public key");
+            Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+                                gmPublicKeyRetrieved.AsCBOR());
             
     		gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
     		
         	gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
         	rawGmPopEvidence = gmPopEvidence.GetByteString();
         	
-        	kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
-        	gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
-        	gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
-            
+        	gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
+        	
         	Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         	
         }
@@ -2151,7 +2458,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
         
-        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_KEY);
+        CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -2318,11 +2625,30 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
        
        if (providePublicKey) {
+    	   
+	    	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+	       	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+    	    if (gm_nonce == null)
+    	    	Assert.fail("Error: the component N_S of the PoP evidence challence is null");
            
-            // For the time being, the client's public key can be only a COSE Key
             OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
-            requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+            CBORObject encodedPublicKey = null;
+            switch (pubKeyEncExpected.AsInt32()) {
+            	case Constants.COSE_HEADER_PARAM_CWT:
+            		if (uccsPreferredToCWT == true)
+            			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            		else {
+            			// Build/retrieve a CWT including the public key
+            			// TODO
+            		}
+            		break;
+            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            		// Build/retrieve the certificate including the public key
+            		// TODO
+            		break;
+            }
+        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
             
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -2407,8 +2733,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
+        int pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
+        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
        
@@ -2444,18 +2772,13 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
         }       
        
-        CBORObject coseKeySetArray = null;
+        CBORObject pubKeysArray = null;
         if (askForPubKeys) {
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
-            Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+            Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
            
-            // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-           
-            byte[] coseKeySetByte = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-            coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-            Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-            
-            Assert.assertEquals(2, coseKeySetArray.size());
+            pubKeysArray = joinResponse.get(CBORObject.FromObject(Constants.PUB_KEYS));
+            Assert.assertEquals(2, pubKeysArray.size());
            
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
             Assert.assertEquals(CBORType.Array, joinResponse.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
@@ -2464,7 +2787,37 @@ public class TestOscorepClient2RSGroupOSCORE {
             byte[] peerSenderId;
             OneKey peerPublicKey;
             byte[] peerSenderIdFromResponse;
-           
+            
+            OneKey peerPublicKeyRetrieved = null;
+            CBORObject peerPublicKeyRetrievedEncoded;
+            
+            peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+            switch (pubKeyEnc) {
+	            case Constants.COSE_HEADER_PARAM_CWT:
+	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	                    // Retrieve the public key from the CWT
+	                	// TODO
+	                }
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	                // Retrieve the public key from the certificate
+	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+	            		// TODO
+	            	}
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            default:
+	            	Assert.fail("Invalid format of public key");
+            }
+            if (peerPublicKeyRetrieved == null)
+            	Assert.fail("Invalid format of public key");
             
             peerSenderId = new byte[] { (byte) 0x77 };
             peerSenderIdFromResponse = joinResponse.
@@ -2474,18 +2827,18 @@ public class TestOscorepClient2RSGroupOSCORE {
            
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
             }
            
             // EDDSA (Ed25519)
             if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
             }
             
             peerSenderId = new byte[] { (byte) 0x52 };
@@ -2493,21 +2846,49 @@ public class TestOscorepClient2RSGroupOSCORE {
             	    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(1).GetByteString();
             peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
             Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
-           
+            
+            peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+            switch (pubKeyEnc) {
+	            case Constants.COSE_HEADER_PARAM_CWT:
+	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	                    // Retrieve the public key from the CWT
+	                	// TODO
+	                }
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	                // Retrieve the public key from the certificate
+	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+	            		// TODO
+	            	}
+	                else {
+	                	Assert.fail("Invalid format of public key");
+	                }
+	                break;
+	            default:
+	            	Assert.fail("Invalid format of public key");
+            }
+            if (peerPublicKeyRetrieved == null)
+            	Assert.fail("Invalid format of public key");
+            
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
             }
            
             // EDDSA (Ed25519)
             if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-                Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-                Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+                Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+                Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+                Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
             }
            
             Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
@@ -2539,20 +2920,46 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
 	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
-	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
-	    Assert.assertArrayEquals(Base64.getDecoder().decode(gmPublicKeyStr),
-	                                 joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString());
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
 	    Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
+	    
+        OneKey gmPublicKeyRetrieved = null;
+        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                else if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                	// TODO
+                }
+                else {
+                	Assert.fail("Invalid format of Group Manager public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            default:
+            	Assert.fail("Invalid format of Group Manager public key");
+        }
+        if (gmPublicKeyRetrieved == null)
+        	Assert.fail("Invalid format of Group Manager public key");
+        Assert.assertEquals(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)),
+        					gmPublicKeyRetrieved.AsCBOR());
 	
 	    byte[] gmNonce = joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).GetByteString();
 	
 	    CBORObject gmPopEvidence = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY));
 	    byte[] rawGmPopEvidence = gmPopEvidence.GetByteString();
 	
-	    CBORObject kdcCredCBOR = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
-	    CBORObject gmPublicKeyCBOR = CBORObject.DecodeFromBytes(kdcCredCBOR.GetByteString());
-	    PublicKey gmPublicKey = new OneKey(gmPublicKeyCBOR).AsPublicKey();
+	    PublicKey gmPublicKey = gmPublicKeyRetrieved.AsPublicKey();
 	
 	    Assert.assertEquals(true, Util.verifySignature(signKeyCurve, gmPublicKey, gmNonce, rawGmPopEvidence));
         
@@ -2609,7 +3016,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -2752,24 +3159,21 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
         
-        Assert.assertEquals(CBORType.ByteString, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
-        
-        // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-       
-        byte[] coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-        Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(3, coseKeySetArray.size());
-       
-        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
-        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
-        Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).size());
+        pubKeysArray = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS));        
         
         byte[] peerSenderId;
         OneKey peerPublicKey;
+        OneKey peerPublicKeyRetrieved = null;
+        CBORObject peerPublicKeyRetrievedEncoded;
         byte[] peerSenderIdFromResponse;
         
+        Assert.assertEquals(3, pubKeysArray.size());
+        
+        Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
+        Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).size());
         
         // Retrieve and check the public key of another node in the group
         peerSenderId = new byte[] { (byte) 0x77 };
@@ -2778,21 +3182,67 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
+        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
         
         // Retrieve and check the public key of another node in the group
         peerSenderId = new byte[] { (byte) 0x52 };
@@ -2803,19 +3253,42 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
+        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(2);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
         
         // Retrieve and check the public key of this exact requester node
         peerSenderId = new byte[] { (byte) 0x25 };
@@ -2826,18 +3299,18 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         Assert.assertEquals(3, myObject.get(CBORObject.FromObject(Constants.PEER_ROLES)).size());
@@ -2910,14 +3383,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PUB_KEYS)));
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_ROLES)));
         
-        Assert.assertEquals(CBORType.ByteString, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
-        
-        // The content of the byte string should be a COSE_KeySet, to be processed accordingly
-       
-        coseKeySetByte = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).GetByteString();
-        coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
-        Assert.assertEquals(CBORType.Array, coseKeySetArray.getType());
-        Assert.assertEquals(3, coseKeySetArray.size());
+        Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PUB_KEYS)).getType());
+        pubKeysArray = myObject.get(CBORObject.FromObject(Constants.PUB_KEYS));
+        Assert.assertEquals(3, pubKeysArray.size());
         
         Assert.assertEquals(true, myObject.ContainsKey(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)));
         Assert.assertEquals(CBORType.Array, myObject.get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).getType());
@@ -2931,20 +3399,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer2)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(0).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(0).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(0).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         // Retrieve and check the public key of another node in the group
@@ -2954,20 +3445,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(1).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(1).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(1).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
 
         
@@ -2978,20 +3492,43 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
+        peerPublicKeyRetrievedEncoded = pubKeysArray.get(2);
+        switch (pubKeyEnc) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map)
+                    peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+                else if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                    // Retrieve the public key from the CWT
+                    // TODO
+                }
+                else {
+                    Assert.fail("Invalid format of public key");
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Retrieve the public key from the certificate
+                // TODO
+                break;
+            default:
+                Assert.fail("Invalid format of public key");
+        }
+        if (peerPublicKeyRetrieved == null)
+            Assert.fail("Invalid format of public key");
+        
         // ECDSA_256
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_EC2, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.EC2_P256, coseKeySetArray.get(2).get(KeyKeys.EC2_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_X.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.EC2_Y.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_EC2, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.EC2_P256, peerPublicKeyRetrieved.get(KeyKeys.EC2_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_X.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.EC2_Y.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.EC2_Y.AsCBOR()));
         }
        
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            Assert.assertEquals(KeyKeys.KeyType_OKP, coseKeySetArray.get(2).get(KeyKeys.KeyType.AsCBOR()));
-            Assert.assertEquals(KeyKeys.OKP_Ed25519, coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_Curve.AsCBOR()));
-            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), coseKeySetArray.get(2).get(KeyKeys.OKP_X.AsCBOR()));
+            Assert.assertEquals(KeyKeys.KeyType_OKP, peerPublicKeyRetrieved.get(KeyKeys.KeyType.AsCBOR()));
+            Assert.assertEquals(KeyKeys.OKP_Ed25519, peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_Curve.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_Curve.AsCBOR()));
+            Assert.assertEquals(peerPublicKey.get(KeyKeys.OKP_X.AsCBOR()), peerPublicKeyRetrieved.get(KeyKeys.OKP_X.AsCBOR()));
         }
         
         
@@ -3059,7 +3596,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_KEY), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -3144,10 +3681,24 @@ public class TestOscorepClient2RSGroupOSCORE {
                 
         requestPayload = CBORObject.NewMap();
         
-        // For the time being, the client's public key can be only a COSE Key
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
 
-        requestPayload.Add(Constants.CLIENT_CRED, publicKey.AsCBOR().EncodeToBytes());
+        CBORObject encodedPublicKey = null;
+        switch (pubKeyEncExpected.AsInt32()) {
+            case Constants.COSE_HEADER_PARAM_CWT:
+                if (uccsPreferredToCWT == true)
+                    encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+                else {
+                    // Build/retrieve a CWT including the public key
+                    // TODO
+                }
+                break;
+            case Constants.COSE_HEADER_PARAM_X5CHAIN:
+                // Build/retrieve the certificate including the public key
+                // TODO
+                break;
+        }
+        requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
 
         // Add the nonce for PoP of the Client's private key
         byte[] cnonce = new byte[8];

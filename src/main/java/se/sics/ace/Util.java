@@ -15,7 +15,10 @@ import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 
+import COSE.AlgorithmID;
+import COSE.CoseException;
 import COSE.KeyKeys;
+import COSE.OneKey;
 
 public class Util {
 
@@ -315,5 +318,94 @@ public class Util {
    	 return mySet;
    	 
     }
+    
+    /**
+     * Build an Unprotected CWT Claim Set (UCCS) embedding a public key specified as One Key 
+     *  
+     * @param identityKey   The public key as a OneKey object
+     * @param subjectName   The subject name associated to this key, it can be an empty string
+     * @return  The UCCS as a CBOR map, or null in case of errors
+     */
+	public static CBORObject oneKeyToUccs(OneKey identityKey, String subjectName) {
+		
+		if (identityKey  == null || subjectName == null)
+			return null;
+		
+		CBORObject coseKeyMap = CBORObject.NewMap();
+		coseKeyMap.Add(KeyKeys.KeyType.AsCBOR(), identityKey.get(KeyKeys.KeyType));
+		if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_OKP) {
+			coseKeyMap.Add(KeyKeys.OKP_Curve.AsCBOR(), identityKey.get(KeyKeys.OKP_Curve));
+			coseKeyMap.Add(KeyKeys.OKP_X.AsCBOR(), identityKey.get(KeyKeys.OKP_X));
+			
+			int curve = identityKey.get(KeyKeys.OKP_Curve).AsInt32();
+			if (curve == KeyKeys.OKP_Ed25519.AsInt32() || curve == KeyKeys.OKP_Ed448.AsInt32()) {
+				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
+			}
+			if (curve == KeyKeys.OKP_X25519 .AsInt32() || curve == KeyKeys.OKP_X448.AsInt32()) {
+				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDH_ES_HKDF_256.AsCBOR());
+			}
+		}
+		else if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2) {
+			coseKeyMap.Add(KeyKeys.EC2_Curve.AsCBOR(), identityKey.get(KeyKeys.EC2_Curve));
+			coseKeyMap.Add(KeyKeys.EC2_X.AsCBOR(), identityKey.get(KeyKeys.EC2_X));
+			coseKeyMap.Add(KeyKeys.EC2_Y.AsCBOR(), identityKey.get(KeyKeys.EC2_Y));
+			
+			int curve = identityKey.get(KeyKeys.EC2_Curve).AsInt32();
+			if (curve == KeyKeys.EC2_P256 .AsInt32()) {
+				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
+			}
+			if (curve == KeyKeys.EC2_P384 .AsInt32()) {
+				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_384.AsCBOR());
+			}
+			if (curve == KeyKeys.EC2_P521.AsInt32()) {
+				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_512.AsCBOR());
+			}
+		}
+		else {
+			return null;
+		}
+		
+		CBORObject cnfMap = CBORObject.NewMap();
+		cnfMap.Add(Constants.COSE_KEY, coseKeyMap);
+		
+		CBORObject claimSetMap = CBORObject.NewMap();
+		claimSetMap.Add(Constants.SUB, subjectName);
+		claimSetMap.Add(Constants.CNF, cnfMap);
+		
+		// Debug print
+		// System.out.println(claimSetMap);
+		
+        return claimSetMap;
+		
+	}
+	
+    /**
+     * Extract a public key from an Unprotected CWT Claim Set (UCCS) and return it as a OneKey object
+     *  
+     * @param identityKey   The public key as a OneKey object
+     * @param subjectName   The subject name associated to this key, it can be an empty string
+     * @return  The UCCS as a CBOR map, or null in case of errors
+     */
+	public static OneKey uccsToOneKey(CBORObject uccs) {
+		
+		if (uccs  == null)
+			return null;
+		
+		if (!uccs.ContainsKey(Constants.CNF) || !uccs.get(Constants.CNF).ContainsKey(Constants.COSE_KEY))
+			return null;
+		
+		CBORObject pubKeyCBOR = uccs.get(Constants.CNF).get(Constants.COSE_KEY);
+		
+		OneKey pubKey = null;
+		try {
+			pubKey = new OneKey(pubKeyCBOR);
+		} catch (CoseException e) {
+			System.err.println("Error when building a OneKey from a UCCS: " + e.getMessage());
+			return null;
+		}
+		
+        return pubKey;
+		
+	}
     
 }

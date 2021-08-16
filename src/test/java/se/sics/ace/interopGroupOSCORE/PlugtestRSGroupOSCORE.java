@@ -853,36 +853,40 @@ public class PlugtestRSGroupOSCORE {
         	// Process the public key of the joining node
         	else if (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR)) {
         		
-        		// client_cred must be byte string
-        		if (!clientCred.getType().equals(CBORType.ByteString)) {
-            		myGroup.deallocateSenderId(senderId);
+        		OneKey publicKey = null;
+        		boolean valid = false;
+        		
+        		switch(myGroup.getPubKeyEnc()) {
+	        		case Constants.COSE_HEADER_PARAM_CWT:
+	        	        if (clientCred.getType() == CBORType.Map) {
+	        	        	publicKey = Util.uccsToOneKey(clientCred);
+	        	        	valid = true;
+	        	        }
+	        	        else if (clientCred.getType() == CBORType.Array) {
+	        	            // Retrieve the public key from the CWT
+	        	            // TODO
+	        	        }
+	        	        else {
+	        	            Assert.fail("Invalid format of public key");
+	        	        }
+	        	        break;
+	        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	        	        // Retrieve the public key from the certificate
+	        	        if (clientCred.getType() == CBORType.ByteString) {
+	        	            // TODO
+	        	        }
+	        	        else {
+	        	            Assert.fail("Invalid format of public key");
+	        	        }
+	        	        break;
+	        	    default:
+	        	        Assert.fail("Invalid format of public key");
+        		}
+        		if (publicKey == null ||  valid == false) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
             		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
-
-        		// This assumes that the public key is a COSE Key
-        		CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
-        		
-        		// The public key must be a COSE key
-        		if (!coseKey.getType().equals(CBORType.Map)) {
-            		myGroup.deallocateSenderId(senderId);
-            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-            		return;
-        		}
-        		
-        		// Check that a OneKey object can be correctly built
-        		OneKey publicKey;
-        		try {
-        			publicKey = new OneKey(coseKey);
-				} catch (CoseException e) {
-				    System.err.println(e.getMessage());
-					myGroup.deallocateSenderId(senderId);
-            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
-            		return;
-				}
         		        		
         		// Sanity check on the type of public key        		
         		if (myGroup.getSignAlg().equals(AlgorithmID.ECDSA_256) ||
@@ -1010,12 +1014,7 @@ public class PlugtestRSGroupOSCORE {
     			    // TODO
     			}
             	
-            	
-            	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
-        		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
-        		
-        		// Store this client's public key
-        		if (!myGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
+    			if (!myGroup.storePublicKey(senderId, clientCred)) {
         			myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
             		return;
@@ -1137,7 +1136,7 @@ public class PlugtestRSGroupOSCORE {
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
         	if (providePublicKeys) {
-        	    CBORObject coseKeySet = CBORObject.NewArray();
+        		CBORObject pubKeysArray = CBORObject.NewArray();
         	    CBORObject peerRoles = CBORObject.NewArray();
         	    CBORObject peerIdentifiers = CBORObject.NewArray();
         	    
@@ -1176,17 +1175,16 @@ public class PlugtestRSGroupOSCORE {
         	        }
         	        
         	        if (includePublicKey) {
-        	            coseKeySet.Add(publicKeys.get(sid));
-        	            peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
-        	            peerIdentifiers.Add(peerSenderId);
-        	        }
+        				pubKeysArray.Add(publicKeys.get(sid));
+	        			peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+	        			peerIdentifiers.Add(peerSenderId);
+        			}
 
         	    }
         	    
-        	    byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        	    joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-        	    joinResponse.Add(Constants.PEER_ROLES, peerRoles);
-        	    joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+        	    joinResponse.Add(Constants.PUB_KEYS, pubKeysArray);
+    			joinResponse.Add(Constants.PEER_ROLES, peerRoles);
+    			joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	    
         	    // Debug:
         		// 1) Print 'kid' as equal to the Sender ID of the key owner
@@ -1211,27 +1209,27 @@ public class PlugtestRSGroupOSCORE {
         	new SecureRandom().nextBytes(kdcNonce);
         	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
 
-        	OneKey publicKey = targetedGroup.getGmPublicKey();
-        	joinResponse.Add(Constants.KDC_CRED, publicKey.AsCBOR().EncodeToBytes());
-
+        	CBORObject publicKey = targetedGroup.getGmPublicKey();
+        	
+        	joinResponse.Add(Constants.KDC_CRED, publicKey);
+        	
         	PrivateKey gmPrivKey;
-        	try {
-        	    gmPrivKey = targetedGroup.getGmKeyPair().AsPrivateKey();
-        	} catch (CoseException e) {
-        	    System.err.println("Error when computing the GM PoP evidence " + e.getMessage());
-        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
-        	    return;
-        	}
+			try {
+				gmPrivKey = targetedGroup.getGmKeyPair().AsPrivateKey();
+			} catch (CoseException e) {
+				System.err.println("Error when computing the GM PoP evidence " + e.getMessage());
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+        		return;
+			}
         	byte[] gmSignature = Util.computeSignature(signKeyCurve,gmPrivKey, kdcNonce);
 
         	if (gmSignature != null) {
         	    joinResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
         	}
         	else {
-        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
-        	    return;
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+        		return;
         	}
-        	
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
         	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
@@ -1338,7 +1336,8 @@ public class PlugtestRSGroupOSCORE {
         	// Respond to the Public Key Request
 
         	CBORObject myResponse = CBORObject.NewMap();
-        	CBORObject coseKeySet = CBORObject.NewArray();
+        	
+        	CBORObject pubKeysArray = CBORObject.NewArray();
         	CBORObject peerRoles = CBORObject.NewArray();
         	CBORObject peerIdentifiers = CBORObject.NewArray();
 
@@ -1355,7 +1354,7 @@ public class PlugtestRSGroupOSCORE {
         	    if (peerSenderId == null)
         	        continue;
         	    
-        	    coseKeySet.Add(publicKeys.get(sid));
+        	    pubKeysArray.Add(publicKeys.get(sid));
         	    peerRoles.Add(targetedGroup.getGroupMemberRoles(peerSenderId));
         	    peerIdentifiers.Add(peerSenderId);
         	    
@@ -1363,8 +1362,7 @@ public class PlugtestRSGroupOSCORE {
 
         	myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
 
-        	byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        	myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+        	myResponse.Add(Constants.PUB_KEYS, pubKeysArray);
         	myResponse.Add(Constants.PEER_ROLES, peerRoles);
         	myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
 
@@ -1543,10 +1541,11 @@ public class PlugtestRSGroupOSCORE {
     	    }
     		
     		
-    	 // Respond to the Public Key Request
+    	    // Respond to the Public Key Request
 
     	    CBORObject myResponse = CBORObject.NewMap();
-    	    CBORObject coseKeySet = CBORObject.NewArray();
+    	    
+    	    CBORObject pubKeysArray = CBORObject.NewArray();
     	    CBORObject peerRoles = CBORObject.NewArray();
     	    CBORObject peerIdentifiers = CBORObject.NewArray();
     	    Set<Integer> requestedRoles = new HashSet<Integer>();
@@ -1570,7 +1569,7 @@ public class PlugtestRSGroupOSCORE {
 
     	            int memberRoles = targetedGroup.getGroupMemberRoles(memberSenderId);
     	            
-    	            coseKeySet.Add(publicKeys.get(sid));
+    	            pubKeysArray.Add(publicKeys.get(sid));
     	            peerRoles.Add(memberRoles);
     	            peerIdentifiers.Add(memberSenderId);
     	            
@@ -1645,7 +1644,7 @@ public class PlugtestRSGroupOSCORE {
     	            
     	            if (include) {
     	                
-    	                coseKeySet.Add(publicKeys.get(sid));
+    	            	pubKeysArray.Add(publicKeys.get(sid));
     	                peerRoles.Add(memberRoles);
     	                peerIdentifiers.Add(memberSenderId);
     	                
@@ -1656,8 +1655,7 @@ public class PlugtestRSGroupOSCORE {
 
     	    myResponse.Add(Constants.NUM, CBORObject.FromObject(targetedGroup.getVersion()));
     		
-			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-			myResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
+    	    myResponse.Add(Constants.PUB_KEYS, pubKeysArray);
 			myResponse.Add(Constants.PEER_ROLES, peerRoles);
 			myResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
         	
@@ -2145,21 +2143,13 @@ public class PlugtestRSGroupOSCORE {
         	
         	CBORObject publicKey = targetedGroup.getPublicKey(oldSenderId);
         	
-        	CBORObject publicKeyCopy = CBORObject.NewMap();
-        	for (CBORObject label : publicKey.getKeys())
-        		publicKeyCopy.Add(label, publicKey.get(label));
-        	
-        	// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
-        	publicKeyCopy.Remove(COSE.KeyKeys.KeyId.AsCBOR());
-        	publicKeyCopy.Add(COSE.KeyKeys.KeyId.AsCBOR(), senderId);
-        	        	
-            targetedGroup.deletePublicKey(oldSenderId);
-        	
-        	// Store this client's public key
-        	if (!targetedGroup.storePublicKey(senderId, publicKeyCopy)) {
+        	// Store this client's public key under the new Sender ID
+        	if (!targetedGroup.storePublicKey(senderId, publicKey)) {
         	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
         	    return;
         	}
+        	// Delete this client's public key under the old Sender ID
+        	targetedGroup.deletePublicKey(oldSenderId);
         	
 
         	// Respond to the Key Renewal Request
@@ -2353,29 +2343,39 @@ public class PlugtestRSGroupOSCORE {
 			    return;
 			}
         	
-            // client_cred must be byte string
-            if (!clientCred.getType().equals(CBORType.ByteString)) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "'client_cred' must be a CBOR byte string");
-        	    return;
-            }
-        	
-            // This assumes that the public key is a COSE Key
-            CBORObject coseKey = CBORObject.DecodeFromBytes(clientCred.GetByteString());
-            
-            // The public key must be a COSE key
-            if (!coseKey.getType().equals(CBORType.Map)) {
+			OneKey publicKey = null;
+			boolean valid = false;
+			
+			switch(targetedGroup.getPubKeyEnc()) {
+			    case Constants.COSE_HEADER_PARAM_CWT:
+			        if (clientCred.getType() == CBORType.Map) {
+			            publicKey = Util.uccsToOneKey(clientCred);
+			            valid = true;
+			        }
+			        else if (clientCred.getType() == CBORType.Array) {
+			            // Retrieve the public key from the CWT
+			            // TODO
+			        }
+			        else {
+			            Assert.fail("Invalid format of public key");
+			        }
+			        break;
+			    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+			        // Retrieve the public key from the certificate
+			        if (clientCred.getType() == CBORType.ByteString) {
+			            // TODO
+			        }
+			        else {
+			            Assert.fail("Invalid format of public key");
+			        }
+			        break;
+			    default:
+			        Assert.fail("Invalid format of public key");
+			}
+			if (publicKey == null ||  valid == false) {
         	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
-        	    return;
-            }
-        	
-            // Check that a OneKey object can be correctly built
-            OneKey publicKey;
-            try {
-                publicKey = new OneKey(coseKey);
-            } catch (CoseException e) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key format");
-        	    return;
-            }
+			    return;
+			}
         	
 			// Sanity check on the type of public key        		
 			if (targetedGroup.getSignAlg().equals(AlgorithmID.ECDSA_256) ||
@@ -2425,7 +2425,6 @@ public class PlugtestRSGroupOSCORE {
 			    return;
 			}
 
-			
 			
 			// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
 			CBORObject clientPopEvidence = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
@@ -2519,14 +2518,10 @@ public class PlugtestRSGroupOSCORE {
 			
 			byte[] senderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
 			
-			// Set the 'kid' parameter of the COSE Key equal to the Sender ID of the joining node
-			publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
-
-			// Store this client's public key, overwriting the current entry for the current Sender ID
-			if (!targetedGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
+			if (!targetedGroup.storePublicKey(senderId, clientCred)) {
 			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
 			    return;
-			} 
+			}
 			
         	// Respond to the Public Key Update Request     	
         	
@@ -2728,7 +2723,11 @@ public class PlugtestRSGroupOSCORE {
   	                                  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
   	    final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-  	    final CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
+  	    final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CWT;
+  	    
+        // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+        // If true, the UCCS encoding is used, otherwise the CWT encodding is used
+        final boolean uccsPreferredToCWT = true;
 
   	    int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
 
@@ -2799,7 +2798,8 @@ public class PlugtestRSGroupOSCORE {
     	String gmKeyPairStr = "";
     	String gmPublicKeyStr = "";
     	OneKey gmKeyPair = null;
-    	OneKey gmPublicKey = null;
+    	OneKey gmPublicKeyOneKey = null;
+    	CBORObject gmPublicKey = null;
 
     	// Store the asymmetric key pair and public key of the Group Manager (ECDSA_256)
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -2814,7 +2814,22 @@ public class PlugtestRSGroupOSCORE {
     	}
 
     	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmKeyPairStr)));
-    	gmPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	
+    	gmPublicKeyOneKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_CWT:
+            if (uccsPreferredToCWT == true)
+                gmPublicKey = Util.oneKeyToUccs(gmPublicKeyOneKey, "");
+            else {
+                // Build/retrieve a CWT including the public key
+                // TODO
+            }
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // Build/retrieve the certificate including the public key
+            // TODO
+            break;
+    	}
   	    
   	    GroupInfo myGroup = new GroupInfo(groupName,
   	                                      masterSecret,
@@ -2871,9 +2886,8 @@ public class PlugtestRSGroupOSCORE {
 	  	
   	    myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
 	  	
-  	    // Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-  	    myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-  	    myGroup.storePublicKey(mySid, myKey.AsCBOR());
+  	    myGroup.storePublicKey(mySid, Util.oneKeyToUccs(myKey, ""));
+  	  
 	  	
   	    // Add a group member
   	    mySid = idClient3;
@@ -2901,9 +2915,7 @@ public class PlugtestRSGroupOSCORE {
 	  	
   	    myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
 	  	
-  	    // Set the 'kid' parameter of the COSE Key equal to the Sender ID of the owner
-  	    myKey.add(KeyKeys.KeyId, CBORObject.FromObject(mySid));
-  	    myGroup.storePublicKey(mySid, myKey.AsCBOR()); 	
+  	    myGroup.storePublicKey(mySid, Util.oneKeyToUccs(myKey, ""));	
 	  	
 	  	
   	    // Add this OSCORE group to the set of active groups
