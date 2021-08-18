@@ -2993,17 +2993,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
         final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CWT;
         
-        // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+        // Relevant when public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
         // If true, the UCCS encoding is used, otherwise the CWT encodding is used
         final boolean uccsPreferredToCWT = true;
 
-        int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
-
-        final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
-        AlgorithmID signAlg = null;
-        CBORObject algCapabilities = CBORObject.NewArray();
-        CBORObject keyCapabilities = CBORObject.NewArray();
-        CBORObject signParams = CBORObject.NewArray();
         
   	    // Uncomment to set ECDSA with curve P-256 for countersignatures
   	    // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
@@ -3038,24 +3031,82 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	System.out.println(testPublicKeyBytesBase64);
     	*/
         
-        // ECDSA_256
-        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            signAlg = AlgorithmID.ECDSA_256;
-            algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-            keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-            keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+  	    
+        AlgorithmID signEncAlg = null;
+        AlgorithmID signAlg = null;
+        CBORObject signAlgCapabilities = null;
+        CBORObject signKeyCapabilities = null;
+        CBORObject signParams = null;
+        
+        AlgorithmID alg = null;
+        AlgorithmID ecdhAlg = null;
+        CBORObject ecdhAlgCapabilities = null;
+        CBORObject ecdhKeyCapabilities = null;
+        CBORObject ecdhParams = null;
+        
+        if (signKeyCurve == 0 && ecdhKeyCurve == 0) {
+        	System.out.println("Both the signature key curve and the ECDH key curve are unspecified");
+        	return;
         }
-
-        // EDDSA (Ed25519)
-        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            signAlg = AlgorithmID.EDDSA;
-            algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-            keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-            keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+        int mode = Constants.GROUP_OSCORE_GROUP_PAIRWISE_MODE;
+        if (signKeyCurve != 0 && ecdhKeyCurve == 0)
+        	mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        else if (signKeyCurve == 0 && ecdhKeyCurve != 0)
+        	mode = Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY;
+        
+        
+        if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+            signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+            signAlgCapabilities = CBORObject.NewArray();
+            signKeyCapabilities = CBORObject.NewArray();
+            signParams = CBORObject.NewArray();
+        	
+	        // ECDSA_256
+	        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	signAlg = AlgorithmID.ECDSA_256;
+	        	signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+	        	signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+	        	signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+	        }
+	        
+	        // EDDSA (Ed25519)
+	        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        	signAlg = AlgorithmID.EDDSA;
+	        	signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+	        	signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+	        	signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+	        }
+	        
+	    	signParams.Add(signAlgCapabilities);
+	    	signParams.Add(signKeyCapabilities);
         }
-
-        signParams.Add(algCapabilities);
-        signParams.Add(keyCapabilities); 
+    	
+        if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+	        alg = AlgorithmID.AES_CCM_16_64_128;
+        	ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+	        ecdhAlgCapabilities = CBORObject.NewArray();
+	        ecdhKeyCapabilities = CBORObject.NewArray();
+	        ecdhParams = CBORObject.NewArray();
+	        
+	        // ECDSA_256
+	        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+	        	ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+	        	ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+	        }
+	        
+	        // EDDSA (Ed25519)
+	        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+	        	ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+	        	ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+	        	ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+	        }
+	        
+	    	ecdhParams.Add(ecdhAlgCapabilities);
+	    	ecdhParams.Add(ecdhKeyCapabilities);
+    	
+        }
+        
         
         // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
         // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
@@ -3114,9 +3165,9 @@ public class PlugtestRSOSCOREGroupOSCORE {
 						                  signEncAlg,
 						                  signAlg,
 						                  signParams,
-						                  null,
-						                  null,
-						                  null,
+    			                          alg,
+    			                          ecdhAlg,
+    			                          ecdhParams,
     			                          null,
     			                          gmKeyPair,
     			                          gmPublicKey);

@@ -447,32 +447,32 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 		        	// The group uses the pairwise mode
 		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
 		        	
-						CBORObject signEcdhEntry = CBORObject.NewArray();
+						CBORObject ecdhEntry = CBORObject.NewArray();
 						
 						// 'id' element
-						signEcdhEntry.Add(CBORObject.FromObject(groupName));
+						ecdhEntry.Add(CBORObject.FromObject(groupName));
 						
 						// 'ecdh_alg' element
-						signEcdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
+						ecdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
 				    	
 						// 'ecdh_parameters' element (The algorithm capabilities)
 				    	CBORObject arrayElem = myGroup.getEcdhParams().get(0);
 				    	if (arrayElem == null)
-				    		signEcdhEntry.Add(CBORObject.Null);
+				    		ecdhEntry.Add(CBORObject.Null);
 				    	else
-				    		signEcdhEntry.Add(arrayElem);
+				    		ecdhEntry.Add(arrayElem);
 				    	
 				    	// 'ecdh_key_parameters' element (The key type capabilities)
 				    	arrayElem = myGroup.getEcdhParams().get(1);
 				    	if (arrayElem == null)
-				    		signEcdhEntry.Add(CBORObject.Null);
+				    		ecdhEntry.Add(CBORObject.Null);
 				    	else
-				    		signEcdhEntry.Add(arrayElem);
+				    		ecdhEntry.Add(arrayElem);
 				    	
 				    	// 'pub_key_enc' element
-				    	signEcdhEntry.Add(myGroup.getPubKeyEnc());
+				    	ecdhEntry.Add(myGroup.getPubKeyEnc());
 	
-					    signInfo.Add(signEcdhEntry);
+					    ecdhInfo.Add(ecdhEntry);
 		        	}
 				    
 				}
@@ -481,7 +481,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 					payload.Add(Constants.SIGN_INFO, signInfo);
 				
 				if (provideEcdhInfo && ecdhInfo.size() != 0)
-					payload.Add(Constants.ECDH_INFO, signInfo);
+					payload.Add(Constants.ECDH_INFO, ecdhInfo);
 		    
 	    	}
     		

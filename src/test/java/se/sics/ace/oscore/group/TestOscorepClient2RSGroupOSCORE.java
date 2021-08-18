@@ -109,7 +109,7 @@ public class TestOscorepClient2RSGroupOSCORE {
     // Uncomment to set curve X25519 for pairwise key derivation
     private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
     
-    // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+    // Relevant when public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
     // If true, the UCCS encoding is used, otherwise the CWT encodding is used
     private static boolean uccsPreferredToCWT = true;
     
@@ -471,11 +471,11 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
-        	Assert.assertEquals(signInfo, signInfoExpected);
+        	Assert.assertEquals(signInfoExpected, signInfo);
         }
         
         if (askForEcdhInfo) {
-        	Assert.assertEquals(false, rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+        	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
         	
         	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
         	
@@ -510,7 +510,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 		    	
 	        	ecdhInfoExpected.Add(ecdhInfoEntry);
 	
-	        	Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+	        	Assert.assertEquals(ecdhInfoExpected, ecdhInfo);
 	        	
         	}
         }
@@ -528,33 +528,60 @@ public class TestOscorepClient2RSGroupOSCORE {
         final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
                 (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 		final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
-		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+
 		final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 			
+
+		
+
+		
+		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
 		AlgorithmID signAlg = null;
-			
-		CBORObject algCapabilities = CBORObject.NewArray();
-		CBORObject keyCapabilities = CBORObject.NewArray();
+		CBORObject signAlgCapabilities = CBORObject.NewArray();
+		CBORObject signKeyCapabilities = CBORObject.NewArray();
 		CBORObject signParams = CBORObject.NewArray();
-			
+		
 		// ECDSA_256
 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 		signAlg = AlgorithmID.ECDSA_256;
-		algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 			
 		// EDDSA (Ed25519)
 		if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
 		signAlg = AlgorithmID.EDDSA;
-		algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+		signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
 		}
 			
-		signParams.Add(algCapabilities);
-		signParams.Add(keyCapabilities);
+		signParams.Add(signAlgCapabilities);
+		signParams.Add(signKeyCapabilities);
+		
+		
+		final AlgorithmID ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+		CBORObject ecdhAlgCapabilities = CBORObject.NewArray();
+		CBORObject ecdhKeyCapabilities = CBORObject.NewArray();
+		CBORObject ecdhParams = CBORObject.NewArray();
+		
+		// ECDSA_256
+		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		}
+			
+		// X25519
+		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+		}
+			
+		ecdhParams.Add(ecdhAlgCapabilities);
+		ecdhParams.Add(ecdhKeyCapabilities);
 
 		        
         /////////////////
@@ -706,9 +733,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
        
         // Check the presence, type and value of the public key encoding
@@ -727,7 +758,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
         Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
-       
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
+        
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
             myMap.Add(OSCOREInputMaterialObjectParameters.hkdf, AlgorithmID.HKDF_HMAC_SHA_256);
@@ -751,7 +784,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
-        }       
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
+        }
         
         CBORObject pubKeysArray = null;
         
@@ -989,15 +1026,30 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
-        }       
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
+        }
        
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
         Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        
+        Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
+       
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
+        Assert.assertEquals(signEncAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
+        Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)).GetByteString());
+        Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
+        Assert.assertNotNull(signAlg);
+        Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -1022,6 +1074,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
         
         
@@ -1527,9 +1583,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
         
         // Check the presence, type and value of the public key encoding
@@ -1546,6 +1606,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
         Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
        
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -1570,6 +1632,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
 
         
@@ -1935,39 +2001,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         // Nonce from the GM, to use together with a local nonce to prove possession of the private key
         gm_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
-        signInfo = null;
-        
-        // Group OSCORE specific values for the countersignature
-        signAlgExpected = null;
-        signParamsExpected = CBORObject.NewArray();
-        signKeyParamsExpected = CBORObject.NewArray();
-
-        // ECDSA_256
-        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-            signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
-            
-            // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            
-            // The key type capabilities
-            signKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            signKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
-        }
-
-        // EDDSA (Ed25519)
-        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-            signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
-            
-                // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
-            
-                // The key type capabilities
-            signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
-            signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
-        }
-        
-        pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT);
-        
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -2002,35 +2035,50 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
-        	Assert.assertEquals(signInfo, signInfoExpected);
+        	Assert.assertEquals(signInfoExpected, signInfo);
         }
         
-        requestPayload = CBORObject.NewMap();
-        
-        signAlg = null;
+        if (askForEcdhInfo) {
+            Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+            
+            if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+            
+                Assert.assertEquals(CBORType.Array, rsPayload.get(CBORObject.FromObject(Constants.ECDH_INFO)).getType());
+                ecdhInfo = CBORObject.NewArray();
+                ecdhInfo = rsPayload.get(CBORObject.FromObject(Constants.ECDH_INFO));
+                
+                CBORObject ecdhInfoExpected = CBORObject.NewArray();
+                CBORObject ecdhInfoEntry = CBORObject.NewArray();
+                
+                ecdhInfoEntry.Add(CBORObject.FromObject(groupName));
+                
+                if (ecdhAlgExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhAlgExpected);
+                
+                if (ecdhParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhParamsExpected);
+                
+                if (ecdhKeyParamsExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(ecdhKeyParamsExpected);
+                
+                if (pubKeyEncExpected == null)
+                    ecdhInfoEntry.Add(CBORObject.Null);
+                else
+                    ecdhInfoEntry.Add(pubKeyEncExpected);
+                
+                ecdhInfoExpected.Add(ecdhInfoEntry);
+
+                Assert.assertEquals(ecdhInfoExpected, ecdhInfo);
+                
+            }
+        }
 		
-		algCapabilities = CBORObject.NewArray();
-		keyCapabilities = CBORObject.NewArray();
-		signParams = CBORObject.NewArray();
-			
-		// ECDSA_256
-		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-			signAlg = AlgorithmID.ECDSA_256;
-			algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-			keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-			keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
-		}
-			
-		// EDDSA (Ed25519)
-		if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-			signAlg = AlgorithmID.EDDSA;
-			algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-			keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-			keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
-		}
-			
-		signParams.Add(algCapabilities);
-		signParams.Add(keyCapabilities);
 		
         /////////////////
         //
@@ -2179,10 +2227,14 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
                 Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
             }
+            if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+                Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
+            }            
            
             // Check the presence, type and value of the public key encoding
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
@@ -2200,6 +2252,8 @@ public class TestOscorepClient2RSGroupOSCORE {
             Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
             Assert.assertNotNull(signAlg);
             Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+            Assert.assertNotNull(ecdhAlg);
+            Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
            
             // Add default values for missing parameters
             if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -2224,7 +2278,11 @@ public class TestOscorepClient2RSGroupOSCORE {
             if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
                 Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
                 Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
-            }       
+            }
+            if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+                Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+                Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
+            }
 
             pubKeysArray = null;
             
@@ -2499,10 +2557,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
+            // The algorithm capabilities
             signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -2569,11 +2627,11 @@ public class TestOscorepClient2RSGroupOSCORE {
 	    	
 	        signInfoExpected.Add(signInfoEntry);
 
-        	Assert.assertEquals(signInfo, signInfoExpected);
+        	Assert.assertEquals(signInfoExpected, signInfo);
         }
         
         if (askForEcdhInfo) {
-        	Assert.assertEquals(false, rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
+        	Assert.assertEquals(true, rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO)));
         	
         	if (rsPayload.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
         	
@@ -2608,7 +2666,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 		    	
 	        	ecdhInfoExpected.Add(ecdhInfoEntry);
 	
-	        	Assert.assertEquals(ecdhInfo, ecdhInfoExpected);
+	        	Assert.assertEquals(ecdhInfoExpected, ecdhInfo);
 	        	
         	}
         }
@@ -2627,33 +2685,56 @@ public class TestOscorepClient2RSGroupOSCORE {
 		final byte[] masterSalt =   { (byte) 0x9e, (byte) 0x7c, (byte) 0xa9, (byte) 0x22,
 		                			  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 		final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
-		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+
 		final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
 		
+		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
 		AlgorithmID signAlg = null;
-		
-		CBORObject algCapabilities = CBORObject.NewArray();
-		CBORObject keyCapabilities = CBORObject.NewArray();
+		CBORObject signAlgCapabilities = CBORObject.NewArray();
+		CBORObject signKeyCapabilities = CBORObject.NewArray();
 		CBORObject signParams = CBORObject.NewArray();
-		
+
 		// ECDSA_256
 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 		signAlg = AlgorithmID.ECDSA_256;
-		algCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		keyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
-		
+		    
 		// EDDSA (Ed25519)
 		if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-			signAlg = AlgorithmID.EDDSA;
-		algCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		keyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+		signAlg = AlgorithmID.EDDSA;
+		signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
 		}
-		
-		signParams.Add(algCapabilities);
-		signParams.Add(keyCapabilities);
+		    
+		signParams.Add(signAlgCapabilities);
+		signParams.Add(signKeyCapabilities);
+
+
+		final AlgorithmID ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+		CBORObject ecdhAlgCapabilities = CBORObject.NewArray();
+		CBORObject ecdhKeyCapabilities = CBORObject.NewArray();
+		CBORObject ecdhParams = CBORObject.NewArray();
+
+		// ECDSA_256
+		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		}
+		    
+		// X25519
+		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+		}
+		    
+		ecdhParams.Add(ecdhAlgCapabilities);
+		ecdhParams.Add(ecdhKeyCapabilities);
         
 		
         /////////////////
@@ -2801,9 +2882,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
  
         // Check the presence, type and value of the public key encoding
@@ -2822,6 +2907,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
         Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
        
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -2846,7 +2933,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
-        }       
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
+        }
        
         CBORObject pubKeysArray = null;
         if (askForPubKeys) {
@@ -3084,15 +3175,30 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
        
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
         Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CWT), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        
+        Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
+       
+        Assert.assertEquals(hkdf.AsCBOR(), myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)));
+        Assert.assertEquals(signEncAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_enc_alg)));
+        Assert.assertArrayEquals(masterSalt, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)).GetByteString());
+        Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
+        Assert.assertNotNull(signAlg);
+        Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
         
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -3117,6 +3223,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
         
         
@@ -3664,9 +3774,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.salt)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)));
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
         if (signKeyCurve == KeyKeys.EC2_P256.AsInt32() || signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32() || ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+            Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
        
         // Check the presence, type and value of the public key encoding
@@ -3683,6 +3797,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         Assert.assertArrayEquals(groupId, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.contextId)).GetByteString());
         Assert.assertNotNull(signAlg);
         Assert.assertEquals(signAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_alg)));
+        Assert.assertNotNull(ecdhAlg);
+        Assert.assertEquals(ecdhAlg.AsCBOR(), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
        
         // Add default values for missing parameters
         if (myMap.ContainsKey(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.hkdf)) == false)
@@ -3707,6 +3823,10 @@ public class TestOscorepClient2RSGroupOSCORE {
         if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params))) {
             Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)).getType());
             Assert.assertEquals(CBORObject.FromObject(signParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.sign_params)));
+        }
+        if (myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params))) {
+            Assert.assertEquals(CBORType.Array, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)).getType());
+            Assert.assertEquals(CBORObject.FromObject(ecdhParams), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
         }
 
         

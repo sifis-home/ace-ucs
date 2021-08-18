@@ -159,7 +159,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
         final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CWT;
         
-        // Relevant when using public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
+        // Relevant when public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
         // If true, the UCCS encoding is used, otherwise the CWT encodding is used
         final boolean uccsPreferredToCWT = true;
 

@@ -330,37 +330,37 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 
     	                signInfo.Add(signInfoEntry);
     	            }
-    	            
-    	            // The group uses the pairwise mode
-    	            if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
-    	            
-    	                CBORObject signEcdhEntry = CBORObject.NewArray();
-    	                
-    	                // 'id' element
-    	                signEcdhEntry.Add(CBORObject.FromObject(groupName));
-    	                
-    	                // 'ecdh_alg' element
-    	                signEcdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
-    	                
-    	                // 'ecdh_parameters' element (The algorithm capabilities)
-    	                CBORObject arrayElem = myGroup.getEcdhParams().get(0);
-    	                if (arrayElem == null)
-    	                    signEcdhEntry.Add(CBORObject.Null);
-    	                else
-    	                    signEcdhEntry.Add(arrayElem);
-    	                
-    	                // 'ecdh_key_parameters' element (The key type capabilities)
-    	                arrayElem = myGroup.getEcdhParams().get(1);
-    	                if (arrayElem == null)
-    	                    signEcdhEntry.Add(CBORObject.Null);
-    	                else
-    	                    signEcdhEntry.Add(arrayElem);
-    	                
-    	                // 'pub_key_enc' element
-    	                signEcdhEntry.Add(myGroup.getPubKeyEnc());
 
-    	                signInfo.Add(signEcdhEntry);
-    	            }
+    	            // The group uses the pairwise mode
+		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        		
+						CBORObject ecdhEntry = CBORObject.NewArray();
+						
+						// 'id' element
+						ecdhEntry.Add(CBORObject.FromObject(groupName));
+						
+						// 'ecdh_alg' element
+						ecdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
+				    	
+						// 'ecdh_parameters' element (The algorithm capabilities)
+				    	CBORObject arrayElem = myGroup.getEcdhParams().get(0);
+				    	if (arrayElem == null)
+				    		ecdhEntry.Add(CBORObject.Null);
+				    	else
+				    		ecdhEntry.Add(arrayElem);
+				    	
+				    	// 'ecdh_key_parameters' element (The key type capabilities)
+				    	arrayElem = myGroup.getEcdhParams().get(1);
+				    	if (arrayElem == null)
+				    		ecdhEntry.Add(CBORObject.Null);
+				    	else
+				    		ecdhEntry.Add(arrayElem);
+				    	
+				    	// 'pub_key_enc' element
+				    	ecdhEntry.Add(myGroup.getPubKeyEnc());
+	
+					    ecdhInfo.Add(ecdhEntry);
+		        	}
     	            
     	        }
 
@@ -368,7 +368,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	            rep.Add(Constants.SIGN_INFO, signInfo);
     	        
     	        if (provideEcdhInfo && ecdhInfo.size() != 0)
-    	            rep.Add(Constants.ECDH_INFO, signInfo);
+    	            rep.Add(Constants.ECDH_INFO, ecdhInfo);
 
     	    }
     		
