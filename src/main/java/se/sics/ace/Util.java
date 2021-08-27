@@ -7,11 +7,8 @@ import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
 import java.security.SignatureException;
-import java.util.Base64;
 import java.util.HashSet;
 import java.util.Set;
-
-import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -121,7 +118,7 @@ public class Util {
      * @param signKeyCurve   Elliptic curve used to compute the signature
      * @param privKey  private key of the signer, used to compute the signature
      * @param dataToSign  content to sign
-     * @return The computed signature
+     * @return The computed signature, or null in case of error
      
      */
     public static byte[] computeSignature(int signKeyCurve, PrivateKey privKey, byte[] dataToSign) {
@@ -135,29 +132,32 @@ public class Util {
      	   else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
      		  signCtx = Signature.getInstance("NonewithEdDSA", "EdDSA");
      	   else {
-     		   // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-     		  Assert.fail("Unsupported signature algorithm");
+     		  // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
+     		  System.err.println("Unsupported signature algorithm");
+     		  return null;
      	   }
             
         }
         catch (NoSuchAlgorithmException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsupported signature algorithm");
+            System.err.println("Unsupported signature algorithm: " + e.getMessage());
+            return null;
         }
         catch (NoSuchProviderException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Unsopported security provider for signature computing");
+            System.err.println("Unsopported security provider for signature computing: " + e.getMessage());
+            return null;
         }
         
         try {
             if (signCtx != null)
             	signCtx.initSign(privKey);
-            else
-                Assert.fail("Signature algorithm has not been initialized");
+            else {
+                System.err.println("Signature algorithm has not been initialized");
+                return null;
+            }
         }
         catch (InvalidKeyException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Invalid key excpetion - Invalid private key");
+            System.err.println("Invalid key excpetion - Invalid private key: " + e.getMessage());
+            return null;
         }
         
         try {
@@ -166,8 +166,8 @@ public class Util {
         		signature = signCtx.sign();
         	}
         } catch (SignatureException e) {
-            System.out.println(e.getMessage());
-            Assert.fail("Failed signature computation");
+            System.err.println("Failed signature computation: " + e.getMessage());
+            return null;
         }
         
         return signature;
@@ -194,39 +194,39 @@ public class Util {
            else if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
         	   signature = Signature.getInstance("NonewithEdDSA", "EdDSA");
            else {
-               // At the moment, only ECDSA (EC2_P256) and EDDSA (Ed25519) are supported
-              Assert.fail("Unsupported signature algorithm");
+              System.err.println("Unsupported signature algorithm");
+              return false;
            }
              
          }
          catch (NoSuchAlgorithmException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Unsupported signature algorithm");
+             System.err.println("Unsupported signature algorithm: " + e.getMessage());
+             return false;
          }
          catch (NoSuchProviderException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Unsopported security provider for signature computing");
+             System.err.println("Unsopported security provider for signature computing: " + e.getMessage());
+             return false;
          }
          
          try {
              if (signature != null)
             	 signature.initVerify(pubKey);
-             else
-                 Assert.fail("Signature algorithm has not been initialized");
+             else {
+                 System.err.println("Signature algorithm has not been initialized");
+                 return false;
+             }
          }
          catch (InvalidKeyException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Invalid key excpetion - Invalid public key");
+             System.err.println("Invalid key excpetion - Invalid public key: " + e.getMessage());
+             return false;
          }
          
          try {
-             if (signature != null) {
-            	 signature.update(signedData);
-                 success = signature.verify(expectedSignature);
-             }
+        	 signature.update(signedData);
+             success = signature.verify(expectedSignature);
          } catch (SignatureException e) {
-             System.out.println(e.getMessage());
-             Assert.fail("Failed signature verification");
+             System.err.println("Error during signature verification: " + e.getMessage());
+             return false;
          }
          
          return success;
