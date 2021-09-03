@@ -826,12 +826,18 @@ public class TestDtlspRSGroupOSCORE {
         		boolean valid = false;
         		
         		switch(myGroup.getPubKeyEnc()) {
-	        		case Constants.COSE_HEADER_PARAM_CWT:
+	        		case Constants.COSE_HEADER_PARAM_UCCS:
 	        	        if (clientCred.getType() == CBORType.Map) {
+	        	            // Retrieve the public key from the UCCS
 	        	        	publicKey = Util.uccsToOneKey(clientCred);
 	        	        	valid = true;
 	        	        }
-	        	        else if (clientCred.getType() == CBORType.Array) {
+	        	        else {
+	        	            Assert.fail("Invalid format of public key");
+	        	        }
+	        	        break;
+	        		case Constants.COSE_HEADER_PARAM_CWT:
+	        			if (clientCred.getType() == CBORType.Array) {
 	        	            // Retrieve the public key from the CWT
 	        	            // TODO
 	        	        }
@@ -2594,12 +2600,18 @@ public class TestDtlspRSGroupOSCORE {
 			boolean valid = false;
         	
 			switch(targetedGroup.getPubKeyEnc()) {
-			    case Constants.COSE_HEADER_PARAM_CWT:
+			    case Constants.COSE_HEADER_PARAM_UCCS:
 			        if (clientCred.getType() == CBORType.Map) {
+			            // Retrieve the public key from the UCCS
 			            publicKey = Util.uccsToOneKey(clientCred);
 			            valid = true;
 			        }
-			        else if (clientCred.getType() == CBORType.Array) {
+			        else {
+			            Assert.fail("Invalid format of public key");
+			        }
+			        break;
+			    case Constants.COSE_HEADER_PARAM_CWT:
+			        if (clientCred.getType() == CBORType.Array) {
 			            // Retrieve the public key from the CWT
 			            // TODO
 			        }
@@ -2980,13 +2992,8 @@ public class TestDtlspRSGroupOSCORE {
 	  	                              (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 	
 	  	final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-	  	final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CWT;
-	
-        // Relevant when public keys are encoded as a CWT or an Unprotected CWT Claim Set (UCCS).
-        // If true, the UCCS encoding is used, otherwise the CWT encodding is used
-        final boolean uccsPreferredToCWT = true;
-
-        
+	  	final int pubKeyEnc = Constants.COSE_HEADER_PARAM_UCCS;
+	        
 	  	// Uncomment to set ECDSA with curve P-256 for countersignatures
 	  	// int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
 	
@@ -3126,16 +3133,16 @@ public class TestDtlspRSGroupOSCORE {
     	
     	gmPublicKeyOneKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
     	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_UCCS:
+            // Build a UCCS including the public key
+            gmPublicKey = Util.oneKeyToUccs(gmPublicKeyOneKey, "");
+            break;
         case Constants.COSE_HEADER_PARAM_CWT:
-            if (uccsPreferredToCWT == true)
-                gmPublicKey = Util.oneKeyToUccs(gmPublicKeyOneKey, "");
-            else {
-                // Build/retrieve a CWT including the public key
-                // TODO
-            }
+            // Build a CWT including the public key
+            // TODO
             break;
         case Constants.COSE_HEADER_PARAM_X5CHAIN:
-            // Build/retrieve the certificate including the public key
+            // Build the certificate including the public key
             // TODO
             break;
     	}
