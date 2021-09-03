@@ -124,6 +124,11 @@ public interface DBConnector {
      * The column name for raw public keys
      */
     public String rpkColumn = "RPK";
+    
+    /**
+     * The column name for the Sequence Number to use when issuing tokens with the 'exi' claim
+     */
+    public String exiSeqNumColumn = "ExiSeqNum";
 
     /**
      * The column name for expiration defaults
@@ -648,6 +653,29 @@ public interface DBConnector {
      * @throws AceException 
      */
     public void saveCtiCounter(Long cti) throws AceException;
+    
+    /**
+     * Load the current exi Sequence Number for this Resource Server
+     *  
+     * @param rsId  the identifier of the Resource Server
+     * 
+     * @return   the value of the exi Sequence Number for this Resource Server
+     * 
+     * @throws AceException
+     */
+    public int getExiSequenceNumber(String rsId) throws AceException;
+    
+    /**
+     * Save the exi Sequence Number for a Resource Server, to use when issuing
+     * Access Tokens for this Resource Server including the 'exi' claim
+     * 
+     * @param sn  the current value of the exi Sequence Number for this Resource Server
+     * 
+     * @param rsId  the identifier of the Resource Server
+     * 
+     * @throws AceException 
+     */
+    public void saveExiSequenceNumber(int sn, String rsId) throws AceException;
     
     /**
      * Save a mapping from token identifier to client identifier for

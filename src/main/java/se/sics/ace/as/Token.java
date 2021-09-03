@@ -183,10 +183,10 @@ public class Token implements Endpoint, AutoCloseable {
 	 private int OSCORE_material_counter = 0;
 	 
 	 /**
-	 * Store the association between the cti of an issued Acced Token
-	 * and the name of the RS (i.e. the audience) intended to consume it.
+	 * Store the association between the cti of an issued Access Token
+	 * and the target audience intended to consume it.
 	 */
-	 private Map<String, String> cti2rs = new HashMap<>();
+	 private Map<String, String> cti2aud = new HashMap<>();
 
 	 /**
 	 * Relevant only when the DTLS profile is used with symmetric PoP key
@@ -470,7 +470,7 @@ public class Token implements Endpoint, AutoCloseable {
 		// The audience has to be a text string. A set is built for compatibility with other methods
 		Set<String> aud = new HashSet<>();
 		
-		String rsName = ""; // used to save the Resource Server name for later, for possible update of access rights
+		String audStr = ""; // used to save the audience for later, for possible update of access rights
 		String oldCti = ""; // used to track the cti of a Token to supersede, in case of update of access rights
 		
 		if (cbor == null) {
@@ -478,7 +478,7 @@ public class Token implements Endpoint, AutoCloseable {
 		        String dAud = this.db.getDefaultAudience(id);
 		        if (dAud != null) {
 		            aud.add(dAud);
-		            rsName = new String(dAud);
+		            audStr = new String(dAud);
 		        }
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted (checking aud): "
@@ -488,7 +488,7 @@ public class Token implements Endpoint, AutoCloseable {
 		} else {
 			  if (cbor.getType().equals(CBORType.TextString)) {
 				  aud.add(cbor.AsString());
-				  rsName = new String(cbor.AsString());
+				  audStr = new String(cbor.AsString());
 		    } else {//error
 		        CBORObject map = CBORObject.NewMap();
 	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -718,7 +718,7 @@ public class Token implements Endpoint, AutoCloseable {
 										
 										// But first take the opportunity to clean up some other
 										// data structures, which might not have happened already
-								        this.cti2rs.remove(myCti);
+								        this.cti2aud.remove(myCti);
 								        this.cti2oscId.remove(myCti);
 								        this.cti2kid.remove(myCti);
 										
@@ -733,11 +733,11 @@ public class Token implements Endpoint, AutoCloseable {
 			                                Message.FAIL_INTERNAL_SERVER_ERROR, null);
 								}
                     			
-                    			String myRs = this.cti2rs.get(myCti);
+                    			String myAud = this.cti2aud.get(myCti);
                     			
                         		// Check especially if the previously released Token was intended to
                         		// the same Resource Server intended to consume the just requested Token
-                    			if (myRs != null && rsName.equals(myRs)) {
+                    			if (myAud != null && audStr.equals(myAud)) {
                             		// The new Token is intended to update access rights
                     				
                             		updateAccessRights = true;
@@ -755,7 +755,7 @@ public class Token implements Endpoint, AutoCloseable {
                         	if (updateAccessRights == false) {
 	                        	SecretKey key = kg.generateKey();
 	                            byte[] masterSecret = key.getEncoded();
-	                            CBORObject osc = makeOscoreCnf(masterSecret, rsName);
+	                            CBORObject osc = makeOscoreCnf(masterSecret, audStr);
 	                            claims.put(Constants.CNF, osc);
                         	}
                         	else {
@@ -952,8 +952,8 @@ public class Token implements Endpoint, AutoCloseable {
 				        // Id Context value assigned for this Resource Server
 		               if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
 		            	   this.OSCORE_material_counter--;
-		            	   if (this.idContextInfoMap.containsKey(rsName)) {
-		            		   this.idContextInfoMap.get(rsName).rollback();
+		            	   if (this.idContextInfoMap.containsKey(audStr)) {
+		            		   this.idContextInfoMap.get(audStr).rollback();
 		            	   }
 		               }
 		               
@@ -982,8 +982,8 @@ public class Token implements Endpoint, AutoCloseable {
 	        // Id Context value assigned for this Resource Server
             if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
          	   this.OSCORE_material_counter--;
-        	   if (this.idContextInfoMap.containsKey(rsName)) {
-        		   this.idContextInfoMap.get(rsName).rollback();
+        	   if (this.idContextInfoMap.containsKey(audStr)) {
+        		   this.idContextInfoMap.get(audStr).rollback();
         	   }
             }
 		    
@@ -1023,8 +1023,8 @@ public class Token implements Endpoint, AutoCloseable {
 	        // Id Context value assigned for this Resource Server
             if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
          	   this.OSCORE_material_counter--;
-        	   if (this.idContextInfoMap.containsKey(rsName)) {
-        		   this.idContextInfoMap.get(rsName).rollback();
+        	   if (this.idContextInfoMap.containsKey(audStr)) {
+        		   this.idContextInfoMap.get(audStr).rollback();
         	   }
             }
 		    
@@ -1059,8 +1059,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        // Id Context value assigned for this Resource Server
                 if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
              	    this.OSCORE_material_counter--;
-            	    if (this.idContextInfoMap.containsKey(rsName)) {
-            	 	    this.idContextInfoMap.get(rsName).rollback();
+            	    if (this.idContextInfoMap.containsKey(audStr)) {
+            	 	    this.idContextInfoMap.get(audStr).rollback();
             	    }
                 }
                 
@@ -1097,8 +1097,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        // Id Context value assigned for this Resource Server
                 if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
             	    this.OSCORE_material_counter--;
-            	    if (this.idContextInfoMap.containsKey(rsName)) {
-            	 	    this.idContextInfoMap.get(rsName).rollback();
+            	    if (this.idContextInfoMap.containsKey(audStr)) {
+            	 	    this.idContextInfoMap.get(audStr).rollback();
             	    }
                 }
 		        
@@ -1115,8 +1115,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        // Id Context value assigned for this Resource Server
 	            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
 	            	this.OSCORE_material_counter--;
-            	    if (this.idContextInfoMap.containsKey(rsName)) {
-            	 	    this.idContextInfoMap.get(rsName).rollback();
+            	    if (this.idContextInfoMap.containsKey(audStr)) {
+            	 	    this.idContextInfoMap.get(audStr).rollback();
             	    }
 	            }
 		        
@@ -1151,8 +1151,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        // Id Context value assigned for this Resource Server
 	            if (profile == Constants.COAP_OSCORE && updateAccessRights == false) {
 	            	this.OSCORE_material_counter--;
-            	    if (this.idContextInfoMap.containsKey(rsName)) {
-            	 	    this.idContextInfoMap.get(rsName).rollback();
+            	    if (this.idContextInfoMap.containsKey(audStr)) {
+            	 	    this.idContextInfoMap.get(audStr).rollback();
             	    }
 	            }
 		        
@@ -1173,7 +1173,7 @@ public class Token implements Endpoint, AutoCloseable {
 		    // to support the issuing of Access Tokens for updating access rights
 		    if (keyType != null && keyType.equals("PSK")) {
 		    
-			    this.cti2rs.put(ctiStr, rsName);
+			    this.cti2aud.put(ctiStr, audStr);
 			    
 			    if (profile == Constants.COAP_OSCORE) {
 			    	CBORObject oscId;
@@ -1215,7 +1215,7 @@ public class Token implements Endpoint, AutoCloseable {
 		} catch (AceException e) {
 		    this.cti--; //roll-back
 		    
-            this.cti2rs.remove(ctiStr);
+            this.cti2aud.remove(ctiStr);
             
             if (keyType != null && keyType.equals("PSK")) {
             	
@@ -1224,8 +1224,8 @@ public class Token implements Endpoint, AutoCloseable {
 	            		// Roll-back the counter used for the 'id' parameter in the OSCORE Security Context
 	            		// and the Id Context value assigned for this Resource Server
 	            		this.OSCORE_material_counter--;
-	            	    if (this.idContextInfoMap.containsKey(rsName)) {
-	            	 	    this.idContextInfoMap.get(rsName).rollback();
+	            	    if (this.idContextInfoMap.containsKey(audStr)) {
+	            	 	    this.idContextInfoMap.get(audStr).rollback();
 	            	    }
 	            	}
 
@@ -1466,7 +1466,7 @@ public class Token implements Endpoint, AutoCloseable {
 	public void removeToken(String cti) throws AceException {
 	    this.db.deleteToken(cti);
 	    
-        this.cti2rs.remove(cti);
+        this.cti2aud.remove(cti);
         this.cti2oscId.remove(cti);
         this.cti2kid.remove(cti);
 	    

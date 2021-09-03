@@ -407,7 +407,18 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement updateCtiCtr;
     
+    /**
+     * A prepared SELECT statement to select the exi Sequence Number value
+     * of a specific Resource Server from the RSs table.
+     */
+	protected PreparedStatement selectExiSn;
     
+    /**
+     * A prepared UPDATE statement to update the exi Sequence Number value
+     * of a specific Resource Server in the RSs table.
+     */
+	protected PreparedStatement updateExiSn;
+	
     /**
      * A prepared INSERT statement to insert a new token to client mapping.
      */
@@ -514,7 +525,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	        
 		this.insertRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.rsTable + " VALUES (?,?,?,?,?);"));
+		                + DBConnector.rsTable + " VALUES (?,?,?,?,?,?);"));
 		
 		this.deleteRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
@@ -788,6 +799,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + DBConnector.ctiCounterTable
 		                + " SET " + DBConnector.ctiCounterColumn + "=?;"));
 
+		this.selectExiSn = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("SELECT "
+		                + DBConnector.exiSeqNumColumn + " FROM " 
+		                + DBConnector.rsTable
+		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
+
+		this.updateExiSn = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("UPDATE "
+		                + DBConnector.rsTable
+		                + " SET " + DBConnector.exiSeqNumColumn + "=?"
+		                	    + " WHERE " + DBConnector.rsIdColumn
+		                	    + "=?;"));
+		
 		this.insertCti2Client = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.cti2clientTable
@@ -1319,22 +1343,28 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     "getExpTime() requires non-null audience");
         }
         long smallest = Long.MAX_VALUE;
+        
         for (String audE : aud) {
-            try {
-                this.selectExpiration.setString(1, audE);
-                ResultSet result = this.selectExpiration.executeQuery();
-                this.selectExpiration.clearParameters();
-                while (result.next()) {
-                    long val = result.getLong(DBConnector.expColumn);
-                    if (val < smallest) {
-                        smallest = val;
-                    }
-                }
-                result.close();
-            } catch (SQLException e) {
-                throw new AceException(e.getMessage());
-            }
+        	
+        	Set<String> rsIds = getRSS(audE);
+        	for (String myRS : rsIds) {
+		            try {
+		            	this.selectExpiration.setString(1, myRS);
+		                ResultSet result = this.selectExpiration.executeQuery();
+		                this.selectExpiration.clearParameters();
+		                while (result.next()) {
+		                    long val = result.getLong(DBConnector.expColumn);
+		                    if (val < smallest) {
+		                        smallest = val;
+		                    }
+		                }
+		                result.close();
+		            } catch (SQLException e) {
+		                throw new AceException(e.getMessage());
+		            }
+        	}       
         }
+        
         return smallest;
     }
     
@@ -1595,6 +1625,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             } else {
                 this.insertRS.setBytes(5, null);
             }
+            
+            // Initialize to 0 the sequence number to use when
+            // issuing to this RS tokens with the 'exi' claim
+            this.insertRS.setInt(6, 0);
+            
             this.insertRS.execute();
             this.insertRS.clearParameters();
             
@@ -1921,7 +1956,34 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }    
     }
-
+    
+    @Override
+    public synchronized int getExiSequenceNumber(String rsId) throws AceException {
+        int sn = -1;
+        try {
+            ResultSet result = this.selectExiSn.executeQuery();
+            if (result.next()) {
+                sn = result.getInt(DBConnector.exiSeqNumColumn);
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return sn;
+    }
+    
+    @Override
+    public synchronized void saveExiSequenceNumber(int sn, String rsId) throws AceException {
+        try {
+            this.updateExiSn.setInt(1, sn);
+            this.updateExiSn.setString(2, rsId);
+            this.updateExiSn.execute();
+            this.updateExiSn.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }    
+    }
+    
     /**
      * Creates the user that manages this database.
      *

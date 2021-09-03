@@ -134,7 +134,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.expColumn + " bigint NOT NULL, "
                 + DBConnector.tokenPskColumn + " varbinary(64), "
                 + DBConnector.authPskColumn + " varbinary(64), "
-                + DBConnector.rpkColumn + " varbinary(255),"
+                + DBConnector.rpkColumn + " varbinary(255), "
+                + DBConnector.exiSeqNumColumn + " int NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
         String createC = "CREATE TABLE IF NOT EXISTS " + this.dbName
