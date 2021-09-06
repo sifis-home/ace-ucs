@@ -189,6 +189,15 @@ public class Token implements Endpoint, AutoCloseable {
 	 private Map<String, String> cti2aud = new HashMap<>();
 
 	 /**
+	 * Store the association between the name of the Resource Server and the next value to use
+	 * as Sequence Number to build the 'cti' claim when the 'exi' claim is included in the Access Token
+	 * 
+	 * The entry for a Resource Server is created when the first Access Token including 'exi' is issues,
+	 * since the AS process has started. The initial value of the Sequence Number is retrieved from the database.
+	 */
+	 private Map<String, Integer> exiSequenceNumbers = new HashMap<>();
+	 
+	 /**
 	 * Relevant only when the DTLS profile is used with symmetric PoP key
 	 * 
 	 * Store the association between the cti of an issued Acced Token and
@@ -546,10 +555,92 @@ public class Token implements Endpoint, AutoCloseable {
 		           map);
 		}
 		
+		boolean includeExi = this.claims.contains(Constants.EXI);
+		// If the 'exi' claim is included, ensure that the 'cti' claim is also included 
+		if (includeExi) {
+			this.claims.add(Constants.CTI);
+		}
 		
-		byte[] ctiB = buffer.putLong(0, this.cti).array();
-        String ctiStr = Base64.getEncoder().encodeToString(ctiB);
-        this.cti++;
+		// The construction of 'cti' depends on the presence/absence of the 'exi' claim.
+		//
+		// If the 'exi' claim is not present, 'cti' is the serialization of a global counter.
+		//
+		// If the 'exi' claim is present, 'cti' is the serialization of two concatenated strings,
+		// i.e., the name of the Resource Server and the current value of the Exi Sequence Number
+		byte[] ctiB = null;
+		String ctiStr = null;
+		String rsName = null;
+		int exiSeqNum = -1;
+		if (!includeExi) {
+			// The 'exi' claim is not included in the Access Token.
+			// Thus, 'cti' can be easily built by using the related single counter
+			ctiB = buffer.putLong(0, this.cti).array();
+	        ctiStr = Base64.getEncoder().encodeToString(ctiB);
+	        this.cti++;
+		}
+		else {
+			// The 'exi' claim is included in the Access Token.
+			// Thus, 'cti' has to be built according to a particular semantics, as the
+			// serialization of the text string S1 = (S2 | S3), where S2 is the name of
+			// the Resource Server and S3 is the text encoding of the Exi Sequence Number
+			// to use for that Resource Server.
+			
+			// Determine the name of the Resource Server associated to the specified Audience
+			Set<String> rsSet = new HashSet<>();
+			try {
+				rsSet = db.getRSS(audStr);
+			} catch (AceException e) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, "Message processing aborted: Error when retrieving the name"
+	            		+ " of the Resource Server with Audience " + audStr + " from the database");
+                LOGGER.severe("Message processing aborted: Error when retrieving the name"
+                		+ " of the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
+			    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+			           map);
+			}
+			// Check the the specified Audience is associated to exactly one Resource Server
+			if (rsSet.size() != 1) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, "The 'exi' claim has to be included, thus Audience must contain"
+	            		+ " exactly one Resource Server");
+	            LOGGER.log(Level.INFO, "Message processing aborted: The 'exi' claim has to be included,"
+	            		+ "thus Audience must contain exactly one Resource Server");
+			    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+			           map);
+			}
+			for (String rs : rsSet)
+				rsName = new String(rs);
+			
+			// Retrieve the value of the Exi Sequence Number to use for this Resource Server
+			if (exiSequenceNumbers.containsKey(rsName)) {
+				exiSeqNum = exiSequenceNumbers.get(rsName).intValue();
+			}
+			else {
+				// This is going to be the first Access Token including the 'exi' claim issued to
+				// this Resource Server since the AS process started. Then, retrieve the current
+				// Exi Sequence Number value for this Resource Server from the database.
+				try {
+					exiSeqNum = db.getExiSequenceNumber(rsName);
+				} catch (AceException e) {
+		            CBORObject map = CBORObject.NewMap();
+		            map.Add(Constants.ERROR, "Message processing aborted: Error when retrieving the Exi Sequence Number"
+		            		+ " for the Resource Server with Audience " + audStr + " from the database");
+	                LOGGER.severe("Message processing aborted: Error when retrieving the Exi Sequence Number"
+	                		+ " for the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
+				    return msg.failReply(Message.FAIL_BAD_REQUEST, 
+				           map);
+				}
+			}
+
+			// Update the local collection of Exi Sequence Numbers
+			Integer newSeqNum = Integer.valueOf(exiSeqNum + 1);
+			exiSequenceNumbers.put(rsName, newSeqNum);
+			
+			String rawCti = new String(rsName + String.valueOf(exiSeqNum));
+			ctiB = rawCti.getBytes(Constants.charset);
+	        ctiStr = Base64.getEncoder().encodeToString(ctiB);
+			
+		}
         
 
         //Find supported profile
@@ -558,13 +649,25 @@ public class Token implements Endpoint, AutoCloseable {
         try {
             profileStr = this.db.getSupportedProfile(id, aud);
         } catch (AceException e) {
-            this.cti--; //roll-back
+        	if (!includeExi) {
+        		this.cti--; //roll-back
+        	}
+        	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
             LOGGER.severe("Message processing aborted (finding profile): "
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
         if (profileStr == null) {
-            this.cti--; //roll-back
+        	if (!includeExi) {
+        		this.cti--; //roll-back
+        	}
+        	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
             LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -573,9 +676,14 @@ public class Token implements Endpoint, AutoCloseable {
         }
         short profile = Constants.getProfileAbbrev(profileStr);
                 
-        if (tokenType != AccessTokenFactory.CWT_TYPE 
-                && tokenType != AccessTokenFactory.REF_TYPE) {
-            this.cti--; //roll-back
+        if (tokenType != AccessTokenFactory.CWT_TYPE && tokenType != AccessTokenFactory.REF_TYPE) {
+        	if (!includeExi) {
+        		this.cti--; //roll-back
+        	}
+        	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, "Unsupported token type");
             LOGGER.log(Level.INFO, "Message processing aborted: "
@@ -666,7 +774,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            //check if PSK is supported for proof-of-possession
 		            try {
 		                if (!isSupported(keyType, aud)) {
-		                    this.cti--; //roll-back
+		                	if (!includeExi) {
+		                		this.cti--; //roll-back
+		                	}
+		                	else {
+		                		//roll-back
+		                		exiSequenceNumbers.put(rsName, exiSeqNum);
+		                	}
 	                        CBORObject map = CBORObject.NewMap();
 	                        map.Add(Constants.ERROR, 
 	                                Constants.UNSUPPORTED_POP_KEY);
@@ -677,7 +791,13 @@ public class Token implements Endpoint, AutoCloseable {
 	                                Message.FAIL_BAD_REQUEST, map);
 		                }
 		            } catch (AceException e) {
-                        this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
                         LOGGER.severe("Message processing aborted "
                                 + "(finding key type): "
                                 + e.getMessage());
@@ -695,7 +815,13 @@ public class Token implements Endpoint, AutoCloseable {
                             ctiSet = this.db.getCtis4Client(id);
                             
 						} catch (AceException e) {
-	                        this.cti--; //roll-back
+							if (!includeExi) {
+								this.cti--; //roll-back
+							}
+					       	else {
+				        		//roll-back
+				        		exiSequenceNumbers.put(rsName, exiSeqNum);
+				        	}
 	                        LOGGER.severe("Message processing aborted "
 	                                + "(finding cti of issues tokens): "
 	                                + e.getMessage());
@@ -725,7 +851,13 @@ public class Token implements Endpoint, AutoCloseable {
 										continue;
 									}
 								} catch (AceException e) {
-			                        this.cti--; //roll-back
+									if (!includeExi) {
+										this.cti--; //roll-back
+									}
+							       	else {
+						        		//roll-back
+						        		exiSequenceNumbers.put(rsName, exiSeqNum);
+						        	}
 			                        LOGGER.severe("Message processing aborted "
 			                                + "(finding previously released token): "
 			                                + e.getMessage());
@@ -762,7 +894,13 @@ public class Token implements Endpoint, AutoCloseable {
                         		// The new Token is intended to update access rights
                         		CBORObject oscId = this.cti2oscId.get(oldCti);
                         		if (oscId == null) {
-        	                        this.cti--; //roll-back
+                        			if (!includeExi) {
+                        				this.cti--; //roll-back
+                        			}
+                        	       	else {
+                                		//roll-back
+                                		exiSequenceNumbers.put(rsName, exiSeqNum);
+                                	}
         	                        LOGGER.severe("Message processing aborted "
         	                                + "(finding OSCORE ID when updating access rights)");
         	                        return msg.failReply(
@@ -807,7 +945,13 @@ public class Token implements Endpoint, AutoCloseable {
                         	
                         }
                     } catch (NoSuchAlgorithmException | CoseException e) {
-                        this.cti--; //roll-back
+                    	if (!includeExi) {
+                    		this.cti--; //roll-back
+                    	}
+                       	else {
+                    		//roll-back
+                    		exiSequenceNumbers.put(rsName, exiSeqNum);
+                    	}
                         LOGGER.severe("Message processing aborted "
                                 + "(making PSK): " + e.getMessage());
                         return msg.failReply(
@@ -822,7 +966,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            //Check that the kid is well-formed
 		            CBORObject kidC = cnf.get(Constants.COSE_KID_CBOR);
 		            if (!kidC.getType().equals(CBORType.ByteString)) {
-		                this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		                LOGGER.info("Message processing aborted: "
 		                        + " Malformed kid in request parameter 'cnf'");
 		                CBORObject map = CBORObject.NewMap();
@@ -839,7 +989,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            try {
 		                key = getKey(cnf, id);
 		            } catch (AceException | CoseException e) {
-		                this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
 		                if (e.getMessage().startsWith("Malformed")) {
@@ -853,7 +1009,13 @@ public class Token implements Endpoint, AutoCloseable {
 		                        Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		            }
 		            if (key == null) {
-		                this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		                CBORObject map = CBORObject.NewMap();
 		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                map.Add(Constants.ERROR_DESCRIPTION, 
@@ -865,7 +1027,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            
 		            if (key.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
 		                //Client tried to submit a symmetric key => reject
-		                this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		                CBORObject map = CBORObject.NewMap();
 		                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 		                map.Add(Constants.ERROR_DESCRIPTION, 
@@ -883,7 +1051,13 @@ public class Token implements Endpoint, AutoCloseable {
                         RawPublicKeyIdentity rpkId = new RawPublicKeyIdentity(
                                 key.AsPublicKey());
                         if (!rpkId.getName().equals(id)) {
-                            this.cti--; //roll-back
+                        	if (!includeExi) {
+                        		this.cti--; //roll-back
+                        	}
+                           	else {
+                        		//roll-back
+                        		exiSequenceNumbers.put(rsName, exiSeqNum);
+                        	}
                             CBORObject map = CBORObject.NewMap();
                             map.Add(Constants.ERROR, 
                                 Constants.UNSUPPORTED_POP_KEY);
@@ -895,7 +1069,13 @@ public class Token implements Endpoint, AutoCloseable {
                         }
                         
                     } catch (CoseException e) {
-                        this.cti--; //roll-back
+                    	if (!includeExi) {
+                    		this.cti--; //roll-back
+                    	}
+                       	else {
+                    		//roll-back
+                    		exiSequenceNumbers.put(rsName, exiSeqNum);
+                    	}
                         CBORObject map = CBORObject.NewMap();
                         map.Add(Constants.ERROR, 
                             Constants.UNSUPPORTED_POP_KEY);
@@ -910,7 +1090,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            //Can the audience support this?
 		            try {
 		                if (!isSupported(keyType, aud)) {
-		                    this.cti--; //roll-back
+		                	if (!includeExi) {
+		                		this.cti--; //roll-back
+		                	}
+		                   	else {
+		                		//roll-back
+		                		exiSequenceNumbers.put(rsName, exiSeqNum);
+		                	}
 		                    CBORObject map = CBORObject.NewMap();
 		                    map.Add(Constants.ERROR, 
                                 Constants.UNSUPPORTED_POP_KEY);
@@ -921,7 +1107,13 @@ public class Token implements Endpoint, AutoCloseable {
 		                            Message.FAIL_BAD_REQUEST, map);
 		                }
 		            } catch (AceException e) {
-		                this.cti--; //roll-back
+		            	if (!includeExi) {
+		            		this.cti--; //roll-back
+		            	}
+		               	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		                LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
 		                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -944,7 +1136,13 @@ public class Token implements Endpoint, AutoCloseable {
 	                       claims.put(Constants.RS_CNF, rscnf);
 	                   }
 		           } catch (AceException e) {
-		               this.cti--; //roll-back
+		        	   if (!includeExi) {
+		        		   this.cti--; //roll-back
+		        	   }
+		              	else {
+		            		//roll-back
+		            		exiSequenceNumbers.put(rsName, exiSeqNum);
+		            	}
 		               
 		               // If the OSCORE profile is used, and this was a first-released Token
 		               // to this client for RS in question, roll-back the counter used for
@@ -974,7 +1172,13 @@ public class Token implements Endpoint, AutoCloseable {
 		try {
 		    token = AccessTokenFactory.generateToken(tokenType, claims);
 		} catch (AceException e) {
-		    this.cti--; //roll-back
+			if (!includeExi) {
+				this.cti--; //roll-back
+			}
+	       	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
 		    
             // If the OSCORE profile is used, and this was a first-released Token
             // to this client for RS in question, roll-back the counter used for
@@ -1015,7 +1219,13 @@ public class Token implements Endpoint, AutoCloseable {
 		    // Otherwise, no need to explicitly indicate the used profile
 		    
 		} catch (AceException e) {
-		    this.cti--; //roll-back
+			if (!includeExi) {
+				this.cti--; //roll-back
+			}
+	       	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
 		    
             // If the OSCORE profile is used, and this was a first-released Token
             // to this client for RS in question, roll-back the counter used for
@@ -1051,7 +1261,13 @@ public class Token implements Endpoint, AutoCloseable {
             try {
                 rscnfs = makeRsCnf(aud);
             } catch (AceException e) {
-                this.cti--; //roll-back
+            	if (!includeExi) {
+            		this.cti--; //roll-back
+            	}
+               	else {
+            		//roll-back
+            		exiSequenceNumbers.put(rsName, exiSeqNum);
+            	}
                 
                 // If the OSCORE profile is used, and this was a first-released Token
                 // to this client for RS in question, roll-back the counter used for
@@ -1073,7 +1289,6 @@ public class Token implements Endpoint, AutoCloseable {
 		    }
 		} //Skip cnf if client requested specific KID.
 
-		// M.T.
 		// Handle "scope" both as String and as Byte Array
 		if (scope instanceof String && !allowedScopes.equals(scope)) {
 		    rsInfo.Add(Constants.SCOPE, CBORObject.FromObject(allowedScopes));
@@ -1089,7 +1304,13 @@ public class Token implements Endpoint, AutoCloseable {
 		        ctx = EndpointUtils.makeCommonCtx(aud, this.db, 
 		                this.privateKey, sign);
 		    } catch (AceException | CoseException e) {
-		        this.cti--; //roll-back
+		    	if (!includeExi) {
+		    		this.cti--; //roll-back
+		    	}
+		       	else {
+	        		//roll-back
+	        		exiSequenceNumbers.put(rsName, exiSeqNum);
+	        	}
 		        
                 // If the OSCORE profile is used, and this was a first-released Token
                 // to this client for RS in question, roll-back the counter used for
@@ -1107,7 +1328,13 @@ public class Token implements Endpoint, AutoCloseable {
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
 		    if (ctx == null) {
-		        this.cti--; //roll-back
+		    	if (!includeExi) {
+		    		this.cti--; //roll-back
+		    	}
+		       	else {
+	        		//roll-back
+	        		exiSequenceNumbers.put(rsName, exiSeqNum);
+	        	}
 		        
 	            // If the OSCORE profile is used, and this was a first-released Token
 	            // to this client for RS in question, roll-back the counter used for
@@ -1143,7 +1370,13 @@ public class Token implements Endpoint, AutoCloseable {
 		                cwt.encode(ctx, null, uHeaders).EncodeToBytes());
 		    } catch (IllegalStateException | InvalidCipherTextException
 		            | CoseException | AceException e) {
-		        this.cti--; //roll-back
+		    	if (!includeExi) {
+		    		this.cti--; //roll-back
+		    	}
+		       	else {
+	        		//roll-back		       		
+	        		exiSequenceNumbers.put(rsName, exiSeqNum);
+	        	}
 		        
 	            // If the OSCORE profile is used, and this was a first-released Token
 	            // to this client for RS in question, roll-back the counter used for
@@ -1167,7 +1400,12 @@ public class Token implements Endpoint, AutoCloseable {
 		try {
 		    this.db.addToken(ctiStr, claims);
 		    this.db.addCti2Client(ctiStr, id);
-		    this.db.saveCtiCounter(this.cti);
+		    if (!includeExi) {
+		    	this.db.saveCtiCounter(this.cti);
+		    }
+		    else {
+		    	this.db.saveExiSequenceNumber(exiSeqNum+1, rsName);
+		    }
 
 		    // In case the client has asked to use a PSK, store further associations,
 		    // to support the issuing of Access Tokens for updating access rights
@@ -1213,7 +1451,13 @@ public class Token implements Endpoint, AutoCloseable {
 		    
 		    
 		} catch (AceException e) {
-		    this.cti--; //roll-back
+			if (!includeExi) {
+				this.cti--; //roll-back
+			}
+	       	else {
+        		//roll-back
+        		exiSequenceNumbers.put(rsName, exiSeqNum);
+        	}
 		    
             this.cti2aud.remove(ctiStr);
             
@@ -1476,6 +1720,10 @@ public class Token implements Endpoint, AutoCloseable {
     @Override
     public void close() throws AceException {
         this.db.saveCtiCounter(this.cti);
+        
+        for (String rs : exiSequenceNumbers.keySet())
+        	this.db.saveExiSequenceNumber(exiSequenceNumbers.get(rs).intValue(), rs);
+        
         this.db.close();
     }
     

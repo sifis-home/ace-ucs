@@ -122,7 +122,6 @@ public class TestToken {
         Set<String> auds = new HashSet<>();
         auds.add("sensors");
         auds.add("actuators");
-        auds.add("failCWTpar");
         
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -159,7 +158,6 @@ public class TestToken {
         auds.clear();
         auds.add("actuators");
         auds.add("failTokenType");
-        auds.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -177,6 +175,7 @@ public class TestToken {
         profiles.add("coap_dtls");
         auds.clear();
         auds.add("failProfile");
+        scopes.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -333,7 +332,6 @@ public class TestToken {
         pdp.addAccess("clientB", "rs3", "rw_valve");
         pdp.addAccess("clientB", "rs3", "r_pressure");
         pdp.addAccess("clientB", "rs3", "failTokenType");
-        pdp.addAccess("clientB", "rs3", "failProfile");
         pdp.addAccess("clientB", "rs4", "failProfile");
         pdp.addAccess("clientB", "rs6", "co2");
         pdp.addAccess("clientB", "rs7", "co2");
@@ -352,7 +350,6 @@ public class TestToken {
         pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
-        pdp.addAccess("clientE", "rs3", "failProfile");
         
         t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
@@ -495,9 +492,8 @@ public class TestToken {
         assert(response.getMessageCode()
                 == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        cbor.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);        
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -519,8 +515,7 @@ public class TestToken {
                 == Message.FAIL_NOT_IMPLEMENTED);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, "Unsupported token type");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -794,7 +789,12 @@ public class TestToken {
             t.processMessage(msg);
         }
         Long ctiCtrEnd = db.getCtiCounter();
-        assert(ctiCtrEnd == ctiCtrStart+10);
+        
+        // This is consistent with the fact that the Authorization Server includes the 'exi' claim
+        // in every issued Access Token. Thus, the per-RS Exi Sequence Numbers are incremented and
+        // persisted in the database, while the single global counter used as 'cti' for issued
+        // Access Tokens without the 'exi' claim is never used and incremented.
+        assert(ctiCtrEnd == ctiCtrStart);
         
     }
     

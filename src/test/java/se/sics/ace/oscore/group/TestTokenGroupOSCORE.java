@@ -126,7 +126,6 @@ public class TestTokenGroupOSCORE {
         Set<String> auds = new HashSet<>();
         auds.add("sensors");
         auds.add("actuators");
-        auds.add("failCWTpar");
         
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -163,7 +162,6 @@ public class TestTokenGroupOSCORE {
         auds.clear();
         auds.add("actuators");
         auds.add("failTokenType");
-        auds.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -181,6 +179,7 @@ public class TestTokenGroupOSCORE {
         profiles.add("coap_dtls");
         auds.clear();
         auds.add("failProfile");
+        scopes.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -463,7 +462,6 @@ public class TestTokenGroupOSCORE {
         pdp.addAccess("clientB", "rs3", "rw_valve");
         pdp.addAccess("clientB", "rs3", "r_pressure");
         pdp.addAccess("clientB", "rs3", "failTokenType");
-        pdp.addAccess("clientB", "rs3", "failProfile");
         pdp.addAccess("clientB", "rs4", "failProfile");
         pdp.addAccess("clientB", "rs6", "co2");
         pdp.addAccess("clientB", "rs7", "co2");
@@ -482,7 +480,6 @@ public class TestTokenGroupOSCORE {
         pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
-        pdp.addAccess("clientE", "rs3", "failProfile");
         
         pdp.addAccess("clientF", "rs2", "r_light");
         
@@ -1946,7 +1943,12 @@ public class TestTokenGroupOSCORE {
             t.processMessage(msg);
         }
         Long ctiCtrEnd = db.getCtiCounter();
-        assert(ctiCtrEnd == ctiCtrStart+10);
+        
+        // This is consistent with the fact that the Authorization Server includes the 'exi' claim
+        // in every issued Access Token. Thus, the per-RS Exi Sequence Numbers are incremented and
+        // persisted in the database, while the single global counter used as 'cti' for issued
+        // Access Tokens without the 'exi' claim is never used and incremented.
+        assert(ctiCtrEnd == ctiCtrStart);
         
     }
     

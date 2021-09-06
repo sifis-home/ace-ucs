@@ -1961,6 +1961,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
     public synchronized int getExiSequenceNumber(String rsId) throws AceException {
         int sn = -1;
         try {
+        	this.selectExiSn.setString(1, rsId);
             ResultSet result = this.selectExiSn.executeQuery();
             if (result.next()) {
                 sn = result.getInt(DBConnector.exiSeqNumColumn);
