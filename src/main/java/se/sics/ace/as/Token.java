@@ -590,18 +590,15 @@ public class Token implements Endpoint, AutoCloseable {
 			try {
 				rsSet = db.getRSS(audStr);
 			} catch (AceException e) {
-	            CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, "Message processing aborted: Error when retrieving the name"
-	            		+ " of the Resource Server with Audience " + audStr + " from the database");
                 LOGGER.severe("Message processing aborted: Error when retrieving the name"
                 		+ " of the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
-			    return msg.failReply(Message.FAIL_BAD_REQUEST, 
-			           map);
+			    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 			}
 			// Check the the specified Audience is associated to exactly one Resource Server
 			if (rsSet.size() != 1) {
 	            CBORObject map = CBORObject.NewMap();
-	            map.Add(Constants.ERROR, "The 'exi' claim has to be included, thus Audience must contain"
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, "The 'exi' claim has to be included, thus Audience must contain"
 	            		+ " exactly one Resource Server");
 	            LOGGER.log(Level.INFO, "Message processing aborted: The 'exi' claim has to be included,"
 	            		+ "thus Audience must contain exactly one Resource Server");
@@ -622,13 +619,9 @@ public class Token implements Endpoint, AutoCloseable {
 				try {
 					exiSeqNum = db.getExiSequenceNumber(rsName);
 				} catch (AceException e) {
-		            CBORObject map = CBORObject.NewMap();
-		            map.Add(Constants.ERROR, "Message processing aborted: Error when retrieving the Exi Sequence Number"
-		            		+ " for the Resource Server with Audience " + audStr + " from the database");
 	                LOGGER.severe("Message processing aborted: Error when retrieving the Exi Sequence Number"
 	                		+ " for the Resource Server with Audience " + audStr + " from the database.\n" + e.getMessage());
-				    return msg.failReply(Message.FAIL_BAD_REQUEST, 
-				           map);
+				    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 				}
 			}
 
