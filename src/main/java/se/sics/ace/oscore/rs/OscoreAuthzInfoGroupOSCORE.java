@@ -107,6 +107,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param tokenFile  the file where to save tokens when persisting
@@ -116,11 +117,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @throws AceException 
 	 */
 	public OscoreAuthzInfoGroupOSCORE(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
+			TimeProvider time, IntrospectionHandler intro, String rsId, 
 			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		super(issuers, time, intro, audience, ctx, null, 0, tokenFile, 
+		// NNN
+		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;

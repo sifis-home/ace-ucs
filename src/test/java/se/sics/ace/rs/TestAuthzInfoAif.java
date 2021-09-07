@@ -124,13 +124,24 @@ public class TestAuthzInfoAif {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
+        
+        // NNN
+        String rsId = "rs1";
+        
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        pdp.addIntrospectAccess("rs1");
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"), null);
-        String tokenFile = TestConfig.testFilePath + "tokens.json";   
+        
+        // NNN
+        pdp.addIntrospectAccess(rsId);
+        
+        // NNN
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), null);
+        
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        
+        // NNN
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, null, 0, tokenFile, aif, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, aif, false);
     }
     
     /**
@@ -164,7 +175,10 @@ public class TestAuthzInfoAif {
         scopeElement.Add(1);
         scope.Add(scopeElement); 
         params.put(Constants.SCOPE, scope);
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -182,8 +196,7 @@ public class TestAuthzInfoAif {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-               token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());

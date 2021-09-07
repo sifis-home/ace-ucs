@@ -100,6 +100,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
@@ -112,12 +113,12 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @throws IOException 
 	 */
 	public AuthzInfoGroupOSCORE(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
+			TimeProvider time, IntrospectionHandler intro, String rsId,
 			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		
-		super(issuers, time, intro, audience, ctx, keyDerivationKey, derivedKeySize, tokenFile, 
+		// NNN
+		super(issuers, time, intro, rsId, audience, ctx, keyDerivationKey, derivedKeySize, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;

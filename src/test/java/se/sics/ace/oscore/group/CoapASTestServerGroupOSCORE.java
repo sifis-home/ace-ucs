@@ -108,6 +108,10 @@ public class CoapASTestServerGroupOSCORE
         scopes.add("r_pressure");
         scopes.add("foobar");
         Set<String> auds = new HashSet<>();
+        
+        // NNN
+        auds.add("aud1");
+        
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -131,7 +135,10 @@ public class CoapASTestServerGroupOSCORE
         scopes.add(groupName + "_monitor");
         scopes.add(groupName + "_requester_responder");
         auds.clear();
-        auds.add("rs2");
+        
+        // NNN
+        auds.add("aud2");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -157,7 +164,10 @@ public class CoapASTestServerGroupOSCORE
         scopes.add(groupName + "_monitor");
         scopes.add(groupName + "_requester_responder");
         auds.clear();
-        auds.add("rs3");
+        
+        // NNN
+        auds.add("aud3");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -183,7 +193,10 @@ public class CoapASTestServerGroupOSCORE
         scopes.add(groupName + "_monitor");
         scopes.add(groupName + "_requester_responder");
         auds.clear();
-        auds.add("rs4");
+        
+        // NNN
+        auds.add("aud4");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -293,11 +306,14 @@ public class CoapASTestServerGroupOSCORE
         // On this Group Manager, this client is allowed to be requester.
         pdp.addAccess("clientG", "rs2", groupName + "_requester");
         
-        // Add the resource servers rs2  and rs3 and their OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
-        Set<String> rs2 = Collections.singleton("rs2");
-        pdp.addOSCOREGroupManagers("rs2", rs2);
-        Set<String> rs3 = Collections.singleton("rs3");
-        pdp.addOSCOREGroupManagers("rs3", rs3);
+        // Add the resource servers rs2 and rs3 and their OSCORE Group Manager
+        // audience to the table OSCOREGroupManagersTable in the PDP
+        
+        // NNN
+        Set<String> aud2 = Collections.singleton("aud2");
+        pdp.addOSCOREGroupManagers("rs2", aud2);
+        Set<String> aud3 = Collections.singleton("aud3");
+        pdp.addOSCOREGroupManagers("rs3", aud3);
         
         
         as = new DtlsAS("AS", db, pdp, time, asymmKey);

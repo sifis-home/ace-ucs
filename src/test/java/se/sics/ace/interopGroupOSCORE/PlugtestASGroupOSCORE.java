@@ -286,10 +286,14 @@ public class PlugtestASGroupOSCORE
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_oscore");
         Set<String> scopes = new HashSet<>();
-        scopes.add("rw_valve");
-        scopes.add("r_pressure");
+        scopes.add("r_temp");
+        scopes.add("rw_config");
         scopes.add("foobar");
         Set<String> auds = new HashSet<>();
+        
+        // NNN
+        auds.add("aud1");
+        
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -299,12 +303,11 @@ public class PlugtestASGroupOSCORE
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         cose.add(coseP);
-        long expiration = 30000L;
-        
-        
+        long expiration = 30000L;        
         
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs1, tokenPsk_rs1, akey_rs);
+        
         
         // Add a further resource server "rs2" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
@@ -313,7 +316,10 @@ public class PlugtestASGroupOSCORE
         scopes.clear();
         scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
-        auds.add("rs2");
+        
+        // NNN
+        auds.add("aud2");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -322,8 +328,10 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
         
+        // NNN
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
+        
         
         // Add a further resource server "rs3" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
@@ -332,7 +340,10 @@ public class PlugtestASGroupOSCORE
         scopes.clear();
         scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
-        auds.add("rs3");
+        
+        // NNN
+        auds.add("aud3");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -343,6 +354,7 @@ public class PlugtestASGroupOSCORE
         
         // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
+        
         
         // Add a further resource server "rs4" acting as OSCORE Group Manager
         // This resource server uses only CWT Tokens
@@ -391,31 +403,17 @@ public class PlugtestASGroupOSCORE
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
-        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
-        claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("aud1"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
-        
-        // OLD SETUP
-        //OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
         pdp = new GroupOSCOREJoinPDP(db);
         
         //Initialize data in PDP
         
-        // For the public key build from 'publicKey_gm' in base64
-        // pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        
-        pdp.addTokenAccess("ni:///sha-256;sU09Kz-RXT8izVvD3n7v3d5vHVGF1NcYShZZ-oczcVE");
-        pdp.addTokenAccess("clientA");
-        pdp.addTokenAccess("clientB");
-        pdp.addTokenAccess("clientC");
-        pdp.addTokenAccess("clientD");
-        pdp.addTokenAccess("clientE");
-
         // For the public key build from 'publicKey_gm' in base64
         // pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
         
@@ -425,37 +423,21 @@ public class PlugtestASGroupOSCORE
         pdp.addIntrospectAccess("rs3");
         pdp.addIntrospectAccess("rs4");
         
+        
+        // For the public key build from 'publicKey_gm' in base64
+        // pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
+        
+        pdp.addTokenAccess("ni:///sha-256;sU09Kz-RXT8izVvD3n7v3d5vHVGF1NcYShZZ-oczcVE");
+        pdp.addTokenAccess("clientA");
+
         // Add also client "clientF" as a joining node of an OSCORE group.
         pdp.addTokenAccess("clientF");
         // Add also client "clientG" as a joining node of an OSCORE group.
         pdp.addTokenAccess("clientG");
-
+        
+        
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
-        pdp.addAccess("clientA", "rs2", "r_light");
-        
-        pdp.addAccess("clientB", "rs1", "r_temp");
-        pdp.addAccess("clientB", "rs1", "co2");
-        pdp.addAccess("clientB", "rs2", "r_light");
-        pdp.addAccess("clientB", "rs2", "r_config");
-        pdp.addAccess("clientB", "rs2", "failTokenType");
-        pdp.addAccess("clientB", "rs3", "rw_valve");
-        pdp.addAccess("clientB", "rs3", "r_pressure");
-        pdp.addAccess("clientB", "rs3", "failTokenType");
-        pdp.addAccess("clientB", "rs3", "failProfile");
-        
-        pdp.addAccess("clientC", "rs3", "r_valve");
-        pdp.addAccess("clientC", "rs3", "r_pressure");
-
-        pdp.addAccess("clientD", "rs1", "r_temp");
-        pdp.addAccess("clientD", "rs1", "rw_config");
-        pdp.addAccess("clientD", "rs2", "r_light");
-        
-
-        pdp.addAccess("clientE", "rs3", "rw_valve");
-        pdp.addAccess("clientE", "rs3", "r_pressure");
-        pdp.addAccess("clientE", "rs3", "failTokenType");
-        pdp.addAccess("clientE", "rs3", "failProfile");
         
         // Specify access right also for client "clientF" as a joining node of an OSCORE group.
         // On this Group Manager, this client is allowed to be requester, responder, requester+responder or monitor.
@@ -467,11 +449,12 @@ public class PlugtestASGroupOSCORE
         // On this Group Manager, this client is allowed to be requester.
         pdp.addAccess("clientG", "rs2", groupName + "_requester");
         
-        // Add the resource servers rs2  and rs3 and their OSCORE Group Manager audience to the table OSCOREGroupManagersTable in the PDP
-        Set<String> rs2 = Collections.singleton("rs2");
-        pdp.addOSCOREGroupManagers("rs2", rs2);
-        Set<String> rs3 = Collections.singleton("rs3");
-        pdp.addOSCOREGroupManagers("rs3", rs3);
+        // Add the resource servers rs2 and rs3 and their OSCORE Group Manager
+        // audience to the table OSCOREGroupManagersTable in the PDP
+        Set<String> aud2 = Collections.singleton("aud2");
+        pdp.addOSCOREGroupManagers("rs2", aud2);
+        Set<String> aud3 = Collections.singleton("aud3");
+        pdp.addOSCOREGroupManagers("rs3", aud3);
         
         as = new DtlsAS("AS", db, pdp, time, asRPK, portNumber);
         as.start();

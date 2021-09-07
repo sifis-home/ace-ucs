@@ -2892,13 +2892,18 @@ public class PlugtestRSOSCOREGroupOSCORE {
         myResource4.put(rootGroupMembershipResource + "/" + "fBBBca570000", actions4);
         myScopes.put(rootGroupMembershipResource + "/", myResource4);
         
+        // NNN
+        String rsId = "rs1";
+        
         Set<String> auds = new HashSet<>();
-        auds.add("rs1"); // Simple test audience
-        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        
+        // NNN
+        auds.add("aud1"); // Simple test audience
+        auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-        valid.setGMAudiences(Collections.singleton("rs2"));
+        valid.setGMAudiences(Collections.singleton("aud2"));
         
         // Include the root group-membership resource for Group OSCORE.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource));
@@ -2923,10 +2928,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
         CwtCryptoCtx ctx 
             = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
 
-        
+        // NNN
         // Set up the inner Authz-Info library
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-        	 new KissTime(), null, valid, ctx, tokenFile, valid, false);
+        	 new KissTime(), null, rsId, valid, ctx, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -2942,7 +2947,10 @@ public class PlugtestRSOSCOREGroupOSCORE {
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                    "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

@@ -408,7 +408,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token4JoinSingleRole".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -1108,7 +1111,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token4JoinMultipleRoles".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

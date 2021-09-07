@@ -110,6 +110,13 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	private boolean checkCnonce;
 	
 	/**
+	 * Related to Access Tokens including the 'exi' claim, this has as value the highest
+	 * Sequence Number received in any of such Tokens, as encoded in the 'cti' claim 
+	 */
+	private int topExiSequenceNumber;
+	
+	
+	/**
 	 * Each set of the list refers to a different size of Recipient IDs.
 	 * The element with index 0 includes as elements Recipient IDs with size 1 byte.
 	 */
@@ -121,6 +128,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
@@ -132,7 +140,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws IOException 
 	 */
 	public AuthzInfo(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
+			TimeProvider time, IntrospectionHandler intro, String rsId, 
 			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
@@ -146,6 +154,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.audience = audience;
 		this.ctx = ctx;
 		this.checkCnonce = checkCnonce;
+		this.topExiSequenceNumber = -1;
 		
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
@@ -676,6 +685,27 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             claims.remove(Constants.EXI);
             claims.put(Constants.EXP, CBORObject.FromObject(exp));
         }
+    }
+    
+    // NNN
+    /**
+     * Retrieve the highest Exi Sequence Number value, related
+     * to received Access Tokens that include the 'exi' claim
+     * 
+     */
+    private synchronized int setTopExiSequenceNumber() {
+    	return this.topExiSequenceNumber;
+    }
+    
+    // NNN
+    /**
+     * Set the value of the highest Exi Sequence Number value, related
+     * to received Access Tokens that include the 'exi' claim
+     * 
+     * @param seqNum   The new highest Exi Sequence Number value
+     */
+    private synchronized void setTopExiSequenceNumber(int seqNum) {
+    	this.topExiSequenceNumber = seqNum;
     }
     
     /**

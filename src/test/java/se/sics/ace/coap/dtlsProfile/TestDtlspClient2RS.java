@@ -186,7 +186,10 @@ public class TestDtlspClient2RS {
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPAI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -224,7 +227,10 @@ public class TestDtlspClient2RS {
             IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -305,7 +311,10 @@ public class TestDtlspClient2RS {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -349,7 +358,10 @@ public class TestDtlspClient2RS {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -406,7 +418,10 @@ public class TestDtlspClient2RS {
                
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPSK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -456,7 +471,10 @@ public class TestDtlspClient2RS {
                
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPSK2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -495,7 +513,10 @@ public class TestDtlspClient2RS {
         
         params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPSK3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -568,7 +589,10 @@ public class TestDtlspClient2RS {
                
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenToBeDerivedPSK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -679,7 +703,10 @@ public class TestDtlspClient2RS {
             ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenFailNM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -722,7 +749,10 @@ public class TestDtlspClient2RS {
             ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenfailNAM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

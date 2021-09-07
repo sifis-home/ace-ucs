@@ -195,9 +195,11 @@ public class TestCoAPClientGroupOSCORE {
 
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_temp rw_config foobar"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config foobar"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud1"));
+        
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
                 Constants.APPLICATION_ACE_CBOR);    
@@ -258,7 +260,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -290,7 +293,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -322,7 +326,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -355,7 +360,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -388,7 +394,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -453,7 +460,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -487,7 +495,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -521,7 +530,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -606,7 +616,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         CoapResponse response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
@@ -640,7 +651,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 

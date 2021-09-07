@@ -103,6 +103,9 @@ public class TestDtlspPskStore {
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
+        // NNN
+        String rsId = "rs1";
+        
         KissValidator valid = new KissValidator(Collections.singleton("rs1"),
                 myScopes);
        
@@ -115,7 +118,7 @@ public class TestDtlspPskStore {
         new File(tokenFile).delete(); 
         
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
-                null, valid, ctx, null, 0, tokenFile, valid, false);
+                null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
         store = new DtlspPskStore(ai);
     }
     

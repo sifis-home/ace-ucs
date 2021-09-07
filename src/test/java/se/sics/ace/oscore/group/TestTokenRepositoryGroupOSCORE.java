@@ -157,12 +157,16 @@ public class TestTokenRepositoryGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource2);
         
         Set<String> auds = new HashSet<>();
-        auds.add("rs1"); // Simple test audience
-        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        
+        // NNN
+        auds.add("aud1"); // Simple test audience
+        auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
+        // NNN
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-        valid.setGMAudiences(Collections.singleton("rs2"));
+        valid.setGMAudiences(Collections.singleton("aud2"));
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
@@ -233,7 +237,10 @@ public class TestTokenRepositoryGroupOSCORE {
     @Test
     public void testTokenNoScope() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -252,7 +259,10 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testTokenNoCti() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         tr.addToken(null, params, ctx, null);
@@ -272,7 +282,10 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testTokenInvalidCti() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject("token1"));
@@ -292,7 +305,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Duplicate cti");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject(
@@ -301,7 +317,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -320,7 +339,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Token has no cnf");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -338,7 +360,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Token refers to unknown kid");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -360,7 +385,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Malformed cnf claim in token");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -388,7 +416,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Error while decrypting a cnf claim");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -416,7 +447,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("Malformed cnf claim in token");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -439,7 +473,10 @@ public class TestTokenRepositoryGroupOSCORE {
         this.thrown.expectMessage("cnf contains invalid kid");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -463,7 +500,10 @@ public class TestTokenRepositoryGroupOSCORE {
             throws AceException, IntrospectionException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -472,7 +512,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -522,7 +565,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -531,7 +577,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -581,7 +630,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
 
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -590,7 +642,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -622,7 +677,10 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testTokenCnfKid() throws AceException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -631,7 +689,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -681,7 +742,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -690,7 +754,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -739,7 +806,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -748,7 +818,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -787,7 +860,10 @@ public class TestTokenRepositoryGroupOSCORE {
             IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -846,7 +922,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -904,7 +983,10 @@ public class TestTokenRepositoryGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
@@ -942,7 +1024,10 @@ public class TestTokenRepositoryGroupOSCORE {
         KissTime time = new KissTime();
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -952,7 +1037,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -979,7 +1067,10 @@ public class TestTokenRepositoryGroupOSCORE {
     public void testGetPoP() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -988,7 +1079,10 @@ public class TestTokenRepositoryGroupOSCORE {
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

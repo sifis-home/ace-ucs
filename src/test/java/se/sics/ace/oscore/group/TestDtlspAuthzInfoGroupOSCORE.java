@@ -162,12 +162,13 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
                 
         Set<String> auds = new HashSet<>();
-        auds.add("rs1"); // Simple test audience
-        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        // NNN
+        auds.add("aud1"); // Simple test audience
+        auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-        valid.setGMAudiences(Collections.singleton("rs2"));
+        valid.setGMAudiences(Collections.singleton("aud2"));
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
@@ -291,13 +292,17 @@ public class TestDtlspAuthzInfoGroupOSCORE {
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
+        // NNN
+        String rsId = "rs1";
+        
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering token files
         new File(tokenFile).delete();
         
+        // NNN
         //Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, null, 0, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
@@ -305,15 +310,16 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up the DTLS authz-info resource
         dai = new CoapAuthzInfoGroupOSCORE(ai);
         
-        // Tests on the audience "rs1" are just the same as in TestAuthzInfo,
-        // while using the endpoint AuthzInfoGroupOSCORE as for audience "rs2".
+        // NNN
+        // Tests on the audience "aud1" are just the same as in TestAuthzInfo,
+        // while using the endpoint AuthzInfoGroupOSCORE as for audience "aud2".
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, null, 0, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai2.setActiveGroups(activeGroups);
         
-        // A separate authz-info endpoint is required for each audience, here "rs2",
+        // A separate authz-info endpoint is required for each audience, here "aud2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
         dai2 = new CoapAuthzInfoGroupOSCORE(ai2);
@@ -321,7 +327,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Set up a token to use
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
@@ -349,7 +358,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params2.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params2.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params2.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key2 = new OneKey();
@@ -378,7 +390,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
         params3.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params3.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params3.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params3.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x03}));
         params3.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key3 = new OneKey();
@@ -396,7 +411,10 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         // Set up one more token to use, for testing the update of access rights
         Map<Short, CBORObject> params4 = new HashMap<>(); 
         params4.put(Constants.SCOPE, CBORObject.FromObject("rw_co2"));
-        params4.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params4.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params4.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x04}));
         params4.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject keyData  = CBORObject.NewMap();

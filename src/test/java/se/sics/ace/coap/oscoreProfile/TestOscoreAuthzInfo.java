@@ -144,8 +144,11 @@ public class TestOscoreAuthzInfo {
         myResource.put("co2", actions);
         myScopes.put("r_co2", myResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        // NNN
+        String rsId = "rs1";
+        
+        // NNN
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
@@ -157,12 +160,17 @@ public class TestOscoreAuthzInfo {
         
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        pdp.addIntrospectAccess("rs1");
+        
+        // NNN
+        pdp.addIntrospectAccess(rsId);
+        
         i = new Introspect(pdp, db, new KissTime(), key, null);
+        
+        // NNN
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), 
+                new KissTime(),  
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                valid, ctx, tokenFile, valid, false);
+                rsId, valid, ctx, tokenFile, valid, false);
     }
     
     /**
@@ -296,7 +304,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -350,7 +361,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x02}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -405,7 +419,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x03}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.OSCORE_Input_Material, null);
@@ -456,7 +473,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x04}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.OSCORE_Input_Material, "blah");
@@ -507,7 +527,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x05}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         CBORObject osc = CBORObject.NewMap();
@@ -560,7 +583,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x06}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN 
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -614,7 +640,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x07}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -668,7 +697,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x08}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -724,7 +756,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
    
         CBORObject osc = CBORObject.NewMap();
@@ -781,7 +816,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0b}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -837,7 +875,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0c}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -892,7 +933,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0d}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -959,7 +1003,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
@@ -1108,7 +1155,10 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0f}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
@@ -1237,7 +1287,10 @@ public class TestOscoreAuthzInfo {
         params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{(byte) 0xa0}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         // Now the 'cnf' claim includes only a 'kid' with value the 'id'

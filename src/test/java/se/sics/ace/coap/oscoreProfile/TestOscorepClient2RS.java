@@ -185,7 +185,10 @@ public class TestOscorepClient2RS {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN 
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -282,7 +285,10 @@ public class TestOscorepClient2RS {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -343,7 +349,10 @@ public class TestOscorepClient2RS {
        
        params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+       
+       // NNN
+       params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+       
        params.put(Constants.CTI, CBORObject.FromObject(
                "token4".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

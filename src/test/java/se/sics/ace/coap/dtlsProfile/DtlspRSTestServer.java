@@ -165,8 +165,11 @@ public class DtlspRSTestServer {
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        // NNN
+        String rsId = "rs1";
+        
+        // NNN
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
 
         byte[] key128a 
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
@@ -191,7 +194,7 @@ public class DtlspRSTestServer {
         
       //Set up the inner Authz-Info library
       ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, keyDerivationKey, derivedKeySize,
+                new KissTime(), null, rsId, valid, ctx, keyDerivationKey, derivedKeySize,
                 tokenFile, valid, false);
       
       //Add a test token to authz-info
@@ -199,7 +202,10 @@ public class DtlspRSTestServer {
           = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       Map<Short, CBORObject> params = new HashMap<>(); 
       params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-      params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+      
+      // NNN
+      params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+      
       params.put(Constants.CTI, CBORObject.FromObject(
               "token1".getBytes(Constants.charset)));
       params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

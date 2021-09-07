@@ -137,6 +137,8 @@ public class TestGroupOSCOREJoinPDP {
         
         profiles.remove("coap_oscore");
         scopes.clear();
+        scopes.add("light");
+        scopes.add("config");
         auds.remove("actuators");
         auds.add("fail");
         keyTypes.remove("PSK");
@@ -181,7 +183,10 @@ public class TestGroupOSCOREJoinPDP {
         scopes.add("feedca570000_requester_responder");
         scopes.add("feedca570000_requester_monitor");
         auds.clear();
-        auds.add("rs4");
+        
+        // NNN
+        auds.add("aud4");
+        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -254,38 +259,16 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addTokenAccess("clientH");
 
        pdp.addAccess("clientA", "rs1", "r_temp");
-       pdp.addAccess("clientA", "rs1", "rw_config");
        pdp.addAccess("clientA", "rs2", "r_light");
-       pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
-       
+
        pdp.addAccess("clientB", "rs1", "r_temp");
        pdp.addAccess("clientB", "rs1", "co2");
        pdp.addAccess("clientB", "rs2", "r_light");
        pdp.addAccess("clientB", "rs2", "r_config");
-       pdp.addAccess("clientB", "rs2", "failTokenType");
-       pdp.addAccess("clientB", "rs3", "rw_valve");
-       pdp.addAccess("clientB", "rs3", "r_pressure");
-       pdp.addAccess("clientB", "rs3", "failTokenType");
-       pdp.addAccess("clientB", "rs3", "failProfile");
-       pdp.addAccess("clientB", "rs4", "failProfile");
-       pdp.addAccess("clientB", "rs6", "co2");
-       pdp.addAccess("clientB", "rs7", "co2");
-       
-       pdp.addAccess("clientC", "rs3", "r_valve");
-       pdp.addAccess("clientC", "rs3", "r_pressure");
-       pdp.addAccess("clientC", "rs6", "r_valve");
 
-       pdp.addAccess("clientD", "rs1", "r_temp");
-       pdp.addAccess("clientD", "rs1", "rw_config");
-       pdp.addAccess("clientD", "rs2", "r_light");
-       pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
-       pdp.addAccess("clientD", "rs1", "r_temp");
+       pdp.addAccess("clientC", "rs1", "r_light");
        
-       pdp.addAccess("clientE", "rs3", "rw_valve");
-       pdp.addAccess("clientE", "rs3", "r_pressure");
-       pdp.addAccess("clientE", "rs3", "failTokenType");
-       pdp.addAccess("clientE", "rs3", "failProfile");
-       
+       pdp.addAccess("clientG", "rs1", "r_light");
        pdp.addAccess("clientG", "rs2", "r_light");
        
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
@@ -298,8 +281,9 @@ public class TestGroupOSCOREJoinPDP {
        
        // Add the resource server rs4 and its OSCORE Group Manager
        // audience to the table OSCOREGroupManagersTable in the PDP
-       Set<String> rs4 = Collections.singleton("rs4");
-       pdp.addOSCOREGroupManagers("rs4", rs4);
+       // NNN
+       Set<String> aud4 = Collections.singleton("aud4");
+       pdp.addOSCOREGroupManagers("rs4", aud4);
     }
     
     /**
@@ -327,12 +311,12 @@ public class TestGroupOSCOREJoinPDP {
     @Test
     public void testBaseConfig() throws Exception {
     	assert(pdp.canAccessToken("clientA"));
-    	Set<String> rs1 = Collections.singleton("rs1");
-    	Set<String> rs2 = Collections.singleton("rs2");
-    	assert(pdp.canAccess("clientA", rs2, "r_light").equals("r_light"));
-    	assert(pdp.canAccess("clientC", rs1, "r_temp")==null);
-    	assert(pdp.canAccess("clientA", rs1, "r_temp").equals("r_temp"));
-    	assert(pdp.canAccess("clientB", rs1, "r_config")==null);
+    	Set<String> aud1 = Collections.singleton("rs1");
+    	Set<String> aud2 = Collections.singleton("rs2");
+    	assert(pdp.canAccess("clientA", aud2, "r_light").equals("r_light"));
+    	assert(pdp.canAccess("clientC", aud1, "r_temp")==null);
+    	assert(pdp.canAccess("clientA", aud1, "r_temp").equals("r_temp"));
+    	assert(pdp.canAccess("clientB", aud1, "r_config")==null);
     	assert(pdp.getIntrospectAccessLevel("rs1").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
         assert(pdp.getIntrospectAccessLevel("rs8").equals(PDP.IntrospectAccessLevel.ACTIVE_ONLY));
     	assert(!pdp.canAccessToken("clientF"));
@@ -352,11 +336,12 @@ public class TestGroupOSCOREJoinPDP {
     	assert(pdp.canAccessToken("clientG"));
     	assert(pdp.canAccessToken("clientH"));
     	
-    	Set<String> rs1 = Collections.singleton("rs1");
-    	Set<String> rs2 = Collections.singleton("rs2");
-    	Set<String> rs4 = Collections.singleton("rs4");
-    	assert(pdp.canAccess("clientG", rs1, "r_temp")==null);
-    	assert(pdp.canAccess("clientG", rs2, "r_light").equals("r_light"));
+    	// NNN
+    	Set<String> aud1 = Collections.singleton("rs1");
+    	Set<String> aud2 = Collections.singleton("rs2");
+    	Set<String> aud4 = Collections.singleton("rs4");
+    	assert(pdp.canAccess("clientG", aud1, "r_temp")==null);
+    	assert(pdp.canAccess("clientG", aud2, "r_light").equals("r_light"));
     	
     	String gid = new String("feedca570000");
     	String gid2 = new String("feedca570001");
@@ -375,7 +360,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -388,7 +373,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope));
     	
     	// The requested role is allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -401,7 +386,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), byteStringScope));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope), byteStringScope));
 
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
@@ -414,7 +399,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -427,7 +412,7 @@ public class TestGroupOSCOREJoinPDP {
     		
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientH", aud4, byteStringScope)==null);
     	
     	// The requested role is not allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -440,7 +425,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
     	
     	
     	// Tests for joining with multiple roles
@@ -472,8 +457,8 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), byteStringScope) ||
-    	       Arrays.equals((byte[])pdp.canAccess("clientG", rs4, byteStringScope), bysteStringScope2));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), byteStringScope) ||
+    	       Arrays.equals((byte[])pdp.canAccess("clientG", aud4, byteStringScope), bysteStringScope2));
     	
     	// Access to the specified group is not allowed
     	cborArrayScope = CBORObject.NewArray();
@@ -488,7 +473,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
-    	assert(pdp.canAccess("clientG", rs4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientG", aud4, byteStringScope)==null);
     	    	
 
     	// Only one role out of the two requested ones is allowed in the specified group
@@ -515,7 +500,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	bysteStringScope2 = cborArrayScope.EncodeToBytes();
     	
-    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", rs4, byteStringScope), bysteStringScope2));
+    	assert(Arrays.equals((byte[])pdp.canAccess("clientH", aud4, byteStringScope), bysteStringScope2));
     	
     	
     	// None of the requested ones is allowed in the specified group
@@ -532,7 +517,7 @@ public class TestGroupOSCOREJoinPDP {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	    	
-    	assert(pdp.canAccess("clientH", rs4, byteStringScope)==null);
+    	assert(pdp.canAccess("clientH", aud4, byteStringScope)==null);
     	
     }
     

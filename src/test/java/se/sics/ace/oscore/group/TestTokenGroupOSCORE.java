@@ -124,8 +124,9 @@ public class TestTokenGroupOSCORE {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
-        auds.add("sensors");
-        auds.add("actuators");
+        auds.add("aud1");
+        // auds.add("sensors");
+        // auds.add("actuators");
         
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -139,28 +140,30 @@ public class TestTokenGroupOSCORE {
         COSEparams coseP = new COSEparams(MessageTag.Sign1, 
                 AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
-        
         long expiration = 1000000L;
-       
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
+        scopes.add("light");
         auds.clear();
-        auds.add("sensors");
+        auds.add("aud2");
+        // auds.add("sensors");
         auds.add("failTokenType");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, skey, null);
+                expiration, null, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
         scopes.add("co2");
+        scopes.add("valve");
         auds.clear();
-        auds.add("actuators");
+        auds.add("aud3");
+        // auds.add("actuators");
         auds.add("failTokenType");
         keyTypes.clear();
         keyTypes.add("PSK");
@@ -169,7 +172,7 @@ public class TestTokenGroupOSCORE {
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
         coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+                 AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
@@ -178,8 +181,9 @@ public class TestTokenGroupOSCORE {
         profiles.clear();
         profiles.add("coap_dtls");
         auds.clear();
-        auds.add("failProfile");
-        scopes.add("failProfile");
+        auds.add("aud4");
+        // auds.add("failProfile");
+        // scopes.add("failProfile");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -194,9 +198,9 @@ public class TestTokenGroupOSCORE {
         
         profiles.clear();
         profiles.add("coap_dtls");
-        scopes.add("co2");
         auds.clear();
-        auds.add("failTokenNotImplemented");
+        auds.add("aud5");
+        // auds.add("failTokenNotImplemented");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -211,8 +215,8 @@ public class TestTokenGroupOSCORE {
         
         profiles.clear();
         profiles.add("coap_oscore");
-        scopes.add("co2");
         auds.clear();
+        auds.add("aud6");
         keyTypes.clear();
         keyTypes.add("TST");
         tokenTypes.clear();
@@ -228,9 +232,9 @@ public class TestTokenGroupOSCORE {
         
         profiles.clear();
         profiles.add("coap_oscore");
-        scopes.add("co2");
         auds.clear();
-        auds.add("failCWTpar");
+        auds.add("aud7");
+        // auds.add("failCWTpar");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -253,7 +257,7 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
         auds.clear();
-        auds.add("rs8");
+        auds.add("aud8");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -279,7 +283,7 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
         auds.clear();
-        auds.add("rs9");
+        auds.add("aud9");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -305,7 +309,7 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
         auds.clear();
-        auds.add("rs10");
+        auds.add("aud10");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -318,7 +322,7 @@ public class TestTokenGroupOSCORE {
         db.addRS("rs10", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
-        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs10 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs10", auds);
         
         // Add a further resource server "rs11" acting as OSCORE Group Manager
@@ -331,7 +335,7 @@ public class TestTokenGroupOSCORE {
         scopes.add("feedca570000_monitor");
         scopes.add("feedca570000_requester_responder");
         auds.clear();
-        auds.add("rs11");
+        auds.add("aud11");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -344,7 +348,7 @@ public class TestTokenGroupOSCORE {
         db.addRS("rs11", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, skey, skey, publicKey);
         
-        // Add the resource server rs9 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
+        // Add the resource server rs11 and its OSCORE Group Manager audience to the table OSCOREGroupManagers in the Database
         db.addOSCOREGroupManagers("rs11", auds);
         
         
@@ -353,22 +357,21 @@ public class TestTokenGroupOSCORE {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient(
-                "clientA", profiles, null, null, 
+        db.addClient("clientA", profiles, null, null, 
                 keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "rs1", 
+        db.addClient("clientB", profiles, "r_co2", "aud1", 
                 keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("TST");        
-        db.addClient("clientC", profiles, "co2", "sensors", 
+        db.addClient("clientC", profiles, "r_co2", "aud1", 
                 keyTypes, skey, null);
         
         profiles.clear();
@@ -449,37 +452,22 @@ public class TestTokenGroupOSCORE {
         pdp.addTokenAccess("clientG");
 
         pdp.addAccess(rpkid.getName(), "rs3", "rw_valve");
-        pdp.addAccess("clientA", "rs1", "r_temp");
-        pdp.addAccess("clientA", "rs1", "rw_config");
-        pdp.addAccess("clientA", "rs2", "r_light");
         pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
         
-        pdp.addAccess("clientB", "rs1", "r_temp");
-        pdp.addAccess("clientB", "rs1", "co2");
+        pdp.addAccess("clientB", "rs1", "r_co2");
         pdp.addAccess("clientB", "rs2", "r_light");
-        pdp.addAccess("clientB", "rs2", "r_config");
-        pdp.addAccess("clientB", "rs2", "failTokenType");
         pdp.addAccess("clientB", "rs3", "rw_valve");
         pdp.addAccess("clientB", "rs3", "r_pressure");
-        pdp.addAccess("clientB", "rs3", "failTokenType");
-        pdp.addAccess("clientB", "rs4", "failProfile");
-        pdp.addAccess("clientB", "rs6", "co2");
-        pdp.addAccess("clientB", "rs7", "co2");
+        pdp.addAccess("clientB", "rs3", "r_light");
+        pdp.addAccess("clientB", "rs4", "r_light");
+        pdp.addAccess("clientB", "rs7", "r_light");
+        pdp.addAccess("clientB", "rs7", "r_co2");
         
-        pdp.addAccess("clientC", "rs3", "r_valve");
-        pdp.addAccess("clientC", "rs3", "r_pressure");
         pdp.addAccess("clientC", "rs6", "r_valve");
 
-        pdp.addAccess("clientD", "rs1", "r_temp");
-        pdp.addAccess("clientD", "rs1", "rw_config");
-        pdp.addAccess("clientD", "rs2", "r_light");
-        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
-        pdp.addAccess("clientD", "rs1", "r_temp");
-        
+        pdp.addAccess("clientD", "rs2", "r_light");       
 
-        pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
-        pdp.addAccess("clientE", "rs3", "failTokenType");
         
         pdp.addAccess("clientF", "rs2", "r_light");
         
@@ -501,14 +489,16 @@ public class TestTokenGroupOSCORE {
         
         // Add the resource servers rs8, rs9, r10 and rs11 and their OSCORE Group Manager audience
         // to the table OSCOREGroupManagersTable in the PDP
-        Set<String> rs8 = Collections.singleton("rs8");
-        pdp.addOSCOREGroupManagers("rs8", rs8);
-        Set<String> rs9 = Collections.singleton("rs9");
-        pdp.addOSCOREGroupManagers("rs9", rs9);
-        Set<String> rs10 = Collections.singleton("rs10");
-        pdp.addOSCOREGroupManagers("rs10", rs10);
-        Set<String> rs11 = Collections.singleton("rs11");
-        pdp.addOSCOREGroupManagers("rs11", rs11);
+        
+        // NNN
+        Set<String> aud8 = Collections.singleton("aud8");
+        pdp.addOSCOREGroupManagers("rs8", aud8);
+        Set<String> aud9 = Collections.singleton("aud9");
+        pdp.addOSCOREGroupManagers("rs9", aud9);
+        Set<String> aud10 = Collections.singleton("aud10");
+        pdp.addOSCOREGroupManagers("rs10", aud10);
+        Set<String> aud11 = Collections.singleton("aud11");
+        pdp.addOSCOREGroupManagers("rs11", aud11);
         
         t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
@@ -621,7 +611,7 @@ public class TestTokenGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.AUDIENCE, CBORObject.FromObject("failTokenType"));
-        params.put(Constants.SCOPE, CBORObject.FromObject("failTokenType"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_light"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode()
@@ -644,8 +634,8 @@ public class TestTokenGroupOSCORE {
     public void testFailIncompatibleProfile() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("failProfile"));
-        params.put(Constants.SCOPE, CBORObject.FromObject("failProfile"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud4"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_light"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode()
@@ -667,7 +657,10 @@ public class TestTokenGroupOSCORE {
     public void testFailUnsupportedTokenType() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs5"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud5"));
+        
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);      
@@ -689,15 +682,17 @@ public class TestTokenGroupOSCORE {
     public void testFailPskNotSupported() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.SCOPE, CBORObject.FromObject("r_light"));
         Message msg = new LocalMessage(-1, "clientD", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -711,7 +706,10 @@ public class TestTokenGroupOSCORE {
     public void testFailUnknownKeyType() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs6"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud6"));
+        
         params.put(Constants.SCOPE, CBORObject.FromObject("r_valve"));
         Message msg = new LocalMessage(-1, "clientC", "TestAS", params);
         Message response = t.processMessage(msg);
@@ -733,8 +731,8 @@ public class TestTokenGroupOSCORE {
     public void testFailIncompatibleCwt() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("failCWTpar"));
-        params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud7"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() 
@@ -755,7 +753,10 @@ public class TestTokenGroupOSCORE {
     public void testSucceedDefaultScope() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud1"));
+        
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -769,7 +770,9 @@ public class TestTokenGroupOSCORE {
                         token.GetByteString()).EncodeToBytes(),
                 CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
-        assert(cwt.getClaim(Constants.AUD).AsString().equals("rs1"));
+        
+        // NNN
+        assert(cwt.getClaim(Constants.AUD).AsString().equals("aud1"));
     }
     
     /**
@@ -782,7 +785,7 @@ public class TestTokenGroupOSCORE {
     public void testSucceedDefaultAud() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -795,7 +798,7 @@ public class TestTokenGroupOSCORE {
                 token.GetByteString()).EncodeToBytes(), 
                 CwtCryptoCtx.sign1Verify(
                 publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
-        assert(cwt.getClaim(Constants.SCOPE).AsString().equals("co2"));
+        assert(cwt.getClaim(Constants.SCOPE).AsString().equals("r_co2"));
     }
     
     /**
@@ -811,7 +814,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("rw_valve r_pressure foobar"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
+        
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -843,20 +849,22 @@ public class TestTokenGroupOSCORE {
             IllegalStateException, InvalidCipherTextException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("rw_valve"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
+        
         CBORObject rpk = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
         enc.addAttribute(HeaderKeys.Algorithm, 
                 AlgorithmID.AES_CCM_16_128_128.AsCBOR(), 
                 Attribute.PROTECTED);
-        enc.SetContent(publicKey.EncodeToBytes());
+        enc.SetContent(publicKey.EncodeToBytes());        
         enc.encrypt(key128);
         rpk.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, rpk);
         RawPublicKeyIdentity rpkid 
-            = new RawPublicKeyIdentity(publicKey.AsPublicKey());
+            = new RawPublicKeyIdentity(publicKey.AsPublicKey()); 
         Message msg = new LocalMessage(-1, rpkid.getName(), "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -880,9 +888,11 @@ public class TestTokenGroupOSCORE {
     public void testSucceedCnfKid() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_pressure"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_pressure"));
+
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);
@@ -935,7 +945,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -985,7 +997,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1035,7 +1049,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1086,7 +1102,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1114,7 +1132,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud9"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1142,7 +1162,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1170,7 +1192,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1212,7 +1236,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -1262,7 +1288,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1312,7 +1340,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
+        // NNN
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1362,7 +1392,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
+        // NNN
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1389,7 +1421,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud11"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1416,7 +1450,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
+        // NNN
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1443,7 +1479,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1486,7 +1524,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -1537,7 +1577,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1565,7 +1607,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud9"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1615,7 +1659,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs8"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud8"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1665,7 +1711,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs9"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud9"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1708,7 +1756,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         Message msg = new LocalMessage(-1, "clientF", "TestAS", params);
         Message response = t.processMessage(msg);
         CBORObject rparams = CBORObject.DecodeFromBytes(
@@ -1759,7 +1809,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1787,7 +1839,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud11"));
+        
         msg = new LocalMessage(-1, "clientF", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1837,7 +1891,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs10"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud10"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         rparams = CBORObject.DecodeFromBytes(
@@ -1887,7 +1943,9 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject(byteStringScope));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs11"));
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud11"));
+        
         msg = new LocalMessage(-1, "clientG", "TestAS", params);
         response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
@@ -1969,7 +2027,10 @@ public class TestTokenGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_pressure"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
+        
+        // NNN
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);
@@ -2001,7 +2062,10 @@ public class TestTokenGroupOSCORE {
         byte[] ctiB = new byte[] {0x00, 0x01};
         String cti = Base64.getEncoder().encodeToString(ctiB);
         Map<Short, CBORObject> claims = new HashMap<>();
-        claims.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN 
+        claims.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         claims.put(Constants.CTI, CBORObject.FromObject(ctiB));
         CBORObject cnf = CBORObject.NewMap();
@@ -2034,7 +2098,9 @@ public class TestTokenGroupOSCORE {
                 ctx);
         claims = cwt2.getClaims();
         assert(claims.get(Constants.SCOPE).AsString().contains("r_temp"));
-        assert(claims.get(Constants.AUD).AsString().contains("rs1"));     
+        
+        // NNN
+        assert(claims.get(Constants.AUD).AsString().contains("aud1"));     
     }
     
 }

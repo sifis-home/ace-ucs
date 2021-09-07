@@ -266,7 +266,10 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPAI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -321,7 +324,10 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPAIGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -1973,7 +1979,10 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPAIGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -3642,7 +3651,10 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -3721,7 +3733,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -3780,7 +3795,10 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostRPKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -5426,7 +5444,10 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostRPKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -7102,7 +7123,10 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -7171,7 +7195,10 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -7241,7 +7268,10 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenRPKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -7297,7 +7327,10 @@ public class TestDtlspClientGroupOSCORE {
                
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPSK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -7363,7 +7396,10 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostPSKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -8990,7 +9026,10 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
         byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -9535,7 +9574,10 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenPostPSKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -11251,7 +11293,10 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenFailNM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -11294,7 +11339,10 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "tokenfailNAM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

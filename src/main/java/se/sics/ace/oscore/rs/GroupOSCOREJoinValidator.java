@@ -92,6 +92,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 	 * 
 	 * @param myAudiences  the audiences that this validator should accept
 	 * @param myScopes  the scopes that this validator should accept
+	 * @param rootGroupMemberResource  the path of the root Group Membership Resource, i.e., "ace-group"
 	 */
 	public GroupOSCOREJoinValidator(Set<String> myAudiences,
 	        Map<String, Map<String, Set<Short>>> myScopes,

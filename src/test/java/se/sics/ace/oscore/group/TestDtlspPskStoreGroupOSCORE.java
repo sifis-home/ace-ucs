@@ -133,18 +133,17 @@ public class TestDtlspPskStoreGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
         Set<String> auds = new HashSet<>();
-        auds.add("rs1"); // Simple test audience
-        auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
+        // NNN
+        auds.add("aud1"); // Simple test audience
+        auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
-        valid.setGMAudiences(Collections.singleton("rs2"));
+        valid.setGMAudiences(Collections.singleton("aud2"));
         
         // Include this resource as a group-membership resource for Group OSCORE.
         // The resource name is the name of the OSCORE group.
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
-        
-        
         
         
         // Create the OSCORE group
@@ -270,12 +269,16 @@ public class TestDtlspPskStoreGroupOSCORE {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         
+        // NNN
+        String rsId = "rs1";
+        
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
         new File(tokenFile).delete();
         
+        // NNN
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, null, 0,
+                new KissTime(), null, rsId, valid, ctx, null, 0,
                 tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
@@ -320,7 +323,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     @Test
     public void testInvalidToken() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -362,7 +368,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testValidPskId() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -401,7 +410,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testKid() throws Exception {
         Map<Short, CBORObject> claims = new HashMap<>(); 
         claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        claims.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        
+        // NNN
+        claims.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        
         claims.put(Constants.CTI, CBORObject.FromObject(
                 "token3".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -450,7 +462,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token4".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -503,7 +518,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        params.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token5".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -551,7 +569,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        claims.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         claims.put(Constants.CTI, CBORObject.FromObject(
                 "token6".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -597,7 +618,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        claims.put(Constants.AUD, CBORObject.FromObject("rs2"));
+        
+        // NNN
+        claims.put(Constants.AUD, CBORObject.FromObject("aud2"));
+        
         claims.put(Constants.CTI, CBORObject.FromObject(
                 "token7".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
