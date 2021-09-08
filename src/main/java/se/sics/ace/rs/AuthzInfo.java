@@ -110,13 +110,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	private boolean checkCnonce;
 	
 	/**
-	 * Related to Access Tokens including the 'exi' claim, this has as value the highest
-	 * Sequence Number received in any of such Tokens, as encoded in the 'cti' claim 
-	 */
-	private int topExiSequenceNumber;
-	
-	
-	/**
 	 * Each set of the list refers to a different size of Recipient IDs.
 	 * The element with index 0 includes as elements Recipient IDs with size 1 byte.
 	 */
@@ -145,7 +138,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
-            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time);
+            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time, rsId);
         }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -154,7 +147,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.audience = audience;
 		this.ctx = ctx;
 		this.checkCnonce = checkCnonce;
-		this.topExiSequenceNumber = -1;
 		
     	for (int i = 0; i < 4; i++) {
         	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
@@ -354,7 +346,26 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    //8. Handle EXI if present
-	    handleExi(claims);
+	    int exiSeqNum = handleExi(claims);
+	    if (exiSeqNum < -1) {
+	    	// The 'exi' claim is present, but an error occurs during its processing
+	        CBORObject map = CBORObject.NewMap();
+	        String errStr = null;
+	        switch (exiSeqNum) {
+	        	case -2: // the 'cti' claim is not present in the Access Token as a CBOR byte string
+	        		errStr = "The Access Token includes the 'exi' claim, but the 'cti' claim is not present as a CBOR byte string";
+	        		break;
+	        	case -3: // the 'cti' claim is present but it is not formatted as expected
+	        		errStr = "The Access Token includes the 'exi' claim, but the 'cti' claim is not formatted as expected";
+	        		break;	
+	        	case -4: // the Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
+	        		errStr = "The Access Token includes the 'exi' claim, but the Sequence Number value is too little";
+	        }
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, errStr);
+            LOGGER.log(Level.INFO, "Message processing aborted: " + errStr);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
 	    
 	    //9. Handle cnonce if required
 	    try {
@@ -520,7 +531,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {
-            cti = TokenRepository.getInstance().addToken(token, claims, this.ctx, sid);
+            cti = TokenRepository.getInstance().addToken(token, claims, this.ctx, sid, exiSeqNum);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();
@@ -529,7 +540,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 	    
-
 	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
@@ -675,35 +685,52 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
      * Handle exi claim, if present.
      * This is done by internally translating it to a exp claim in sync with the local time.
      * 
+     * Additional checks are also performed, to ensure that the Sequence Number
+     * encoded in the 'cti' claim is strictly greater than the highest Sequence Number
+     * received by this Resource Server in Access Tokens that include the 'exi' claim.
+     * 
      * @param claims
+     * 
+     * @return  It returns a positive integer if the Sequence Number is successfully extracted from the 'cti' claim
+     * 		    It returns a negative integer in the following cases:
+     * 			-1 : the 'exi' claim is not present
+     * 		    -2 : the 'cti' claim is not present in the Access Token as a CBOR byte string
+     *          -3 : the 'cti' claim is present but it is not formatted as expected
+     *          -4 : the Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
      */
-    private synchronized void handleExi(Map<Short, CBORObject> claims) {
+    private synchronized int handleExi(Map<Short, CBORObject> claims) {
+    	
         CBORObject exi = claims.get(Constants.EXI);
-        if (exi != null) {
-            Long now = this.time.getCurrentTime();
-            Long exp = now + exi.AsInt64();
-            claims.remove(Constants.EXI);
-            claims.put(Constants.EXP, CBORObject.FromObject(exp));
+        if (exi == null) {
+        	return -1;
         }
-    }
-    
-    /**
-     * Retrieve the highest Exi Sequence Number value, related
-     * to received Access Tokens that include the 'exi' claim
-     * 
-     */
-    private synchronized int setTopExiSequenceNumber() {
-    	return this.topExiSequenceNumber;
-    }
-    
-    /**
-     * Set the value of the highest Exi Sequence Number value, related
-     * to received Access Tokens that include the 'exi' claim
-     * 
-     * @param seqNum   The new highest Exi Sequence Number value
-     */
-    private synchronized void setTopExiSequenceNumber(int seqNum) {
-    	this.topExiSequenceNumber = seqNum;
+        
+        // Determine the expiration time and add it to the Access Token as value of an 'exp' claim
+        Long now = this.time.getCurrentTime();
+        Long exp = now + exi.AsInt64();
+        claims.put(Constants.EXP, CBORObject.FromObject(exp));
+        
+        // Check that the 'cti' claim is also present
+        CBORObject cticb = claims.get(Constants.CTI);
+        if (cticb == null || cticb.getType() != CBORType.ByteString) {
+        	// The 'cti' claim is not included in the Access Token as a CBOR byte string.
+    		return -2;
+        }
+        
+        // Retrieve the Sequence Number from the 'cti' claim
+        int seqNum = TokenRepository.getInstance().getExiSeqNumFromCti(cticb.GetByteString());
+        
+        if (seqNum < 0) {
+        	// The 'cti' claim is malformed
+        	return -3;
+        }        
+        if (seqNum <= TokenRepository.getInstance().getTopExiSequenceNumber()) {
+        	// The Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
+        	return -4;
+        }
+        
+        return seqNum;
+        
     }
     
     /**

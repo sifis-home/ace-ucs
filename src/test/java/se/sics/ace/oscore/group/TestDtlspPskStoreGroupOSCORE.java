@@ -409,7 +409,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         claims.put(Constants.CNF, cnf);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(null, claims, ctx, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null, -1);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
         String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
@@ -551,7 +551,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(null, claims, ctx, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null, -1);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
         String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);
@@ -594,7 +594,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         claims.put(Constants.CNF, cnf);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
-        TokenRepository.getInstance().addToken(null, claims, ctx, null);
+        TokenRepository.getInstance().addToken(null, claims, ctx, null, -1);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
         String pskIdentityStr = Base64.getEncoder().encodeToString(pskIdentityBytes);

@@ -203,6 +203,20 @@ public class TokenRepository implements AutoCloseable {
 	 */
 	private static TokenRepository singleton = null;
 	
+	/**
+	 * The identifier of the Resource Server.
+	 * 
+	 * This is required to process Access Tokens that include the 'exi' claim,
+	 * where the format of the 'cti' claim also encodes the identifier of the
+	 * Resource Server together with a Sequence Number value used for such Access Tokens. 
+	 */
+	private String rsId;
+	
+	/**
+	 * Related to Access Tokens including the 'exi' claim, this has as value the highest
+	 * Sequence Number received in any of such Tokens, as encoded in the 'cti' claim 
+	 */
+	private int topExiSequenceNumber;	
 	
 	/**
 	 * The singleton getter.
@@ -229,16 +243,17 @@ public class TokenRepository implements AutoCloseable {
 	 * @param keyDerivationKey  the key derivation key, it can be null
 	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param time  the time provider for this RS
+	 * @param rsId  the identifier of this RS
 	 * @throws AceException
 	 * @throws IOException
 	 */
 	public static void create(ScopeValidator scopeValidator, 
-            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time)
+            String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId)
                     throws AceException, IOException {
 	    if (singleton != null) {
 	        throw new AceException("Token repository already exists");
 	    }
-	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time);
+	    singleton = new TokenRepository(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time, rsId);
 	}
 	
 	/**
@@ -250,16 +265,17 @@ public class TokenRepository implements AutoCloseable {
 	 * the Base64 encoded byte representation of the CBORObject.
 	 * 
 	 * @param scopeValidator  the application specific scope validator
-	 * @param tokenFile  the file storing the existing tokens, if the file
-	 *     does not exist it is created
+	 * @param tokenFile  the file storing the existing tokens, if the file does not exist it is created
 	 * @param ctx  the crypto context for reading encrypted tokens
 	 * @param keyDerivationKey  the key derivation key to use to derive PoP keys, it can be null
+	 * @param time  the time provider for this RS
+	 * @param rsId  the identifier of this RS
      *
 	 * @throws IOException 
 	 * @throws AceException 
 	 */
 	protected TokenRepository(ScopeValidator scopeValidator, 
-	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time) 
+	        String tokenFile, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize, TimeProvider time, String rsId) 
 			        throws IOException, AceException {
 	    this.closed = false;
 	    this.cti2claims = new HashMap<>();
@@ -274,6 +290,8 @@ public class TokenRepository implements AutoCloseable {
 	    this.time = time;
 	    this.keyDerivationKey = keyDerivationKey;
 	    this.derivedKeySize = derivedKeySize;
+		this.topExiSequenceNumber = -1;
+		this.rsId = rsId;
 
 	    if (tokenFile == null) {
 	        throw new IllegalArgumentException("Must provide a token file path");
@@ -309,7 +327,7 @@ public class TokenRepository implements AutoCloseable {
                                     Base64.getDecoder().decode(
                                             token.getString((key)))));
                 }
-                this.addToken(null, params, ctx, null);
+                this.addToken(null, params, ctx, null, -1);
             }
         }
 	}
@@ -320,15 +338,23 @@ public class TokenRepository implements AutoCloseable {
 	 * 
 	 * @param claims  the claims of the token
 	 * @param ctx  the crypto context of this RS  
-	 * @param sid  the subject identity of the user of this token, or null
-	 *     if not needed
+	 * @param sid  the subject identity of the user of this token, or null if not needed
+	 * 
+	 * @param exiSeqNum  the Sequence Number for an Access Token including the 'exi claim.
+	 *                   - If its value is -1 and the Access Token includes an 'exi' claim, then the
+	 *                   Access Token has been retrieved from a file, and the actual Sequence Number
+	 *                   has to be retrieved again from the 'cti' claim.
+	 *     				 - If its value is a positive integer and the Access Token includes an 'exi' claim,
+	 *     				 this is the actual Sequence Number already retrieved from the 'cti' claim by
+	 *     				 the Access Token processing at the /authz-info endpoint
+	 *     				 - Any further negative integer value is not relevant
 	 *     
 	 * @return  the cti or the local id given to this token
 	 * 
 	 * @throws AceException 
 	 */
 	public synchronized CBORObject addToken(CBORObject token, Map<Short, CBORObject> claims, 
-	        CwtCryptoCtx ctx, String sid) throws AceException {
+	        CwtCryptoCtx ctx, String sid, int exiSeqNum) throws AceException {
 	    
 		CBORObject so = claims.get(Constants.SCOPE);
 		if (so == null) {
@@ -761,12 +787,38 @@ public class TokenRepository implements AutoCloseable {
             LOGGER.severe("Malformed cnf claim in token");
             throw new AceException("Malformed cnf claim in token");
         }
+
+        // If the Access Token includes the 'exi' claim, update the stored
+        // highest Sequence Number values used to track the Access Tokens
+        // with the 'exi' claim issues to this Resource Server
+	    if (claims.containsKey(Constants.EXI)) {
+	    	
+	    	if (exiSeqNum >= 0) {
+	    		// The Access Token has been just posted to authz-info
+	    		TokenRepository.getInstance().setTopExiSequenceNumber(exiSeqNum);
+	    	}
+	    	else if (exiSeqNum == -1) {
+	    		// The Access Token has been retrieved from a local file
+	    		
+	    		exiSeqNum = getExiSeqNumFromCti(cticb.GetByteString());
+	    		
+	    		if (exiSeqNum < 0) {
+	    			// This should never happen, since the Access Token retrieved from the local file
+	    			// should have been issued by the AS as including a 'cti' claim with the intended format
+	                LOGGER.severe("Malformed cti claim in token including an exi claim and restored from a local file");
+	                throw new AceException("Malformed cti claim in token including an exi claim and restored from a local file");
+	    		}
+	    		
+	    		TokenRepository.getInstance().setTopExiSequenceNumber(exiSeqNum);
+	    	}
+	    		
+	    } 
         
         //Now store the claims. Need deep copy here
         Map<Short, CBORObject> foo = new HashMap<>();
         foo.putAll(claims);
         this.cti2claims.put(cti, foo);
-        
+	    
         persist();
         
         return cticb;
@@ -1334,5 +1386,74 @@ public class TokenRepository implements AutoCloseable {
     public Map<Short, CBORObject> getClaims(String cti) {
     	return this.cti2claims.get(cti);
     }
+    
+    /**
+     * Retrieve the Exi Sequence Number value, encoded in the 'cti'
+     * claim of an Access Token that includes the 'exi' claim
+     * 
+     * @param  the 'cti' claim included in the Access Token
+     * @return  It returns a positive integer if the Sequence Number is successfully extracted from the 'cti' claim
+     *          It returns -1 in case of error while parsing the 'cti' claim
+     * 
+     */
+    public int getExiSeqNumFromCti(byte[] cti) {
+    	
+        // Retrieve the raw CTI value, as a text string that concatenates:
+        //  - the identifier of the Resource Server
+        //  - the text-encoded Sequence Number used for this Access Token,
+        //    as issued to this Resource Server and including the 'exi' claim 
+        String rawCti = new String(cti);
+        
+        // Check that the retrieved 'cti' value has a minimum length
+        int rawCtiLen = rawCti.length();
+        int rsIdLen = this.rsId.length();
+        if (rawCtiLen < (rsIdLen + 1)) {
+        	// The 'cti' claim is malformed - It is too short in size
+        	return -1;
+        }
+        
+        // Check that the first part of the retrieved 'cti' coincides with the identifier of the Resource Server
+        String receivedRsId = rawCti.substring(0, rsIdLen);
+        if (receivedRsId.compareTo(this.rsId) != 0) {
+        	// The 'cti' claim is malformed - The Resource Server Identifier does not match with the expected one
+        	return -1;
+        }
+        
+        // Check that the text-encoded Sequence Number is not greater than the stored highest Sequence Number
+        int seqNum;
+        String seqNumStr = rawCti.substring(rsIdLen, rawCtiLen);
+        try {
+        	seqNum = Integer.parseInt(seqNumStr);
+        }
+        catch (NumberFormatException e) {
+        	// The 'cti' claim is malformed - The Sequence Number is not encoded as a parsable integer
+        	return -1;
+	    }
+        
+        return seqNum;
+    	
+    }
+    
+    /**
+     * Retrieve the highest Exi Sequence Number value, related
+     * to received Access Tokens that include the 'exi' claim
+     * 
+     */
+    public synchronized int getTopExiSequenceNumber() {
+    	return this.topExiSequenceNumber;
+    }
+    
+    /**
+     * Set the value of the highest Exi Sequence Number value, related
+     * to received Access Tokens that include the 'exi' claim
+     * 
+     * @param seqNum   The new highest Exi Sequence Number value
+     */
+    public synchronized void setTopExiSequenceNumber(int seqNum) {
+    	if (seqNum > this.topExiSequenceNumber) {
+    		this.topExiSequenceNumber = seqNum;
+    	}
+    }
+    
 }
 

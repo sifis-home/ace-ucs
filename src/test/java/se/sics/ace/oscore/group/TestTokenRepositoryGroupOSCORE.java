@@ -197,9 +197,12 @@ public class TestTokenRepositoryGroupOSCORE {
      * 
      */
     private static void createTR(GroupOSCOREJoinValidator valid) throws IOException {
+
+    	String rsId = "rs1";
+    	
         try {
             TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, null, 0, new KissTime());
+                    + "tokens.json", null, null, 0, new KissTime(), rsId);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
@@ -207,12 +210,10 @@ public class TestTokenRepositoryGroupOSCORE {
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
                 TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, null, 0, new KissTime());
+                        + "tokens.json", null, null, 0, new KissTime(), rsId);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
-            }
-           
-            
+            } 
         }
     }
     
@@ -240,7 +241,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, pskCnf);
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Token has no scope");
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -255,7 +256,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         params.remove(Constants.CTI); //Gets added by tr.addToken()
         CBORObject cticb = CBORObject.FromObject(
                 buffer.putInt(0, params.hashCode()).array());
@@ -278,7 +279,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1"));
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Cti has invalid format");
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -296,7 +297,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -304,7 +305,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -321,7 +322,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -341,7 +342,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -362,7 +363,7 @@ public class TestTokenRepositoryGroupOSCORE {
         cnf.Add("blah", "blah".getBytes(Constants.charset));
         cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -391,7 +392,7 @@ public class TestTokenRepositoryGroupOSCORE {
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     
@@ -412,7 +413,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     
@@ -433,7 +434,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah"));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     
@@ -454,7 +455,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -462,7 +463,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         // The Token Repository stores as 'kid' the base64 encoding of
@@ -511,7 +512,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -519,7 +520,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         // The Token Repository stores as 'kid' the base64 encoding of
@@ -567,7 +568,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -575,7 +576,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
         // The Token Repository stores as 'kid' the base64 encoding of
@@ -606,7 +607,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -616,7 +617,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -662,7 +663,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -672,7 +673,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -717,7 +718,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -727,7 +728,7 @@ public class TestTokenRepositoryGroupOSCORE {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -768,7 +769,7 @@ public class TestTokenRepositoryGroupOSCORE {
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
 
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -825,7 +826,7 @@ public class TestTokenRepositoryGroupOSCORE {
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
 
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -882,7 +883,7 @@ public class TestTokenRepositoryGroupOSCORE {
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, cnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
 
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
@@ -913,7 +914,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()-1000));
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -924,7 +925,7 @@ public class TestTokenRepositoryGroupOSCORE {
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000));
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");
@@ -946,7 +947,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
@@ -954,7 +955,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(null, params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");

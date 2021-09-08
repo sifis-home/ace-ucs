@@ -86,6 +86,8 @@ public class TestAuthzInfo {
     private static Introspect i; 
     private static KissPDP pdp = null;
     
+    private static String rsId = "rs1";
+    
     /**
      * Set up tests.
      * @throws SQLException 
@@ -133,8 +135,6 @@ public class TestAuthzInfo {
         
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
 
-        String rsId = "rs1";
-        
         String tokenFile = TestConfig.testFilePath + "tokens.json";      
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
@@ -656,7 +656,14 @@ public class TestAuthzInfo {
     public void testExi() throws AceException, IllegalStateException, 
             InvalidCipherTextException, CoseException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x12}));
+        
+        // Since the 'exi' claim is included, the 'cti' claim must
+        // also be included andi it must have a specific format
+        int exiSeqNum = 1;
+        String rawCti = new String(rsId + String.valueOf(exiSeqNum));
+		byte[] ctiB = rawCti.getBytes(Constants.charset);
+        params.put(Constants.CTI, CBORObject.FromObject(ctiB));
+        
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -664,40 +671,56 @@ public class TestAuthzInfo {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x12});
+        String ctiStr = Base64.getEncoder().encodeToString(ctiB);
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x12}), params);
+        db.addToken(Base64.getEncoder().encodeToString(ctiB), params);
         db.addCti2Client(ctiStr, "client1");  
 
-        
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));     
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x12});
+        
+        Assert.assertArrayEquals(cti.GetByteString(), ctiB);
         
         // The Token Repository stores as 'kid' the base64 encoding of
         // the binary content from the 'kid' field of the 'cnf' claim.
         String storedKid = Base64.getEncoder().encodeToString(kidStr.getBytes(Constants.charset));
         Assert.assertEquals(1, TokenRepository.getInstance().canAccess(
-                storedKid, "client1", "temp", Constants.GET, null));
+                				storedKid, "client1", "temp", Constants.GET, null));
         db.deleteToken(ctiStr);
+        
+        
+        // Post a new Access Token, similar to the previous one,
+        // but with a lower Sequence Number in the 'cti' claim.
+        // This test must fail, since such Sequence Number values
+        // can only strictly grow on the same Resource Server.
+        exiSeqNum = 0;
+        rawCti = new String(rsId + String.valueOf(exiSeqNum));
+		ctiB = rawCti.getBytes(Constants.charset);
+        params.put(Constants.CTI, CBORObject.FromObject(ctiB));
+        ctiStr = Base64.getEncoder().encodeToString(ctiB);
+        
+        db.addToken(Base64.getEncoder().encodeToString(ctiB), params);
+        db.addCti2Client(ctiStr, "client1");
+        
+        token = new CWT(params);
+        request = new LocalMessage(0, null, "rs1", token.encode(ctx));     
+        response = (LocalMessage)ai.processMessage(request);
+        System.out.println(response.toString());
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
     }
 }
