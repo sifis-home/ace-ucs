@@ -185,12 +185,8 @@ public class TestOscorepClient2RS {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN 
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -267,8 +263,6 @@ public class TestOscorepClient2RS {
     }
     
     
-    
-    // M.T.
     /**
      * Test successful submission of a token to the RS with subsequent
      * access based on the token, followed by the submission of a new token
@@ -285,12 +279,8 @@ public class TestOscorepClient2RS {
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token3".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -349,12 +339,8 @@ public class TestOscorepClient2RS {
        
        params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       
-       // NNN
        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-       
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token4".getBytes(Constants.charset)));
+       params.put(Constants.CTI, CBORObject.FromObject("token4".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
        // Now the 'cnf' claim includes only a 'kid' with value the 'id'

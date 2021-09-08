@@ -267,12 +267,10 @@ public class TestOscorepRSGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + "fBBBca570000", myResource4);
 
         Set<String> auds = new HashSet<>();
-        // NNN
         auds.add("aud1"); // Simple test audience
         auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // NNN
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("aud2"));
         
@@ -288,7 +286,6 @@ public class TestOscorepRSGroupOSCORE {
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
         valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
         
-        // NNN
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -299,12 +296,9 @@ public class TestOscorepRSGroupOSCORE {
             = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
                    
         //Set up COSE parameters (enable for encrypting Tokens)
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
-        // NNN
         //Set up the inner Authz-Info library
         //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCORE
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
@@ -317,10 +311,7 @@ public class TestOscorepRSGroupOSCORE {
         byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 

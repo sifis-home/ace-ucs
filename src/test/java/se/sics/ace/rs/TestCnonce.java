@@ -113,10 +113,8 @@ public class TestCnonce {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        // NNN
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
         
-        // NNN
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -128,7 +126,6 @@ public class TestCnonce {
         ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
        
-        // NNN
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, true);
         
@@ -178,12 +175,8 @@ public class TestCnonce {
        
        Map<Short, CBORObject> params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       
-       // NNN
        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-       
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token1".getBytes(Constants.charset)));
+       params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
        params.put(Constants.CNF, pskCnf);
        params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
@@ -208,12 +201,8 @@ public class TestCnonce {
             IllegalStateException, InvalidCipherTextException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         CWT token = new CWT(params);
@@ -242,12 +231,8 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
@@ -278,12 +263,8 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token3".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
@@ -312,12 +293,8 @@ public class TestCnonce {
         String otherNonce = "nonce";
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token4".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token4".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
@@ -358,12 +335,8 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token5".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token5".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
 
@@ -417,12 +390,8 @@ public class TestCnonce {
        
        Map<Short, CBORObject> params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       
-       // NNN
        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-       
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token6".getBytes(Constants.charset)));
+       params.put(Constants.CTI, CBORObject.FromObject("token6".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
        params.put(Constants.CNF, pskCnf);
        params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));

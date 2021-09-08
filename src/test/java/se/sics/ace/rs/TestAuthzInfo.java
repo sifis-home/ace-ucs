@@ -131,10 +131,8 @@ public class TestAuthzInfo {
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
-        // NNN
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
-        
-        // NNN
+
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";      
@@ -145,13 +143,10 @@ public class TestAuthzInfo {
 
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        
-        // NNN
         pdp.addIntrospectAccess(rsId);
         
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
-        // NNN
         ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
 		                   new IntrospectionHandler4Tests(i, rsId, "TestAS"), rsId,
 		                   valid, ctx, null, 0, tokenFile, valid, false);
@@ -220,10 +215,7 @@ public class TestAuthzInfo {
         
         //this overwrites the scope
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -414,10 +406,7 @@ public class TestAuthzInfo {
         db.addCti2Client(ctiStr, "client1");
         
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("FalseAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -531,10 +520,7 @@ public class TestAuthzInfo {
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x08}), params);
         db.addCti2Client(ctiStr, "client1");
-
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -565,10 +551,7 @@ public class TestAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -620,10 +603,7 @@ public class TestAuthzInfo {
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x11}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         CBORObject aud = CBORObject.NewArray();
-        
-        // NNN
         aud.Add(CBORObject.FromObject("aud1"));
-        
         aud.Add(CBORObject.FromObject("foo"));
         aud.Add(CBORObject.FromObject("bar"));
         params.put(Constants.AUD, aud);
@@ -678,10 +658,7 @@ public class TestAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x12}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.EXI, CBORObject.FromObject(20000L));
         OneKey key = new OneKey();

@@ -117,7 +117,7 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
 			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
 			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		// NNN
+		
 		super(issuers, time, intro, rsId, audience, ctx, keyDerivationKey, derivedKeySize, tokenFile, 
 		        scopeValidator, checkCnonce);
 		

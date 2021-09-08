@@ -125,21 +125,16 @@ public class TestAuthzInfoAif {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         
-        // NNN
         String rsId = "rs1";
         
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        
-        // NNN
         pdp.addIntrospectAccess(rsId);
         
-        // NNN
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), null);
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         
-        // NNN
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, aif, false);
     }
@@ -175,10 +170,7 @@ public class TestAuthzInfoAif {
         scopeElement.Add(1);
         scope.Add(scopeElement); 
         params.put(Constants.SCOPE, scope);
-        
-        // NNN
-        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);

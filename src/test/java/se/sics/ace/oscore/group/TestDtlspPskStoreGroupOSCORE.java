@@ -133,7 +133,6 @@ public class TestDtlspPskStoreGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
         Set<String> auds = new HashSet<>();
-        // NNN
         auds.add("aud1"); // Simple test audience
         auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
@@ -269,14 +268,12 @@ public class TestDtlspPskStoreGroupOSCORE {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         
-        // NNN
         String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
         new File(tokenFile).delete();
         
-        // NNN
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0,
                 tokenFile, valid, false);
@@ -324,27 +321,21 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testInvalidToken() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
         
@@ -368,18 +359,13 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testValidPskId() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -387,10 +373,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         params.put(Constants.CNF, cnf);
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);        
         byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
@@ -410,27 +394,21 @@ public class TestDtlspPskStoreGroupOSCORE {
     public void testKid() throws Exception {
         Map<Short, CBORObject> claims = new HashMap<>(); 
         claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         claims.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        claims.put(Constants.CTI, CBORObject.FromObject(
-                "token3".getBytes(Constants.charset)));
+        claims.put(Constants.CTI, CBORObject.FromObject("token3".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         claims.put(Constants.CNF, cnf);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
@@ -462,18 +440,14 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token4".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token4".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -481,10 +455,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         params.put(Constants.CNF, cnf);
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
         byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
@@ -518,18 +490,14 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token5".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token5".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -537,10 +505,8 @@ public class TestDtlspPskStoreGroupOSCORE {
         params.put(Constants.CNF, cnf);
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject tokenCB = token.encode(ctx);
         byte[] pskIdentityBytes = tokenCB.EncodeToBytes();
@@ -569,18 +535,14 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         claims.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        claims.put(Constants.CTI, CBORObject.FromObject(
-                "token6".getBytes(Constants.charset)));
+        claims.put(Constants.CTI, CBORObject.FromObject("token6".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -588,8 +550,7 @@ public class TestDtlspPskStoreGroupOSCORE {
         claims.put(Constants.CNF, cnf);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());
@@ -618,27 +579,21 @@ public class TestDtlspPskStoreGroupOSCORE {
     	cborArrayScope.Add(cborArrayRoles);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         claims.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         claims.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        claims.put(Constants.CTI, CBORObject.FromObject(
-                "token7".getBytes(Constants.charset)));
+        claims.put(Constants.CTI, CBORObject.FromObject("token7".getBytes(Constants.charset)));
         claims.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         claims.put(Constants.CNF, cnf);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         TokenRepository.getInstance().addToken(null, claims, ctx, null);
         
         byte[] pskIdentityBytes = Util.buildDtlsPskIdentity(kid.GetByteString());

@@ -290,10 +290,7 @@ public class PlugtestASGroupOSCORE
         scopes.add("rw_config");
         scopes.add("foobar");
         Set<String> auds = new HashSet<>();
-        
-        // NNN
-        auds.add("aud1");
-        
+        auds.add("aud1");        
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -316,10 +313,7 @@ public class PlugtestASGroupOSCORE
         scopes.clear();
         scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
-        
-        // NNN
         auds.add("aud2");
-        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -328,7 +322,6 @@ public class PlugtestASGroupOSCORE
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
         
-        // NNN
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
         
@@ -340,10 +333,7 @@ public class PlugtestASGroupOSCORE
         scopes.clear();
         scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
-        
-        // NNN
         auds.add("aud3");
-        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();

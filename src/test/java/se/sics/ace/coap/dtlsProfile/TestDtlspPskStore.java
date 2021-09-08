@@ -103,16 +103,12 @@ public class TestDtlspPskStore {
         myResource2.put("co2", actions);
         myScopes.put("r_co2", myResource2);
         
-        // NNN
         String rsId = "rs1";
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        KissValidator valid = new KissValidator(Collections.singleton("rs1"), myScopes);
        
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         new File(tokenFile).delete(); 

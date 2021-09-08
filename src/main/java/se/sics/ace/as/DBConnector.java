@@ -219,8 +219,6 @@ public interface DBConnector {
      */
     public String audColumn = "Aud";
     
-    
-    // M.T.
 	//******************New table********************************
     /**
      * The table of audiences an RS acting as OSCORE Group Manager identifies with
@@ -429,7 +427,6 @@ public interface DBConnector {
     public Set<String> getAudiences(String rsId) 
                 throws AceException;
 
-    // M.T.
     /**
      * Gets the audiences that this RS acting as OSCORE Group Manager is part of.
      * Note that the rs identifier is always a singleton audience itself.
@@ -546,7 +543,6 @@ public interface DBConnector {
             Set<COSEparams> cose, long expiration, OneKey tokenPsk, 
             OneKey authPsk, OneKey publicKey) throws AceException;
 	
-	// M.T.
 	/**
 	 * Adds the audiences a previously added RS acting as OSCORE Group Manager identifies with.
 	 * 

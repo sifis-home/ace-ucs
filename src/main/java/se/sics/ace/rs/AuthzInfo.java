@@ -687,7 +687,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
         }
     }
     
-    // NNN
     /**
      * Retrieve the highest Exi Sequence Number value, related
      * to received Access Tokens that include the 'exi' claim
@@ -697,7 +696,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
     	return this.topExiSequenceNumber;
     }
     
-    // NNN
     /**
      * Set the value of the highest Exi Sequence Number value, related
      * to received Access Tokens that include the 'exi' claim

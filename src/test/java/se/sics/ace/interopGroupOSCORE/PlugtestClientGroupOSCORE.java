@@ -662,8 +662,6 @@ public class PlugtestClientGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config foobar"));
-        
-        // NNN
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud1"));
         
         CoapResponse response = client.post(
@@ -717,10 +715,7 @@ public class PlugtestClientGroupOSCORE {
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         CoapResponse response = client.post(
@@ -744,10 +739,7 @@ public class PlugtestClientGroupOSCORE {
         
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
@@ -771,10 +763,7 @@ public class PlugtestClientGroupOSCORE {
     	
         byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
@@ -799,10 +788,7 @@ public class PlugtestClientGroupOSCORE {
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         response = client.post(
@@ -827,10 +813,7 @@ public class PlugtestClientGroupOSCORE {
         cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
@@ -888,10 +871,7 @@ public class PlugtestClientGroupOSCORE {
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         CoapResponse response = client.post(
@@ -917,10 +897,7 @@ public class PlugtestClientGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
@@ -946,10 +923,7 @@ public class PlugtestClientGroupOSCORE {
     	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         response = client.post(
@@ -1005,10 +979,7 @@ public class PlugtestClientGroupOSCORE {
         cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
         CoapResponse response = client.post(
@@ -1035,10 +1006,7 @@ public class PlugtestClientGroupOSCORE {
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
     	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        // NNN
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
         response = client.post(
@@ -1131,8 +1099,6 @@ public class PlugtestClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
         params.put(Constants.CTI, CBORObject.FromObject(
@@ -1826,8 +1792,6 @@ public class PlugtestClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
         params.put(Constants.CTI, CBORObject.FromObject(
@@ -2518,8 +2482,6 @@ public class PlugtestClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
         params.put(Constants.CTI, CBORObject.FromObject(
@@ -3214,8 +3176,6 @@ public class PlugtestClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
         params.put(Constants.CTI, CBORObject.FromObject(

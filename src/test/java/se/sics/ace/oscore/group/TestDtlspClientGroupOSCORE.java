@@ -266,17 +266,12 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException {  
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPAI".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPAI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
@@ -287,8 +282,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPAI".getBytes(Constants.charset), cti.GetByteString());
     }
     
     
@@ -324,17 +318,12 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPAIGOSR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPAIGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
@@ -1979,17 +1968,12 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPAIGOMR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPAIGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
@@ -3651,18 +3635,13 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPI".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPI".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -3733,12 +3712,8 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
-        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenRPK".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
+        params.put(Constants.CTI, CBORObject.FromObject("tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -3795,12 +3770,8 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPostRPKGOSR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPostRPKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -5444,12 +5415,8 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPostRPKGOMR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPostRPKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -5470,8 +5437,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostRPKGOMR".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPostRPKGOMR".getBytes(Constants.charset), cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -7123,20 +7089,15 @@ public class TestDtlspClientGroupOSCORE {
         
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenRPK".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenRPK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = CBORObject.FromObject(
-                token.encode(ctx).EncodeToBytes());    
+        CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -7195,20 +7156,15 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenRPKGOSR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenRPKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = CBORObject.FromObject(
-                token.encode(ctx).EncodeToBytes());    
+        CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -7268,20 +7224,15 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenRPKGOMR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenRPKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cnf);
         CWT token = new CWT(params);
-        CBORObject payload = CBORObject.FromObject(
-                token.encode(ctx).EncodeToBytes());    
+        CBORObject payload = CBORObject.FromObject(token.encode(ctx).EncodeToBytes());    
         CoapResponse r = DTLSProfileRequests.postToken(rsAddrCS, payload, key);
         CBORObject cbor = CBORObject.FromObject(r.getPayload());
         Assert.assertNotNull(cbor);
@@ -7327,12 +7278,8 @@ public class TestDtlspClientGroupOSCORE {
                
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPSK".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPSK".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -7345,10 +7292,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertNotNull(cbor);
         
         CoapClient c = DTLSProfileRequests.getPskClient(
-                new InetSocketAddress("localhost", 
-                        CoAP.DEFAULT_COAP_SECURE_PORT), 
-                kidStr.getBytes(Constants.charset),
-                key);
+                new InetSocketAddress("localhost",CoAP.DEFAULT_COAP_SECURE_PORT), kidStr.getBytes(Constants.charset), key);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();
         Assert.assertEquals("CONTENT", r2.getCode().name());
@@ -7396,12 +7340,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPostPSKGOSR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPostPSKGOSR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -7422,8 +7362,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOSR".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPostPSKGOSR".getBytes(Constants.charset), cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -9026,12 +8965,8 @@ public class TestDtlspClientGroupOSCORE {
         cborArrayScope.Add(scopeEntry);
         byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         // Now the 'cnf' claim includes only 'kty' and 'kid'
@@ -9060,8 +8995,7 @@ public class TestDtlspClientGroupOSCORE {
         cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPostPSKGOSRUpdateAccessRights".getBytes(Constants.charset), cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -9574,12 +9508,8 @@ public class TestDtlspClientGroupOSCORE {
     	cborArrayScope.Add(scopeEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenPostPSKGOMR".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenPostPSKGOMR".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject cnf = CBORObject.NewMap();
@@ -9600,8 +9530,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPostPSKGOMR".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPostPSKGOMR".getBytes(Constants.charset), cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -11293,18 +11222,13 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenFailNM".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenFailNM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "otherKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128a));
         CBORObject cnf = CBORObject.NewMap();
@@ -11339,12 +11263,8 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException, ConnectorException, IOException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "tokenfailNAM".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("tokenfailNAM".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);

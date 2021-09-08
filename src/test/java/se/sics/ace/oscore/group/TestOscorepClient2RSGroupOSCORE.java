@@ -240,18 +240,12 @@ public class TestOscorepClient2RSGroupOSCORE {
     public void testSuccess() throws Exception {
 
         //Generate a token
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx  = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_helloWorld"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -344,10 +338,7 @@ public class TestOscorepClient2RSGroupOSCORE {
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token4JoinSingleRole".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
@@ -2025,11 +2016,8 @@ public class TestOscorepClient2RSGroupOSCORE {
     	
     	Map<Short, CBORObject> params2 = new HashMap<>();
     	params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-    	
-    	// NNN
-        params2.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
-        params2.put(Constants.CTI, CBORObject.FromObject(
+    	params2.put(Constants.AUD, CBORObject.FromObject("aud2"));
+                params2.put(Constants.CTI, CBORObject.FromObject(
                 "token4JoinSingleRoleUpdateAccessRights".getBytes(Constants.charset))); //Need different CTI
         params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
@@ -2572,10 +2560,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
         params.put(Constants.CTI, CBORObject.FromObject(
                 "token4JoinMultipleRoles".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));

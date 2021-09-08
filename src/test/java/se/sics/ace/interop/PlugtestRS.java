@@ -360,7 +360,6 @@ public class PlugtestRS {
      KissValidator valid = new KissValidator(Collections.singleton("RS1"),
              myScopes);
     
-     // NNN
      String rsId = "RS1";
      
      String tokenFile = "tokens.json";

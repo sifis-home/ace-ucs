@@ -127,7 +127,6 @@ public class TestDtlspAuthzInfo {
         myResource.put("co2", actions);
         myScopes.put("rw_co2", myResource);
         
-        // NNN
         String rsId = "rs1";
         
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);  
@@ -136,11 +135,9 @@ public class TestDtlspAuthzInfo {
         new File(tokenFile).delete(); 
         
         //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
-        // NNN
         //Set up the inner Authz-Info library
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid,
@@ -152,10 +149,7 @@ public class TestDtlspAuthzInfo {
         //Set up a token to use
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
@@ -173,10 +167,7 @@ public class TestDtlspAuthzInfo {
         // Set up one more token to use, for testing the update of access rights
         Map<Short, CBORObject> params2 = new HashMap<>(); 
         params2.put(Constants.SCOPE, CBORObject.FromObject("rw_co2"));
-        
-        // NNN
         params2.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params2.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject keyData  = CBORObject.NewMap();

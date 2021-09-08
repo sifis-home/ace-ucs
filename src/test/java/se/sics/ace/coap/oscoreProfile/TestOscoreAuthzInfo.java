@@ -144,15 +144,11 @@ public class TestOscoreAuthzInfo {
         myResource.put("co2", actions);
         myScopes.put("r_co2", myResource);
         
-        // NNN
         String rsId = "rs1";
         
-        // NNN
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering token file from old test runs
@@ -160,13 +156,10 @@ public class TestOscoreAuthzInfo {
         
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        
-        // NNN
         pdp.addIntrospectAccess(rsId);
         
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
-        // NNN
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
                 new KissTime(),  
                 new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
@@ -304,16 +297,13 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -322,17 +312,12 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x01});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x01}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x01}), params);
         db.addCti2Client(ctiStr, "client1");  
-
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -361,16 +346,13 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x02}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -379,17 +361,12 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x02});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x02}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x02}), params);
+        db.addCti2Client(ctiStr, "client1");
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -419,10 +396,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x03}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.OSCORE_Input_Material, null);
@@ -434,13 +408,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x03}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -454,8 +424,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "invalid/missing OSCORE_Input_Material");
+        map.Add(Constants.ERROR_DESCRIPTION, "invalid/missing OSCORE_Input_Material");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
@@ -473,10 +442,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x04}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.OSCORE_Input_Material, "blah");
@@ -484,17 +450,12 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x04});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x04}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x04}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -508,8 +469,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "invalid/missing OSCORE_Input_Material");
+        map.Add(Constants.ERROR_DESCRIPTION, "invalid/missing OSCORE_Input_Material");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
     }
     
@@ -527,10 +487,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x05}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cbor = CBORObject.NewMap();
         CBORObject osc = CBORObject.NewMap();
@@ -544,13 +501,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x05}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -564,8 +517,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "Malformed algorithm Id in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "Malformed algorithm Id in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload()); 
     }
     
@@ -583,10 +535,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x06}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN 
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -601,13 +550,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x06}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -621,8 +566,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);          
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                        "Malformed KDF in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "Malformed KDF in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     } 
     
@@ -640,10 +584,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x07}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -658,13 +599,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x07}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -697,10 +634,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x08}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -715,13 +649,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x08}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -741,7 +671,6 @@ public class TestOscoreAuthzInfo {
     } 
     
     
-    
     /**
      * Test salt != byte string
      * 
@@ -756,17 +685,14 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
    
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_SALT, "NaCl");
-        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
@@ -776,13 +702,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x09}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -796,12 +718,11 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed master"
-                + " salt in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed master salt in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     } 
             
-    // M.T.
+    
     /**
      * Test id == null
      * 
@@ -816,10 +737,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0b}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         CBORObject osc = CBORObject.NewMap();
@@ -835,12 +753,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x0b}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
 
         CBORObject payload = CBORObject.NewMap();
@@ -860,7 +775,7 @@ public class TestOscoreAuthzInfo {
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     } 
     
-    // M.T.
+    
     /**
      * Test id != byte string
      * 
@@ -875,10 +790,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0c}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -894,12 +806,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x0c}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
 
         CBORObject payload = CBORObject.NewMap();
@@ -914,8 +823,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing input material identifier"
-                + " in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing input material identifier in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     }
     
@@ -933,17 +841,14 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0d}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
         CBORObject cbor = CBORObject.NewMap();
         osc.Add(Constants.OS_MS, key128a);
         osc.Add(Constants.OS_HKDF, AlgorithmID.HKDF_HMAC_AES_128.AsCBOR());
-        osc.Add(Constants.OS_ID, Util.intToBytes(0)); // M.T.                
+        osc.Add(Constants.OS_ID, Util.intToBytes(0));
         cbor.Add(Constants.OSCORE_Input_Material, osc);
         params.put(Constants.CNF, cbor);
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
@@ -953,13 +858,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x0d}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -1003,10 +904,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0e}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
@@ -1028,12 +926,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x0e}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -1051,8 +946,7 @@ public class TestOscoreAuthzInfo {
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = db.getContext(id2);
-        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
-                true, null, id1, id2, null, null, null, kidContext);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
         
         assert(osctx.equals(osctx2));
         
@@ -1131,7 +1025,6 @@ public class TestOscoreAuthzInfo {
     }
     
     
-    // M.T.
     /**
      * Test successful submission to AuthzInfo, followed by an attempt to
      * update access rights by posting a new Access Token over OSCORE
@@ -1155,10 +1048,7 @@ public class TestOscoreAuthzInfo {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x0f}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         byte[] kidContext = null; // To possibly include the Id Context
@@ -1180,12 +1070,9 @@ public class TestOscoreAuthzInfo {
                 new byte[]{0x0f}), params);
         db.addCti2Client(ctiStr, "client1");  
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
@@ -1203,8 +1090,7 @@ public class TestOscoreAuthzInfo {
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = dbOSCORE.getContext(id2);
-        OSCoreCtx osctx2 = new OSCoreCtx(key128a, 
-                true, null, id1, id2, null, null, null, kidContext);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
         
         assert(osctx.equals(osctx2));
 
@@ -1287,10 +1173,7 @@ public class TestOscoreAuthzInfo {
         params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{(byte) 0xa0}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         
         // Now the 'cnf' claim includes only a 'kid' with value the 'id'

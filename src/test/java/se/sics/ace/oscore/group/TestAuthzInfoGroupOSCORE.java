@@ -170,12 +170,10 @@ public class TestAuthzInfoGroupOSCORE {
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
         Set<String> auds = new HashSet<>();
-        // NNN
         auds.add("aud1"); // Simple test audience
         auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
-        // NNN
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
         valid.setGMAudiences(Collections.singleton("aud2"));
         
@@ -295,7 +293,6 @@ public class TestAuthzInfoGroupOSCORE {
     	// Add this OSCORE group to the set of active groups
     	activeGroups.put(groupName, myGroup);
        
-        // NNN
     	String rsId = "rs1";
     	
         String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -313,7 +310,6 @@ public class TestAuthzInfoGroupOSCORE {
         pdp.addIntrospectAccess("rs2"); // Enabling introspection for the OSCORE Group Manager
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
-        // NNN
         // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
         // while using the endpoint AuthzInfoGroupOSCORE as for audience "aud2".
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
@@ -323,7 +319,6 @@ public class TestAuthzInfoGroupOSCORE {
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
-        // NNN
         // A separate authz-info endpoint is required for each audience, here "aud2",
         // due to the interface of the IntrospectionHandler4Tests taking exactly
         // one RS as second argument.
@@ -397,10 +392,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         //this overwrites the scope
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -411,8 +403,7 @@ public class TestAuthzInfoGroupOSCORE {
         cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cbor);
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
@@ -421,10 +412,8 @@ public class TestAuthzInfoGroupOSCORE {
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
-        String kidStr = new RawPublicKeyIdentity(
-                publicKey.AsPublicKey()).getName();
-        assert(1 == TokenRepository.getInstance().canAccess(
-                kidStr, null, "co2", Constants.GET, null));
+        String kidStr = new RawPublicKeyIdentity(publicKey.AsPublicKey()).getName();
+        assert(1 == TokenRepository.getInstance().canAccess(kidStr, null, "co2", Constants.GET, null));
 
     }
     
@@ -551,16 +540,11 @@ public class TestAuthzInfoGroupOSCORE {
         db.addCti2Client(ctiStr, "client1");
         
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("FalseAS"));
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);  
@@ -666,15 +650,11 @@ public class TestAuthzInfoGroupOSCORE {
                 new byte[]{0x08}), params);
         db.addCti2Client(ctiStr, "client1");
 
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         CBORObject map = CBORObject.NewMap();
@@ -698,16 +678,12 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x09}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -716,16 +692,14 @@ public class TestAuthzInfoGroupOSCORE {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x09}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x09}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -752,10 +726,7 @@ public class TestAuthzInfoGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x11}));
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         CBORObject aud = CBORObject.NewArray();
-        
-        // NNN
-        aud.Add(CBORObject.FromObject("aud1"));
-        
+        aud.Add(CBORObject.FromObject("aud1"));        
         aud.Add(CBORObject.FromObject("foo"));
         aud.Add(CBORObject.FromObject("bar"));
         params.put(Constants.AUD, aud);
@@ -763,8 +734,7 @@ public class TestAuthzInfoGroupOSCORE {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -773,16 +743,13 @@ public class TestAuthzInfoGroupOSCORE {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x11});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x11}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x11}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
@@ -790,8 +757,7 @@ public class TestAuthzInfoGroupOSCORE {
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x11});
+        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x11});
     }    
 
     /**
@@ -827,15 +793,12 @@ public class TestAuthzInfoGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
         // Note the usage of this particular audience "aud2" acting as OSCORE Group Manager
-        // NNN
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
-        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -844,17 +807,13 @@ public class TestAuthzInfoGroupOSCORE {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x12});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x12}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x12}), params);
         db.addCti2Client(ctiStr, "client1");  
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, null, null,
-                token.encode(ctx));
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, null, null, token.encode(ctx));
               
         // Note the usage of the dedicated authz-info endpoint for this audience "aud2"
         LocalMessage response = (LocalMessage)ai2.processMessage(request);
@@ -862,8 +821,7 @@ public class TestAuthzInfoGroupOSCORE {
         assert(response.getMessageCode() == Message.CREATED);        
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x12});
+        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x12});
     }
     
     
@@ -974,7 +932,6 @@ public class TestAuthzInfoGroupOSCORE {
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
-        // NNN
         // Note the usage of this particular audience "aud2" acting as OSCORE Group Manager
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
@@ -982,8 +939,7 @@ public class TestAuthzInfoGroupOSCORE {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -992,17 +948,13 @@ public class TestAuthzInfoGroupOSCORE {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x14});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x14}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x14}), params);
         db.addCti2Client(ctiStr, "client1");  
         
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, null, null,
-                token.encode(ctx));
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, null, null, token.encode(ctx));
               
         // Note the usage of the dedicated authz-info endpoint for this audience "aud"
         LocalMessage response = (LocalMessage)ai2.processMessage(request);
@@ -1010,8 +962,7 @@ public class TestAuthzInfoGroupOSCORE {
         assert(response.getMessageCode() == Message.CREATED);        
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x14});
+        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x14});
         
         
         // Build a new Token for updating access rights, with a different 'scope'
@@ -1034,7 +985,6 @@ public class TestAuthzInfoGroupOSCORE {
         // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
         params2.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         
-        // NNN
         // Note the usage of this particular audience "aud2" acting as OSCORE Group Manager
         params2.put(Constants.AUD, CBORObject.FromObject("aud2"));
         
@@ -1049,8 +999,7 @@ public class TestAuthzInfoGroupOSCORE {
         ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x15});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x15}), params2);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x15}), params2);
         db.addCti2Client(ctiStr, "client1");  
         
         CWT token2 = new CWT(params2);

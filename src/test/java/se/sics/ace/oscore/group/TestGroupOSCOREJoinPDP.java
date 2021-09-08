@@ -183,17 +183,13 @@ public class TestGroupOSCOREJoinPDP {
         scopes.add("feedca570000_requester_responder");
         scopes.add("feedca570000_requester_monitor");
         auds.clear();
-        
-        // NNN
         auds.add("aud4");
-        
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
@@ -281,7 +277,6 @@ public class TestGroupOSCOREJoinPDP {
        
        // Add the resource server rs4 and its OSCORE Group Manager
        // audience to the table OSCOREGroupManagersTable in the PDP
-       // NNN
        Set<String> aud4 = Collections.singleton("aud4");
        pdp.addOSCOREGroupManagers("rs4", aud4);
     }
@@ -336,7 +331,6 @@ public class TestGroupOSCOREJoinPDP {
     	assert(pdp.canAccessToken("clientG"));
     	assert(pdp.canAccessToken("clientH"));
     	
-    	// NNN
     	Set<String> aud1 = Collections.singleton("rs1");
     	Set<String> aud2 = Collections.singleton("rs2");
     	Set<String> aud4 = Collections.singleton("rs4");

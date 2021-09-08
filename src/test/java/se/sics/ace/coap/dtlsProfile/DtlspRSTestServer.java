@@ -165,28 +165,21 @@ public class DtlspRSTestServer {
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         
-        // NNN
         String rsId = "rs1";
         
-        // NNN
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
 
-        byte[] key128a 
-            = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       
-        byte[] keyDerivationKey 
-            = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+        byte[] keyDerivationKey = {'f', 'f', 'f', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
         
         int derivedKeySize = 16;
         
-        OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(
-                Base64.getDecoder().decode(rpk)));
+        OneKey asymmetric = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpk)));
         
         //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
@@ -198,16 +191,11 @@ public class DtlspRSTestServer {
                 tokenFile, valid, false);
       
       //Add a test token to authz-info
-      byte[] key128
-          = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+      byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
       Map<Short, CBORObject> params = new HashMap<>(); 
       params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-      
-      // NNN
       params.put(Constants.AUD, CBORObject.FromObject("aud1"));
-      
-      params.put(Constants.CTI, CBORObject.FromObject(
-              "token1".getBytes(Constants.charset)));
+      params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
       params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
       OneKey key = new OneKey();
