@@ -981,31 +981,120 @@ public class TokenRepository implements AutoCloseable {
 	
 	/**
 	 * Poll the stored tokens and expunge those that have expired.
+	 * 
+	 * Note that non-expired tokens might also be expunged, if including the 'exi' claim
      *
 	 * @throws AceException 
 	 */
-	public synchronized void purgeTokens() 
-				throws AceException {
+	public synchronized void purgeTokens() throws AceException {
+		
+		// Set of Access Tokens to remove, due to the possible following reasons:
+		// - The Access Token is expired
+		// - The Access Token is not expired, but: it includes the 'exi' claim; and
+		//   its associated Sequence Number is smaller than the highest Sequence Number
+		//   among the expired Access Tokens to remove that include the 'exi' claim 
 	    HashSet<String> tokenToRemove = new HashSet<>();
-		for (Map.Entry<String, Map<Short, CBORObject>> foo 
-		        : this.cti2claims.entrySet()) {
+	    
+	    // Set of non-expired Access Tokens that include the 'exi' claim
+	    HashSet<String> tokenWithExiNotExpired = new HashSet<>();
+	    
+	    // Highest Sequence Number among the expired
+	    // Access Tokens to remove that include the 'exi' claim 
+	    int highestExiSeqNum = -1;
+	    
+	    
+	    // Phase 1: identify and delete the expired Access Tokens
+	    
+		for (Map.Entry<String, Map<Short, CBORObject>> foo : this.cti2claims.entrySet()) {
 		    if (foo.getValue() != null) {
+		    	
+		    	CBORObject exi = foo.getValue().get(Constants.EXI);
 		        CBORObject exp = foo.getValue().get(Constants.EXP);
+		        
 		        if (exp == null) {
 		            continue; //This token never expires
 		        }
 		        if (!exp.isIntegral()) {
-		            throw new AceException(
-		                    "Expiration time is in wrong format");
+		            throw new AceException("Expiration time is in wrong format");
 		        }
+		        
 		        if (this.time.getCurrentTime() > exp.AsInt64()) {
+		        	// This Access Token is expired and has to be removed
 		            tokenToRemove.add(foo.getKey());
+		            
+		            if (exi != null) {
+		            	// This expired Access Token has an 'exi' claim 
+		            	
+		            	CBORObject cticb = foo.getValue().get(Constants.CTI);
+			    		int exiSeqNum = getExiSeqNumFromCti(cticb.GetByteString());
+			    		if (exiSeqNum < 0) {
+			    			// This should never happen, since an accepted and stored Access Token
+			    			// should have been validated as including a 'cti' claim with the intended format
+			                LOGGER.severe("Malformed cti claim in stored token including an exi claim");
+			                throw new AceException("Malformed cti claim in stored token including an exi claim");
+			    		}
+			    		// Track the highest Sequence Number among the expired Access Tokens with the 'exi' claim 
+			    		if (exiSeqNum > highestExiSeqNum) {
+			    			highestExiSeqNum = exiSeqNum;
+			    		}
+		            }
+
 				}
+		        else if (exi != null) {
+	            	// The Access Token is not expired, but it includes the 'exi' claim
+		        	// and thus will require further inspection for possible deletion
+		        	tokenWithExiNotExpired.add(foo.getKey());
+	            }
+		        
 			}
 		}
+		
+		// Delete the expired Access Tokens
 		for (String cti : tokenToRemove) {
 		    removeToken(cti);
 		}
+		
+		
+	    // Phase 2: identify and delete the non-expired Access Tokens that include the 'exi' claim and that
+		//          have their Sequence Number smaller than the highest Sequence Number previously identified. 
+		
+		// This can be skipped altogether if any of the two following conditions holds:
+		// - There are no non-expired Access Tokens that include the 'exi' claim; OR
+		// - No expired Access Tokens including the 'exi' claim were found and deleted
+		if (!tokenWithExiNotExpired.isEmpty() || highestExiSeqNum != -1) {
+			tokenToRemove = new HashSet<>();	
+			
+			for (Map.Entry<String, Map<Short, CBORObject>> foo : this.cti2claims.entrySet()) {
+			    if (foo.getValue() != null) {
+			    	
+			    	if (tokenWithExiNotExpired.contains(foo.getKey())) {
+				    	int exiSeqNum = -1;
+		            	CBORObject cticb = foo.getValue().get(Constants.CTI);
+			    		exiSeqNum = getExiSeqNumFromCti(cticb.GetByteString());
+			    		
+			    		if (exiSeqNum < 0) {
+			    			// This should never happen, since an accepted and stored Access Token
+			    			// should have been validated as including a 'cti' claim with the intended format
+			                LOGGER.severe("Malformed cti claim in stored token including an exi claim");
+			                throw new AceException("Malformed cti claim in stored token including an exi claim");
+			    		}
+			    		if (exiSeqNum <= highestExiSeqNum) {
+			    			// This non-expired Access Tokens includes the 'exi' claim and
+			    			// its Sequence Number is smaller than the highest Sequence Number
+			    			// previously identified. Hence, it must also be removed.
+			    			tokenToRemove.add(foo.getKey());
+			    		}
+			    	}
+			    }
+			}
+			
+			// Delete the non-expired Access Tokens including the 'exi' claim
+			for (String cti : tokenToRemove) {
+			    removeToken(cti);
+			}
+			
+		}
+				
 	}
 	
 	/**
