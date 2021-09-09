@@ -203,13 +203,9 @@ public class TestIntrospect {
     @Test
     public void testFailUnauthorized() throws Exception {
         Message response = i.processMessage(
-                new LocalMessage(
-                        -1, "unauthorizedRS", "TestAS", CBORObject.Null));
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
+                new LocalMessage(-1, "unauthorizedRS", "TestAS", CBORObject.Null));
+        assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
+        Assert.assertArrayEquals(response.getRawPayload(), null);
     }
     
     /**

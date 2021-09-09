@@ -165,11 +165,9 @@ public class Introspect implements Endpoint, AutoCloseable {
         try {
             accessLevel = this.pdp.getIntrospectAccessLevel(id);
             if (accessLevel.equals(PDP.IntrospectAccessLevel.NONE)) {
-                CBORObject map = CBORObject.NewMap();
-                map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
                 LOGGER.log(Level.INFO, "Message processing aborted: "
-                        + "unauthorized client: " + id);
-                return msg.failReply(Message.FAIL_UNAUTHORIZED, map);
+                        + "client: " + id + " does not have the right to perform this introspection request");
+                return msg.failReply(Message.FAIL_FORBIDDEN, null);
             }
         } catch (AceException e) {
             LOGGER.severe("Database error: " + e.getMessage());
