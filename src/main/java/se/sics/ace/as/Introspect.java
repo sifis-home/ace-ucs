@@ -188,7 +188,8 @@ public class Introspect implements Endpoint, AutoCloseable {
             LOGGER.log(Level.INFO,
                     "Request didn't provide 'token' parameter");
             CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, "Must provide 'token' parameter");
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Must provide 'token' parameter");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(
@@ -201,14 +202,14 @@ public class Introspect implements Endpoint, AutoCloseable {
         } catch (AceException e) {
             LOGGER.log(Level.INFO, e.getMessage());
             CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, "must provide non-null token");
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Must provide non-null token");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
 
-        
-        //3. Check if token is still in there
-        //If not return active=false	    
         Map<Short, CBORObject> claims;
+        //3. Check if token is still in there
+        //If not return active=false
         try {
             claims = this.db.getClaims(token.getCti());
         } catch (AceException e) {
@@ -216,7 +217,7 @@ public class Introspect implements Endpoint, AutoCloseable {
                     + e.getMessage());
             return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
         }
-        CBORObject payload = CBORObject.NewMap();
+        CBORObject payload = CBORObject.NewMap();        
         if (claims == null || claims.isEmpty()) {
             try {
                 LOGGER.log(Level.INFO, 

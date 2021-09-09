@@ -205,7 +205,7 @@ public class TestIntrospect {
         Message response = i.processMessage(
                 new LocalMessage(-1, "unauthorizedRS", "TestAS", CBORObject.Null));
         assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
-        Assert.assertArrayEquals(response.getRawPayload(), null);
+        Assert.assertArrayEquals(null, response.getRawPayload());
     }
     
     /**
@@ -221,9 +221,9 @@ public class TestIntrospect {
                 new LocalMessage(-1, "rs1", "TestAS", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, "Must provide 'token' parameter");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                map.EncodeToBytes());
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Must provide 'token' parameter");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
