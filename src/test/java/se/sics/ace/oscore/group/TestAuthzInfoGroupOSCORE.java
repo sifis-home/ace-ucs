@@ -67,6 +67,7 @@ import se.sics.ace.Message;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
+import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -151,6 +152,38 @@ public class TestAuthzInfoGroupOSCORE {
         db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
                 publicKey);
 
+        
+        
+        String rsId = "rs1";
+        
+        Set<String> scopes = new HashSet<>();
+        scopes.add("temp");
+        scopes.add("co2");
+        Set<String> auds = new HashSet<>();
+        auds.add("aud1");
+        auds.add("actuators");
+        Set<Short> tokenTypes = new HashSet<>();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        Set<COSEparams> cose = new HashSet<>();
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        long expiration = 1000000L;
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey psk = new OneKey(keyData);
+        db.addRS(rsId, profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, psk, psk, publicKey);
+        
+        
+        rsId = "rs2";
+        auds.clear();
+        auds.add("aud2");
+        db.addRS(rsId, profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, psk, psk, publicKey);
+        
+        
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
@@ -169,8 +202,9 @@ public class TestAuthzInfoGroupOSCORE {
         myResource3.put(rootGroupMembershipResource + "/" + groupName, actions2);
         myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
         
-        Set<String> auds = new HashSet<>();
+        auds = new HashSet<>();
         auds.add("aud1"); // Simple test audience
+        auds.add("actuators"); // Simple test audience
         auds.add("aud2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
         GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
@@ -293,13 +327,12 @@ public class TestAuthzInfoGroupOSCORE {
     	// Add this OSCORE group to the set of active groups
     	activeGroups.put(groupName, myGroup);
        
-    	String rsId = "rs1";
     	
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token files
         new File(tokenFile).delete();
         
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
+        coseP = new COSEparams(MessageTag.Encrypt0, 
                 AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
                 coseP.getAlg().AsCBOR());
@@ -310,18 +343,24 @@ public class TestAuthzInfoGroupOSCORE {
         pdp.addIntrospectAccess("rs2"); // Enabling introspection for the OSCORE Group Manager
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
-        // Tests on this audience "rs1" are just the same as in TestAuthzInfo,
-        // while using the endpoint AuthzInfoGroupOSCORE as for audience "aud2".
-        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
-                new KissTime(), new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
-                rsId, valid, ctx, null, 0, tokenFile, valid, false);
+        
+    	rsId = "rs1";
+        // Tests on this Resource Server "rs1" are just the same as in TestAuthzInfo,
+        // while using the endpoint AuthzInfoGroupOSCORE as for the Resource Server "rs2".
+    	//
+    	// This endpoint does not perform introspection, which always expects Access Tokens stored
+    	// at the AS and possible to introspect to specify an audience. This enables some of the
+    	// tests below to focus on error conditions and achieve the expected outcomes.
+        ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), new KissTime(),
+        							  null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
         
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
         
-        // A separate authz-info endpoint is required for each audience, here "aud2",
-        // due to the interface of the IntrospectionHandler4Tests taking exactly
-        // one RS as second argument.
+        
+    	rsId = "rs2";
+        // A separate authz-info endpoint is required for each Resource Server, here "rs2",
+        // due to the interface of the IntrospectionHandler4Tests taking exactly one RS as second argument.
         ai2 = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
                 new KissTime(), new IntrospectionHandler4Tests(i, "rs2", "TestAS"),
                 rsId, valid, ctx, null, 0, tokenFile, valid, false);
@@ -356,9 +395,9 @@ public class TestAuthzInfoGroupOSCORE {
     public void testRefInactive() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         ReferenceToken token = new ReferenceToken(20);
-        LocalMessage request = new LocalMessage(0, null, "rs1", CBORObject.FromObject(token.encode().EncodeToBytes()));
+        LocalMessage request = new LocalMessage(0, null, "rs2", CBORObject.FromObject(token.encode().EncodeToBytes()));
                 
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        LocalMessage response = (LocalMessage)ai2.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -380,6 +419,7 @@ public class TestAuthzInfoGroupOSCORE {
             InvalidCipherTextException, CoseException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, publicKey.AsCBOR());
@@ -392,7 +432,7 @@ public class TestAuthzInfoGroupOSCORE {
         
         //this overwrites the scope
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -404,11 +444,12 @@ public class TestAuthzInfoGroupOSCORE {
         params.put(Constants.CNF, cbor);
         CWT token = new CWT(params);
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, null, "rs2", token.encode(ctx));
+        
+        LocalMessage response = (LocalMessage)ai2.processMessage(request);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x01});
@@ -488,6 +529,7 @@ public class TestAuthzInfoGroupOSCORE {
         Map<Short, CBORObject> claims = new HashMap<>();
         byte[] cti = {0x03};
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        claims.put(Constants.AUD, CBORObject.FromObject("aud1"));
         String ctiStr = Base64.getEncoder().encodeToString(cti);
         
         //Make introspection succeed
@@ -529,6 +571,7 @@ public class TestAuthzInfoGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x05}));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KEY_CBOR, publicKey.AsCBOR());
         params.put(Constants.CNF, cnf);
@@ -568,13 +611,6 @@ public class TestAuthzInfoGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x06}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x06});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x06}), params);
-        db.addCti2Client(ctiStr, "client1");
-        
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
@@ -605,12 +641,15 @@ public class TestAuthzInfoGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x07}));
+        
+        /*
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(
                 new byte[]{0x07}), params);
         db.addCti2Client(ctiStr, "client1");
+        */
         
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
         params.put(Constants.AUD, CBORObject.FromObject("blah"));
@@ -643,13 +682,6 @@ public class TestAuthzInfoGroupOSCORE {
             InvalidCipherTextException, CoseException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x08}));
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x08}), params);
-        db.addCti2Client(ctiStr, "client1");
-
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CWT token = new CWT(params);
@@ -689,11 +721,14 @@ public class TestAuthzInfoGroupOSCORE {
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
         params.put(Constants.CNF, cbor);
+        
+        /*
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
 
         //Make introspection succeed
         db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x09}), params);
-        db.addCti2Client(ctiStr, "client1");  
+        db.addCti2Client(ctiStr, "client1");
+        */  
 
         
         CWT token = new CWT(params);
@@ -711,55 +746,6 @@ public class TestAuthzInfoGroupOSCORE {
                 new byte[]{0x09});
     }    
     
-    /**
-     * Test successful submission to AuthzInfo with an array of audiences
-     * 
-     * @throws IllegalStateException 
-     * @throws InvalidCipherTextException 
-     * @throws CoseException 
-     * @throws AceException  
-     */
-    @Test
-    public void testAudArray() throws IllegalStateException, 
-            InvalidCipherTextException, CoseException, AceException {
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x11}));
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        CBORObject aud = CBORObject.NewArray();
-        aud.Add(CBORObject.FromObject("aud1"));        
-        aud.Add(CBORObject.FromObject("foo"));
-        aud.Add(CBORObject.FromObject("bar"));
-        params.put(Constants.AUD, aud);
-        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
-        key.add(KeyKeys.KeyId, kid);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put(Constants.CNF, cbor);
-        String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x11});
-
-        //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x11}), params);
-        db.addCti2Client(ctiStr, "client1");  
-
-        
-        CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
-                
-        LocalMessage response = (LocalMessage)ai.processMessage(request);
-        System.out.println(response.toString());
-        assert(response.getMessageCode() == Message.CREATED);
-        CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
-        CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x11});
-    }    
-
     /**
      * Test successful submission to AuthzInfo, for
      * accessing an OSCORE group with a single role.
@@ -1009,13 +995,13 @@ public class TestAuthzInfoGroupOSCORE {
         // a 'cnf' claim transporting also the actual key 'k'
         LocalMessage req2 = new LocalMessage(0, null, null, token2.encode(ctx));
         req2 = new LocalMessage(0, null, null, token.encode(ctx));
-        LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
+        LocalMessage resp2 = (LocalMessage)ai2.processMessage(req2);
         assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
         
         String identityStr = Base64.getEncoder().encodeToString(kid.GetByteString());
   	    req2 = new LocalMessage(0, identityStr, null, token2.encode(ctx));
   	    
-  	    resp2 = (LocalMessage)ai.processMessage(req2);
+  	    resp2 = (LocalMessage)ai2.processMessage(req2);
   	    assert(resp2.getMessageCode() == Message.CREATED);
         
     }

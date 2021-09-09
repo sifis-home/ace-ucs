@@ -129,6 +129,8 @@ public class OscoreASTestServer
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_oscore");
         Set<String> auds = new HashSet<>();
+        auds.add("aud1");
+        auds.add("actuators");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         Set<Short> tokenTypes = new HashSet<>();

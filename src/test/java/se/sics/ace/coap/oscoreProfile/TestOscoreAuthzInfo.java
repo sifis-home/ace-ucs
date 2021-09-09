@@ -67,6 +67,7 @@ import se.sics.ace.DBHelper;
 import se.sics.ace.Message;
 import se.sics.ace.TestConfig;
 import se.sics.ace.Util;
+import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreAuthzInfo;
@@ -130,6 +131,31 @@ public class TestOscoreAuthzInfo {
         db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
                 publicKey);
 
+        
+        String rsId = "rs1";
+        
+        Set<String> scopes = new HashSet<>();
+        scopes.add("temp");
+        scopes.add("co2");
+        Set<String> auds = new HashSet<>();
+        auds.add("aud1");
+        auds.add("actuators");
+        Set<Short> tokenTypes = new HashSet<>();
+        tokenTypes.add(AccessTokenFactory.CWT_TYPE);
+        tokenTypes.add(AccessTokenFactory.REF_TYPE);
+        Set<COSEparams> cose = new HashSet<>();
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
+                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        cose.add(coseP);
+        long expiration = 1000000L;
+        CBORObject keyData = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
+                CBORObject.FromObject(key128));
+        OneKey psk = new OneKey(keyData);
+        db.addRS(rsId, profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, psk, psk, publicKey);
+                
+        
         Set<Short> actions = new HashSet<>();
         actions.add(Constants.GET);
         Map<String, Set<Short>> myResource = new HashMap<>();
@@ -144,10 +170,8 @@ public class TestOscoreAuthzInfo {
         myResource.put("co2", actions);
         myScopes.put("r_co2", myResource);
         
-        String rsId = "rs1";
-        
         KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -749,8 +773,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0b});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0b}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x0b}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);

@@ -122,6 +122,12 @@ public class CoapASTestServerGroupOSCORE
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, akey);
         
+        auds.clear();
+        auds.add("actuators");
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
+                expiration, authPsk, tokenPsk, akey);
+        
+        
         // Add a further resource server "rs2" acting as OSCORE Group Manager
         // This resource server uses only REF Tokens
         profiles.clear();
@@ -229,7 +235,6 @@ public class CoapASTestServerGroupOSCORE
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));

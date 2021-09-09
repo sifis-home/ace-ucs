@@ -117,6 +117,7 @@ public class TestIntrospect {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
+        auds.add("aud1");
         auds.add("sensors");
         auds.add("actuators");
         auds.add("failCWTpar");
@@ -138,6 +139,12 @@ public class TestIntrospect {
        
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
                 expiration, key, key, publicKey);
+        
+        auds.clear();
+        auds.add("actuators");
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
+                expiration, key, key, publicKey);
+        
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -174,12 +181,15 @@ public class TestIntrospect {
         claims.put(Constants.CNF, cnf);
         db.addToken(cti2Str, claims);
         db.addCti2Client(cti2Str, "client1");
+        
+        
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs3", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         i = new Introspect(pdp, db, time, publicKey, null);
+        
     }
     
     
@@ -277,7 +287,7 @@ public class TestIntrospect {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject(
                 "rw_valve r_pressure foobar"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.AUD, CBORObject.FromObject("actuators"));
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
 
         // Add the audience as the KID in the header, so it can be referenced by introspection requests.
@@ -316,13 +326,12 @@ public class TestIntrospect {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.TOKEN, CBORObject.FromObject(t.encode().EncodeToBytes()));
         String senderId = new RawPublicKeyIdentity(
-                publicKey.AsPublicKey()).getName().trim();
+                publicKey.AsPublicKey()).getName().trim();        
         Message response = i.processMessage(
-                new LocalMessage(-1, senderId, "TestAS", params));
+                new LocalMessage(-1, senderId, "TestAS", params));       
         assert(response.getMessageCode() == Message.CREATED);
         CBORObject rparams = CBORObject.DecodeFromBytes(
                 response.getRawPayload());
-       
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
     }

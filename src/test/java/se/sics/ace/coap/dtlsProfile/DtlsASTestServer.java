@@ -101,6 +101,7 @@ public class DtlsASTestServer
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
         Set<String> auds = new HashSet<>();
+        auds.add("actuators");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
@@ -127,6 +128,10 @@ public class DtlsASTestServer
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, null);
         
+        auds.clear();
+        auds.add("actuators");
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
+                expiration, authPsk, tokenPsk, akey);
         
         profiles.clear();
         profiles.add("coap_dtls");
