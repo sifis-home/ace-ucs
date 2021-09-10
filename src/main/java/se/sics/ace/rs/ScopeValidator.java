@@ -31,9 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.rs;
 
-
-import java.util.ArrayList;
-
 import com.upokecenter.cbor.CBORObject;
 
 import se.sics.ace.AceException;
@@ -61,7 +58,7 @@ public interface ScopeValidator {
     /**
      * Does the given scope matches the given resource
      * 
-     * @param scope  the scope,  can be a CBOR String or CBOR array
+     * @param scope  the scope, as a CBOR text string
      * @param resourceId  the resource
      * @return  true if the scope includes the resource, false if not.
      * @throws AceException 
@@ -71,7 +68,6 @@ public interface ScopeValidator {
 	
     /**
      * Is the given scope meaningful for this validator.
-     * 
      * 
      * @param scope  the scope, can be a CBOR String or CBOR array
      * @return  true if the scope is meaningful, false if not
@@ -91,11 +87,10 @@ public interface ScopeValidator {
     /**
      * Is the given scope meaningful for this validator.
      * 
-     * 
-     * @param scope  the scope, can be a CBOR String or CBOR array
-     * @param aud  the Audiences as an Array of Strings
+     * @param scope  the scope, as a CBOR text string or a CBOR byte string
+     * @param aud  the audience as an CBOR text string
      * @return  true if the scope is meaningful, false if not
      * @throws AceException 
      */
-    boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException;
+    boolean isScopeMeaningful(CBORObject scope, String aud) throws AceException;
 }

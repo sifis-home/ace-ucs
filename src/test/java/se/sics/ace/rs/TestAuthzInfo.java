@@ -71,7 +71,6 @@ import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.examples.SQLConnector;
-import se.sics.ace.oscore.rs.AuthzInfoGroupOSCORE;
 
 /**
  * 

@@ -38,7 +38,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
@@ -69,7 +68,6 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Hkdf;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.Util;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -1433,7 +1431,7 @@ public class TokenRepository implements AutoCloseable {
     /**
      * Checks if a given scope is meaningful for this repository.
      * 
-     * @param scope  the Scope can be CBOR String or CBOR array
+     * @param scope  the Scope, as a CBOR text string or a CBOR byte string
      * @return true if the scope is meaningful, false otherwise 
      * @throws AceException 
      */
@@ -1456,12 +1454,12 @@ public class TokenRepository implements AutoCloseable {
     /**
      * Checks if a given scope is meaningful for this repository.
      * 
-     * @param scope  the Scope can be CBOR String or CBOR array
-     * @param aud  the Audiences as an Array of Strings
+     * @param scope  the Scope, as a CBOR text string or a CBOR byte string
+     * @param aud  the Audience as a CBOR text string
      * @return true if the scope is meaningful, false otherwise 
      * @throws AceException 
      */
-    public boolean checkScope(CBORObject scope, ArrayList<String> aud) throws AceException {
+    public boolean checkScope(CBORObject scope, String aud) throws AceException {
         return this.scopeValidator.isScopeMeaningful(scope, aud);
     }
     

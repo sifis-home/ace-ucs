@@ -264,8 +264,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    //5. Check if we are the audience (aud)
-	    CBORObject aud = claims.get(Constants.AUD);
-	    if (aud == null) {
+	    CBORObject audCbor = claims.get(Constants.AUD);
+	    if (audCbor == null) {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 	        map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
@@ -273,15 +273,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	                + "Token has no audience");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
-	    ArrayList<String> auds = new ArrayList<>();
-	    if (aud.getType().equals(CBORType.Array)) {
-	        for (int i=0; i<aud.size(); i++) {
-	            if (aud.get(i).getType().equals(CBORType.TextString)) {
-	                auds.add(aud.get(i).AsString());
-	            } //XXX: silently skip aud entries that are not text strings
-	        }
-	    } else if (aud.getType().equals(CBORType.TextString)) {
-	        auds.add(aud.AsString());
+
+	    String aud;
+	    if (audCbor.getType().equals(CBORType.TextString)) {
+	        aud = audCbor.AsString();   
 	    } else {//Error
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -292,11 +287,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    boolean audMatch = false;
-	    for (String audStr : auds) {
-	        if (this.audience.match(audStr)) {
-	            audMatch = true;
-	        }
-	    }
+	    if (this.audience.match(aud)) {
+            audMatch = true;
+        }
 	    if (!audMatch) { 
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -326,7 +319,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    	else {
 	    		// The version of checkScope() with two arguments is invoked
 	    		// This is currently expecting a structured scope for joining OSCORE groups
-	    		meaningful = TokenRepository.getInstance().checkScope(scope, auds);
+	    		meaningful = TokenRepository.getInstance().checkScope(scope, aud);
 	    	}
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "

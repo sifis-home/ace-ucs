@@ -33,7 +33,6 @@ package se.sics.ace.oscore.rs;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashSet;
 import java.util.List;
@@ -224,35 +223,22 @@ public class AuthzInfoGroupOSCORE extends AuthzInfo {
     	CBORObject scope = claims.get(Constants.SCOPE);
     	
     	if (scope.getType().equals(CBORType.ByteString)) {
-    	
-    		CBORObject aud = claims.get(Constants.AUD);
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
     		Set<String> myJoinResources = this.audience.getAllJoinResources();
     		
-    		ArrayList<String> auds = new ArrayList<>();
-    	    if (aud.getType().equals(CBORType.Array)) {
-    	        for (int i=0; i<aud.size(); i++) {
-    	            if (aud.get(i).getType().equals(CBORType.TextString)) {
-    	                auds.add(aud.get(i).AsString());
-    	            } //XXX: silently skip aud entries that are not text strings
-    	        }
-    	    } else if (aud.getType().equals(CBORType.TextString)) {
-    	        auds.add(aud.AsString());
-    	    }
-    		
+    		CBORObject audCbor = claims.get(Constants.AUD);
+    		String aud = audCbor.AsString();
+    		    		
     		byte[] rawScope = scope.GetByteString();
     		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
     		Set<String> groupNames = new HashSet<>();
 
     		// Check that the audience is in fact a Group Manager
-    		for (String foo : auds) {
-    			if (myGMAudiences.contains(foo)) {
-    				error = false;
-    	    		break;
-    	    	}
-    	    }
-    		
+			if (myGMAudiences.contains(aud)) {
+				error = false;
+	    	}
+			
       	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++)
       	  		groupNames.add(cborScope.get(entryIndex).get(0).AsString());
     		

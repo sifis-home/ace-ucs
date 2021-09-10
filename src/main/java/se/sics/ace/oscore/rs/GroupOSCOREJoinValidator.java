@@ -31,7 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.oscore.rs;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -461,7 +460,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     }
     
     @Override
-    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
+    public boolean isScopeMeaningful(CBORObject scope, String aud) throws AceException {
     	
         if (!scope.getType().equals(CBORType.TextString) && !scope.getType().equals(CBORType.ByteString)) {
             throw new AceException("Scope must be a Text String or a Byte String");
@@ -470,12 +469,11 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
     	boolean scopeMustBeBinary = false;
     	boolean rsOSCOREGroupManager = false;
-    	for (String foo : aud) {
-    		if (this.myGMAudiences.contains(foo)) {
-    			rsOSCOREGroupManager = true;
-    			break;
-    		}
+    	
+    	if (this.myGMAudiences.contains(aud)) {
+    		rsOSCOREGroupManager = true;
     	}
+    	
     	scopeMustBeBinary = rsOSCOREGroupManager;
            	
         if (scope.getType().equals(CBORType.TextString)) {
