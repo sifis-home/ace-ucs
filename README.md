@@ -54,8 +54,8 @@ This is a mavenized Java 1.8 project. You should be able to compile and run thes
 * This code is owned by RISE and released as Open Source under the [BSD 3 license](https://opensource.org/licenses/BSD-3-Clause).
 * If you have questions or suggestions, please contact:
 
-   - ludwig dot seitz at combitech dot se
    - marco dot tiloca at ri dot se
+   - ludwig dot seitz at combitech dot com
 
 ### Acknowledgments ###
 This code is maintained in the framework of the [CelticNext](https://www.celticnext.eu/) project [CRITISEC](https://critisec.github.io/) with funding from [Vinnova](http://www.vinnova.se/sv/), and of the [SIFIS-Home](https://www.sifis-home.eu/) H2020 project with funding from the European Commission (Grant agreement 952652).

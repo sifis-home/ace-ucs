@@ -344,7 +344,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals("tokenPAIGOSR".getBytes(Constants.charset), 
-                cti.GetByteString());
+                				 cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -376,10 +376,10 @@ public class TestDtlspClientGroupOSCORE {
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
+            // The algorithm capabilities
             signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -516,18 +516,18 @@ public class TestDtlspClientGroupOSCORE {
 
 		// ECDSA_256
 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-		signAlg = AlgorithmID.ECDSA_256;
-		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+			signAlg = AlgorithmID.ECDSA_256;
+			signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 		    
 		// EDDSA (Ed25519)
 		if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-		signAlg = AlgorithmID.EDDSA;
-		signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+			signAlg = AlgorithmID.EDDSA;
+			signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
 		}
 		    
 		signParams.Add(signAlgCapabilities);
@@ -541,16 +541,16 @@ public class TestDtlspClientGroupOSCORE {
 
 		// ECDSA_256
 		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+			ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 		    
 		// X25519
-		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
-		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+			if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+			ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
 		}
 		    
 		ecdhParams.Add(ecdhAlgCapabilities);
@@ -568,7 +568,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
 		
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -604,12 +605,14 @@ public class TestDtlspClientGroupOSCORE {
         
         if (providePublicKey) {
         	
-        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+        	// This should never happen, if the Group Manager
+        	// has provided 'kdc_challenge' in the Token POST response,
         	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+        	// This should never happen, if the Group Manager
+        	// has provided 'kdc_challenge' in the Token POST response,
         	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
@@ -640,12 +643,15 @@ public class TestDtlspClientGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().
+            								 decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -661,7 +667,8 @@ public class TestDtlspClientGroupOSCORE {
         	
         }
         
-        CoapResponse r2 = c.post(requestPayload.EncodeToBytes(), Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
+        CoapResponse r2 = c.post(requestPayload.EncodeToBytes(),
+        						 Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
         
         Assert.assertEquals("CREATED", r2.getCode().name());
         
@@ -975,7 +982,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
 		CoapResponse r1 = c.get();
         System.out.println("");
@@ -1073,7 +1081,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -1098,7 +1107,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -1123,7 +1133,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -1150,7 +1161,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -1366,7 +1378,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -1550,7 +1563,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution GET Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -1648,7 +1662,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -1677,7 +1692,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
@@ -1750,7 +1766,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource);
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -1825,7 +1842,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Manager Public Key Request, using the GET method
 		
-        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
                 
@@ -1903,7 +1921,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -1920,7 +1939,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -1993,8 +2013,7 @@ public class TestDtlspClientGroupOSCORE {
         CBORObject cbor = CBORObject.DecodeFromBytes(r.getPayload());
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals("tokenPAIGOMR".getBytes(Constants.charset), 
-                cti.GetByteString());
+        Assert.assertArrayEquals("tokenPAIGOMR".getBytes(Constants.charset), cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -2215,7 +2234,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -2252,7 +2272,8 @@ public class TestDtlspClientGroupOSCORE {
         
         if (providePublicKey) {
         	
-        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
+        	// This should never happen, if the Group Manager
+        	// has provided 'kdc_challenge' in the Token POST response,
         	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
@@ -2618,7 +2639,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("Performing a Key Distribution Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
 		CoapResponse r1 = c.get();
         System.out.println("");
@@ -2712,7 +2734,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -2737,7 +2760,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -2762,7 +2786,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -2789,7 +2814,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -3005,7 +3031,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -3241,7 +3268,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -3334,8 +3362,9 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
-                
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
+        
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
         Request KeyRenewalReq = new Request(Code.PUT, Type.CON);
@@ -3363,7 +3392,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
@@ -3436,7 +3466,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource);
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -3511,7 +3542,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Manager Public Key Request, using the GET method
 		
-        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+        System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
                 
@@ -3589,7 +3621,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -3606,7 +3639,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -3678,8 +3712,7 @@ public class TestDtlspClientGroupOSCORE {
 
         CoapClient c = DTLSProfileRequests.getPskClient(
                 new InetSocketAddress("localhost",
-                CoAP.DEFAULT_COAP_SECURE_PORT), 
-                kid, key);
+                CoAP.DEFAULT_COAP_SECURE_PORT), kid, key);
         c.setURI("coaps://localhost/temp");
         CoapResponse r = c.get();
         Assert.assertEquals("CONTENT", r.getCode().name());
@@ -3706,8 +3739,7 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -3747,8 +3779,7 @@ public class TestDtlspClientGroupOSCORE {
             InvalidCipherTextException, AceException, ConnectorException, IOException {
         OneKey key = OneKey.generateKey(AlgorithmID.ECDSA_256);
         String kidStr = "ourRPK";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         
         Map<Short, CBORObject> params = new HashMap<>();
@@ -3793,7 +3824,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertNotNull(cbor);
         CBORObject cti = cbor.get(CBORObject.FromObject(Constants.CTI));
         Assert.assertArrayEquals("tokenPostRPKGOSR".getBytes(Constants.charset), 
-                cti.GetByteString());
+                				 cti.GetByteString());
         
         Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.KDCCHALLENGE)));
         Assert.assertEquals(CBORType.ByteString, cbor.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).getType());
@@ -3825,10 +3856,10 @@ public class TestDtlspClientGroupOSCORE {
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
+            // The algorithm capabilities
             signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -3965,18 +3996,18 @@ public class TestDtlspClientGroupOSCORE {
 
 		// ECDSA_256
 		if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-		signAlg = AlgorithmID.ECDSA_256;
-		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+			signAlg = AlgorithmID.ECDSA_256;
+			signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 		    
 		// EDDSA (Ed25519)
 		if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-		signAlg = AlgorithmID.EDDSA;
-		signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+			signAlg = AlgorithmID.EDDSA;
+			signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
 		}
 		    
 		signParams.Add(signAlgCapabilities);
@@ -3990,16 +4021,16 @@ public class TestDtlspClientGroupOSCORE {
 
 		// ECDSA_256
 		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+			ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
 		}
 		    
 		// X25519
 		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
-		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+			ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+			ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
 		}
 		    
 		ecdhParams.Add(ecdhAlgCapabilities);
@@ -4414,7 +4445,8 @@ public class TestDtlspClientGroupOSCORE {
         
 		// Send a second Key Distribution Request, now as a group member
 		
-		System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+		System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " +
+						   "coaps://localhost/ace-group/feedca570000");
 		
 		CoapResponse r1 = c.get();
 		System.out.println("");
@@ -4511,7 +4543,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -4536,7 +4569,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -4561,7 +4595,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -4588,7 +4623,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -4806,7 +4842,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -4990,7 +5027,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -5089,7 +5127,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -5108,7 +5147,8 @@ public class TestDtlspClientGroupOSCORE {
        
         Assert.assertEquals(CBORType.Map, KeyRenewalResponse.getType());
         Assert.assertEquals(true, KeyRenewalResponse.ContainsKey(CBORObject.FromObject(Constants.GROUP_SENDER_ID)));
-        Assert.assertEquals(CBORType.ByteString, KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
+        Assert.assertEquals(CBORType.ByteString,
+        					KeyRenewalResponse.get(CBORObject.FromObject(Constants.GROUP_SENDER_ID)).getType());
         
         
         /////////////////
@@ -5118,7 +5158,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
@@ -5150,12 +5191,15 @@ public class TestDtlspClientGroupOSCORE {
 
         // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
         int offset = 0;
-        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+        PrivateKey privKey = (new OneKey(CBORObject.
+        					  DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
 
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
         byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+        byte [] dataToSign = new byte [serializedScopeCBOR.length +
+                                       serializedGMNonceCBOR.length +
+                                       serializedCNonceCBOR.length];
         System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
         offset += serializedScopeCBOR.length;
         System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -5191,7 +5235,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -5266,7 +5311,8 @@ public class TestDtlspClientGroupOSCORE {
 		
 		//Send a Group Manager Public Key Request, using the GET method
 		
-		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+						   "coaps://localhost/ace-group/feedca570000/gm-pub-key");
 		
 		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 		
@@ -5344,7 +5390,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -5361,7 +5408,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -5657,7 +5705,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -5699,7 +5748,8 @@ public class TestDtlspClientGroupOSCORE {
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	OneKey publicKey = new OneKey(CBORObject.
+        						DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	
         	CBORObject encodedPublicKey = null;
             switch (pubKeyEncExpected.AsInt32()) {
@@ -5725,12 +5775,15 @@ public class TestDtlspClientGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.
+            					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -5768,7 +5821,8 @@ public class TestDtlspClientGroupOSCORE {
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.GKTY)));
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).getType());
-        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT, joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
+        Assert.assertEquals(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT,
+        					joinResponse.get(CBORObject.FromObject(Constants.GKTY)).AsInt32());
         
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
@@ -6060,7 +6114,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("Performing a Key Distribution Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
 		CoapResponse r1 = c.get();
         System.out.println("");
@@ -6153,7 +6208,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -6178,7 +6234,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -6203,7 +6260,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -6230,7 +6288,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -6446,7 +6505,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -6457,7 +6517,9 @@ public class TestDtlspClientGroupOSCORE {
         getPubKeys.Add(CBORObject.True);
         
         // Ask for the public keys of group members that are (also) responder
-        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
+        //
+        // This will match with both this node's public key,
+        // as well as the public key of the node with Sender ID 0x77 
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
@@ -6682,7 +6744,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request " +
+        		           "using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -6780,7 +6843,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -6809,7 +6873,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
@@ -6846,7 +6911,9 @@ public class TestDtlspClientGroupOSCORE {
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
         byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+        byte [] dataToSign = new byte [serializedScopeCBOR.length +
+                                       serializedGMNonceCBOR.length +
+                                       serializedCNonceCBOR.length];
         System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
         offset += serializedScopeCBOR.length;
         System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -6882,7 +6949,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -6957,7 +7025,8 @@ public class TestDtlspClientGroupOSCORE {
 		
 		//Send a Group Manager Public Key Request, using the GET method
 		
-		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+						   "coaps://localhost/ace-group/feedca570000/gm-pub-key");
 		
 		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 		
@@ -7035,7 +7104,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -7052,7 +7122,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -7292,7 +7363,8 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertNotNull(cbor);
         
         CoapClient c = DTLSProfileRequests.getPskClient(
-                new InetSocketAddress("localhost",CoAP.DEFAULT_COAP_SECURE_PORT), kidStr.getBytes(Constants.charset), key);
+                new InetSocketAddress("localhost",CoAP.DEFAULT_COAP_SECURE_PORT),
+                kidStr.getBytes(Constants.charset), key);
         c.setURI("coaps://localhost/helloWorld");
         CoapResponse r2 = c.get();
         Assert.assertEquals("CONTENT", r2.getCode().name());
@@ -7394,10 +7466,10 @@ public class TestDtlspClientGroupOSCORE {
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
+            // The algorithm capabilities
             signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -7542,7 +7614,7 @@ public class TestDtlspClientGroupOSCORE {
 		signAlg = AlgorithmID.ECDSA_256;
 		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		signKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 		}
 		    
 		// EDDSA (Ed25519)
@@ -7566,14 +7638,14 @@ public class TestDtlspClientGroupOSCORE {
 		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 		}
 		    
 		// X25519
 		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
 		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
 		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519);  // Curve
 		}
 		    
 		ecdhParams.Add(ecdhAlgCapabilities);
@@ -7588,7 +7660,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -7608,7 +7681,8 @@ public class TestDtlspClientGroupOSCORE {
         	
             getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
             
-            // The following is required to retrieve the public keys of both the already present group members
+            // The following is required to retrieve the
+            // public keys of both the already present group members
             myRoles = 0;
             myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
@@ -7624,7 +7698,8 @@ public class TestDtlspClientGroupOSCORE {
         
         if (providePublicKey) {
         	
-        	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+        	OneKey publicKey = new OneKey(CBORObject.
+        						DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
         	
         	CBORObject encodedPublicKey = null;
             switch (pubKeyEncExpected.AsInt32()) {
@@ -7650,12 +7725,15 @@ public class TestDtlspClientGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.
+            					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -7982,7 +8060,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming a Key Distribution Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
 		CoapResponse r1 = c.get();
         System.out.println("");
@@ -8080,7 +8159,8 @@ public class TestDtlspClientGroupOSCORE {
         // Send a Version Request
         
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
@@ -8106,7 +8186,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -8131,7 +8212,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -8158,7 +8240,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -8375,7 +8458,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -8560,7 +8644,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request " +
+        				   "using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -8658,7 +8743,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -8687,7 +8773,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
@@ -8724,7 +8811,9 @@ public class TestDtlspClientGroupOSCORE {
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
         byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+        byte [] dataToSign = new byte [serializedScopeCBOR.length +
+                                       serializedGMNonceCBOR.length +
+                                       serializedCNonceCBOR.length];
         System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
         offset += serializedScopeCBOR.length;
         System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -8760,7 +8849,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -8835,7 +8925,8 @@ public class TestDtlspClientGroupOSCORE {
 		
 		//Send a Group Manager Public Key Request, using the GET method
 		
-		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+						   "coaps://localhost/ace-group/feedca570000/gm-pub-key");
 		
 		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 		
@@ -8913,7 +9004,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -8930,7 +9022,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coap://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -9090,7 +9183,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a new Join Request under the new Access Token
 		
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -9551,11 +9645,11 @@ public class TestDtlspClientGroupOSCORE {
             signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
             
             // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+            signParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
             
             // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            signKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+            signKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // EDDSA (Ed25519)
@@ -9578,21 +9672,21 @@ public class TestDtlspClientGroupOSCORE {
         // P-256
         if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        // The algorithm capabilities
-	        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+	        ecdhParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
 	
 	        // The key type capabilities
 	        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-	        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+	        ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // X25519
         if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
 	        // The algorithm capabilities
-	        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+	        ecdhParamsExpected.Add(KeyKeys.KeyType_OKP);    // Key Type
 	
 	        // The key type capabilities
 	        ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
-	        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+	        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519);  // Curve
         }
         
         final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
@@ -9753,7 +9847,8 @@ public class TestDtlspClientGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
 		
         cborArrayScope = CBORObject.NewArray();
         cborArrayScope.Add(groupName);
@@ -9774,7 +9869,8 @@ public class TestDtlspClientGroupOSCORE {
         	
             getPubKeys.Add(CBORObject.NewArray()); // Ask the public keys for all possible roles
             
-            // The following is required to retrieve the public keys of both the already present group members
+            // The following is required to retrieve the
+            // public keys of both the already present group members
             myRoles = 0;
             myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
@@ -9816,12 +9912,15 @@ public class TestDtlspClientGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.
+            					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -10093,7 +10192,7 @@ public class TestDtlspClientGroupOSCORE {
         Assert.assertEquals(0, joinResponse.get(CBORObject.FromObject(Constants.GROUP_POLICIES)).get(CBORObject.FromObject(Constants.POLICY_EXP_DELTA)).AsInt32());
     
         
-     // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
+        // Check the proof-of-possession evidence over kdc_nonce, using the GM's public key
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
@@ -10157,7 +10256,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("Performing a Key Distribution Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000");
+        System.out.println("Performing a Key Distribution Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000");
         
 		CoapResponse r1 = c.get();
         System.out.println("");
@@ -10251,7 +10351,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/num");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
                 
@@ -10276,7 +10377,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/active");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
                 
@@ -10301,7 +10403,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/policies");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
                 
@@ -10328,7 +10431,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
                 
@@ -10551,7 +10655,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group/feedca570000/pub-key");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
 
@@ -10562,7 +10667,8 @@ public class TestDtlspClientGroupOSCORE {
         getPubKeys.Add(CBORObject.True);
         
         // Ask for the public keys of group members that are (also) responder
-        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
+        // This will match with both this node's public key, as well as
+        // the public key of the node with Sender ID 0x77 
         getPubKeys.Add(CBORObject.NewArray());
         myRoles = 0;
         myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
@@ -10787,7 +10893,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
-        System.out.println("Performing a Key Distribution Request GET Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request using " +
+        		 		   "DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -10885,7 +10992,8 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
-        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request using DTLS to GM at coaps://localhost/" +
+        				   nodeResourceLocationPath);
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
 
@@ -10914,13 +11022,15 @@ public class TestDtlspClientGroupOSCORE {
         /////////////////
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
-        System.out.println("Performing a Public Key Update Request using DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request using " +
+        				   "DTLS to GM at coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
                 
         c.setURI("coaps://localhost/" + nodeResourceLocationPath + "/pub-key");
         
         requestPayload = CBORObject.NewMap();
 
-        OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
+        OneKey publicKey = new OneKey(CBORObject.
+        				    DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
 
         CBORObject encodedPublicKey = null;
         switch (pubKeyEncExpected.AsInt32()) {
@@ -10946,12 +11056,15 @@ public class TestDtlspClientGroupOSCORE {
 
         // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
         int offset = 0;
-        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+        PrivateKey privKey = (new OneKey(CBORObject.
+        					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
 
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
         byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+        byte [] dataToSign = new byte [serializedScopeCBOR.length +
+                                       serializedGMNonceCBOR.length +
+                                       serializedCNonceCBOR.length];
         System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
         offset += serializedScopeCBOR.length;
         System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -10987,7 +11100,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " + "coaps://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using DTLS to GM at " +
+        				   "coaps://localhost/ace-group");
         
         c.setURI("coaps://localhost/" + rootGroupMembershipResource);
 
@@ -11062,7 +11176,8 @@ public class TestDtlspClientGroupOSCORE {
 		
 		//Send a Group Manager Public Key Request, using the GET method
 		
-		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " + "coaps://localhost/ace-group/feedca570000/gm-pub-key");
+		System.out.println("Performing a Group Manager Public Key GET Request using DTLS to GM at " +
+						   "coaps://localhost/ace-group/feedca570000/gm-pub-key");
 		
 		c.setURI("coaps://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 		
@@ -11140,7 +11255,8 @@ public class TestDtlspClientGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c.setURI("coaps://localhost/" + nodeResourceLocationPath);
                 
@@ -11194,7 +11310,8 @@ public class TestDtlspClientGroupOSCORE {
         } catch (IOException ex) {
             System.out.println(ex.getMessage());
             if (ex.getMessage().equals(
-                    "org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
+                    "org.eclipse.californium.scandium.dtls.DtlsHandshakeTimeoutException: "
+                    + "Handshake flight 5 failed! Stopped by timeout after 4 retransmissions!")) {
                 //Everything ok
                 return;
             }

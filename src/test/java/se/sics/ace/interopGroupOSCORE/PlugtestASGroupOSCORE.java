@@ -71,50 +71,48 @@ public class PlugtestASGroupOSCORE
 	/* START LIST OF KEYS */
 	
 	// For old tests
-    private static byte[] key128_client_A = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    private static byte[] key128_client_A = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07, 0x08,
+    										 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
     // More PSKs if needed
     /*
-    private static byte[] key128_client_B = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
-    private static byte[] key128_client_D = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    private static byte[] key128_client_B = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    										 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    private static byte[] key128_client_D = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08,
+    										 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     */
     
     // For group joining tests (rs2, rs3 and rs4 are Group Managers)
-    private static byte[] key128_client_F = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
-    private static byte[] key128_client_G = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
+    private static byte[] key128_client_F = {0x61, 0x62, 0x63, 0x04, 0x05, 0x06, 0x07, 0x08,
+    										 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
+    private static byte[] key128_client_G = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
+    										 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
     
 	// For old tests
-    private static byte[] key128_rs1 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
+    private static byte[] key128_rs1 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08,
+    									0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
     // For group joining tests (rs2, rs3 and rs4 are Group Managers)
-    private static byte[] key128_rs2 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
-    private static byte[] key128_rs3 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
-    private static byte[] key128_rs4 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07,
-            0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x13};
+    private static byte[] key128_rs2 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08,
+    									0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x11};
+    private static byte[] key128_rs3 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08,
+    									0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
+    private static byte[] key128_rs4 = {0x51, 0x52, 0x53, 0x04, 0x05, 0x06, 0x07, 0x08,
+    									0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x13};
 
 	// For old tests - PSK to encrypt the token
-    private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x10};
+    private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 0x05, 0x06, 0x07,
+    										  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
     // For group joining tests - PSK to encrypt the token (rs2, rs3 and rs4 are Group Managers)
-    private static byte[] key128_token_rs2 = {(byte)0xb1, (byte)0xa2, (byte)0xa3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    private static byte[] key128_token_rs2 = {(byte)0xb1, (byte)0xa2, (byte)0xa3, 0x04, 0x05, 0x06, 0x07,
+    										  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x10};
-    private static byte[] key128_token_rs3 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
+    private static byte[] key128_token_rs3 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 0x05, 0x06, 0x07,
+    										  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
             0x11};
-    private static byte[] key128_token_rs4 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x12};
+    private static byte[] key128_token_rs4 = {(byte)0xb1, (byte)0xb2, (byte)0xb3, 0x04, 0x05, 0x06, 0x07,
+    										  0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x12};
     
     // Asymmetric key of the AS
     private static String asX = "058F35F3C0D34D3DF50DEBC82208CDA9BE373AF7B8F7AAC381577B144D5FA781";
@@ -157,85 +155,72 @@ public class PlugtestASGroupOSCORE
         // Setup PSKs for Clients
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_client_A));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_client_A));
         OneKey authPsk_clientA = new OneKey(keyData);
         
         // More PSKs if needed
         /*
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_client_B));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_client_B));
         OneKey authPsk_clientB = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_client_D));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_client_D));
         OneKey authPsk_clientD = new OneKey(keyData);
         */
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_client_F));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_client_F));
         OneKey authPsk_clientF = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_client_G));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_client_G));
         OneKey authPsk_clientG = new OneKey(keyData);
         
         // Setup PSKs for RSs
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_rs1));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_rs1));
         OneKey authPsk_rs1 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_rs2));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_rs2));
         OneKey authPsk_rs2 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_rs3));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_rs3));
         OneKey authPsk_rs3 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_rs4));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_rs4));
         OneKey authPsk_rs4 = new OneKey(keyData);
         
         // Setup symmetric keys to protect the Access Tokens
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_token_rs1));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_token_rs1));
         OneKey tokenPsk_rs1 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_token_rs2));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_token_rs2));
         OneKey tokenPsk_rs2 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_token_rs3));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_token_rs3));
         OneKey tokenPsk_rs3 = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128_token_rs4));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128_token_rs4));
         OneKey tokenPsk_rs4 = new OneKey(keyData);
 
         CBORObject rpkData = null;
@@ -244,8 +229,7 @@ public class PlugtestASGroupOSCORE
         // Ready for possibly consider clients using the RPK mode
         rpkData = CBORObject.NewMap();
         rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
         rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         CBORObject C_x = CBORObject.FromObject(hexString2byteArray(cX));
         CBORObject C_y = CBORObject.FromObject(hexString2byteArray(cY));
@@ -256,8 +240,7 @@ public class PlugtestASGroupOSCORE
         // Build the RS public key (the same one for all the RSs)
         rpkData = CBORObject.NewMap();
         rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
         rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         CBORObject rs_x = CBORObject.FromObject(hexString2byteArray(rsX));
         CBORObject rs_y = CBORObject.FromObject(hexString2byteArray(rsY));
@@ -268,8 +251,7 @@ public class PlugtestASGroupOSCORE
         // Build the AS asymmetric key pair
         rpkData = CBORObject.NewMap();
         rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
         rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         CBORObject as_x = CBORObject.FromObject(hexString2byteArray(asX));
         CBORObject as_y = CBORObject.FromObject(hexString2byteArray(asY));
@@ -297,13 +279,12 @@ public class PlugtestASGroupOSCORE
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;        
         
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk_rs1, tokenPsk_rs1, akey_rs);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes,
+        		 cose, expiration, authPsk_rs1, tokenPsk_rs1, akey_rs);
         
         
         // Add a further resource server "rs2" acting as OSCORE Group Manager
@@ -319,8 +300,8 @@ public class PlugtestASGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         expiration = 1000000L;
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes,
+        		 cose, expiration, authPsk_rs2, tokenPsk_rs2, akey_rs);
         
         // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
@@ -339,10 +320,11 @@ public class PlugtestASGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         expiration = 1000000L;
-        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk_rs3, tokenPsk_rs3, akey_rs);
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes,
+        		 cose, expiration, authPsk_rs3, tokenPsk_rs3, akey_rs);
         
-        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
+        // Add the resource server rs3 and its OSCORE Group Manager audience
+        // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
         
         
@@ -359,10 +341,11 @@ public class PlugtestASGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         expiration = 1000000L;
-        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk_rs4, tokenPsk_rs4, akey_rs);
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes,
+        		 cose, expiration, authPsk_rs4, tokenPsk_rs4, akey_rs);
         
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
+        // Add the resource server rs4 and its OSCORE Group Manager audience
+        // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
         
         
@@ -370,24 +353,21 @@ public class PlugtestASGroupOSCORE
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk_clientA, null);        
+        db.addClient("clientA", profiles, null, null, keyTypes, authPsk_clientA, null);        
         
         // Add a further client "clientF" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientF", profiles, null, null, 
-                keyTypes, authPsk_clientF, null);
+        db.addClient("clientF", profiles, null, null, keyTypes, authPsk_clientF, null);
         
         // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientG", profiles, null, null, 
-                keyTypes, authPsk_clientG, null);
+        db.addClient("clientG", profiles, null, null, keyTypes, authPsk_clientG, null);
         
         
         KissTime time = new KissTime();

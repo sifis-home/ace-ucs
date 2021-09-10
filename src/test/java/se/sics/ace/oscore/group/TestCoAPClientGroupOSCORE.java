@@ -182,8 +182,7 @@ public class TestCoAPClientGroupOSCORE {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientA", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -224,8 +223,7 @@ public class TestCoAPClientGroupOSCORE {
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -235,7 +233,7 @@ public class TestCoAPClientGroupOSCORE {
         client.setEndpoint(e);
         dtlsConnector.start();
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
     	// The requested role is allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>();
@@ -255,9 +253,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -285,9 +282,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);    
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
         map = Constants.getParams(res);
@@ -315,9 +311,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -346,9 +341,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -377,9 +371,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -407,8 +400,7 @@ public class TestCoAPClientGroupOSCORE {
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -419,7 +411,7 @@ public class TestCoAPClientGroupOSCORE {
         dtlsConnector.start();
     	
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
         // Both requested roles are allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>();
@@ -440,9 +432,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -472,9 +463,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -504,9 +494,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -555,8 +544,7 @@ public class TestCoAPClientGroupOSCORE {
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientG", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -567,7 +555,7 @@ public class TestCoAPClientGroupOSCORE {
         dtlsConnector.start();
     	
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
         // The requested role is not allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -587,9 +575,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -618,9 +605,8 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);    
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
         map = Constants.getParams(res);
@@ -660,15 +646,12 @@ public class TestCoAPClientGroupOSCORE {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        OneKey key = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        builder.setIdentity(key.AsPrivateKey(), 
-                key.AsPublicKey());
+        builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
         builder.setRpkTrustAll();
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         Builder ceb = new Builder();
@@ -682,9 +665,8 @@ public class TestCoAPClientGroupOSCORE {
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);

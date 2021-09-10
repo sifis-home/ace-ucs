@@ -83,19 +83,16 @@ public class CoapASTestServerGroupOSCORE
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
-        OneKey akey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey akey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
         
     	final String groupName = "feedca570000";
@@ -115,17 +112,16 @@ public class CoapASTestServerGroupOSCORE
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+        		 expiration, authPsk, tokenPsk, akey);
         
         auds.clear();
         auds.add("actuators");
-        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, authPsk, tokenPsk, akey);
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes,
+        		 auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, akey);
         
         
         // Add a further resource server "rs2" acting as OSCORE Group Manager
@@ -144,14 +140,14 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                 expiration, authPsk, tokenPsk, akey);
         
-        // Add the resource server rs2 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
+        // Add the resource server rs2 and its OSCORE Group Manager audience
+        // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs2", auds);
         
         // Add a further resource server "rs3" acting as OSCORE Group Manager
@@ -170,14 +166,14 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                 expiration, authPsk, tokenPsk, akey);
         
-        // Add the resource server rs3 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
+        // Add the resource server rs3 and its OSCORE Group Manager audience
+        // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs3", auds);
         
         // Add a further resource server "rs4" acting as OSCORE Group Manager
@@ -196,14 +192,14 @@ public class CoapASTestServerGroupOSCORE
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
         db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+                 expiration, authPsk, tokenPsk, akey);
         
-        // Add the resource server rs4 and its OSCORE Group Manager audience to the table OSCORE GroupManagers in the Database
+        // Add the resource server rs4 and its OSCORE Group Manager audience
+        // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
         
         
@@ -211,24 +207,21 @@ public class CoapASTestServerGroupOSCORE
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+        db.addClient("clientA", profiles, null, null, keyTypes, authPsk, null);        
         
         // Add a further client "clientF" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientF", profiles, null, null, 
-                keyTypes, authPsk, null);
+        db.addClient("clientF", profiles, null, null, keyTypes, authPsk, null);
         
         // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientG", profiles, null, null, 
-                keyTypes, authPsk, null);
+        db.addClient("clientG", profiles, null, null, keyTypes, authPsk, null);
         
         
         KissTime time = new KissTime();

@@ -93,9 +93,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
 	/* START LIST OF KEYS */
     
 	// For old tests - PSK to encrypt the token
-    private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 
-            0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
-            0x10};
+    private static byte[] key128_token_rs1 = {(byte)0xa1, (byte)0xa2, (byte)0xa3, 0x04, 0x05, 0x06, 0x07,
+    									      0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f, 0x10};
     
 	// Sender ID 0x52 for an already present group member
 	private static final byte[] idClient2 = new byte[] { (byte) 0x52 };
@@ -121,8 +120,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     // Public key of the Group Manager (ECDSA_256)
     private static String gmX_ECDSA = "2236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540";
     private static String gmY_ECDSA = "770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B";
-
-    /* */
     /* */
     
     
@@ -140,7 +137,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
     
     // Public key of the Group Manager (Ed25519)
     private static String gmX_EDDSA = "C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3";
-    /* */
     /* */
     
     private static OneKey C1keyPair = null;
@@ -190,8 +186,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         
         if (args.length < 2) { 
             System.out.println("First argument should be the number of the"
-                    + " test case, second the address of the other endpoint"
-                    + "(AS/RS) without the path");
+            				 + " test case, second the address of the other endpoint"
+            				 + "(AS/RS) without the path");
             // args[0] is the test case, 
             // args[1] is the address of the other endpoint
             return;
@@ -212,8 +208,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.ECDSA_256.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
             rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1X_ECDSA));
             y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1Y_ECDSA));
@@ -227,8 +222,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.EDDSA.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
             rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1X_EDDSA));
             d = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c1D_EDDSA));
@@ -241,8 +235,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.ECDSA_256.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
             rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2X_ECDSA));
             y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2Y_ECDSA));
@@ -252,8 +245,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.ECDSA_256.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
             rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3X_ECDSA));
             y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3Y_ECDSA));
@@ -263,8 +255,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.ECDSA_256.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
             rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_ECDSA));
             y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmY_ECDSA));
@@ -276,8 +267,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.EDDSA.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
             rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c2X_EDDSA));
             rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
@@ -285,8 +275,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.EDDSA.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
             rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(c3X_EDDSA));
             rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
@@ -294,8 +283,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
             
             rpkData = CBORObject.NewMap();
             rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                    AlgorithmID.EDDSA.AsCBOR());
+            rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
             rpkData.Add(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
             x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(gmX_EDDSA));
             rpkData.Add(KeyKeys.OKP_X.AsCBOR(), x);
@@ -316,8 +304,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         uri = uri + ":";
 
         //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
         ctx1 = CwtCryptoCtx.encrypt0(key128_token_rs1, coseP.getAlg().AsCBOR());
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
@@ -350,7 +337,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     private static void printMapPayload(CBORObject obj) throws Exception {
         if (obj != null) {
         	System.out.println("*** Map Payload *** ");
-                System.out.println(obj);
+        	System.out.println(obj);
         } else {
         	System.out.println("*** The payload argument is null!");
         }
@@ -359,8 +346,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
     private static void printResponseFromRS(Response res) throws Exception {
         if (res != null) {
         	System.out.println("*** Response from the RS *** ");
-            System.out.print(res.getCode().codeClass + "." 
-                    + "0" + res.getCode().codeDetail);
+            System.out.print(res.getCode().codeClass + ".0" + res.getCode().codeDetail);
             System.out.println(" " + res.getCode().name());
 
             if (res.getPayload() != null) {
@@ -410,7 +396,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         params.put(Constants.CTI, CBORObject.FromObject(
-                "token4JoinSingleRole".getBytes(Constants.charset))); //Need different CTI
+                   "token4JoinSingleRole".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();
@@ -427,8 +413,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         Response asRes = new Response(CoAP.ResponseCode.CREATED);
         asRes.setPayload(payload.EncodeToBytes());
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info",
-                asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
+                		 	"coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info",
+                		 	asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         
         printResponseFromRS(rsRes);
@@ -500,7 +486,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
         ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
         ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
         }
-        
         
         CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
 
@@ -590,9 +575,13 @@ public class PlugtestClientOSCOREGroupOSCORE {
         // Now proceed with the Join request
         
         CoapClient c = OSCOREProfileRequestsGroupOSCORE.getClient(new InetSocketAddress(
-        		"coap://" + rsAddr + ":" + portNumberRSnosec + "/" + rootGroupMembershipResource + "/" + groupName, portNumberRSnosec), ctxDB);
+        		"coap://" + rsAddr + ":" + portNumberRSnosec + "/" +
+        		rootGroupMembershipResource + "/" + groupName, portNumberRSnosec),
+        		ctxDB);
         
-        System.out.println("Performing Join request using OSCORE to GM at " + "coap://" + rsAddr + ":" + portNumberRSnosec + "/" + rootGroupMembershipResource + "/" + groupName);
+        System.out.println("Performing Join request using OSCORE to GM at " +
+        				   "coap://" + rsAddr + ":" + portNumberRSnosec + "/" +
+        				   rootGroupMembershipResource + "/" + groupName);
        
         CBORObject requestPayload = CBORObject.NewMap();
        
@@ -665,7 +654,9 @@ public class PlugtestClientOSCOREGroupOSCORE {
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMSignNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMSignNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMSignNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMSignNonceCBOR, 0, dataToSign, offset, serializedGMSignNonceCBOR.length);
@@ -1021,12 +1012,12 @@ public class PlugtestClientOSCOREGroupOSCORE {
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
 	    Assert.assertEquals(true, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-	    		                  ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+	    		            ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-        							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());
+        					get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-									 get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
+							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
         CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
         switch (pubKeyEnc) {
@@ -1110,7 +1101,7 @@ public class PlugtestClientOSCOREGroupOSCORE {
         params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
         params.put(Constants.AUD, CBORObject.FromObject("aud2"));
         params.put(Constants.CTI, CBORObject.FromObject(
-                "token4JoinMultipleRoles".getBytes(Constants.charset))); //Need different CTI
+                   "token4JoinMultipleRoles".getBytes(Constants.charset))); //Need different CTI
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
 
         CBORObject osc = CBORObject.NewMap();        
@@ -1128,8 +1119,8 @@ public class PlugtestClientOSCOREGroupOSCORE {
         asRes.setPayload(payload.EncodeToBytes());
         
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
-                "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info",
-                asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
+                		 "coap://" + rsAddr + ":" + portNumberRSnosec + "/authz-info",
+                		 asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
         
         printResponseFromRS(rsRes);
         
@@ -1167,10 +1158,10 @@ public class PlugtestClientOSCOREGroupOSCORE {
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
+            // The algorithm capabilities
             signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -1200,7 +1191,6 @@ public class PlugtestClientOSCOREGroupOSCORE {
         ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
         ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
         }
-        
         
         CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
                 
@@ -1290,7 +1280,9 @@ public class PlugtestClientOSCOREGroupOSCORE {
         // Now proceed with the Join request
         
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://" + rsAddr + ":" + portNumberRSnosec + "/" + rootGroupMembershipResource + "/" + groupName, portNumberRSnosec), ctxDB);
+        		"coap://" + rsAddr + ":" + portNumberRSnosec + "/" +
+        		rootGroupMembershipResource + "/" + groupName, portNumberRSnosec),
+        		ctxDB);
         
         System.out.println("Performing Join request using OSCORE to GM at " + "coap://localhost/feedca570000");
        
@@ -1724,12 +1716,12 @@ public class PlugtestClientOSCOREGroupOSCORE {
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
 	    Assert.assertEquals(true, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-	    		                  ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+	    		            ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
         Assert.assertEquals(CBORType.Integer, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-        							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());
+        					get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
-									 get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
+							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
         CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
         switch (pubKeyEnc) {

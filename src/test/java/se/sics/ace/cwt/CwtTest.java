@@ -92,10 +92,8 @@ public class CwtTest {
         claims.put(Constants.IAT, CBORObject.FromObject(1443944944));
         byte[] cti = {0x0B, 0x71};
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        claims.put(Constants.CNF, 
-                CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
-        claims.put(Constants.SCOPE, CBORObject.FromObject(
-        		"r+/s/light rwx+/a/led w+/dtls"));
+        claims.put(Constants.CNF, CBORObject.DecodeFromBytes(publicKey.EncodeToBytes()));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("r+/s/light rwx+/a/led w+/dtls"));
     }
 
     /**
@@ -176,10 +174,8 @@ public class CwtTest {
            System.out.println("Round Trip Sign");
            Signer me = new Signer();
            me.setKey(privateKey);
-           me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), 
-        		   Attribute.PROTECTED);
-           CwtCryptoCtx ctx = CwtCryptoCtx.signCreate(
-        		   Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
+           me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.ECDSA_256.AsCBOR(), Attribute.PROTECTED);
+           CwtCryptoCtx ctx = CwtCryptoCtx.signCreate(Collections.singletonList(me), AlgorithmID.ECDSA_256.AsCBOR());
            CWT cwt = new CWT(claims);
            
            CBORObject msg = cwt.encode(ctx);
@@ -201,15 +197,13 @@ public class CwtTest {
         public void testRoundTripEncrypt() throws Exception {
             System.out.println("Round Trip Encrypt");
             Recipient me = new Recipient();  
-            me.addAttribute(HeaderKeys.Algorithm, 
-           		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
+            me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
             CBORObject ckey256 = CBORObject.NewMap();
             ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
             ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
             OneKey cborKey = new OneKey(ckey256);
             me.SetKey(cborKey); 
-            CwtCryptoCtx ctx = CwtCryptoCtx.encrypt(
-            		Collections.singletonList(me), AlgorithmID.AES_CCM_16_64_128.AsCBOR());  
+            CwtCryptoCtx ctx = CwtCryptoCtx.encrypt(Collections.singletonList(me), AlgorithmID.AES_CCM_16_64_128.AsCBOR());  
             CWT cwt = new CWT(claims);
             
             CBORObject msg = cwt.encode(ctx);
@@ -228,15 +222,13 @@ public class CwtTest {
          public void testRoundTripMAC() throws Exception {
              System.out.println("Round Trip MAC");
              Recipient me = new Recipient();  
-             me.addAttribute(HeaderKeys.Algorithm, 
-            		 AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
+             me.addAttribute(HeaderKeys.Algorithm, AlgorithmID.Direct.AsCBOR(), Attribute.UNPROTECTED);
              CBORObject ckey256 = CBORObject.NewMap();
              ckey256.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
              ckey256.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
              OneKey cborKey = new OneKey(ckey256);
              me.SetKey(cborKey); 
-             CwtCryptoCtx ctx = CwtCryptoCtx.mac (
-            		 Collections.singletonList(me), AlgorithmID.HMAC_SHA_256.AsCBOR());  
+             CwtCryptoCtx ctx = CwtCryptoCtx.mac (Collections.singletonList(me), AlgorithmID.HMAC_SHA_256.AsCBOR());  
              CWT cwt = new CWT(claims);
              
              CBORObject msg = cwt.encode(ctx);

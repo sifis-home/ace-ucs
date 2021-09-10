@@ -189,7 +189,8 @@ public class TestIntrospect {
         
         
         pdp = new KissPDP(db);
-        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w",
+        						PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs3", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
@@ -272,8 +273,8 @@ public class TestIntrospect {
         params.put(Constants.TOKEN, CBORObject.FromObject(notExist.EncodeToBytes()));
         Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.False));
     }

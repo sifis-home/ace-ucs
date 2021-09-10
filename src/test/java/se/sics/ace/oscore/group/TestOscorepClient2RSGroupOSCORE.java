@@ -294,8 +294,7 @@ public class TestOscorepClient2RSGroupOSCORE {
        Request deleteHello = new Request(CoAP.Code.DELETE);
        deleteHello.getOptions().setOscore(new byte[0]);
        CoapResponse deleteHelloRes = c.advanced(deleteHello);
-       assert(deleteHelloRes.getCode().equals(
-               CoAP.ResponseCode.METHOD_NOT_ALLOWED));
+       assert(deleteHelloRes.getCode().equals(CoAP.ResponseCode.METHOD_NOT_ALLOWED));
        
     }
     
@@ -315,8 +314,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         boolean providePublicKey = true;
         
         //Generate a token
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         CwtCryptoCtx ctx 
             = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
@@ -359,13 +357,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
                 "coap://localhost/authz-info", asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
-        //Check that the OSCORE context has been created:
         
+        //Check that the OSCORE context has been created:
         Assert.assertNotNull(ctxDB.getContext(
                 "coap://localhost/" + rootGroupMembershipResource + "/" + groupName));
         
-        CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
+        CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
         
         // Nonce from the GM, to use together with a local nonce to prove possession of the private key
         byte[] gm_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
@@ -383,21 +381,21 @@ public class TestOscorepClient2RSGroupOSCORE {
             signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
             
             // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+            signParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
             
             // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            signKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+            signKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // EDDSA (Ed25519)
         if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
             signAlgExpected = AlgorithmID.EDDSA.AsCBOR();
             
-                // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+            // The algorithm capabilities
+            signParamsExpected.Add(KeyKeys.KeyType_OKP);    // Key Type
             
-                // The key type capabilities
+            // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
             signKeyParamsExpected.Add(KeyKeys.OKP_Ed25519); // Curve
         }
@@ -411,21 +409,21 @@ public class TestOscorepClient2RSGroupOSCORE {
         // P-256
         if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             // The algorithm capabilities
-            ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+            ecdhParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
             
             // The key type capabilities
             ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+            ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // X25519
         if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
             // The algorithm capabilities
-            ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+            ecdhParamsExpected.Add(KeyKeys.KeyType_OKP);    // Key Type
             
             // The key type capabilities
             ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
-            ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+            ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519);  // Curve
         }
         
         
@@ -510,7 +508,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         }
         
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
         
         CBORObject requestPayload = CBORObject.NewMap();
         
@@ -586,7 +585,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
 
         requestPayload = CBORObject.NewMap();
         
@@ -608,7 +608,8 @@ public class TestOscorepClient2RSGroupOSCORE {
             getPubKeys.Add(CBORObject.True); // This must be true
             
             getPubKeys.Add(CBORObject.NewArray());
-            // The following is required to retrieve the public keys of both the already present group members
+            // The following is required to retrieve the public keys
+            // of both the already present group members
             myRoles = 0;
             myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
@@ -624,12 +625,14 @@ public class TestOscorepClient2RSGroupOSCORE {
        
         if (providePublicKey) {
             
-        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
-        	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+        	// This should never happen, if the Group Manager has provided
+        	// 'kdc_challenge' in the Token POST response, or the joining node
+        	// has computed N_S differently (e.g. through a TLS exporter)
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-            OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+            OneKey publicKey = new OneKey(CBORObject.
+            				    DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
             CBORObject encodedPublicKey = null;
             switch (pubKeyEncExpected.AsInt32()) {
@@ -655,12 +658,15 @@ public class TestOscorepClient2RSGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.
+            					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -687,7 +693,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         System.out.println("Sent Join request to GM: " + requestPayload.toString());
         CoapResponse r2 = c.advanced(joinReq);
        
-        System.out.println("Received Join Reponse from the GM: " + CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
+        System.out.println("Received Join Reponse from the GM: " +
+        				   CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
         
         Assert.assertEquals("CREATED", r2.getCode().name());
        
@@ -701,7 +708,8 @@ public class TestOscorepClient2RSGroupOSCORE {
     	
         String nodeName =  Utils.bytesToHex(groupId) + "-" + Utils.bytesToHex(senderId);
         
-        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        String uriNodeResource = new String (rootGroupMembershipResource + "/" +
+        									 groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
         byte[] responsePayload = r2.getPayload();
@@ -1009,7 +1017,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("\nPerforming a Key Distribution Rquest using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming a Key Distribution Rquest using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         Request keyDistrReq = new Request(Code.GET, Type.CON);
         keyDistrReq.getOptions().setOscore(new byte[0]);        
@@ -1106,10 +1115,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         CoapClient c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
         VersionReq.getOptions().setOscore(new byte[0]);
@@ -1133,10 +1144,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request GroupStatusReq = new Request(Code.GET, Type.CON);
         GroupStatusReq.getOptions().setOscore(new byte[0]);
@@ -1160,10 +1173,13 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/policies", CoAP.DEFAULT_COAP_PORT),
+        		ctxDB);
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
         GroupPoliciesReq.getOptions().setOscore(new byte[0]);
@@ -1189,10 +1205,13 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT),
+        		ctxDB);
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
         PubKeyReq.getOptions().setOscore(new byte[0]);
@@ -1403,10 +1422,13 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT),
+        		ctxDB);
 
         requestPayload = CBORObject.NewMap();
 
@@ -1520,7 +1542,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         peerSenderId = new byte[] { (byte) 0x52 };
         peerSenderIdFromResponse = myObject.
         	    get(CBORObject.FromObject(Constants.PEER_IDENTIFIERS)).get(1).GetByteString();
-        peerPublicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
+        peerPublicKey = new OneKey(CBORObject.
+        				 DecodeFromBytes(Base64.getDecoder().decode(strPublicKeyPeer1)));
         Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
        
         peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
@@ -1590,7 +1613,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
         
-        System.out.println("Performing a Key Distribution Request GET Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -1692,7 +1716,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
         
-        System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -1723,14 +1748,16 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
         
-        System.out.println("Performing a Public Key Update Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath +  "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         requestPayload = CBORObject.NewMap();
         
-        OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
+        OneKey publicKey = new OneKey(CBORObject.
+        					DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
 
         CBORObject encodedPublicKey = null;
         switch (pubKeyEncExpected.AsInt32()) {
@@ -1754,14 +1781,18 @@ public class TestOscorepClient2RSGroupOSCORE {
         new SecureRandom().nextBytes(cnonce);
         requestPayload.Add(Constants.CNONCE, cnonce);
 
-        // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+        // Add the signature computed over
+        // (scope | rsnonce | cnonce), using the Client's private key
         int offset = 0;
-        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+        PrivateKey privKey = (new OneKey(CBORObject.
+        					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
 
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
         byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-        byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+        byte [] dataToSign = new byte [serializedScopeCBOR.length +
+                                       serializedGMNonceCBOR.length +
+                                       serializedCNonceCBOR.length];
         System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
         offset += serializedScopeCBOR.length;
         System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -1798,7 +1829,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using OSCORE to GM at " + "coap://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -1876,10 +1908,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Group Manager Public Key Request, using the GET method
 
-        System.out.println("Performing a Group Manager Public Key GET Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/gm-pub-key");
+        System.out.println("Performing a Group Manager Public Key GET Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-                "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                "coap://localhost/" + rootGroupMembershipResource + "/" +
+                groupName + "/gm-pub-key", CoAP.DEFAULT_COAP_PORT),
+        		ctxDB);
                 
         Request GmPubKeyReq = new Request(Code.GET, Type.CON);
         GmPubKeyReq.getOptions().setOscore(new byte[0]);
@@ -1949,8 +1984,6 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         
         
-        
-        
         /////////////////
         //
         // Part 13
@@ -1959,7 +1992,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -1978,7 +2012,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -2040,8 +2075,9 @@ public class TestOscorepClient2RSGroupOSCORE {
         // 
         // Normally, a client understands that the Token is indeed for updating access rights,
         // since the response from the AS does not include the 'cnf' parameter.
-        CoapResponse rsRes2 = OSCOREProfileRequestsGroupOSCORE.postTokenUpdate("coap://localhost/authz-info",
-        																	   asRes, askForSignInfo, askForEcdhInfo, ctxDB);
+        CoapResponse rsRes2 = OSCOREProfileRequestsGroupOSCORE.
+        		postTokenUpdate("coap://localhost/authz-info", asRes, askForSignInfo, askForEcdhInfo, ctxDB);
+        
         assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
         
         Assert.assertNotNull(ctxDB.getContext(
@@ -2140,7 +2176,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a new Join Request under the new Access Token
         
-        System.out.println("\nPerforming Join Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming Join Request using OSCORE to GM at " +
+        			       "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
 
         requestPayload = CBORObject.NewMap();
         
@@ -2162,7 +2199,8 @@ public class TestOscorepClient2RSGroupOSCORE {
             getPubKeys.Add(CBORObject.True); // This must be true
             
             getPubKeys.Add(CBORObject.NewArray());
-            // The following is required to retrieve the public keys of both the already present group members
+            // The following is required to retrieve the public keys
+            // of both the already present group members
             myRoles = 0;
             myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);
@@ -2179,12 +2217,14 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         if (providePublicKey) {
             
-        	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
-        	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+        	// This should never happen, if the Group Manager has provided
+        	// 'kdc_challenge' in the Token POST response, or the joining node
+        	// has computed N_S differently (e.g. through a TLS exporter)
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the PoP evidence challence is null");
         	
-            publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+            publicKey = new OneKey(CBORObject.
+            			 DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
             encodedPublicKey = null;
             switch (pubKeyEncExpected.AsInt32()) {
@@ -2208,14 +2248,18 @@ public class TestOscorepClient2RSGroupOSCORE {
             new SecureRandom().nextBytes(cnonce);
             requestPayload.Add(Constants.CNONCE, cnonce);
             
-            // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+            // Add the signature computed over
+            // (scope | rsnonce | cnonce), using the Client's private key
             offset = 0;
-            privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            privKey = (new OneKey(CBORObject.
+            			DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    dataToSign = new byte [serializedScopeCBOR.length +
+       	                           serializedGMNonceCBOR.length +
+       	                           serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -2236,14 +2280,16 @@ public class TestOscorepClient2RSGroupOSCORE {
             joinReq.getOptions().setContentFormat(Constants.APPLICATION_ACE_GROUPCOMM_CBOR);
             
             c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-            		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+            		"coap://localhost/" + rootGroupMembershipResource + "/" +
+            		groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
             
             // Submit the request
             System.out.println("");
             System.out.println("Sent Join request to GM: " + requestPayload.toString());
             r2 = c1.advanced(joinReq);
             
-            System.out.println("Received Join Reponse from the GM: " + CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
+            System.out.println("Received Join Reponse from the GM: " +
+            				   CBORObject.DecodeFromBytes(r2.getPayload()).toString()); 
             
             Assert.assertEquals("CREATED", r2.getCode().name());
             
@@ -2536,10 +2582,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         boolean providePublicKey = true;
         
         //Generate a token
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(keyASRS, coseP.getAlg().AsCBOR());
         Map<Short, CBORObject> params = new HashMap<>(); 
         
         // Create the scope
@@ -2581,14 +2625,13 @@ public class TestOscorepClient2RSGroupOSCORE {
         Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(
                 "coap://localhost/authz-info", asRes, askForSignInfo, askForEcdhInfo, ctxDB, usedRecipientIds);
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
+        
         //Check that the OSCORE context has been created:
+        Assert.assertNotNull(ctxDB.getContext("coap://localhost/feedca570000"));
         
-        Assert.assertNotNull(ctxDB.getContext(
-                "coap://localhost/feedca570000"));
-        
-        CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
-        
+        CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
+         
         // Nonce from the GM, to use together with a local nonce to prove possession of the private key
         byte[] gm_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
         
@@ -2605,11 +2648,11 @@ public class TestOscorepClient2RSGroupOSCORE {
             signAlgExpected = AlgorithmID.ECDSA_256.AsCBOR();
             
             // The algorithm capabilities
-            signParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+            signParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
             
             // The key type capabilities
             signKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            signKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+            signKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // EDDSA (Ed25519)
@@ -2633,21 +2676,21 @@ public class TestOscorepClient2RSGroupOSCORE {
         // P-256
         if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
             // The algorithm capabilities
-            ecdhParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
+            ecdhParamsExpected.Add(KeyKeys.KeyType_EC2);    // Key Type
             
             // The key type capabilities
             ecdhKeyParamsExpected.Add(KeyKeys.KeyType_EC2); // Key Type
-            ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256); // Curve
+            ecdhKeyParamsExpected.Add(KeyKeys.EC2_P256);    // Curve
         }
 
         // X25519
         if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
             // The algorithm capabilities
-            ecdhParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
+            ecdhParamsExpected.Add(KeyKeys.KeyType_OKP);    // Key Type
             
             // The key type capabilities
             ecdhKeyParamsExpected.Add(KeyKeys.KeyType_OKP); // Key Type
-            ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519); // Curve
+            ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519);  // Curve
         }
         
         
@@ -2732,7 +2775,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         
         CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName, CoAP.DEFAULT_COAP_PORT), ctxDB);
         
         CBORObject requestPayload = CBORObject.NewMap();
         
@@ -2758,7 +2802,7 @@ public class TestOscorepClient2RSGroupOSCORE {
 		signAlg = AlgorithmID.ECDSA_256;
 		signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 		signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		signKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 		}
 		    
 		// EDDSA (Ed25519)
@@ -2782,14 +2826,14 @@ public class TestOscorepClient2RSGroupOSCORE {
 		if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 		ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 		ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+		ecdhKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 		}
 		    
 		// X25519
 		if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
 		ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
 		ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+		ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519);  // Curve
 		}
 		    
 		ecdhParams.Add(ecdhAlgCapabilities);
@@ -2804,7 +2848,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Join Request
         
-        System.out.println("\nPerforming Join Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");       
+        System.out.println("\nPerforming Join Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);       
         requestPayload = CBORObject.NewMap();
        
         cborArrayScope = CBORObject.NewArray();
@@ -2826,7 +2871,8 @@ public class TestOscorepClient2RSGroupOSCORE {
             getPubKeys.Add(CBORObject.True); // This must be true
             
             getPubKeys.Add(CBORObject.NewArray());
-            // The following is required to retrieve the public keys of both the already present group members
+            // The following is required to retrieve the public keys
+            // of both the already present group members
             myRoles = 0;
             myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
             getPubKeys.get(1).Add(myRoles);            
@@ -2842,12 +2888,14 @@ public class TestOscorepClient2RSGroupOSCORE {
        
        if (providePublicKey) {
     	   
-	    	// This should never happen, if the Group Manager has provided 'kdc_challenge' in the Token POST response,
-	       	// or the joining node has computed N_S differently (e.g. through a TLS exporter)
+	    	// This should never happen, if the Group Manager has provided
+    	   // 'kdc_challenge' in the Token POST response, or the joining node
+	       	// has computed N_S differently (e.g. through a TLS exporter)
     	    if (gm_nonce == null)
     	    	Assert.fail("Error: the component N_S of the PoP evidence challence is null");
            
-            OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
+            OneKey publicKey = new OneKey(CBORObject.
+            					DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair))).PublicKey();
             
             CBORObject encodedPublicKey = null;
             switch (pubKeyEncExpected.AsInt32()) {
@@ -2873,12 +2921,15 @@ public class TestOscorepClient2RSGroupOSCORE {
             
             // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
             int offset = 0;
-            PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
+            PrivateKey privKey = (new OneKey(CBORObject.
+            					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPair)))).AsPrivateKey();
             
             byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
             byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
             byte[] serializedCNonceCBOR = CBORObject.FromObject(cnonce).EncodeToBytes();
-       	    byte [] dataToSign = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+       	    byte [] dataToSign = new byte [serializedScopeCBOR.length +
+       	                                   serializedGMNonceCBOR.length +
+       	                                   serializedCNonceCBOR.length];
        	    System.arraycopy(serializedScopeCBOR, 0, dataToSign, offset, serializedScopeCBOR.length);
        	    offset += serializedScopeCBOR.length;
        	    System.arraycopy(serializedGMNonceCBOR, 0, dataToSign, offset, serializedGMNonceCBOR.length);
@@ -2915,7 +2966,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
     	final byte[] senderId = new byte[] { (byte) 0x25 };
     	String nodeName =  Utils.bytesToHex(groupId) + "-" + Utils.bytesToHex(senderId);
-        String uriNodeResource = new String (rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
         Assert.assertEquals(uriNodeResource, r2.getOptions().getLocationPathString());
         
         byte[] responsePayload = r2.getPayload();
@@ -3214,7 +3265,8 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a second Key Distribution Request, now as a group member
         
-        System.out.println("\nPerforming a Key Distribution Rquest using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000");
+        System.out.println("\nPerforming a Key Distribution Rquest using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName);
         
         Request keyDistrReq = new Request(Code.GET, Type.CON);
         keyDistrReq.getOptions().setOscore(new byte[0]);
@@ -3312,10 +3364,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Version Request
         
-        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         CoapClient c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request VersionReq = new Request(Code.GET, Type.CON);
         VersionReq.getOptions().setOscore(new byte[0]);
@@ -3339,10 +3393,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Group Status Request
         
-        System.out.println("Performing a Group Status Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/active");
+        System.out.println("Performing a Group Status Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/active", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request GroupStatusReq = new Request(Code.GET, Type.CON);
         GroupStatusReq.getOptions().setOscore(new byte[0]);
@@ -3366,10 +3422,12 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Policies Request
         
-        System.out.println("Performing a Policies Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/policies");
+        System.out.println("Performing a Policies Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName+ "/policies");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/policies", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/policies", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request GroupPoliciesReq = new Request(Code.GET, Type.CON);
         GroupPoliciesReq.getOptions().setOscore(new byte[0]);
@@ -3395,10 +3453,13 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Request, using the GET method
         
-        System.out.println("Performing a Public Key GET Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key GET Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" +
+        	        		groupName + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request PubKeyReq = new Request(Code.GET, Type.CON);
         PubKeyReq.getOptions().setOscore(new byte[0]);
@@ -3614,17 +3675,21 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Request, using the FETCH method
         
-        System.out.println("Performing a Public Key FETCH Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/pub-key");
+        System.out.println("Performing a Public Key FETCH Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
 
         requestPayload = CBORObject.NewMap();
 
         CBORObject getPubKeys = CBORObject.NewArray();
         
-        // Ask for the public keys of group members that are (also) responder
-        // This will match with both this node's public key, as well as the public key of the node with Sender ID 0x77 
+        // Ask for the public keys of group members that are (also) responder.
+        //
+        // This will match with both this node's public key,
+        // as well as the public key of the node with Sender ID 0x77 
         
         getPubKeys.Add(CBORObject.True);
         
@@ -3853,7 +3918,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Key Distribution Request to the node sub-resource, using the GET method
         
-        System.out.println("Performing a Key Distribution Request GET Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Distribution Request GET Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -3954,7 +4020,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Key Renewal Request to the node sub-resource, using the PUT method
         
-        System.out.println("Performing a Key Renewal Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Key Renewal Request " +
+        				   "using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -3986,14 +4053,16 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Public Key Update Request to the node sub-resource /pub-key, using the POST method
         
-        System.out.println("Performing a Public Key Update Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
+        System.out.println("Performing a Public Key Update Request " +
+        		"using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath + "/pub-key");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath +  "/pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         requestPayload = CBORObject.NewMap();
         
-        OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
+        OneKey publicKey = new OneKey(CBORObject.
+        				    DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate))).PublicKey();
 
         CBORObject encodedPublicKey = null;
         switch (pubKeyEncExpected.AsInt32()) {
@@ -4017,9 +4086,11 @@ public class TestOscorepClient2RSGroupOSCORE {
         new SecureRandom().nextBytes(cnonce);
         requestPayload.Add(Constants.CNONCE, cnonce);
 
-        // Add the signature computed over (scope | rsnonce | cnonce), using the Client's private key
+        // Add the signature computed over
+        // (scope | rsnonce | cnonce), using the Client's private key
         int offset = 0;
-        PrivateKey privKey = (new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
+        PrivateKey privKey = (new OneKey(CBORObject.
+        					   DecodeFromBytes(Base64.getDecoder().decode(groupKeyPairUpdate)))).AsPrivateKey();
 
         byte[] serializedScopeCBOR = CBORObject.FromObject(byteStringScope).EncodeToBytes();
         byte[] serializedGMNonceCBOR = CBORObject.FromObject(gm_nonce).EncodeToBytes();
@@ -4061,7 +4132,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Group Name and URI Retrieval Request, using the FETCH method
         
-        System.out.println("Performing a Group Name and URI Retrieval Request using OSCORE to GM at " + "coap://localhost/ace-group");
+        System.out.println("Performing a Group Name and URI Retrieval Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + rootGroupMembershipResource, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -4139,10 +4211,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Group Manager Public Key Request, using the GET method
 
-        System.out.println("Performing a Group Manager Public Key GET Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/gm-pub-key");
+        System.out.println("Performing a Group Manager Public Key GET Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key");
 
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-                "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                "coap://localhost/" + rootGroupMembershipResource + "/" +
+                groupName + "/gm-pub-key", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         Request GmPubKeyReq = new Request(Code.GET, Type.CON);
         GmPubKeyReq.getOptions().setOscore(new byte[0]);
@@ -4219,7 +4293,8 @@ public class TestOscorepClient2RSGroupOSCORE {
 		
         // Send a Leaving Group Request to the node sub-resource, using the DELETE method
         
-        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" + nodeResourceLocationPath);
+        System.out.println("Performing a Leaving Group Request using OSCORE to GM at coap://localhost/" +
+        				   nodeResourceLocationPath);
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
         		"coap://localhost/" + nodeResourceLocationPath, CoAP.DEFAULT_COAP_PORT), ctxDB);
@@ -4238,10 +4313,12 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         // Send a Version Request, not as a member any more
         
-        System.out.println("Performing a Version Request using OSCORE to GM at " + "coap://localhost/ace-group/feedca570000/num");
+        System.out.println("Performing a Version Request using OSCORE to GM at " +
+        				   "coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num");
         
         c1 = OSCOREProfileRequests.getClient(new InetSocketAddress(
-        		"coap://localhost/" + rootGroupMembershipResource + "/" + groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
+        		"coap://localhost/" + rootGroupMembershipResource + "/" +
+        		groupName + "/num", CoAP.DEFAULT_COAP_PORT), ctxDB);
                 
         VersionReq = new Request(Code.GET, Type.CON);
         VersionReq.getOptions().setOscore(new byte[0]);
@@ -4264,8 +4341,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         
         ctxDB.addContext("coap://localhost/helloWorld", osctx);
         CoapClient c = OSCOREProfileRequests.getClient(
-                new InetSocketAddress(
-                        "coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
+                new InetSocketAddress("coap://localhost/helloWorld", CoAP.DEFAULT_COAP_PORT), ctxDB);
         
         CoapResponse res = c.get();
         assert(res.getCode().equals(CoAP.ResponseCode.UNAUTHORIZED));

@@ -126,11 +126,14 @@ public class PlugtestRSGroupOSCORE {
 	
 	private final static String rootGroupMembershipResource = "ace-group";
     
-	private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+	// Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+	private final static int groupIdPrefixSize = 4; 
 	
-	private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
+	// Initial part of the node name for monitors, since they do not have a Sender ID
+	private final static String prefixMonitorNames = "M";
 	
-	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
+	// For non-monitor members, separator between the two components of the node name
+	private final static String nodeNameSeparator = "-";
 	
 	private static Set<Integer> validRoleCombinations = new HashSet<Integer>();
 	
@@ -319,19 +322,22 @@ public class PlugtestRSGroupOSCORE {
             		// This is still fine, as long as at least one Access Tokens
             		// of the requester allows also the role "Verifier" in this group
             		
-            		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+            		// Check that at least one of the Access Tokens for this node
+            		// allows (also) the Verifier role for this group
                 	
             		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
             		boolean allowed = false;
                 	int[] roleSetToken = getRolesFromToken(subject, groupName);
                 	if (roleSetToken == null) {
-                		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+                		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, 
+                						 "Error when retrieving allowed roles from Access Tokens");
                 		return;
                 	}
                 	else {
                 		for (int index = 0; index < roleSetToken.length; index++) {
                 			if ((role & roleSetToken[index]) != 0) {
-                    			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+                    			// 'scope' in this Access Token admits (also) the role "Verifier" for this group.
+                				// This makes it fine for the requester.
                 				allowed = true;
                 				break;
                 			}
@@ -426,12 +432,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -439,7 +447,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}  
         	
@@ -470,7 +479,8 @@ public class PlugtestRSGroupOSCORE {
         	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
         	myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
         	
-        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Input_Material object,
+        	// as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
@@ -563,22 +573,26 @@ public class PlugtestRSGroupOSCORE {
         	
         	CBORObject errorResponseMap = CBORObject.NewMap();
 
-        	// Prepare the 'sign_info' and 'ecdh_info' parameter, to possibly return it in a 4.00 (Bad Request) response        	
+        	// Prepare the 'sign_info' and 'ecdh_info' parameter,
+        	// to possibly return it in a 4.00 (Bad Request) response        	
         	CBORObject signInfo = CBORObject.NewArray();
         	CBORObject ecdhInfo = CBORObject.NewArray();
 				
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getName());
 			
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
         	if (!targetedGroup.getStatus()) {
         		// The group is currently inactive and no new members are admitted
-        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "The OSCORE group is currently not active");
+        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+        						 "The OSCORE group is currently not active");
             	return;
         	}
         	
@@ -587,17 +601,23 @@ public class PlugtestRSGroupOSCORE {
         	    CBORObject signInfoEntry = CBORObject.NewArray();
         	    signInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
         	    signInfoEntry.Add(targetedGroup.getSignAlg().AsCBOR()); // 'sign_alg' element
-        	    CBORObject arrayElem = targetedGroup.getSignParams().get(0); // 'sign_parameters' element (The algorithm capabilities)
+        	    
+        	    // 'sign_parameters' element (The algorithm capabilities)
+        	    CBORObject arrayElem = targetedGroup.getSignParams().get(0);
         	    if (arrayElem == null)
         	        signInfoEntry.Add(CBORObject.Null);
         	    else
         	        signInfoEntry.Add(arrayElem);
-        	    arrayElem = targetedGroup.getSignParams().get(1); // 'sign_key_parameters' element (The key type capabilities)
+        	    
+        	    // 'sign_key_parameters' element (The key type capabilities)
+        	    arrayElem = targetedGroup.getSignParams().get(1);
         	    if (arrayElem == null)
         	        signInfoEntry.Add(CBORObject.Null);
         	    else
         	        signInfoEntry.Add(arrayElem);
-        	    signInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
+        	    
+        	    // 'pub_key_enc' element
+        	    signInfoEntry.Add(targetedGroup.getPubKeyEnc());
         	    signInfo.Add(signInfoEntry);
         	    errorResponseMap.Add(Constants.SIGN_INFO, signInfo);
         	}
@@ -607,17 +627,23 @@ public class PlugtestRSGroupOSCORE {
         	    CBORObject ecdhInfoEntry = CBORObject.NewArray();
         	    ecdhInfoEntry.Add(CBORObject.FromObject(targetedGroup.getGroupName())); // 'id' element
         	    ecdhInfoEntry.Add(targetedGroup.getEcdhAlg().AsCBOR()); // 'ecdh_alg' element
-        	    CBORObject arrayElem = targetedGroup.getEcdhParams().get(0); // 'ecdh_parameters' element (The algorithm capabilities)
+        	    
+        	    // 'ecdh_parameters' element (The algorithm capabilities)
+        	    CBORObject arrayElem = targetedGroup.getEcdhParams().get(0);
         	    if (arrayElem == null)
         	        ecdhInfoEntry.Add(CBORObject.Null);
         	    else
         	        ecdhInfoEntry.Add(arrayElem);
-        	    arrayElem = targetedGroup.getEcdhParams().get(1); // 'ecdh_key_parameters' element (The key type capabilities)
+        	    
+        	    // 'ecdh_key_parameters' element (The key type capabilities)
+        	    arrayElem = targetedGroup.getEcdhParams().get(1);
         	    if (arrayElem == null)
         	        ecdhInfoEntry.Add(CBORObject.Null);
         	    else
         	        ecdhInfoEntry.Add(arrayElem);
-        	    ecdhInfoEntry.Add(targetedGroup.getPubKeyEnc()); // 'pub_key_enc' element
+        	    
+        	    // 'pub_key_enc' element
+        	    ecdhInfoEntry.Add(targetedGroup.getPubKeyEnc());
         	    ecdhInfo.Add(ecdhInfoEntry);
         	    errorResponseMap.Add(Constants.ECDH_INFO, ecdhInfo);
         	}
@@ -683,14 +709,16 @@ public class PlugtestRSGroupOSCORE {
   	  			// The group name in 'scope' is not pertinent for this group-membership resource
           	  	if (!groupName.equals(this.getName())) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	  				exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+	  								 Constants.APPLICATION_ACE_CBOR);
 	  				return;
 	  			}      	  		
       	  	}
       	  	// Invalid scope format for joining OSCORE groups
       	  	else {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+      	  						 Constants.APPLICATION_ACE_CBOR);
         		return;
       	  	}
       	  	
@@ -705,13 +733,15 @@ public class PlugtestRSGroupOSCORE {
         		// Invalid format of roles
         		if (roleSet < 0) {
                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+      	  			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+      	  							 Constants.APPLICATION_ACE_CBOR);
 	        		return;
         		}
         		// Invalid combination of roles
         		if(!validRoleCombinations.contains(roleSet)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+  					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+  									 Constants.APPLICATION_ACE_CBOR);
   					return;
         		}
         		Set<Integer> roleIdSet = new HashSet<Integer>();
@@ -736,7 +766,8 @@ public class PlugtestRSGroupOSCORE {
         	// Invalid format of roles
       	  	else {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+      	  		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+      	  						 Constants.APPLICATION_ACE_CBOR);
         		return;
       	  	}
         	
@@ -744,13 +775,15 @@ public class PlugtestRSGroupOSCORE {
         	boolean allowed = false;
         	int[] roleSetToken = getRolesFromToken(subject, groupName);
         	if (roleSetToken == null) {
-        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+        						 "Error when retrieving allowed roles from Access Tokens");
         		return;
         	}
         	else {
         		for (int index = 0; index < roleSetToken.length; index++) {
             		if ((roleSet & roleSetToken[index]) == roleSet) {
-            			// 'scope' in at least one Access Token admits all the roles indicated for this group in the Joining Request
+            			// 'scope' in at least one Access Token admits all the roles
+            			// indicated for this group in the Joining Request
             			allowed = true;
             			break;
             		}
@@ -771,7 +804,8 @@ public class PlugtestRSGroupOSCORE {
         		// Invalid format of 'get_pub_keys'
         		if (!getPubKeys.getType().equals(CBORType.Array) && !getPubKeys.equals(CBORObject.Null)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+        							 Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
         		
@@ -785,7 +819,8 @@ public class PlugtestRSGroupOSCORE {
 	        			 getPubKeys.get(2).size() != 0) {
 	            		
 	            		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-	        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	        			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+	        							 Constants.APPLICATION_ACE_CBOR);
 	            		return;
 	            		
 	        		}
@@ -800,7 +835,8 @@ public class PlugtestRSGroupOSCORE {
 	    					!validRoleCombinations.contains(getPubKeys.get(1).get(i).AsInt32())) {
 	    					
 	                		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-	            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+	            			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+	            							 Constants.APPLICATION_ACE_CBOR);
 	                		return;
 	    					
 	    				}
@@ -829,7 +865,8 @@ public class PlugtestRSGroupOSCORE {
         	nodeName = myGroup.allocateNodeName(senderId);
         	
         	if (nodeName == null) {
-        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when assigning a node name");
+        		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+        						 "Error when assigning a node name");
         		return;
         	}
         	
@@ -842,7 +879,8 @@ public class PlugtestRSGroupOSCORE {
         		
         	}
         	if (clientCred == null && (roleSet != (1 << Constants.GROUP_OSCORE_MONITOR))) {
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A public key was neither provided nor found as already stored");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        						 "A public key was neither provided nor found as already stored");
         		return;
         	}
         	// Process the public key of the joining node
@@ -885,7 +923,8 @@ public class PlugtestRSGroupOSCORE {
         		}
         		if (publicKey == null ||  valid == false) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+            						 Constants.APPLICATION_ACE_CBOR);
             		return;
         		}
         		        		
@@ -895,15 +934,19 @@ public class PlugtestRSGroupOSCORE {
             		    myGroup.getSignAlg().equals(AlgorithmID.ECDSA_512)) {
             			
         				// Invalid public key format
-            			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
-                       		!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
-                       		!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getSignParams().get(1).get(1))) // key capability: curve
+            			if (!publicKey.get(KeyKeys.KeyType).
+            					equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+                       		!publicKey.get(KeyKeys.KeyType).
+                       			equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
+                       		!publicKey.get(KeyKeys.EC2_Curve).
+                       			equals(myGroup.getSignParams().get(1).get(1))) 	 // key capability: curve
             			{ 
 
                     			myGroup.deallocateSenderId(senderId);
 
                         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-                        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+                        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+                        						 Constants.APPLICATION_ACE_CBOR);
                     			return;
                             		
                     	}
@@ -913,15 +956,19 @@ public class PlugtestRSGroupOSCORE {
             		if (myGroup.getSignAlg().equals(AlgorithmID.EDDSA)) {
             			
             			// Invalid public key format
-            			if (!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
-                   			!publicKey.get(KeyKeys.KeyType).equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
-                   			!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getSignParams().get(1).get(1))) // key capability: curve
+            			if (!publicKey.get(KeyKeys.KeyType).
+            					equals(myGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+                   			!publicKey.get(KeyKeys.KeyType).
+                   				equals(myGroup.getSignParams().get(1).get(0)) || // key capability: key type
+                   			!publicKey.get(KeyKeys.OKP_Curve).
+                   				equals(myGroup.getSignParams().get(1).get(1)))   // key capability: curve
             			{
 
                         			myGroup.deallocateSenderId(senderId);
 
                             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-                            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+                            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+                            						 Constants.APPLICATION_ACE_CBOR);
                         			return;
                         		
                 		}
@@ -934,31 +981,37 @@ public class PlugtestRSGroupOSCORE {
         		// A client nonce must be included for proof-of-possession
             	if (cnonce == null) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+            						 Constants.APPLICATION_ACE_CBOR);
             		return;
             	}
             	
             	// The client nonce must be wrapped in a binary string
             	if (!cnonce.getType().equals(CBORType.ByteString)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+            						 Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
             	
-        		// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
-            	CBORObject clientPopEvidence = joinRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+        		// Check the proof-of-possession evidence over
+            	// (scope | rsnonce | cnonce), using the Client's public key
+            	CBORObject clientPopEvidence = joinRequest.
+            				get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
             	
             	// A client PoP evidence must be included
             	if (clientPopEvidence == null) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+            						 Constants.APPLICATION_ACE_CBOR);
             		return;
             	}
             	
             	// The client PoP evidence must be wrapped in a binary string
             	if (!clientPopEvidence.getType().equals(CBORType.ByteString)) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+            						 Constants.APPLICATION_ACE_CBOR);
             		return;
                 }
             	
@@ -969,11 +1022,13 @@ public class PlugtestRSGroupOSCORE {
 					pubKey = publicKey.AsPublicKey();
 				} catch (CoseException e) {
 					System.out.println(e.getMessage());
-					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+									 "Failed to use the Client's public key to verify the PoP evidence");
             		return;
 				}
                 if (pubKey == null) {
-                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
+                	exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+                					 "Failed to use the Client's public key to verify the PoP evidence");
             		return;
                 }
                 
@@ -982,7 +1037,9 @@ public class PlugtestRSGroupOSCORE {
                 byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
     			byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
     			byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
-    			byte[] popInput = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+    			byte[] popInput = new byte [serializedScopeCBOR.length +
+    			                            serializedGMNonceCBOR.length +
+    			                            serializedCNonceCBOR.length];
     			System.arraycopy(serializedScopeCBOR, 0, popInput, offset, serializedScopeCBOR.length);
     			offset += serializedScopeCBOR.length;
     			System.arraycopy(serializedGMNonceCBOR, 0, popInput, offset, serializedGMNonceCBOR.length);
@@ -999,14 +1056,16 @@ public class PlugtestRSGroupOSCORE {
 
     			    // This should never happen, due to the previous sanity checks
     			    if (signKeyCurve == 0) {
-    			        exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+    			        exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+    			        				 "error when setting up the signature verification");
     			        return;
     			    }
 
     			    // Invalid Client's PoP signature
     			    if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
     			    	byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-    			    	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload, Constants.APPLICATION_ACE_CBOR);
+    			    	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, errorResponsePayload,
+    			    					 Constants.APPLICATION_ACE_CBOR);
     			        return;
     			    }
     			}
@@ -1017,7 +1076,8 @@ public class PlugtestRSGroupOSCORE {
             	
     			if (!myGroup.storePublicKey(senderId, clientCred)) {
         			myGroup.deallocateSenderId(senderId);
-					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
+					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+									 "error when storing the public key");
             		return;
         			
         		}
@@ -1052,8 +1112,10 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Create and add the sub-resource associated to the new group member
         	try {
-        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName));
-        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName + "/pub-key"));
+        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" +
+        													 groupName + "/nodes/" + nodeName));
+        		valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" +
+        													 groupName + "/nodes/" + nodeName + "/pub-key"));
     		}
     		catch(AceException e) {
     			myGroup.removeGroupMemberBySubject(subject);
@@ -1064,7 +1126,8 @@ public class PlugtestRSGroupOSCORE {
 	    			myGroup.deletePublicKey(senderId);
     			}
     			
-				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when creating the node sub-resource");
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+								 "error when creating the node sub-resource");
         		return;
     		}
         	Set<Short> actions = new HashSet<>();
@@ -1091,7 +1154,8 @@ public class PlugtestRSGroupOSCORE {
         	// Key Type Value assigned to the Group_OSCORE_Input_Material object.
         	joinResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
         	
-        	// This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+        	// This map is filled as the Group_OSCORE_Input_Material object,
+        	// as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
@@ -1165,7 +1229,8 @@ public class PlugtestRSGroupOSCORE {
         	            for (int i = 0; i < getPubKeys.get(1).size(); i++) {
         	                int filterRoles = getPubKeys.get(1).get(i).AsInt32();
         	                int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
-        	                // The owner of this public key does not have all its roles indicated in this AIF integer filter
+        	                // The owner of this public key does not have
+        	                // all its roles indicated in this AIF integer filter
         	                if (filterRoles != (filterRoles & memberRoles)) {
         	                    continue;
         	                }
@@ -1220,7 +1285,8 @@ public class PlugtestRSGroupOSCORE {
 				gmPrivKey = targetedGroup.getGmKeyPair().AsPrivateKey();
 			} catch (CoseException e) {
 				System.err.println("Error when computing the GM PoP evidence " + e.getMessage());
-				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+								 "error when computing the GM PoP evidence");
         		return;
 			}
         	byte[] gmSignature = Util.computeSignature(signKeyCurve,gmPrivKey, kdcNonce);
@@ -1229,12 +1295,14 @@ public class PlugtestRSGroupOSCORE {
         	    joinResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
         	}
         	else {
-				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+								 "error when computing the GM PoP evidence");
         		return;
         	}
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
-        	String uriNodeResource = new String(rootGroupMembershipResource + "/" + groupName + "/nodes/" + nodeName);
+        	String uriNodeResource = new String(rootGroupMembershipResource + "/" +
+        										groupName + "/nodes/" + nodeName);
         	
         	Response coapJoinResponse = new Response(CoAP.ResponseCode.CREATED);
         	coapJoinResponse.setPayload(responsePayload);
@@ -1271,12 +1339,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -1284,7 +1354,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -1298,7 +1369,8 @@ public class PlugtestRSGroupOSCORE {
 			}
             if (subject == null) {
             	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
@@ -1309,19 +1381,22 @@ public class PlugtestRSGroupOSCORE {
         		// This is still fine, as long as at least one Access Tokens
         		// of the requester allows also the role "Verifier" in this group
         		
-        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+        		// Check that at least one of the Access Tokens for this node
+        		// allows (also) the Verifier role for this group
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
             	int[] roleSetToken = getRolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
-            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+            						 "Error when retrieving allowed roles from Access Tokens");
             		return;
             	}
             	else {
             		for (int index = 0; index < roleSetToken.length; index++) {
             			if ((role & roleSetToken[index]) != 0) {
-                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group.
+            				// This makes it fine for the requester.
             				allowed = true;
             				break;
             			}
@@ -1329,7 +1404,8 @@ public class PlugtestRSGroupOSCORE {
             	}
             	
             	if (!allowed) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a non-member which is not a Verifier");
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            						 "Operation not permitted to a non-member which is not a Verifier");
             		return;
             	}
             	
@@ -1382,12 +1458,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleFETCH(CoapExchange exchange) {
         	System.out.println("FETCH request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -1395,7 +1473,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -1409,7 +1488,8 @@ public class PlugtestRSGroupOSCORE {
 			}
             if (subject == null) {
             	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
@@ -1420,19 +1500,22 @@ public class PlugtestRSGroupOSCORE {
         		// This is still fine, as long as at least one Access Tokens
         		// of the requester allows also the role "Verifier" in this group
         		
-        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+        		// Check that at least one of the Access Tokens for this node
+        		// allows (also) the Verifier role for this group
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
             	int[] roleSetToken = getRolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
-            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+            						 "Error when retrieving allowed roles from Access Tokens");
             		return;
             	}
             	else {
             		for (int index = 0; index < roleSetToken.length; index++) {
             			if ((role & roleSetToken[index]) != 0) {
-                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group.
+            				// This makes it fine for the requester.
             				allowed = true;
             				break;
             			}
@@ -1440,7 +1523,8 @@ public class PlugtestRSGroupOSCORE {
             	}
             	
             	if (!allowed) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a non-member which is not a Verifier");
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            					     "Operation not permitted to a non-member which is not a Verifier");
             		return;
             	}
             	
@@ -1634,11 +1718,13 @@ public class PlugtestRSGroupOSCORE {
     	            }
     	            
     	            if(!include) {
-    	                // This public has to be included if the Sender ID of the key owner is in the node identifier filter
+    	                // This public has to be included if the Sender ID
+    	            	// of the key owner is in the node identifier filter
     	                if (inclusionFlag && requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                    include = true;
     	                }
-    	                // This public has to be included if the Sender ID of the key owner is not in the node identifier filter
+    	                // This public has to be included if the Sender ID
+    	                // of the key owner is not in the node identifier filter
     	                else if (!inclusionFlag && !requestedSenderIDs.contains(ByteBuffer.wrap(memberSenderId))) {
     	                    include = true;
     	                }
@@ -1696,12 +1782,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -1709,7 +1797,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -1722,8 +1811,10 @@ public class PlugtestRSGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
@@ -1734,19 +1825,22 @@ public class PlugtestRSGroupOSCORE {
         		// This is still fine, as long as at least one Access Tokens
         		// of the requester allows also the role "Verifier" in this group
         		
-        		// Check that at least one of the Access Tokens for this node allows (also) the Verifier role for this group
+        		// Check that at least one of the Access Tokens for this node
+        		// allows (also) the Verifier role for this group
             	
         		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
         		boolean allowed = false;
             	int[] roleSetToken = getRolesFromToken(subject, groupName);
             	if (roleSetToken == null) {
-            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+            		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+            						 "Error when retrieving allowed roles from Access Tokens");
             		return;
             	}
             	else {
             		for (int index = 0; index < roleSetToken.length; index++) {
             			if ((role & roleSetToken[index]) != 0) {
-                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+                			// 'scope' in this Access Token admits (also) the role "Verifier" for this group.
+            				// This makes it fine for the requester.
             				allowed = true;
             				break;
             			}
@@ -1754,7 +1848,8 @@ public class PlugtestRSGroupOSCORE {
             	}
             	
             	if (!allowed) {
-            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to a non-member which is not a Verifier");
+            		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            						 "Operation not permitted to a non-member which is not a Verifier");
             		return;
             	}
             	
@@ -1778,7 +1873,8 @@ public class PlugtestRSGroupOSCORE {
 				gmPrivKey = targetedGroup.getGmKeyPair().AsPrivateKey();
 			} catch (CoseException e) {
 				System.err.println("Error when computing the GM PoP evidence " + e.getMessage());
-				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+								 "error when computing the GM PoP evidence");
         		return;
 			}
 			int signKeyCurve = 0;
@@ -1795,7 +1891,8 @@ public class PlugtestRSGroupOSCORE {
         		myResponse.Add(Constants.KDC_CRED_VERIFY, gmSignature);
         	}
         	else {
-				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when computing the GM PoP evidence");
+				exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+								 "Error when computing the GM PoP evidence");
         		return;
         	}
 
@@ -1834,12 +1931,14 @@ public class PlugtestRSGroupOSCORE {
 	     public void handleGET(CoapExchange exchange) {
 	         System.out.println("GET request reached the GM");
 	         
-	         // Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+	         // Retrieve the entry for the target group, using the last path segment
+	         // of the URI path as the name of the OSCORE group
 	         GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
 	         
 	         // This should never happen if active groups are maintained properly
 	         if (targetedGroup == null) {
-	             exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+	             exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+	            		 		  "Error when retrieving material for the OSCORE group");
 	             return;
 	         }
 	         
@@ -1847,7 +1946,8 @@ public class PlugtestRSGroupOSCORE {
 	         
 	         // This should never happen if active groups are maintained properly
 	         if (!groupName.equals(this.getParent().getName())) {
-	             exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+	             exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+	            		 		  "Error when retrieving material for the OSCORE group");
 	             return;
 	         }
 	         
@@ -1861,7 +1961,8 @@ public class PlugtestRSGroupOSCORE {
 	         }
 	         if (subject == null) {
 	             // At this point, this should not really happen, due to the earlier check at the Token Repository
-	             exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+	             exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+	            		 		  "Unauthenticated client tried to get access");
 	             return;
 	         }
 	         
@@ -1875,13 +1976,15 @@ public class PlugtestRSGroupOSCORE {
 	             int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
 	             int[] roleSetToken = getRolesFromToken(subject, groupName);
 	             if (roleSetToken == null) {
-	                 exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Error when retrieving allowed roles from Access Tokens");
+	                 exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+	                		 		  "Error when retrieving allowed roles from Access Tokens");
 	                 return;
 	             }
 	             else {
 	                 for (int index = 0; index < roleSetToken.length; index++) {
 	                     if ((role & roleSetToken[index]) != 0) {
-	                         // 'scope' in this Access Token admits (also) the role "Verifier" for this group. This makes it fine for the requester.
+	                         // 'scope' in this Access Token admits (also) the role "Verifier" for this group.
+	                    	 // This makes it fine for the requester.
 	                         allowed = true;
 	                         break;
 	                     }
@@ -1890,7 +1993,8 @@ public class PlugtestRSGroupOSCORE {
 	             
 	         }
 	         if (!allowed) {
-	             exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation permitted only to a non-member acting as a Verifier");
+	             exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+	            		 		  "Operation permitted only to a non-member acting as a Verifier");
 	             return;
 	         }
 	         
@@ -1901,7 +2005,8 @@ public class PlugtestRSGroupOSCORE {
 	         // Key Type Value assigned to the Group_OSCORE_Input_Material object.
 	         myResponse.Add(Constants.GKTY, CBORObject.FromObject(Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT));
 	         
-	         // This map is filled as the Group_OSCORE_Input_Material object, as defined in draft-ace-key-groupcomm-oscore
+	         // This map is filled as the Group_OSCORE_Input_Material object,
+	         // as defined in draft-ace-key-groupcomm-oscore
 	         CBORObject myMap = CBORObject.NewMap();
 	         
 	         // Fill the 'key' parameter
@@ -1973,12 +2078,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -1986,7 +2093,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}  
         	
@@ -1999,14 +2107,17 @@ public class PlugtestRSGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
             	
@@ -2049,12 +2160,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2062,7 +2175,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2076,13 +2190,15 @@ public class PlugtestRSGroupOSCORE {
 			}
             if (subject == null) {
             	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
             	
@@ -2125,12 +2241,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2138,7 +2256,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2151,14 +2270,17 @@ public class PlugtestRSGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
             	
@@ -2168,7 +2290,8 @@ public class PlugtestRSGroupOSCORE {
         	CBORObject groupPolicies = targetedGroup.getGroupPolicies();
         	
         	if (groupPolicies == null) {
-            	// This should not happen for this Group Manager, since default policies apply if not specified when creating the group
+            	// This should not happen for this Group Manager, since default policies
+        		// apply if not specified when creating the group
         		myResponse = CBORObject.FromObject(new byte[0]);
         	}
         	else {
@@ -2239,12 +2362,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleGET(CoapExchange exchange) {
         	System.out.println("GET request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2252,7 +2377,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2266,19 +2392,22 @@ public class PlugtestRSGroupOSCORE {
 			}
             if (subject == null) {
             	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
             	
@@ -2347,12 +2476,14 @@ public class PlugtestRSGroupOSCORE {
         public void handlePUT(CoapExchange exchange) {
         	System.out.println("PUT request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2360,7 +2491,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2369,7 +2501,8 @@ public class PlugtestRSGroupOSCORE {
             
         	if (request.getPayloadSize() != 0) {
         		// This request must not have a payload
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "This request must not have a payload");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        						 "This request must not have a payload");
         		return;
         	}
         	
@@ -2380,25 +2513,30 @@ public class PlugtestRSGroupOSCORE {
 			}
             if (subject == null) {
             	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
         	
-        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) == (1 << Constants.GROUP_OSCORE_MONITOR)) {
+        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
+        										  (1 << Constants.GROUP_OSCORE_MONITOR)) {
         		// The requester is a monitor, hence it is not supposed to have a Sender ID.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to members that are only monitors");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        						 "Operation not permitted to members that are only monitors");
         		return;
         	}
         		
@@ -2412,7 +2550,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	if (senderId == null) {
         		// All possible values are already in use for this OSCORE group
-        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "No available Sender IDs in this OSCORE group");
+        		exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+        						 "No available Sender IDs in this OSCORE group");
         		return;
         	}
         	
@@ -2424,7 +2563,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// Store this client's public key under the new Sender ID
         	if (!targetedGroup.storePublicKey(senderId, publicKey)) {
-        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
+        	    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+        	    				 "Error when storing the public key");
         	    return;
         	}
         	// Delete this client's public key under the old Sender ID
@@ -2453,12 +2593,14 @@ public class PlugtestRSGroupOSCORE {
         public void handleDELETE(CoapExchange exchange) {
         	System.out.println("DELETE request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2466,7 +2608,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2479,20 +2622,24 @@ public class PlugtestRSGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
             
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
             	
@@ -2534,12 +2681,14 @@ public class PlugtestRSGroupOSCORE {
         public void handlePOST(CoapExchange exchange) {
         	System.out.println("POST request reached the GM");
         	
-        	// Retrieve the entry for the target group, using the last path segment of the URI path as the name of the OSCORE group
+        	// Retrieve the entry for the target group, using the last path segment
+        	// of the URI path as the name of the OSCORE group
         	GroupInfo targetedGroup = activeGroups.get(this.getParent().getParent().getParent().getName());
         	
         	// This should never happen if active groups are maintained properly
         	if (targetedGroup == null) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
             	return;
         	}
         	
@@ -2547,7 +2696,8 @@ public class PlugtestRSGroupOSCORE {
         	
         	// This should never happen if active groups are maintained properly
   	  		if (!groupName.equals(this.getParent().getParent().getParent().getName())) {
-            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE, "Error when retrieving material for the OSCORE group");
+            	exchange.respond(CoAP.ResponseCode.SERVICE_UNAVAILABLE,
+            					 "Error when retrieving material for the OSCORE group");
   				return;
   			}
         	
@@ -2560,33 +2710,40 @@ public class PlugtestRSGroupOSCORE {
 			    System.err.println("Error while retrieving the client identity: " + e.getMessage());
 			}
             if (subject == null) {
-            	// At this point, this should not really happen, due to the earlier check at the Token Repository
-            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Unauthenticated client tried to get access");
+            	// At this point, this should not really happen,
+            	// due to the earlier check at the Token Repository
+            	exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+            					 "Unauthenticated client tried to get access");
             	return;
             }
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getParent().getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        						 "Operation permitted only to group members associated to this sub-resource");
         		return;
         	}
         	
-        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) == (1 << Constants.GROUP_OSCORE_MONITOR)) {
+        	if (targetedGroup.getGroupMemberRoles((targetedGroup.getGroupMemberName(subject))) ==
+        										  (1 << Constants.GROUP_OSCORE_MONITOR)) {
         		// The requester is a monitor, hence it is not supposed to have a Sender ID.
-        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Operation not permitted to members that are only monitors");
+        		exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        						 "Operation not permitted to members that are only monitors");
         		return;
         	}
         	
         	byte[] requestPayload = exchange.getRequestPayload();
         	
         	if(requestPayload == null) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "A payload must be present");
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        	    				 "A payload must be present");
         	    return;
         	}
 
@@ -2594,12 +2751,14 @@ public class PlugtestRSGroupOSCORE {
 
         	// The payload of the Public Key Update Request must be a CBOR Map
         	if (!PublicKeyUpdateRequest.getType().equals(CBORType.Map)) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The payload must be a CBOR map");
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        	    				 "The payload must be a CBOR map");
         	    return;
         	}
         	
         	if (!PublicKeyUpdateRequest.ContainsKey(Constants.CLIENT_CRED)) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing parameter: " + "'client_cred'");
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        	    				 "Missing parameter: 'client_cred'");
         	    return;
         	}
         	
@@ -2609,7 +2768,8 @@ public class PlugtestRSGroupOSCORE {
         	}
         	
         	if (!PublicKeyUpdateRequest.ContainsKey(Constants.CLIENT_CRED_VERIFY)) {
-        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Missing parameter: " + "'client_cred_verify'");
+        	    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        	    				 "Missing parameter: 'client_cred_verify'");
         	    return;
         	}
         	
@@ -2618,7 +2778,8 @@ public class PlugtestRSGroupOSCORE {
         	
 			// client_cred cannot be Null
 			if (clientCred == null) {
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred' cannot be Null");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    				 "The parameter 'client_cred' cannot be Null");
 			    return;
 			}
         	
@@ -2668,12 +2829,16 @@ public class PlugtestRSGroupOSCORE {
 				targetedGroup.getSignAlg().equals(AlgorithmID.ECDSA_512)) {
 				
 				// Invalid public key format
-				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.EC2_Curve).equals(targetedGroup.getSignParams().get(1).get(1))) // key capability: curve
+				if (!publicKey.get(KeyKeys.KeyType).
+						equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).
+				    	equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.EC2_Curve).
+				    	equals(targetedGroup.getSignParams().get(1).get(1)))   // key capability: curve
 				{ 
 				        
-				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+				    				 "Invalid public key for the algorithm and parameters used in the OSCORE group");
 				    return;
 				            
 				}
@@ -2683,12 +2848,16 @@ public class PlugtestRSGroupOSCORE {
 			if (targetedGroup.getSignAlg().equals(AlgorithmID.EDDSA)) {
 			
 				// Invalid public key format
-				if (!publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
-				    !publicKey.get(KeyKeys.KeyType).equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
-				    !publicKey.get(KeyKeys.OKP_Curve).equals(targetedGroup.getSignParams().get(1).get(1))) // key capability: curve
+				if (!publicKey.get(KeyKeys.KeyType).
+						equals(targetedGroup.getSignParams().get(0).get(0)) || // alg capability: key type
+				    !publicKey.get(KeyKeys.KeyType).
+				    	equals(targetedGroup.getSignParams().get(1).get(0)) || // key capability: key type
+				    !publicKey.get(KeyKeys.OKP_Curve).
+				    	equals(targetedGroup.getSignParams().get(1).get(1)))   // key capability: curve
 				{
 				            
-				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid public key for the algorithm and parameters used in the OSCORE group");
+				    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+				    				 "Invalid public key for the algorithm and parameters used in the OSCORE group");
 				    return;
 				        
 				}
@@ -2700,29 +2869,35 @@ public class PlugtestRSGroupOSCORE {
 
 			// A client nonce must be included
 			if (cnonce == null) {
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'cnonce' cannot be Null");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    				 "The parameter 'cnonce' cannot be Null");
 			    return;
 			}
 
 			// The client nonce must be wrapped in a binary string
 			if (!cnonce.getType().equals(CBORType.ByteString)) {
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'cnonce' must be a CBOR byte string");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    				 "The parameter 'cnonce' must be a CBOR byte string");
 			    return;
 			}
 
 			
-			// Check the proof-of-possession evidence over (scope | rsnonce | cnonce), using the Client's public key
-			CBORObject clientPopEvidence = PublicKeyUpdateRequest.get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
+			// Check the proof-of-possession evidence over
+			// (scope | rsnonce | cnonce), using the Client's public key
+			CBORObject clientPopEvidence = PublicKeyUpdateRequest.
+						get(CBORObject.FromObject(Constants.CLIENT_CRED_VERIFY));
 
 			// A client PoP evidence must be included
 			if (clientPopEvidence == null) {
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' cannot be Null");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    				 "The parameter 'client_cred_verify' cannot be Null");
 			    return;
 			}
 
 			// The client PoP evidence must be wrapped in a binary string for joining OSCORE groups
 			if (!clientPopEvidence.getType().equals(CBORType.ByteString)) {
-			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "The parameter 'client_cred_verify' must be a CBOR byte string");
+			    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+			    				 "The parameter 'client_cred_verify' must be a CBOR byte string");
 			    return;
 			}
 
@@ -2733,11 +2908,13 @@ public class PlugtestRSGroupOSCORE {
 			    pubKey = publicKey.AsPublicKey();
 			} catch (CoseException e) {
 			    System.out.println(e.getMessage());
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+			    				 "Failed to use the Client's public key to verify the PoP evidence");
 			    return;
 			}
 			if (pubKey == null) {
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "Failed to use the Client's public key to verify the PoP evidence");
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+			    				 "Failed to use the Client's public key to verify the PoP evidence");
 			    return;
 			}
 
@@ -2758,7 +2935,8 @@ public class PlugtestRSGroupOSCORE {
                 responseMap.Add(Constants.KDCCHALLENGE, rsnonce);
                 TokenRepository.getInstance().setRsnonce(subject, Base64.getEncoder().encodeToString(rsnonce));
                 byte[] responsePayload = responseMap.EncodeToBytes();
-            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST, responsePayload, Constants.APPLICATION_ACE_CBOR);
+            	exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+            					 responsePayload, Constants.APPLICATION_ACE_CBOR);
             	return;
             }
 			byte[] rsnonce = Base64.getDecoder().decode(rsNonceString);
@@ -2768,7 +2946,9 @@ public class PlugtestRSGroupOSCORE {
 			byte[] serializedScopeCBOR = CBORObject.FromObject(scope).EncodeToBytes();
 			byte[] serializedGMNonceCBOR = CBORObject.FromObject(rsnonce).EncodeToBytes();
 			byte[] serializedCNonceCBOR = cnonce.EncodeToBytes();
-			byte[] popInput = new byte [serializedScopeCBOR.length + serializedGMNonceCBOR.length + serializedCNonceCBOR.length];
+			byte[] popInput = new byte [serializedScopeCBOR.length + 
+			                            serializedGMNonceCBOR.length +
+			                            serializedCNonceCBOR.length];
 			System.arraycopy(serializedScopeCBOR, 0, popInput, offset, serializedScopeCBOR.length);
 			offset += serializedScopeCBOR.length;
 			System.arraycopy(serializedGMNonceCBOR, 0, popInput, offset, serializedGMNonceCBOR.length);
@@ -2786,7 +2966,8 @@ public class PlugtestRSGroupOSCORE {
 
 			    // This should never happen, due to the previous sanity checks
 			    if (signKeyCurve == 0) {
-			        exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when setting up the signature verification");
+			        exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+			        				 "Error when setting up the signature verification");
 			        return;
 			    }
 
@@ -2804,7 +2985,8 @@ public class PlugtestRSGroupOSCORE {
 			byte[] senderId = targetedGroup.getGroupMemberSenderId(subject).GetByteString();
 			
 			if (!targetedGroup.storePublicKey(senderId, clientCred)) {
-			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
+			    exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
+			    				 "Error when storing the public key");
 			    return;
 			}
 			
@@ -2934,8 +3116,7 @@ public class PlugtestRSGroupOSCORE {
         //Setup the Group Manager RPK
         CBORObject rpkData = CBORObject.NewMap();
         rpkData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);
-        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), 
-                AlgorithmID.ECDSA_256.AsCBOR());
+        rpkData.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
         rpkData.Add(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
         CBORObject x = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsX));
         CBORObject y = CBORObject.FromObject(PlugtestASGroupOSCORE.hexString2byteArray(rsY));
@@ -2944,16 +3125,12 @@ public class PlugtestRSGroupOSCORE {
         rpkData.Add(KeyKeys.EC2_Y.AsCBOR(), y);
         rpkData.Add(KeyKeys.EC2_D.AsCBOR(), d);
         OneKey asymmetric = new OneKey(rpkData);
-        String keyId = new RawPublicKeyIdentity(
-        		asymmetric.AsPublicKey()).getName();
-        asymmetric.add(KeyKeys.KeyId, CBORObject.FromObject(
-                keyId.getBytes(Constants.charset)));
+        String keyId = new RawPublicKeyIdentity(asymmetric.AsPublicKey()).getName();
+        asymmetric.add(KeyKeys.KeyId, CBORObject.FromObject(keyId.getBytes(Constants.charset)));
         
         //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx 
-            = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_64_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128_token, coseP.getAlg().AsCBOR());
 
         // Set up the inner Authz-Info library
         ai = new AuthzInfoGroupOSCORE(Collections.singletonList("TestAS"), 
@@ -2992,8 +3169,7 @@ public class PlugtestRSGroupOSCORE {
         CWT token = new CWT(params);
         ai.processMessage(new LocalMessage(0, null, null, token.encode(ctx)));  
       
-  	    AsRequestCreationHints asi 
-  	    	= new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
+  	    AsRequestCreationHints asi = new AsRequestCreationHints("coaps://blah/authz-info/", null, false, false);
   	    Resource hello = new HelloWorldResource();
   	    Resource temp = new TempResource();
   	    Resource groupOSCORERootMembership = new GroupOSCORERootMembershipResource(rootGroupMembershipResource);
@@ -3104,7 +3280,7 @@ public class PlugtestRSGroupOSCORE {
 	        	signAlg = AlgorithmID.ECDSA_256;
 	        	signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 	        	signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-	        	signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+	        	signKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 	        }
 	        
 	        // EDDSA (Ed25519)
@@ -3130,14 +3306,14 @@ public class PlugtestRSGroupOSCORE {
 	        if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
 	        	ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
-	        	ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+	        	ecdhKeyCapabilities.Add(KeyKeys.EC2_P256);    // Curve
 	        }
 	        
 	        // EDDSA (Ed25519)
 	        if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
 	        	ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
 	        	ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
-	        	ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+	        	ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519);   // Curve
 	        }
 	        
 	    	ecdhParams.Add(ecdhAlgCapabilities);
@@ -3146,7 +3322,9 @@ public class PlugtestRSGroupOSCORE {
         }
   	    
 
-  	    // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+  	    // Prefix (4 byte) and Epoch (2 bytes)
+        // All Group IDs have the same prefix size, but can have different Epoch sizes
+        //
   	    // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
   	    final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
   	    byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
@@ -3290,8 +3468,7 @@ public class PlugtestRSGroupOSCORE {
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
 
   	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
-                .setAddress(
-                        new InetSocketAddress(portNumberSec));
+                .setAddress(new InetSocketAddress(portNumberSec));
   	    
   	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
@@ -3305,8 +3482,8 @@ public class PlugtestRSGroupOSCORE {
   	    CoapEndpoint cep = new Builder().setConnector(connector)
                .setNetworkConfig(NetworkConfig.getStandard()).build();
   	    rs.addEndpoint(cep);
-  	    //Add a CoAP (no 's') endpoint for authz-info
   	    
+  	    //Add a CoAP (no 's') endpoint for authz-info
   	    CoapEndpoint aiep = new Builder().setInetSocketAddress(
                 new InetSocketAddress(portNumberNoSec)).build();
   	    
@@ -3333,7 +3510,8 @@ public class PlugtestRSGroupOSCORE {
      * 
      * @param subject   Subject identity of the node
      * @param groupName   Group name of the OSCORE group
-     * @return The sets of allowed roles for the subject in the specified group using the AIF data model, or null in case of no results
+     * @return The sets of allowed roles for the subject in the specified group using the AIF data model,
+     * 		   or null in case of no results
      */
     public static int[] getRolesFromToken(String subject, String groupName) {
 
@@ -3342,7 +3520,8 @@ public class PlugtestRSGroupOSCORE {
     	String kid = TokenRepository.getInstance().getKid(subject);
     	Set<String> ctis = TokenRepository.getInstance().getCtis(kid);
     	
-    	// This should never happen at this point, since a valid Access Token has just made this request pass through 
+    	// This should never happen at this point, since a valid
+    	// Access Token has just made this request pass through 
     	if (ctis == null)
     		return null;
     	
@@ -3360,7 +3539,8 @@ public class PlugtestRSGroupOSCORE {
 	        //Check the scope
             CBORObject scope = claims.get(Constants.SCOPE);
             
-        	// This should never happen, since a valid Access Token has just made a request reach a handler at the Group Manager
+        	// This should never happen, since a valid Access Token
+            // has reached a handler at the Group Manager
             if (scope == null) {
         		// Move to the next Access Token for this 'kid'
             	continue;
@@ -3424,7 +3604,8 @@ public class PlugtestRSGroupOSCORE {
         	
     	}
     	    	
-    	// This should never happen, since a valid Access Token has just made a request reach a handler at the Group Manager
+    	// This should never happen, since a valid Access Token
+    	// has just reached a handler at the Group Manager
     	if (roleSets.size() == 0) {
     		return null;
     	}

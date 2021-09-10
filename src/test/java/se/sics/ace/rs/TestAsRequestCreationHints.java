@@ -66,11 +66,9 @@ public class TestAsRequestCreationHints {
     @Test
     public void testNullUri() {
         this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
-                + " object with null or empty asUri field");
+        this.thrown.expectMessage("Cannot create an AsRequestCreationHints object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsRequestCreationHints ai = new AsRequestCreationHints(
-                null, null, false, false);
+        AsRequestCreationHints ai = new AsRequestCreationHints(null, null, false, false);
     }
     
     /**
@@ -79,11 +77,9 @@ public class TestAsRequestCreationHints {
     @Test
     public void testEmptyUri() {
         this.thrown.expect(IllegalArgumentException.class);
-        this.thrown.expectMessage("Cannot create an AsRequestCreationHints"
-                + " object with null or empty asUri field");
+        this.thrown.expectMessage("Cannot create an AsRequestCreationHints object with null or empty asUri field");
         @SuppressWarnings("unused")
-        AsRequestCreationHints ai = new AsRequestCreationHints(
-                "", null, false, false);
+        AsRequestCreationHints ai = new AsRequestCreationHints("", null, false, false);
     }
     
     /**
@@ -94,14 +90,12 @@ public class TestAsRequestCreationHints {
      * @throws InvalidKeyException 
      */
     @Test 
-    public void testRoundTrip() throws AceException, InvalidKeyException,
-            NoSuchAlgorithmException {
-        AsRequestCreationHints ai = new AsRequestCreationHints(
-                "coaps://testAS/token", null, false, false);
+    public void testRoundTrip() throws AceException, InvalidKeyException, NoSuchAlgorithmException {
+        AsRequestCreationHints ai = new AsRequestCreationHints("coaps://testAS/token", null, false, false);
         CBORObject cbor = ai.getHints(null, null);
         Map<Short, CBORObject> hints = AsRequestCreationHints.parseHints(cbor);
         Assert.assertTrue(hints.containsKey(Constants.AS));
-        Assert.assertEquals(hints.get(Constants.AS).AsString(), "coaps://testAS/token");
+        Assert.assertEquals("coaps://testAS/token", hints.get(Constants.AS).AsString());
  
     }
 

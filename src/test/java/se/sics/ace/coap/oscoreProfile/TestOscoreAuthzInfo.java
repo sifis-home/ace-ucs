@@ -126,10 +126,8 @@ public class TestOscoreAuthzInfo {
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        db.addClient("client1", profiles, null, null, keyTypes, null, 
-                publicKey);
-        db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
-                publicKey);
+        db.addClient("client1", profiles, null, null, keyTypes, null, publicKey);
+        db.addClient("client2", profiles, null, null, keyTypes, sharedKey, publicKey);
 
         
         String rsId = "rs1";
@@ -144,14 +142,12 @@ public class TestOscoreAuthzInfo {
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 1000000L;
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey psk = new OneKey(keyData);
         db.addRS(rsId, profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, psk, psk, publicKey);
                 
@@ -185,8 +181,7 @@ public class TestOscoreAuthzInfo {
         i = new Introspect(pdp, db, new KissTime(), key, null);
         
         ai = new OscoreAuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(),  
-                new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
+                new KissTime(),  new IntrospectionHandler4Tests(i, "rs1", "TestAS"),
                 rsId, valid, ctx, tokenFile, valid, false);
     }
     
@@ -220,8 +215,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "Invalid payload");
+        map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
@@ -244,8 +238,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "Payload to authz-info must be a CBOR map");
+        map.Add(Constants.ERROR_DESCRIPTION, "Payload to authz-info must be a CBOR map");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
@@ -428,8 +421,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x03});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x03}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x03}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -521,8 +513,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x05});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x05}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x05}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -570,8 +561,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x06});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x06}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x06}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -619,8 +609,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x07});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x07}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x07}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -639,8 +628,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing master"
-                + " secret in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing master" + " secret in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());   
     } 
     
@@ -669,8 +657,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x08});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x08}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x08}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -689,8 +676,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing master"
-                + " secret in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing master secret in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());    
     } 
     
@@ -722,8 +708,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x09});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x09}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x09}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -793,8 +778,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing input material identifier"
-                + " in OSCORE security context");
+        map.Add(Constants.ERROR_DESCRIPTION, "malformed or missing input material identifier in OSCORE security context");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
     } 
     
@@ -825,8 +809,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0c});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0c}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x0c}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -877,8 +860,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0d});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0d}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x0d}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -897,9 +879,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);  
-        map.Add(Constants.ERROR_DESCRIPTION, 
-                "Error while creating OSCORE security context: "
-                + "HKDF algorithm not supported");
+        map.Add(Constants.ERROR_DESCRIPTION, "Error while creating OSCORE security context: HKDF algorithm not supported");
         CBORObject rC = CBORObject.DecodeFromBytes(response.getRawPayload());
         System.out.println(rC);
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());  
@@ -945,8 +925,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0e});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0e}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x0e}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -989,14 +968,11 @@ public class TestOscoreAuthzInfo {
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
-		         TokenRepository.getInstance().canAccess(
-		        		 subjectId, subjectId, "temp", Constants.GET, null));
+		         TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.GET, null));
 	       Assert.assertEquals(TokenRepository.METHODNA,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "temp", Constants.POST, null));   
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.POST, null));   
 	       Assert.assertEquals(TokenRepository.FORBID,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "co2", Constants.POST, null));
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.POST, null));
         
 	    
 	    /* PART 2 */
@@ -1036,14 +1012,11 @@ public class TestOscoreAuthzInfo {
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
-		         TokenRepository.getInstance().canAccess(
-		        		 subjectId, subjectId, "temp", Constants.GET, null));
-	       Assert.assertEquals(TokenRepository.METHODNA,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "temp", Constants.POST, null));   
-	       Assert.assertEquals(TokenRepository.FORBID,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "co2", Constants.POST, null));
+		         TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.GET, null));
+	    Assert.assertEquals(TokenRepository.METHODNA,
+	             TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.POST, null));   
+	    Assert.assertEquals(TokenRepository.FORBID,
+	             TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.POST, null));
 	       
     }
     
@@ -1089,8 +1062,7 @@ public class TestOscoreAuthzInfo {
         String ctiStr = Base64.getEncoder().encodeToString(new byte[]{0x0f});
 
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-                new byte[]{0x0f}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{0x0f}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         CWT token = new CWT(params);
@@ -1133,14 +1105,11 @@ public class TestOscoreAuthzInfo {
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
-		         TokenRepository.getInstance().canAccess(
-		        		 subjectId, subjectId, "temp", Constants.GET, null));
+		         TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.GET, null));
 	       Assert.assertEquals(TokenRepository.METHODNA,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "temp", Constants.POST, null));   
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.POST, null));   
 	       Assert.assertEquals(TokenRepository.FORBID,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "co2", Constants.POST, null));
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.POST, null));
         
 	    /* PART 2 */
     
@@ -1179,14 +1148,11 @@ public class TestOscoreAuthzInfo {
     	
     	// Consistently with the Token Repository, the kid coincides with the subjectId
 		Assert.assertEquals(TokenRepository.OK,
-		         TokenRepository.getInstance().canAccess(
-		        		 subjectId, subjectId, "temp", Constants.GET, null));
+		         TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.GET, null));
 	       Assert.assertEquals(TokenRepository.METHODNA,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "temp", Constants.POST, null));   
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.POST, null));   
 	       Assert.assertEquals(TokenRepository.FORBID,
-	               TokenRepository.getInstance().canAccess(
-	            		   subjectId, subjectId, "co2", Constants.POST, null));   
+	               TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.POST, null));   
 	       
 	       
 		/* PART 3 */
@@ -1207,8 +1173,7 @@ public class TestOscoreAuthzInfo {
         ctiStr = Base64.getEncoder().encodeToString(new byte[]{(byte) 0xa0});
         
         //Make introspection succeed
-        db.addToken(Base64.getEncoder().encodeToString(
-        		new byte[]{(byte) 0xa0}), params);
+        db.addToken(Base64.getEncoder().encodeToString(new byte[]{(byte) 0xa0}), params);
         db.addCti2Client(ctiStr, "client1");  
 
         token = new CWT(params);
@@ -1241,19 +1206,15 @@ public class TestOscoreAuthzInfo {
         // The subjectId (used also as kid) has not changed, since the
         // same OSCORE Master Secret is bound also to the new token
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                		subjectId, subjectId, "co2", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.GET, null));
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                		subjectId, subjectId, "co2", Constants.POST, null));
+                TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.POST, null));
         Assert.assertEquals(TokenRepository.METHODNA, 
-                TokenRepository.getInstance().canAccess(
-                		subjectId, subjectId, "co2", Constants.DELETE, null));
+                TokenRepository.getInstance().canAccess(subjectId, subjectId, "co2", Constants.DELETE, null));
         
         // ... and that access to the "temp" resource is not allowed anymore
         Assert.assertEquals(TokenRepository.FORBID, 
-                TokenRepository.getInstance().canAccess(
-                		subjectId, subjectId, "temp", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(subjectId, subjectId, "temp", Constants.GET, null));
         
     }
     

@@ -89,8 +89,7 @@ public class TestGroupOSCOREJoinPDP {
      * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() 
-            throws AceException, SQLException, IOException, CoseException {
+    public static void setUp() throws AceException, SQLException, IOException, CoseException {
 
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
@@ -114,6 +113,7 @@ public class TestGroupOSCOREJoinPDP {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
+        auds.add("aud1");
         auds.add("sensors");
         auds.add("actuators");
         
@@ -126,33 +126,29 @@ public class TestGroupOSCOREJoinPDP {
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         
         long expiration = 1000000L;
        
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, skey, publicKey);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
         scopes.add("light");
         scopes.add("config");
-        auds.remove("actuators");
-        auds.add("fail");
+        auds.clear();
+        auds.add("aud2");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, skey, null);
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
-        auds.add("actuators");
-        auds.add("fail");
+        auds.add("aud3");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -162,16 +158,12 @@ public class TestGroupOSCOREJoinPDP {
                 AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         
-        db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
-        db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
-        db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
+        db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
+        db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         // Add a further resource server "rs4" acting as OSCORE Group Manager
         profiles.clear();
@@ -192,8 +184,7 @@ public class TestGroupOSCOREJoinPDP {
         coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 1000000L;
-        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, skey, publicKey);
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, publicKey);
         
         // Add the resource server rs4 and its OSCORE Group Manager
         // audience to the table OSCOREGroupManagers in the Database
@@ -205,31 +196,27 @@ public class TestGroupOSCOREJoinPDP {
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, null, publicKey);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", 
-                keyTypes, skey, null);
+        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, skey, null);
         
         // Add a further client "clientG" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientG", profiles, null, null, 
-                keyTypes, skey, null);
+        db.addClient("clientG", profiles, null, null, keyTypes, skey, null);
         
         // Add a further client "clientH" as a joining node of an OSCORE group
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientH", profiles, null, null, 
-                keyTypes, skey, null);
+        db.addClient("clientH", profiles, null, null, keyTypes, skey, null);
         
        pdp =  new GroupOSCOREJoinPDP(db);
        
@@ -268,7 +255,8 @@ public class TestGroupOSCOREJoinPDP {
        pdp.addAccess("clientG", "rs2", "r_light");
        
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
-       // On this Group Manager, this client is allowed to be requester, responder, requester+responder, or monitor.
+       // On this Group Manager, this client is allowed to be
+       // requester, responder, requester+responder, or monitor.
        pdp.addAccess("clientG", "rs4", "feedca570000_requester_monitor_responder");
        
        // Specify access right also for client "clientG" as a joining node of an OSCORE group.
@@ -341,7 +329,7 @@ public class TestGroupOSCOREJoinPDP {
     	String gid2 = new String("feedca570001");
     	
     	// Tests for joining with a single role
-    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	// The scope is a CBOR Array encoded as a CBOR byte string
     	
     	// The requested role is allowed in the specified group
     	CBORObject cborArrayScope = CBORObject.NewArray();
@@ -423,7 +411,7 @@ public class TestGroupOSCOREJoinPDP {
     	
     	
     	// Tests for joining with multiple roles
-    	// The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+    	// The scope is a CBOR Array encoded as a CBOR byte string
     	
     	// Both requested roles are allowed in the specified group
     	cborArrayScope = CBORObject.NewArray();
@@ -524,33 +512,36 @@ public class TestGroupOSCOREJoinPDP {
     public void testDeleteAdd() throws Exception {
         pdp.addTokenAccess("testC");
         assert(pdp.canAccessToken("testC"));
+        
         pdp.addIntrospectAccess("testRS", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         assert(pdp.getIntrospectAccessLevel("testRS").equals(PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS));
+        
         pdp.revokeTokenAccess("testC");
         assert(!pdp.canAccessToken("testC"));
+        
         pdp.revokeIntrospectAccess("testRS");
         assert(pdp.getIntrospectAccessLevel("testRS").equals(PDP.IntrospectAccessLevel.NONE));
+        
         pdp.addAccess("testC", "testRS1", "testScope1");
         pdp.addAccess("testC", "testRS1", "testScope2");
         pdp.addAccess("testC", "testRS2", "testScope3");
         pdp.addAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
-                "testScope1").equals("testScope1"));
-        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), 
-                "testScope1 testScope2 testScope3").equals(
-                        "testScope1 testScope2"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), 
-                "testScope3").equals("testScope3"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
-                "testScope4").equals("testScope4"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1").
+        		equals("testScope1"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"),"testScope1 testScope2 testScope3").
+        		equals("testScope1 testScope2"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3").
+        		equals("testScope3"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4").
+        		equals("testScope4"));
+        
         pdp.revokeAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
-                "testScope4") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4") == null);
+        
         pdp.revokeAllRsAccess("testC", "testRS1");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
-                "testScope1") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1") == null);
+        
         pdp.revokeAllAccess("testC");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"),
-                "testScope3") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3") == null);
     }
 }

@@ -111,14 +111,12 @@ public class OscoreASTestServer
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
         
         String myName = "AS";
@@ -136,8 +134,7 @@ public class OscoreASTestServer
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         
@@ -145,8 +142,7 @@ public class OscoreASTestServer
         scopes.add("r_temp");
         scopes.add("rw_config");
         scopes.add("co2");
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, null);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, null);
         peerIdentity = buildOscoreIdentity(new byte[] {0x11}, idContext);
         peerNamesToIdentities.put("rs1", peerIdentity);
         peerIdentitiesToNames.put(peerIdentity, "rs1");
@@ -157,8 +153,9 @@ public class OscoreASTestServer
         scopes.add("rw_config");
         scopes.add("rw_light");
         scopes.add("failTokenType");
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, null);
+        auds.clear();
+        auds.add("aud2");
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, null);
         peerIdentity = buildOscoreIdentity(new byte[] {0x12}, idContext);
         peerNamesToIdentities.put("rs2", peerIdentity);
         peerIdentitiesToNames.put(peerIdentity, "rs2");
@@ -169,13 +166,11 @@ public class OscoreASTestServer
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);
+        db.addClient("clientA", profiles, null, null, keyTypes, authPsk, null);
         peerIdentity = buildOscoreIdentity(new byte[] {0x01}, idContext);
         peerNamesToIdentities.put("clientA", peerIdentity);
         peerIdentitiesToNames.put(peerIdentity, "clientA");
         myIdentities.put("clientA", myIdentity);
-        
         
         
         KissTime time = new KissTime();

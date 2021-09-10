@@ -124,15 +124,13 @@ public class TestTokenRepositoryGroupOSCORE {
                
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "ourKey".getBytes(Constants.charset));
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
         symmetricKey = new OneKey(keyData);
         
         CBORObject otherKeyData = CBORObject.NewMap();
         otherKeyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        otherKeyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "otherKey".getBytes(Constants.charset));
+        otherKeyData.Add(KeyKeys.KeyId.AsCBOR(), "otherKey".getBytes(Constants.charset));
         otherKeyData.Add(KeyKeys.Octet_K.AsCBOR(), key128a);
         otherKey = new OneKey(otherKeyData);
         
@@ -175,16 +173,14 @@ public class TestTokenRepositoryGroupOSCORE {
         
         createTR(valid);
         tr = TokenRepository.getInstance();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         pskCnf = CBORObject.NewMap();
         pskCnf.Add(Constants.COSE_KEY_CBOR, symmetricKey.AsCBOR());
         
         rpkCnf = CBORObject.NewMap();
-        rpkCnf.Add(Constants.COSE_KEY_CBOR, 
-                asymmetricKey.PublicKey().AsCBOR()); 
+        rpkCnf.Add(Constants.COSE_KEY_CBOR, asymmetricKey.PublicKey().AsCBOR()); 
        
     }
     
@@ -258,8 +254,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CNF, pskCnf);
         tr.addToken(null, params, ctx, null, -1);
         params.remove(Constants.CTI); //Gets added by tr.addToken()
-        CBORObject cticb = CBORObject.FromObject(
-                buffer.putInt(0, params.hashCode()).array());
+        CBORObject cticb = CBORObject.FromObject(buffer.putInt(0, params.hashCode()).array());
         String cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
         Assert.assertNotNull(tr.getPoP(cti));
     }
@@ -384,6 +379,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
+        
         CBORObject cnf = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
         enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), Attribute.PROTECTED);
@@ -410,6 +406,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
@@ -431,6 +428,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
+        
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah"));
         params.put(Constants.CNF, cnf);
@@ -470,16 +468,11 @@ public class TestTokenRepositoryGroupOSCORE {
         // the binary content from the 'kid' field of the 'cnf' claim.
         String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(rpk, null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.METHODNA, 
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(kidStr, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(kidStr, null, "temp", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(rpk, null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.METHODNA, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.FORBID, tr.canAccess(kidStr, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     /**
@@ -877,8 +870,7 @@ public class TestTokenRepositoryGroupOSCORE {
         params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
-        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-                Attribute.PROTECTED);
+        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), Attribute.PROTECTED);
         enc.SetContent(symmetricKey.EncodeToBytes());
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());

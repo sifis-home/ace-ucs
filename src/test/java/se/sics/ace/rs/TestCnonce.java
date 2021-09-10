@@ -121,18 +121,15 @@ public class TestCnonce {
         //Delete lingering old token file
         new File(tokenFile).delete();
         
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
        
-        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, true);
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
+        				   null, rsId, valid, ctx, null, 0, tokenFile, valid, true);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "ourKey".getBytes(Constants.charset));
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
         symmetricKey = new OneKey(keyData);  
         pskCnf = CBORObject.NewMap();
@@ -210,6 +207,7 @@ public class TestCnonce {
 
         Message response = ai.processMessage(request);   
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce expected but not found");
@@ -241,6 +239,7 @@ public class TestCnonce {
 
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Invalid cnonce length");
@@ -273,6 +272,7 @@ public class TestCnonce {
         
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce invalid");
@@ -302,6 +302,7 @@ public class TestCnonce {
         LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Invalid cnonce type");
@@ -340,13 +341,10 @@ public class TestCnonce {
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
 
-
         for (int i=0; i<36; i++) {//"expire" cnonce
             CBORObject dummyH = hints.getHints(req, null);
-            CBORObject dummyC = dummyH.get(
-                    CBORObject.FromObject(Constants.CNONCE));
-            params.put(Constants.CTI, CBORObject.FromObject(
-                    new String("" + i).getBytes(Constants.charset)));
+            CBORObject dummyC = dummyH.get(CBORObject.FromObject(Constants.CNONCE));
+            params.put(Constants.CTI, CBORObject.FromObject(new String("" + i).getBytes(Constants.charset)));
             params.put(Constants.CNONCE, CBORObject.FromObject(dummyC));
             CWT token = new CWT(params);
             LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
@@ -358,6 +356,7 @@ public class TestCnonce {
 
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce expired");
@@ -399,14 +398,14 @@ public class TestCnonce {
        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
        ai.processMessage(request);
        
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token7".getBytes(Constants.charset)));
+       params.put(Constants.CTI, CBORObject.FromObject("token7".getBytes(Constants.charset)));
        CWT token2 = new CWT(params);
        LocalMessage request2 = new LocalMessage(0, "clientA", "rs1", token2.encode(ctx));
 
        ai.processMessage(request2);
        Message response = ai.processMessage(request2);
        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+       
        CBORObject map = CBORObject.NewMap();
        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
        map.Add(Constants.ERROR_DESCRIPTION, "cnonce replayed");

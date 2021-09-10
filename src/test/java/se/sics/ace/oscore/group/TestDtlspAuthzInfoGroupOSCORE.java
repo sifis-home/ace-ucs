@@ -107,11 +107,14 @@ public class TestDtlspAuthzInfoGroupOSCORE {
     private static CBORObject payload3;
     private static CBORObject payload4;
     
-    private final static int groupIdPrefixSize = 4; // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+    // Up to 4 bytes, same for all the OSCORE Group of the Group Manager
+    private final static int groupIdPrefixSize = 4;
     
-    private final static String prefixMonitorNames = "M"; // Initial part of the node name for monitors, since they do not have a Sender ID
+    // Initial part of the node name for monitors, since they do not have a Sender ID
+    private final static String prefixMonitorNames = "M";
     
-	private final static String nodeNameSeparator = "-"; // For non-monitor members, separator between the two components of the node name
+    // For non-monitor members, separator between the two components of the node name
+	private final static String nodeNameSeparator = "-";
     
     private static Map<String, GroupInfo> activeGroups = new HashMap<>();
     
@@ -127,9 +130,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
      * @throws IllegalStateException 
      */
     @BeforeClass
-    public static void setUp() 
-            throws CoseException, AceException, IOException, 
-            IllegalStateException, InvalidCipherTextException {
+    public static void setUp() throws CoseException, AceException, IOException, 
+        	IllegalStateException, InvalidCipherTextException {
         
     	final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
@@ -219,7 +221,8 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         signParams.Add(algCapabilities);
         signParams.Add(keyCapabilities);
         
-        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
+        // Prefix (4 byte) and Epoch (2 bytes)
+        // All Group IDs have the same prefix size, but can have different Epoch sizes
         // The current Group ID is: 0xfeedca57f05c, with Prefix 0xfeedca57 and current Epoch 0xf05c 
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
@@ -419,13 +422,11 @@ public class TestDtlspAuthzInfoGroupOSCORE {
      * @throws IOException 
      */
     @Test
-    public void testPOSTtoken() 
-            throws AceException, IntrospectionException, IOException {
+    public void testPOSTtoken() throws AceException, IntrospectionException, IOException {
         Request req = new Request(Code.POST);
         req.setPayload(payload.EncodeToBytes());
         AddressEndpointContext destCtx = new AddressEndpointContext(
-                new InetSocketAddress(
-                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
                 new PreSharedKeyIdentity("psk"));
         req.setDestinationContext(destCtx);
         
@@ -433,8 +434,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setType(Type.NON);
         req.setAcknowledged(false);
         AddressEndpointContext srcCtx = new AddressEndpointContext(
-                new InetSocketAddress(InetAddress.getLocalHost(),
-                        CoAP.DEFAULT_COAP_PORT));
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x01});
@@ -450,19 +450,16 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String kid = Base64.getEncoder().encodeToString(kidBytes);
         
         
-        
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
-                TokenRepository.getInstance().getKey(kid).get(
-                        KeyKeys.Octet_K).GetByteString());
+        						 TokenRepository.getInstance().getKey(kid).get(KeyKeys.Octet_K).GetByteString());
 
        //Test that the token is there
-        Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.OK,
+        					TokenRepository.getInstance().canAccess(kid, kid, "temp", Constants.GET, null));
     }
-     
+    
     
     /**
      * Test a POST to /authz-info, followed by an attempt to update
@@ -478,8 +475,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Request req = new Request(Code.POST);
         req.setPayload(payload.EncodeToBytes());
         AddressEndpointContext destCtx = new AddressEndpointContext(
-                new InetSocketAddress(
-                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
                 new PreSharedKeyIdentity("psk"));
         req.setDestinationContext(destCtx);
         
@@ -487,8 +483,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setType(Type.NON);
         req.setAcknowledged(false);
         AddressEndpointContext srcCtx = new AddressEndpointContext(
-                new InetSocketAddress(InetAddress.getLocalHost(),
-                        CoAP.DEFAULT_COAP_PORT));
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x02});
@@ -504,24 +499,19 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         String kid = Base64.getEncoder().encodeToString(kidBytes);
         
         
-        
         //Test that the token is there and that responses are as expected
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
-                TokenRepository.getInstance().getKey(kid).get(
-                        KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(KeyKeys.Octet_K).GetByteString());
 
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                        kid, null, "temp", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(kid, null, "temp", Constants.GET, null));
         
         Assert.assertEquals(TokenRepository.METHODNA,
-                TokenRepository.getInstance().canAccess(
-                        kid, null, "temp", Constants.POST, null));
+                TokenRepository.getInstance().canAccess(kid, null, "temp", Constants.POST, null));
         
         Assert.assertEquals(TokenRepository.FORBID,
-                TokenRepository.getInstance().canAccess(
-                        kid, null, "co2", Constants.POST, null));
+                TokenRepository.getInstance().canAccess(kid, null, "co2", Constants.POST, null));
         
         
         // Build a new Token for updating access rights, with a different 'scope'
@@ -546,21 +536,17 @@ public class TestDtlspAuthzInfoGroupOSCORE {
   	    
   	    
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, "co2", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(kid, kid, "co2", Constants.GET, null));
         
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, "co2", Constants.POST, null));
+                TokenRepository.getInstance().canAccess(kid, kid, "co2", Constants.POST, null));
 		
         Assert.assertEquals(TokenRepository.METHODNA, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, "co2", Constants.DELETE, null));
+                TokenRepository.getInstance().canAccess(kid, kid, "co2", Constants.DELETE, null));
         
         // ... and that access to the "temp" resource is not allowed anymore
         Assert.assertEquals(TokenRepository.FORBID, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, "temp", Constants.GET, null));
+                TokenRepository.getInstance().canAccess(kid, kid, "temp", Constants.GET, null));
         
     }
 
@@ -577,18 +563,15 @@ public class TestDtlspAuthzInfoGroupOSCORE {
             throws AceException, IntrospectionException, IOException {
         Request req = new Request(Code.POST);
         req.setPayload(payload2.EncodeToBytes());
-        AddressEndpointContext destCtx = new AddressEndpointContext(
-                new InetSocketAddress(
-                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
-                new PreSharedKeyIdentity("psk"));
+        AddressEndpointContext destCtx = new AddressEndpointContext(new InetSocketAddress(
+                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT), new PreSharedKeyIdentity("psk"));
         req.setDestinationContext(destCtx);
         
 
         req.setType(Type.NON);
         req.setAcknowledged(false);
         AddressEndpointContext srcCtx = new AddressEndpointContext(
-                new InetSocketAddress(InetAddress.getLocalHost(),
-                        CoAP.DEFAULT_COAP_PORT));
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x03});
@@ -607,8 +590,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
-                TokenRepository.getInstance().getKey(kid).get(
-                        KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(KeyKeys.Octet_K).GetByteString());
                
         // Test that the token is there
         String groupName = "feedca570000";
@@ -630,8 +612,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         Request req = new Request(Code.POST);
         req.setPayload(payload3.EncodeToBytes());
         AddressEndpointContext destCtx = new AddressEndpointContext(
-                new InetSocketAddress(
-                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
                 new PreSharedKeyIdentity("psk"));
         req.setDestinationContext(destCtx);
         
@@ -639,8 +620,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setType(Type.NON);
         req.setAcknowledged(false);
         AddressEndpointContext srcCtx = new AddressEndpointContext(
-                new InetSocketAddress(InetAddress.getLocalHost(),
-                        CoAP.DEFAULT_COAP_PORT));
+                new InetSocketAddress(InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT));
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x04});
@@ -659,14 +639,13 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         //Test that the PoP key was stored
         Assert.assertNotNull(TokenRepository.getInstance().getKey(kid));
         Assert.assertArrayEquals(key128,
-                TokenRepository.getInstance().getKey(kid).get(
-                        KeyKeys.Octet_K).GetByteString());
+                TokenRepository.getInstance().getKey(kid).get(KeyKeys.Octet_K).GetByteString());
                
         //Test that the token is there
         String groupName = "feedca570000";
         Assert.assertEquals(TokenRepository.OK, 
-                TokenRepository.getInstance().canAccess(
-                        kid, kid, rootGroupMembershipResource + "/" + groupName, Constants.POST, null));
+                TokenRepository.getInstance().canAccess(kid, kid, rootGroupMembershipResource + "/" +
+                										groupName, Constants.POST, null));
     }
     
     /**
