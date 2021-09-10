@@ -82,8 +82,8 @@ public class TestToken {
     private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     private static SQLConnector db = null;
     private static Token t = null;
-    private static String cti1;
-    private static String cti2;
+    private static String ctiStr1;
+    private static String ctiStr2;
     private static KissPDP pdp = null;
     
     /**
@@ -101,13 +101,11 @@ public class TestToken {
 
         privateKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         publicKey = privateKey.PublicKey(); 
-        publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(
-                "myKey".getBytes(Constants.charset)));
+        publicKey.add(KeyKeys.KeyId, CBORObject.FromObject("myKey".getBytes(Constants.charset)));
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey skey = new OneKey(keyData);
         
         //Setup RS entries
@@ -120,7 +118,6 @@ public class TestToken {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
-        auds.add("sensors");
         auds.add("actuators");
         
         Set<String> keyTypes = new HashSet<>();
@@ -138,8 +135,7 @@ public class TestToken {
         
         long expiration = 1000000L;
        
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, skey, publicKey);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
@@ -149,8 +145,7 @@ public class TestToken {
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, skey, null);
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -164,12 +159,10 @@ public class TestToken {
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -181,12 +174,10 @@ public class TestToken {
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs4", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -198,28 +189,25 @@ public class TestToken {
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.TEST_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs5", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs5", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         profiles.clear();
         profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
+        auds.add("aud6");
         keyTypes.clear();
         keyTypes.add("TST");
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs6", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         
         profiles.clear();
@@ -232,43 +220,36 @@ public class TestToken {
         tokenTypes.clear();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         cose.clear();
-        coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        coseP = new COSEparams(MessageTag.MAC0, AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs7", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs7", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient(
-                "clientA", profiles, null, null, 
-                keyTypes, null, publicKey);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "rs1", 
-                keyTypes, skey, null);
+        db.addClient("clientB", profiles, "co2", "rs1", keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("TST");        
-        db.addClient("clientC", profiles, "co2", "sensors", 
-                keyTypes, skey, null);
+        db.addClient("clientC", profiles, "co2", "sensors", keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
-        db.addClient("clientD", profiles, null, null, 
-                keyTypes, skey, null);
+        db.addClient("clientD", profiles, null, null, keyTypes, skey, null);
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -276,38 +257,35 @@ public class TestToken {
         keyTypes.clear();
         keyTypes.add("RPK");
         keyTypes.add("PSK");
-        db.addClient("clientE", profiles, null, null, 
-                keyTypes, skey, publicKey);
+        db.addClient("clientE", profiles, null, null, keyTypes, skey, publicKey);
         
-        RawPublicKeyIdentity rpkid 
-            = new RawPublicKeyIdentity(publicKey.AsPublicKey());
+        RawPublicKeyIdentity rpkid = new RawPublicKeyIdentity(publicKey.AsPublicKey());
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient(rpkid.getName(), profiles, null, null, 
-                keyTypes, skey, publicKey);
+        db.addClient(rpkid.getName(), profiles, null, null, keyTypes, skey, publicKey);
         
         
         //Setup token entries
         byte[] cti = new byte[] {0x00};
-        cti1 = Base64.getEncoder().encodeToString(cti);
+        ctiStr1 = Base64.getEncoder().encodeToString(cti);
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
         claims.put(Constants.EXP, CBORObject.FromObject(1000000L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti1, claims);
+        db.addToken(ctiStr1, claims);
         
         cti = new byte[]{0x01};
-        cti2 = Base64.getEncoder().encodeToString(cti);
+        ctiStr2 = Base64.getEncoder().encodeToString(cti);
         claims.clear();
         claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.EXP, CBORObject.FromObject(2000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(cti));
-        db.addToken(cti2, claims);
+        db.addToken(ctiStr2, claims);
         
         pdp = new KissPDP(db);
         pdp.addTokenAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
@@ -379,9 +357,10 @@ public class TestToken {
         LocalMessage msg = new LocalMessage(-1, "client_1", "TestAS", params); 
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
 
@@ -398,11 +377,11 @@ public class TestToken {
         LocalMessage msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         cbor.Add(Constants.ERROR_DESCRIPTION, "No scope found for message");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -420,11 +399,11 @@ public class TestToken {
         LocalMessage msg = new LocalMessage(-1, "clientA","TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         cbor.Add(Constants.ERROR_DESCRIPTION, "No audience found for message");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -443,10 +422,10 @@ public class TestToken {
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.INVALID_SCOPE);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -465,12 +444,11 @@ public class TestToken {
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenType"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        assert(response.getMessageCode()
-                == Message.FAIL_BAD_REQUEST);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, "Audience incompatible on token type");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     } 
     
     /**
@@ -489,11 +467,11 @@ public class TestToken {
         params.put(Constants.SCOPE, CBORObject.FromObject("failProfile"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        assert(response.getMessageCode()
-                == Message.FAIL_BAD_REQUEST);
+        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.INCOMPATIBLE_PROFILES);        
-        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
+        Assert.assertArrayEquals(response.getRawPayload(), cbor.EncodeToBytes());
     }
     
     /**
@@ -511,8 +489,8 @@ public class TestToken {
         params.put(Constants.SCOPE, CBORObject.FromObject("failTokenNotImplemented"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);      
-        assert(response.getMessageCode()
-                == Message.FAIL_NOT_IMPLEMENTED);
+        assert(response.getMessageCode() == Message.FAIL_NOT_IMPLEMENTED);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, "Unsupported token type");
         Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
@@ -533,10 +511,10 @@ public class TestToken {
         Message msg = new LocalMessage(-1, "clientD", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -555,10 +533,10 @@ public class TestToken {
         Message msg = new LocalMessage(-1, "clientC", "TestAS", params);
         Message response = t.processMessage(msg);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, Constants.UNSUPPORTED_POP_KEY);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -576,12 +554,11 @@ public class TestToken {
         params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        assert(response.getMessageCode() 
-                == Message.FAIL_INTERNAL_SERVER_ERROR);
+        assert(response.getMessageCode() == Message.FAIL_INTERNAL_SERVER_ERROR);
+        
         CBORObject cbor = CBORObject.NewMap();
         cbor.Add(Constants.ERROR, "No common security context found for audience");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-        cbor.EncodeToBytes());
+        Assert.assertArrayEquals(cbor.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -597,17 +574,13 @@ public class TestToken {
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
-        assert(response.getMessageCode() 
-                == Message.CREATED);
+        assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).EncodeToBytes(),
-                CwtCryptoCtx.sign1Verify(
-                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(token.GetByteString()).EncodeToBytes(),
+        						  CwtCryptoCtx.sign1Verify(publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.AUD).AsString().equals("rs1"));
     }
     
@@ -624,16 +597,13 @@ public class TestToken {
         params.put(Constants.SCOPE, CBORObject.FromObject("co2"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
-        assert(response.getMessageCode() 
-                == Message.CREATED);
+        assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(
-                token.GetByteString()).EncodeToBytes(), 
-                CwtCryptoCtx.sign1Verify(
-                publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
+        CWT cwt = CWT.processCOSE(CBORObject.DecodeFromBytes(token.GetByteString()).EncodeToBytes(), 
+                				  CwtCryptoCtx.sign1Verify(publicKey, AlgorithmID.ECDSA_256.AsCBOR()));
         assert(cwt.getClaim(Constants.SCOPE).AsString().equals("co2"));
     }
     
@@ -648,19 +618,17 @@ public class TestToken {
     public void testSucceed() throws Exception { 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
+        			    CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
@@ -682,30 +650,27 @@ public class TestToken {
             IllegalStateException, InvalidCipherTextException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("rw_valve"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject rpk = CBORObject.NewMap();
+        
         Encrypt0Message enc = new Encrypt0Message();
-        enc.addAttribute(HeaderKeys.Algorithm, 
-                AlgorithmID.AES_CCM_16_128_128.AsCBOR(), 
-                Attribute.PROTECTED);
+        enc.addAttribute(HeaderKeys.Algorithm, AlgorithmID.AES_CCM_16_128_128.AsCBOR(), Attribute.PROTECTED);
         enc.SetContent(publicKey.EncodeToBytes());
         enc.encrypt(key128);
         rpk.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
+        
         params.put(Constants.CNF, rpk);
-        RawPublicKeyIdentity rpkid 
-            = new RawPublicKeyIdentity(publicKey.AsPublicKey());
+        RawPublicKeyIdentity rpkid = new RawPublicKeyIdentity(publicKey.AsPublicKey());
         Message msg = new LocalMessage(-1, rpkid.getName(), "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
+        				CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("rw_valve"));
     }
@@ -719,25 +684,25 @@ public class TestToken {
     public void testSucceedCnfKid() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_pressure"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_pressure"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);
+        
         Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(params.containsKey(Constants.PROFILE));
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
+                		CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.get(Constants.SCOPE).AsString().contains("r_pressure"));
+        
         CBORObject cnf2 = claims.get(Constants.CNF);
         assert(cnf.equals(cnf2));
     }
@@ -750,10 +715,11 @@ public class TestToken {
      */
     @Test
     public void testPurge() throws Exception {
-        Map<Short, CBORObject> claims = db.getClaims(cti1);
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr1);
         assert(!claims.isEmpty());
+        
         db.purgeExpiredTokens(1000001L);
-        claims = db.getClaims(cti1);
+        claims = db.getClaims(ctiStr1);
         assert(claims.isEmpty());
     }
     
@@ -764,10 +730,11 @@ public class TestToken {
      */
     @Test
     public void testRemoveToken() throws Exception { 
-        Map<Short, CBORObject> claims = db.getClaims(cti2);
+        Map<Short, CBORObject> claims = db.getClaims(ctiStr2);
         assert(!claims.isEmpty());
-        db.deleteToken(cti2);
-        claims = db.getClaims(cti2);
+        
+        db.deleteToken(ctiStr2);
+        claims = db.getClaims(ctiStr2);
         assert(claims.isEmpty());
     }
     
@@ -809,29 +776,29 @@ public class TestToken {
     public void testTokenConfig() throws Exception {
         Set<Short> tokenConfig = new HashSet<>();
         tokenConfig.add(Constants.CTI);
-        t = new Token("testAS2", pdp, db, new KissTime(),
-                privateKey, tokenConfig, false, null);
+        t = new Token("testAS2", pdp, db, new KissTime(), privateKey, tokenConfig, false, null);
+        
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_pressure"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_pressure"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         params.put(Constants.CNF, cnf);
+        
         Message msg = new LocalMessage(-1, "clientE", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
+                		CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         assert(claims.containsKey(Constants.CTI));
-        assert(claims.size() == 1);     
+        assert(claims.size() == 1);
+        
         db.deleteToken(ctiStr);
         t = new Token("AS", pdp, db, new KissTime(), privateKey, null); 
     }
@@ -846,6 +813,7 @@ public class TestToken {
         //Create the grant
         byte[] ctiB = new byte[] {0x00, 0x01};
         String cti = Base64.getEncoder().encodeToString(ctiB);
+        
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.AUD, CBORObject.FromObject("rs1"));
         claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
@@ -853,31 +821,27 @@ public class TestToken {
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, publicKey.get(KeyKeys.KeyId));
         claims.put(Constants.CNF, cnf);
+        
         CWT cwt = new CWT(claims);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                AlgorithmID.AES_CCM_16_64_128.AsCBOR());
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, AlgorithmID.AES_CCM_16_64_128.AsCBOR());
         CBORObject cwtCB = cwt.encode(ctx);
         Map<Short, CBORObject> rsInfo = new HashMap<>(); 
-        rsInfo.put(Constants.ACCESS_TOKEN, 
-                CBORObject.FromObject(cwtCB.EncodeToBytes()));
+        rsInfo.put(Constants.ACCESS_TOKEN, CBORObject.FromObject(cwtCB.EncodeToBytes()));
         rsInfo.put(Constants.CNF, cnf);
         db.addGrant("testGrant", cti, claims, rsInfo);
         
         //Prepare the request
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.authzCode);
-        params.put(Constants.CODE,  
-                CBORObject.FromObject("testGrant"));
+        params.put(Constants.CODE, CBORObject.FromObject("testGrant"));
         Message msg = new LocalMessage(-1, "clientA", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
-        CWT cwt2 = CWT.processCOSE(CBORObject.DecodeFromBytes(
-                token.GetByteString()).EncodeToBytes(), 
-                ctx);
+        CWT cwt2 = CWT.processCOSE(CBORObject.DecodeFromBytes(token.GetByteString()).EncodeToBytes(), ctx);
         claims = cwt2.getClaims();
         assert(claims.get(Constants.SCOPE).AsString().contains("r_temp"));
         assert(claims.get(Constants.AUD).AsString().contains("rs1"));     
@@ -892,26 +856,23 @@ public class TestToken {
     public void testOscoreCnf() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("rw_valve r_pressure foobar"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
         Message msg = new LocalMessage(-1, "clientB", "TestAS", params);
         Message response = t.processMessage(msg);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject token = params.get(Constants.ACCESS_TOKEN);
         String ctiStr = Base64.getEncoder().encodeToString(
-                CBORObject.DecodeFromBytes(
-                        token.GetByteString()).GetByteString());
+                	    CBORObject.DecodeFromBytes(token.GetByteString()).GetByteString());
         Map<Short, CBORObject> claims = db.getClaims(ctiStr);
         CBORObject cnf = claims.get(Constants.CNF);
         assert(cnf.getType().equals(CBORType.Map));
-        assert(cnf.ContainsKey(CBORObject.FromObject(
-                Constants.OSCORE_Input_Material)));
-        CBORObject osctx = cnf.get(CBORObject.FromObject(
-                Constants.OSCORE_Input_Material));
+        assert(cnf.ContainsKey(CBORObject.FromObject(Constants.OSCORE_Input_Material)));
+        
+        CBORObject osctx = cnf.get(CBORObject.FromObject(Constants.OSCORE_Input_Material));
         assert(osctx.getType().equals(CBORType.Map));
         assert(osctx.ContainsKey(CBORObject.FromObject(Constants.OS_MS)));
     }

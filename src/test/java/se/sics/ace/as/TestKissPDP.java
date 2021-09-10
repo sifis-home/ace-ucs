@@ -99,8 +99,7 @@ public class TestKissPDP {
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey skey = new OneKey(keyData);
         
         //Setup RS entries
@@ -113,8 +112,7 @@ public class TestKissPDP {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
-        auds.add("sensors");
-        auds.add("actuators");
+        auds.add("aud1");
         
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
@@ -125,31 +123,27 @@ public class TestKissPDP {
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         
         long expiration = 1000000L;
        
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, skey, skey, publicKey);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, publicKey);
         
         profiles.remove("coap_oscore");
         scopes.clear();
-        auds.remove("actuators");
-        auds.add("fail");
+        auds.clear();
+        auds.add("aud2");
         keyTypes.remove("PSK");
         tokenTypes.remove(AccessTokenFactory.REF_TYPE);
         expiration = 300000L;
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, skey, skey, null);
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, skey, skey, null);
         
         profiles.clear();
         profiles.add("coap_oscore");
         scopes.add("co2");
         auds.clear();
-        auds.add("actuators");
-        auds.add("fail");
+        auds.add("aud3");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -159,31 +153,32 @@ public class TestKissPDP {
                 AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
         cose.add(coseP);
         expiration = 30000L;
-        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        db.addRS("rs3", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
         
         
-        db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
-        db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
-        db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, null, null, publicKey);
+        auds.clear();
+        auds.add("audTest1");
+        db.addRS("testRS1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
+        auds.clear();
+        auds.add("audTest2");
+        db.addRS("testRS2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
+        auds.clear();
+        auds.add("audTest3");
+        db.addRS("testRS3", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, null, null, publicKey);
+        
         
         //Setup client entries
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("RPK");
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, null, publicKey);
+        db.addClient("clientA", profiles, null, null, keyTypes, null, publicKey);
   
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientB", profiles, "co2", "sensors", 
-                keyTypes, skey, null);
+        db.addClient("clientB", profiles, "co2", "sensors", keyTypes, skey, null);
         
         //Setup token entries
         byte[] cti = new byte[]{0x01};
@@ -313,27 +308,25 @@ public class TestKissPDP {
         assert(!pdp.canAccessToken("testC"));
         pdp.revokeIntrospectAccess("testRS");
         assert(pdp.getIntrospectAccessLevel("testRS").equals(PDP.IntrospectAccessLevel.NONE));
+        
         pdp.addAccess("testC", "testRS1", "testScope1");
         pdp.addAccess("testC", "testRS1", "testScope2");
         pdp.addAccess("testC", "testRS2", "testScope3");
         pdp.addAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
-                "testScope1").equals("testScope1"));
-        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), 
-                "testScope1 testScope2 testScope3").equals(
-                        "testScope1 testScope2"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), 
-                "testScope3").equals("testScope3"));
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
-                "testScope4").equals("testScope4"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1")
+        		  .equals("testScope1"));
+        assert(pdp.canAccess("testC",  Collections.singleton("testRS1"), "testScope1 testScope2 testScope3")
+        		  .equals("testScope1 testScope2"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3")
+        		  .equals("testScope3"));
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4")
+        		  .equals("testScope4"));
+        
         pdp.revokeAccess("testC", "testRS3", "testScope4");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), 
-                "testScope4") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS3"), "testScope4") == null);
         pdp.revokeAllRsAccess("testC", "testRS1");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), 
-                "testScope1") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS1"), "testScope1") == null);
         pdp.revokeAllAccess("testC");
-        assert(pdp.canAccess("testC", Collections.singleton("testRS2"),
-                "testScope3") == null);
+        assert(pdp.canAccess("testC", Collections.singleton("testRS2"), "testScope3") == null);
     }
 }

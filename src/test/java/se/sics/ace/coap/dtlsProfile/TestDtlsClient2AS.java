@@ -200,9 +200,8 @@ public class TestDtlsClient2AS {
         params.put(Constants.SCOPE, 
                 CBORObject.FromObject("r_temp rw_config foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
@@ -239,13 +238,11 @@ public class TestDtlsClient2AS {
 
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_temp rw_config foobar"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
         
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -270,12 +267,10 @@ public class TestDtlsClient2AS {
         
         params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_temp rw_config rw_light foobar"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config rw_light foobar"));
         params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
         
-        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
-        					   Constants.APPLICATION_ACE_CBOR); 
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), Constants.APPLICATION_ACE_CBOR); 
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         map = Constants.getParams(res);
@@ -302,16 +297,13 @@ public class TestDtlsClient2AS {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        OneKey key = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);
         //builder.setPskStore(new StaticPskStore("rs1", key256));
-        builder.setIdentity(key.AsPrivateKey(), 
-                key.AsPublicKey());
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
@@ -324,16 +316,15 @@ public class TestDtlsClient2AS {
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                Constants.APPLICATION_ACE_CBOR);
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
         assert(map.containsKey(Constants.AUD));
         assert(map.get(Constants.AUD).AsString().equals("actuators"));
         assert(map.containsKey(Constants.SCOPE));
-        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+        assert(map.get(Constants.SCOPE).AsString().equals("temp"));
         assert(map.containsKey(Constants.ACTIVE));
         assert(map.get(Constants.ACTIVE).isTrue());
         assert(map.containsKey(Constants.CTI));

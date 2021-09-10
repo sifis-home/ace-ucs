@@ -82,34 +82,30 @@ public class DtlsASTestServer
         DBHelper.setUpDB();
         db = DBHelper.getCoapDBConnector();
 
-        OneKey akey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey akey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_dtls");
         Set<String> auds = new HashSet<>();
-        auds.add("actuators");
+        auds.add("aud1");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         keyTypes.add("RPK");
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
         
@@ -117,36 +113,44 @@ public class DtlsASTestServer
         scopes.add("r_temp");
         scopes.add("rw_config");
         scopes.add("co2");
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, akey);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, akey);
         
         scopes = new HashSet<>();
+        scopes.clear();
         scopes.add("r_temp");
         scopes.add("rw_config");
         scopes.add("rw_light");
         scopes.add("failTokenType");
-        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, null);
+        auds.clear();
+        auds.add("aud2");
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, null);
         
         auds.clear();
         auds.add("actuators");
-        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, authPsk, tokenPsk, akey);
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w",
+        		 profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, akey);
         
         profiles.clear();
         profiles.add("coap_dtls");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+        db.addClient("clientA", profiles, null, null, keyTypes, authPsk, null);        
         
         KissTime time = new KissTime();
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
-        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
+        claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
+        db.addToken(cti, claims);       
+        db.addCti2Client(cti, "clientA");
+        
+        cti = Base64.getEncoder().encodeToString(new byte[]{0x01});
+        claims = new HashMap<>();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("aud1"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
         db.addCti2Client(cti, "clientA");
