@@ -897,37 +897,46 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		OneKey publicKey = null;
         		boolean valid = false;
         		
+        		if (clientCred.getType() != CBORType.ByteString) {
+        		    exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
+        		                     "The parameter 'client_cred' must be a CBOR byte string");
+        		    return;
+        		}
+        		
+        		byte[] clientCredBytes = clientCred.GetByteString();
         		switch(myGroup.getPubKeyEnc()) {
-	        		case Constants.COSE_HEADER_PARAM_UCCS:
-	        	        if (clientCred.getType() == CBORType.Map) {
-	        	            // Retrieve the public key from the UCCS
-	        	        	publicKey = Util.uccsToOneKey(clientCred);
-	        	        	valid = true;
-	        	        }
-	        	        else {
-	        	            Assert.fail("Invalid format of public key");
-	        	        }
-	        	        break;
-	        		case Constants.COSE_HEADER_PARAM_CWT:
-	        	        if (clientCred.getType() == CBORType.Array) {
-	        	            // Retrieve the public key from the CWT
-	        	            // TODO
-	        	        }
-	        	        else {
-	        	            Assert.fail("Invalid format of public key");
-	        	        }
-	        	        break;
-	        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
-	        	        // Retrieve the public key from the certificate
-	        	        if (clientCred.getType() == CBORType.ByteString) {
-	        	            // TODO
-	        	        }
-	        	        else {
-	        	            Assert.fail("Invalid format of public key");
-	        	        }
-	        	        break;
-	        	    default:
-	        	        Assert.fail("Invalid format of public key");
+        		    case Constants.COSE_HEADER_PARAM_UCCS:
+        		        CBORObject uccs = CBORObject.DecodeFromBytes(clientCredBytes);
+        		        if (uccs.getType() == CBORType.Map) {
+        		            // Retrieve the public key from the UCCS
+        		            publicKey = Util.uccsToOneKey(uccs);
+        		            valid = true;
+        		        }
+        		        else {
+        		            Assert.fail("Invalid format of public key");
+        		        }
+        		        break;
+        		    case Constants.COSE_HEADER_PARAM_CWT:
+        		        CBORObject cwt = CBORObject.DecodeFromBytes(clientCredBytes);
+        		        if (cwt.getType() == CBORType.Array) {
+        		            // Retrieve the public key from the CWT
+        		            // TODO
+        		        }
+        		        else {
+        		            Assert.fail("Invalid format of public key");
+        		        }
+        		        break;
+        		    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+        		        // Retrieve the public key from the certificate
+        		        if (clientCred.getType() == CBORType.ByteString) {
+        		            // TODO
+        		        }
+        		        else {
+        		            Assert.fail("Invalid format of public key");
+        		        }
+        		        break;
+        		    default:
+        		        Assert.fail("Invalid format of public key");
         		}
         		if (publicKey == null ||  valid == false) {
             		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
@@ -1283,7 +1292,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	new SecureRandom().nextBytes(kdcNonce);
         	joinResponse.Add(Constants.KDC_NONCE, kdcNonce);
         	
-        	CBORObject publicKey = targetedGroup.getGmPublicKey();
+        	CBORObject publicKey = CBORObject.FromObject(targetedGroup.getGmPublicKey());
         	
         	joinResponse.Add(Constants.KDC_CRED, publicKey);
 
@@ -1867,7 +1876,7 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	new SecureRandom().nextBytes(kdcNonce);
         	myResponse.Add(Constants.KDC_NONCE, kdcNonce);
         	
-        	CBORObject publicKey = targetedGroup.getGmPublicKey();
+        	CBORObject publicKey = CBORObject.FromObject(targetedGroup.getGmPublicKey());
         	
         	myResponse.Add(Constants.KDC_CRED, publicKey);
         	
@@ -3308,40 +3317,70 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	final byte[] groupIdPrefix = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57 };
     	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
     	
-    	// Set the asymmetric key pair and public key of the Group Manager
-    	String gmKeyPairStr = "";
-    	String gmPublicKeyStr = "";
-    	OneKey gmKeyPair = null;
-    	OneKey gmPublicKeyOneKey = null;
-    	CBORObject gmPublicKey = null;
     	
-    	// Store the asymmetric key pair and public key of the Group Manager (ECDSA_256)
+    	// Set the asymmetric key pair and public key of the Group Manager
+    	
+    	// Serialization of the COSE Key including both private and public part
+    	byte[] gmKeyPairBytes = null;
+    	    	
+    	// The asymmetric key pair and public key of the Group Manager (ECDSA_256)
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-    	    gmKeyPairStr = "pgMmAQIgASFYICI2ZYymdbti17JGI9sEU6O5BTO3w7IhzBwsc8TpGdVAIlggdwkWvEyXw8RmBPQwsGFwx7PWBiYzdWYowxGA+ju2WhsjWCBKe4RKTJfvke0jKqVkydXTc/IJlkf56b0/5kF6DQ+RrQ==";
-    	    gmPublicKeyStr = "pQMmAQIgASFYICI2ZYymdbti17JGI9sEU6O5BTO3w7IhzBwsc8TpGdVAIlggdwkWvEyXw8RmBPQwsGFwx7PWBiYzdWYowxGA+ju2Whs=";
+    		gmKeyPairBytes = Utils.hexToBytes("a60102032620012158202236658ca675bb62d7b24623db0453a3b90533b7c3b221cc1c2c73c4e919d540225820770916bc4c97c3c46604f430b06170c7b3d6062633756628c31180fa3bb65a1b2358204a7b844a4c97ef91ed232aa564c9d5d373f2099647f9e9bd3fe6417a0d0f91ad");
     	}
     	    
-    	// Store the asymmetric key pair and public key of the Group Manager (EDDSA - Ed25519)
+    	// The asymmetric key pair and public key of the Group Manager (EDDSA - Ed25519)
     	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-    	    gmKeyPairStr = "pQMnAQEgBiFYIMbsZl6Be9BkNA58JLuToR6OwHNc5IeQ+cRY9/o0C4yjI1gg0KLOEbK6YUsEiQO3JjjvSjsK9W4aYMb7Zwawwa2KFPs=";
-    	    gmPublicKeyStr = "pAMnAQEgBiFYIMbsZl6Be9BkNA58JLuToR6OwHNc5IeQ+cRY9/o0C4yj";
+    		gmKeyPairBytes = Utils.hexToBytes("a5010103272006215820c6ec665e817bd064340e7c24bb93a11e8ec0735ce48790f9c458f7fa340b8ca3235820d0a2ce11b2ba614b048903b72638ef4a3b0af56e1a60c6fb6706b0c1ad8a14fb");
     	}
 
-    	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmKeyPairStr)));
+    	OneKey gmKeyPair = null;
+    	gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(gmKeyPairBytes));
+    	
 
-    	gmPublicKeyOneKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(gmPublicKeyStr)));
+    	// Serialization of the public key, according to the format used in the group
+    	byte[] gmPublicKey = null;
+    	
+    	/*
+    	// Build the public key according to the format used in the group
+    	// Note: most likely, the result will NOT follow the required deterministic
+    	//       encoding in byte lexicographic order, and it has to be adjusted offline
+    	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_UCCS:
+            // A UCCS including the public key
+        	String subjectName = "";
+            gmPublicKey = Util.oneKeyToUccs(gmKeyPair, subjectName);
+            break;
+        case Constants.COSE_HEADER_PARAM_CWT:
+            // A CWT including the public key
+            // TODO
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // A certificate including the public key
+            // TODO
+            break;
+    	}
+    	*/
+    	
+    	
     	switch (pubKeyEnc) {
 	        case Constants.COSE_HEADER_PARAM_UCCS:
-	        	// Build a UCCS including the public key
-                gmPublicKey = Util.oneKeyToUccs(gmPublicKeyOneKey, "");
+	            // A UCCS including the public key
+	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
+	        	}
+	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        		gmPublicKey = Utils.hexToBytes("A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
+	        	}
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
-                // Build a CWT including the public key
-                // TODO
+	            // A CWT including the public key
+	            // TODO
+	        	gmPublicKey = null;
 	            break;
 	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
-	            // Build/retrieve the certificate including the public key
+	            // A certificate including the public key
 	            // TODO
+	        	gmPublicKey = null;
 	            break;
     	}
     	
@@ -3388,19 +3427,68 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
     		return;
     	
-    	String rpkStr1 = "";
+    	// Set the public key of the group member with Sender ID 0x52
     	
-    	// Store the public key of the group member with Sender ID 'idClient2' (ECDSA_256)
-    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr1 = "pSJYIF0xJHwpWee30/YveWIqcIL/ATJfyVSeYbuHjCJk30xPAyYhWCA182VgkuEmmqruYmLNHA2dOO14gggDMFvI6kFwKlCzrwECIAE=";
+    	// The serialization of the COSE Key, including only the public part
+    	byte[] coseKeyPub1 = null;
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+    		coseKeyPub1 = Utils.hexToBytes("a501020326200121582035f3656092e1269aaaee6262cd1c0d9d38ed78820803305bc8ea41702a50b3af2258205d31247c2959e7b7d3f62f79622a7082ff01325fc9549e61bb878c2264df4c4f");
+    	}
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+    		coseKeyPub1 = Utils.hexToBytes("a401010327200621582077ec358c1d344e41ee0e87b8383d23a2099acd39bdf989ce45b52e887463389b");
+    	}
     	
-    	// Store the public key of the group member with Sender ID 'idClient2' (EDDSA - Ed25519)
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr1 = "pAMnAQEgBiFYIHfsNYwdNE5B7g6HuDg9I6IJms05vfmJzkW1Loh0Yzib";
+    	// Serialization of the public key, according to the format used in the group
+    	byte[] pubKey1 = null;
     	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr1)));
+    	/*
+    	// Build the public key according to the format used in the group
+    	// Note: most likely, the result will NOT follow the required deterministic
+    	//       encoding in byte lexicographic order, and it has to be adjusted offline
+    	OneKey coseKeyPub1OneKey = null;
+    	coseKeyPub1OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub1));
+    	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_UCCS:
+            // A UCCS including the public key
+        	String subjectName = "";
+        	pubKey1 = Util.oneKeyToUccs(coseKeyPub1OneKey, subjectName);
+            break;
+        case Constants.COSE_HEADER_PARAM_CWT:
+            // A CWT including the public key
+            // TODO
+        	pubKey1 = null;
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // A certificate including the public key
+            // TODO
+        	pubKey1 = null;
+            break;
+    	}
+    	*/
+
+    	switch (pubKeyEnc) {
+	        case Constants.COSE_HEADER_PARAM_UCCS:
+	            // A UCCS including the public key
+	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        		pubKey1 = Utils.hexToBytes("A2026008A101A501020326200121582035F3656092E1269AAAEE6262CD1C0D9D38ED78820803305BC8EA41702A50B3AF2258205D31247C2959E7B7D3F62F79622A7082FF01325FC9549E61BB878C2264DF4C4F");
+	        	}
+	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        		pubKey1 = Utils.hexToBytes("A2026008A101A401010327200621582077EC358C1D344E41EE0E87B8383D23A2099ACD39BDF989CE45B52E887463389B");
+	        	}
+	            break;
+	        case Constants.COSE_HEADER_PARAM_CWT:
+	            // A CWT including the public key
+	            // TODO
+	        	pubKey1 = null;
+	            break;
+	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	            // A certificate including the public key
+	            // TODO
+	        	pubKey1 = null;
+	            break;
+    	}
     	
-    	myGroup.storePublicKey(mySid, Util.oneKeyToUccs(myKey, ""));
+    	myGroup.storePublicKey(mySid, CBORObject.FromObject(pubKey1));
     	
     	
     	// Add a group member
@@ -3417,19 +3505,69 @@ public class PlugtestRSOSCOREGroupOSCORE {
     	if (!myGroup.addGroupMember(mySid, myName, roles, mySubject))
     		return;
     	
-    	String rpkStr2 = "";
+    	// The serialization of the COSE Key, including only the public part
+    	byte[] coseKeyPub2 = null;
+    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+    		coseKeyPub2 = Utils.hexToBytes("a50102032620012158209dfa6d63fd1515761460b7b02d54f8d7345819d2e5576c160d3148cc7886d5f122582076c81a0c1a872f1730c10317ab4f3616238fb23a08719e8b982b2d9321a2ef7d");
+    	}
+    	// Store the public key of the group member with Sender ID 0x52
+    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+    		coseKeyPub2 = Utils.hexToBytes("a4010103272006215820105b8c6a8c88019bf0c354592934130baa8007399cc2ac3be845884613d5ba2e");
+    	}
     	
-    	// Store the public key of the group member with Sender ID 'idClient3' (ECDSA_256)
-    	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32())
-    		rpkStr2 = "pSJYIHbIGgwahy8XMMEDF6tPNhYjj7I6CHGei5grLZMhou99AyYhWCCd+m1j/RUVdhRgt7AtVPjXNFgZ0uVXbBYNMUjMeIbV8QECIAE=";
     	
-    	// Store the public key of the group member with Sender ID 'idClient3' (EDDSA - Ed25519)
-    	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32())
-    		rpkStr2 = "pAMnAQEgBiFYIBBbjGqMiAGb8MNUWSk0EwuqgAc5nMKsO+hFiEYT1bou";
+    	// Serialization of the public key, according to the format used in the group
+    	byte[] pubKey2 = null;
     	
-    	myKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(rpkStr2)));
+    	/*
+    	// Build the public key according to the format used in the group
+    	// Note: most likely, the result will NOT follow the required deterministic
+    	//       encoding in byte lexicographic order, and it has to be adjusted offline
+    	OneKey coseKeyPub2OneKey = null;
+    	coseKeyPub2OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub2));
+    	switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_UCCS:
+            // A UCCS including the public key
+        	String subjectName = "";
+        	pubKey2 = Util.oneKeyToUccs(coseKeyPub2OneKey, subjectName);
+            break;
+        case Constants.COSE_HEADER_PARAM_CWT:
+            // A CWT including the public key
+            // TODO
+        	pubKey2 = null;
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // A certificate including the public key
+            // TODO
+        	pubKey2 = null;
+            break;
+    	}
+    	*/
     	
-    	myGroup.storePublicKey(mySid, Util.oneKeyToUccs(myKey, ""));
+    	
+    	switch (pubKeyEnc) {
+	        case Constants.COSE_HEADER_PARAM_UCCS:
+	            // A UCCS including the public key
+	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        		pubKey2 = Utils.hexToBytes("A2026008A101A50102032620012158209DFA6D63FD1515761460B7B02D54F8D7345819D2E5576C160D3148CC7886D5F122582076C81A0C1A872F1730C10317AB4F3616238FB23A08719E8B982B2D9321A2EF7D");
+	        	}
+	        	if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        		pubKey2 = Utils.hexToBytes("A2026008A101A4010103272006215820105B8C6A8C88019BF0C354592934130BAA8007399CC2AC3BE845884613D5BA2E");
+	        	}
+	            break;
+	        case Constants.COSE_HEADER_PARAM_CWT:
+	            // A CWT including the public key
+	            // TODO
+	        	pubKey2 = null;
+	            break;
+	        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	            // A certificate including the public key
+	            // TODO
+	        	pubKey2 = null;
+	            break;
+    	}
+    	
+    	myGroup.storePublicKey(mySid, CBORObject.FromObject(pubKey2));
     	
     	
     	// Add this OSCORE group to the set of active groups

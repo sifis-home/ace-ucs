@@ -79,7 +79,8 @@ public class GroupInfo {
 	
 	// Each set of the list refers to a different size of Sender IDs.
 	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
-	// Each map has as value the public keys of the group members, according to the format used in the group.
+	// Each map has as values CBOR byte strings, with value the serialization of the public keys
+	// of the group members, according to the format used in the group.
 	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
 	private List<Map<CBORObject, CBORObject>> publicKeyRepo = new ArrayList<Map<CBORObject, CBORObject>>();
 	
@@ -133,7 +134,7 @@ public class GroupInfo {
 	private boolean status; // True if the group is currently active, false otherwise
 	
 	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a OneKey object
-	private CBORObject gmPublicKey; // The public key of the Group Manager, according to the format used in the group
+	private byte[] gmPublicKey; // The serialization of the public key of the Group Manager, in the format used in the group
 	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
@@ -157,8 +158,8 @@ public class GroupInfo {
 	 * @param ecdhAlg             the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
 	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
 	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
-	 * @param ecdhParams          the asymmetric key pair of the Group Manager
-	 * @param groupPolicies		  the public key of the Group Manager, according to the format used in the group
+	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
+	 * @param gmPublicKey		  the serialization of the public key of the Group Manager (in the format used in the group)
 	 */
     public GroupInfo(final String groupName,
     				 final byte[] masterSecret,
@@ -180,7 +181,7 @@ public class GroupInfo {
     		         final CBORObject ecdhParams,
     		         final CBORObject groupPolicies,
     		         final OneKey gmKeyPair,
-    		         final CBORObject gmPublicKey) {
+    		         final byte[] gmPublicKey) {
     	
     	this.version = 0;
     	this.status = false;
@@ -302,7 +303,7 @@ public class GroupInfo {
      * 
      * @return  The public key of the Group Manager
      */
-    synchronized public final CBORObject getGmPublicKey() {
+    synchronized public final byte[] getGmPublicKey() {
     	
     	return this.gmPublicKey;
     	
@@ -312,7 +313,7 @@ public class GroupInfo {
      * Set the public key of the Group Manager, according to the format used in the group
      * @param The new public key of the Group Manager
      */
-    synchronized public void setGmPublicKey(CBORObject gmPublicKey) {
+    synchronized public void setGmPublicKey(byte[] gmPublicKey) {
     	
     	this.gmPublicKey = gmPublicKey;
     	
@@ -1175,7 +1176,9 @@ public class GroupInfo {
     /**
      * Return the public keys of the current group members
      * 
-     * @return  The set of public keys of the current group members
+     * @return  The set of public keys of the current group members. The public keys are provided as
+     *          CBOR byte strings, with value the serialization of the public keys, according to the
+     *          format used in the group
      */
     synchronized public Map<CBORObject, CBORObject> getPublicKeys() {
     	
@@ -1199,7 +1202,8 @@ public class GroupInfo {
      * Return the public key of the group member indicated by the provided Sender ID
      * 
      * @param sid   Sender ID of the group member associated to the public key.
-     * @return  the public key 'key' of the group member.
+     * @return  a CBOR byte string, with value the serialization of the public key of the group member,
+     *          according to the format used in the group
      */
     synchronized public CBORObject getPublicKey(final byte[] sid) {
     	
@@ -1213,7 +1217,8 @@ public class GroupInfo {
     /**
      *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
      * @param sid   Sender ID of the group member associated to the public key.
-     * @param key   The public key of the group member
+     * @param key   A CBOR byte string, with value the serialization of the public key of the group member,
+     *              according to the format used in the group
      * @return  true if it worked, false if it failed
      */
     synchronized public boolean storePublicKey(final byte[] sid, final CBORObject key) {
@@ -1221,7 +1226,7 @@ public class GroupInfo {
     	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	if (key.getType() != CBORType.Map)
+    	if (key.getType() != CBORType.ByteString)
     		return false;
     	
     	this.publicKeyRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), key);

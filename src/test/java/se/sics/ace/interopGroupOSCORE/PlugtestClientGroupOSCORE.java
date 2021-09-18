@@ -52,6 +52,7 @@ import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
@@ -72,6 +73,7 @@ import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -583,17 +585,23 @@ public class PlugtestClientGroupOSCORE {
     
     private static void printResponseFromRS(CoapResponse res) throws Exception {
         if (res != null) {
-        	System.out.println("*** Response from the RS *** ");
-            System.out.print(res.getCode().codeClass + "." + "0" + res.getCode().codeDetail);
+            System.out.println("*** Response from the RS *** ");
+            System.out.print(res.getCode().codeClass + ".0" + res.getCode().codeDetail);
             System.out.println(" " + res.getCode().name());
 
             if (res.getPayload() != null) {
-            	CBORObject resCBOR = CBORObject.DecodeFromBytes(res.getPayload());
-                Map<Short, CBORObject> map = Constants.getParams(resCBOR);
-                System.out.println(map);
+                
+                if (res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_CBOR ||
+                    res.getOptions().getContentFormat() == Constants.APPLICATION_ACE_GROUPCOMM_CBOR) {
+                    CBORObject resCBOR = CBORObject.DecodeFromBytes(res.getPayload());
+                    System.out.println(resCBOR.toString());
+                }
+                else {
+                    System.out.println(new String(res.getPayload()));
+                }
             }
         } else {
-        	System.out.println("*** The response from the RS is null!");
+            System.out.println("*** The response from the RS is null!");
             System.out.print("No response received");
         }
     }
@@ -1271,24 +1279,53 @@ public class PlugtestClientGroupOSCORE {
         	if (gm_nonce == null)
         		Assert.fail("Error: the component N_S of the signature challence is null");
         	
+        	byte[] encodedPublicKey = null;
+
+        	/*
+        	// Build the public key according to the format used in the group
+        	// Note: most likely, the result will NOT follow the required deterministic
+        	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = C1keyPair.PublicKey();
+        	switch (pubKeyEncExpected.AsInt32()) {
+        	    case Constants.COSE_HEADER_PARAM_UCCS:
+        	        // Build a UCCS including the public key
+        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_CWT:
+        	        // Build a CWT including the public key
+        	        // TODO
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+        	        // Build/retrieve the certificate including the public key
+        	        // TODO
+        	        break;
+        	}
+        	*/
+
+        	switch (pubKeyEncExpected.AsInt32()) {
+	        	case Constants.COSE_HEADER_PARAM_UCCS:
+	        	    // A UCCS including the public key
+	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	        encodedPublicKey =net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
+	        	    }
+	        	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A4010103272006215820069E912B83963ACC5941B63546867DEC106E5B9051F2EE14F3BC5CC961ACD43A");
+	        	    }
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_CWT:
+	        	    // A CWT including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	        	    // A certificate including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+        	}
+
+        	requestPayload.Add(Constants.CLIENT_CRED, CBORObject.FromObject(encodedPublicKey));
         	
-        	CBORObject encodedPublicKey = null;
-            switch (pubKeyEncExpected.AsInt32()) {
-            	case Constants.COSE_HEADER_PARAM_UCCS:
-        			// Build a UCCS including the public key
-        			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
-            		break;
-               	case Constants.COSE_HEADER_PARAM_CWT:
-        			// Build a CWT including the public key
-        			// TODO
-            		break;
-            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
-            		// Build/retrieve the certificate including the public key
-            		// TODO
-            		break;
-            }
-        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
         	
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -1503,39 +1540,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
-	                    // Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
+	                	// Retrieve the public key from the UCCS
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -1560,39 +1598,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
-	                    // Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
+	                	// Retrieve the public key from the UCCS
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -1639,10 +1678,9 @@ public class PlugtestClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
 		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
-        
-	    OneKey gmPublicKeyRetrieved = null;
 	    
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
@@ -1654,37 +1692,35 @@ public class PlugtestClientGroupOSCORE {
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
 							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
-        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        OneKey gmPublicKeyRetrieved = null;
+        byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
             case Constants.COSE_HEADER_PARAM_UCCS:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (uccs.getType() == CBORType.Map) {
                     // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                CBORObject cwt = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (cwt.getType() == CBORType.Array) {
                     // Retrieve the public key from the CWT
-                	// TODO
+                    // TODO
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_X5CHAIN:
                 // Retrieve the public key from the certificate
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-                    // TODO
-                }
-                else {
-                    Assert.fail("Invalid format of public key");
-                }
+                // TODO
                 break;
             default:
-            	Assert.fail("Invalid format of Group Manager public key");
+                Assert.fail("Invalid format of Group Manager public key");
         }
         if (gmPublicKeyRetrieved == null)
         	Assert.fail("Invalid format of Group Manager public key");
@@ -1959,24 +1995,53 @@ public class PlugtestClientGroupOSCORE {
         
         if (providePublicKey) {
         	
+        	byte[] encodedPublicKey = null;
+
+        	/*
+        	// Build the public key according to the format used in the group
+        	// Note: most likely, the result will NOT follow the required deterministic
+        	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = C1keyPair.PublicKey();
+        	switch (pubKeyEncExpected.AsInt32()) {
+        	    case Constants.COSE_HEADER_PARAM_UCCS:
+        	        // Build a UCCS including the public key
+        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_CWT:
+        	        // Build a CWT including the public key
+        	        // TODO
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+        	        // Build/retrieve the certificate including the public key
+        	        // TODO
+        	        break;
+        	}
+        	*/
+
+        	switch (pubKeyEncExpected.AsInt32()) {
+	        	case Constants.COSE_HEADER_PARAM_UCCS:
+	        	    // A UCCS including the public key
+	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
+	        	    }
+	        	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A4010103272006215820069E912B83963ACC5941B63546867DEC106E5B9051F2EE14F3BC5CC961ACD43A");
+	        	    }
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_CWT:
+	        	    // A CWT including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	        	    // A certificate including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+        	}
+
+        	requestPayload.Add(Constants.CLIENT_CRED, CBORObject.FromObject(encodedPublicKey));
         	
-        	CBORObject encodedPublicKey = null;
-            switch (pubKeyEncExpected.AsInt32()) {
-            	case Constants.COSE_HEADER_PARAM_UCCS:
-            		// Build a UCCS including the public key
-        			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
-            		break;
-            	case Constants.COSE_HEADER_PARAM_CWT:
-        			// Build a CWT including the public key
-        			// TODO
-            		break;
-            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
-            		// Build/retrieve the certificate including the public key
-            		// TODO
-            		break;
-            }
-        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
         	
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -2192,39 +2257,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
 	                	// Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
         	// ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -2249,39 +2315,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
             
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
-	                    // Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
+	                	// Retrieve the public key from the UCCS
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
         	// ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -2329,11 +2396,10 @@ public class PlugtestClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
 		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
         
-	    OneKey gmPublicKeyRetrieved = null;
-	    
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
 	    Assert.assertEquals(true, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
@@ -2344,37 +2410,35 @@ public class PlugtestClientGroupOSCORE {
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
 							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
-        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        OneKey gmPublicKeyRetrieved = null;
+        byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
             case Constants.COSE_HEADER_PARAM_UCCS:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (uccs.getType() == CBORType.Map) {
                     // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                CBORObject cwt = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (cwt.getType() == CBORType.Array) {
                     // Retrieve the public key from the CWT
-                	// TODO
+                    // TODO
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_X5CHAIN:
                 // Retrieve the public key from the certificate
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-                    // TODO
-                }
-                else {
-                    Assert.fail("Invalid format of public key");
-                }
+                // TODO
                 break;
             default:
-            	Assert.fail("Invalid format of Group Manager public key");
+                Assert.fail("Invalid format of Group Manager public key");
         }
         if (gmPublicKeyRetrieved == null)
         	Assert.fail("Invalid format of Group Manager public key");
@@ -2650,24 +2714,53 @@ public class PlugtestClientGroupOSCORE {
         
         if (providePublicKey) {
         	
+        	byte[] encodedPublicKey = null;
+
+        	/*
+        	// Build the public key according to the format used in the group
+        	// Note: most likely, the result will NOT follow the required deterministic
+        	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = C1keyPair.PublicKey();
+        	switch (pubKeyEncExpected.AsInt32()) {
+        	    case Constants.COSE_HEADER_PARAM_UCCS:
+        	        // Build a UCCS including the public key
+        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_CWT:
+        	        // Build a CWT including the public key
+        	        // TODO
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+        	        // Build/retrieve the certificate including the public key
+        	        // TODO
+        	        break;
+        	}
+        	*/
+
+        	switch (pubKeyEncExpected.AsInt32()) {
+	        	case Constants.COSE_HEADER_PARAM_UCCS:
+	        	    // A UCCS including the public key
+	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
+	        	    }
+	        	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A4010103272006215820069E912B83963ACC5941B63546867DEC106E5B9051F2EE14F3BC5CC961ACD43A");
+	        	    }
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_CWT:
+	        	    // A CWT including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	        	    // A certificate including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+        	}
+
+        	requestPayload.Add(Constants.CLIENT_CRED, CBORObject.FromObject(encodedPublicKey));
         	
-        	CBORObject encodedPublicKey = null;
-            switch (pubKeyEncExpected.AsInt32()) {
-            	case Constants.COSE_HEADER_PARAM_UCCS:
-        			// Build a UCCS including the public key
-        			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
-            		break;
-            	case Constants.COSE_HEADER_PARAM_CWT:
-        			// Build a CWT including the public key
-        			// TODO
-            		break;
-            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
-            		// Build/retrieve the certificate including the public key
-            		// TODO
-            		break;
-            }
-        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
         	
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -2883,39 +2976,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
 	                	// Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
         	// ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -2940,39 +3034,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
-	                    // Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
+	                	// Retrieve the public key from the UCCS
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
         	// ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -3019,11 +3114,10 @@ public class PlugtestClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
 		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
         
-	    OneKey gmPublicKeyRetrieved = null;
-	    
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
 	    Assert.assertEquals(true, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
@@ -3034,37 +3128,35 @@ public class PlugtestClientGroupOSCORE {
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
 							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
-        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        OneKey gmPublicKeyRetrieved = null;
+        byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
             case Constants.COSE_HEADER_PARAM_UCCS:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (uccs.getType() == CBORType.Map) {
                     // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                CBORObject cwt = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (cwt.getType() == CBORType.Array) {
                     // Retrieve the public key from the CWT
-                	// TODO
+                    // TODO
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_X5CHAIN:
                 // Retrieve the public key from the certificate
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-                    // TODO
-                }
-                else {
-                    Assert.fail("Invalid format of public key");
-                }
+                // TODO
                 break;
             default:
-            	Assert.fail("Invalid format of Group Manager public key");
+                Assert.fail("Invalid format of Group Manager public key");
         }
         if (gmPublicKeyRetrieved == null)
         	Assert.fail("Invalid format of Group Manager public key");
@@ -3339,24 +3431,53 @@ public class PlugtestClientGroupOSCORE {
         
         if (providePublicKey) {
         	
+        	byte[] encodedPublicKey = null;
+
+        	/*
+        	// Build the public key according to the format used in the group
+        	// Note: most likely, the result will NOT follow the required deterministic
+        	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = C1keyPair.PublicKey();
+        	switch (pubKeyEncExpected.AsInt32()) {
+        	    case Constants.COSE_HEADER_PARAM_UCCS:
+        	        // Build a UCCS including the public key
+        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_CWT:
+        	        // Build a CWT including the public key
+        	        // TODO
+        	        break;
+        	    case Constants.COSE_HEADER_PARAM_X5CHAIN:
+        	        // Build/retrieve the certificate including the public key
+        	        // TODO
+        	        break;
+        	}
+        	*/
+
+        	switch (pubKeyEncExpected.AsInt32()) {
+	        	case Constants.COSE_HEADER_PARAM_UCCS:
+	        	    // A UCCS including the public key
+	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
+	        	    }
+	        	    if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+	        	        encodedPublicKey = net.i2p.crypto.eddsa.Utils.hexToBytes("A2026008A101A4010103272006215820069E912B83963ACC5941B63546867DEC106E5B9051F2EE14F3BC5CC961ACD43A");
+	        	    }
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_CWT:
+	        	    // A CWT including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+	        	case Constants.COSE_HEADER_PARAM_X5CHAIN:
+	        	    // A certificate including the public key
+	        	    // TODO
+	        	    encodedPublicKey = null;
+	        	    break;
+        	}
+
+        	requestPayload.Add(Constants.CLIENT_CRED, CBORObject.FromObject(encodedPublicKey));
         	
-        	CBORObject encodedPublicKey = null;
-            switch (pubKeyEncExpected.AsInt32()) {
-            	case Constants.COSE_HEADER_PARAM_UCCS:
-        			// Build a UCCS including the public key
-        			encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
-            		break;
-            	case Constants.COSE_HEADER_PARAM_CWT:
-        			// Build a CWT including the public key
-        			// TODO
-            		break;
-            	case Constants.COSE_HEADER_PARAM_X5CHAIN:
-            		// Build/retrieve the certificate including the public key
-            		// TODO
-            		break;
-            }
-        	requestPayload.Add(Constants.CLIENT_CRED, encodedPublicKey);
         	
         	// Add the nonce for PoP of the Client's private key
             byte[] cnonce = new byte[8];
@@ -3581,39 +3702,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
         	
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(0);
-            switch (pubKeyEnc) {
+            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
 	                	// Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
         	// ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -3638,39 +3760,40 @@ public class PlugtestClientGroupOSCORE {
         	Assert.assertArrayEquals(peerSenderId, peerSenderIdFromResponse);
             
         	peerPublicKeyRetrievedEncoded = pubKeysArray.get(1);
-            switch (pubKeyEnc) {
+	            if (peerPublicKeyRetrievedEncoded.getType() != CBORType.ByteString) {
+	        	Assert.fail("Elements of the parameter 'pub_keys' must be CBOR byte strings");
+	        }
+	        peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
+	        switch (pubKeyEnc) {
 	            case Constants.COSE_HEADER_PARAM_UCCS:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
-	                    // Retrieve the public key from the UCCS
-	                	peerPublicKeyRetrieved = Util.uccsToOneKey(peerPublicKeyRetrievedEncoded);
+	            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (uccs.getType() == CBORType.Map) {
+	                	// Retrieve the public key from the UCCS
+	                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_CWT:
-	                if (peerPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+	            	CBORObject cwt = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+	                if (cwt.getType() == CBORType.Array) {
 	                    // Retrieve the public key from the CWT
-	                	// TODO
+	                    // TODO
 	                }
 	                else {
-	                	Assert.fail("Invalid format of public key");
+	                    Assert.fail("Invalid format of public key");
 	                }
 	                break;
 	            case Constants.COSE_HEADER_PARAM_X5CHAIN:
 	                // Retrieve the public key from the certificate
-	            	if (peerPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-	            		// TODO
-	            	}
-	                else {
-	                	Assert.fail("Invalid format of public key");
-	                }
+	                // TODO
 	                break;
 	            default:
-	            	Assert.fail("Invalid format of public key");
-            }
-            if (peerPublicKeyRetrieved == null)
-            	Assert.fail("Invalid format of public key");
+	                Assert.fail("Invalid format of public key");
+	        }
+	        if (peerPublicKeyRetrieved == null)
+	            Assert.fail("Invalid format of public key");
         	
             // ECDSA_256
             if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
@@ -3718,11 +3841,10 @@ public class PlugtestClientGroupOSCORE {
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_NONCE)));
         Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_NONCE)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED)));
+        Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).getType());
         Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)));
 		Assert.assertEquals(CBORType.ByteString, joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED_VERIFY)).getType());
         
-	    OneKey gmPublicKeyRetrieved = null;
-	    
 	    Assert.assertEquals(true, joinResponse.ContainsKey(CBORObject.FromObject(Constants.KEY)));
         Assert.assertEquals(CBORType.Map, joinResponse.get(CBORObject.FromObject(Constants.KEY)).getType());
 	    Assert.assertEquals(true, joinResponse.get(CBORObject.FromObject(Constants.KEY)).
@@ -3733,37 +3855,35 @@ public class PlugtestClientGroupOSCORE {
         pubKeyEnc = joinResponse.get(CBORObject.FromObject(Constants.KEY)).
 							get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
 	    
-        CBORObject gmPublicKeyRetrievedEncoded = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED));
+        OneKey gmPublicKeyRetrieved = null;
+        byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
             case Constants.COSE_HEADER_PARAM_UCCS:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Map) {
+                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (uccs.getType() == CBORType.Map) {
                     // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(gmPublicKeyRetrievedEncoded);
+                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.Array) {
+                CBORObject cwt = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (cwt.getType() == CBORType.Array) {
                     // Retrieve the public key from the CWT
-                	// TODO
+                    // TODO
                 }
                 else {
-                	Assert.fail("Invalid format of Group Manager public key");
+                    Assert.fail("Invalid format of Group Manager public key");
                 }
                 break;
             case Constants.COSE_HEADER_PARAM_X5CHAIN:
                 // Retrieve the public key from the certificate
-                if (gmPublicKeyRetrievedEncoded.getType() == CBORType.ByteString) {
-                    // TODO
-                }
-                else {
-                    Assert.fail("Invalid format of public key");
-                }
+                // TODO
                 break;
             default:
-            	Assert.fail("Invalid format of Group Manager public key");
+                Assert.fail("Invalid format of Group Manager public key");
         }
         if (gmPublicKeyRetrieved == null)
         	Assert.fail("Invalid format of Group Manager public key");

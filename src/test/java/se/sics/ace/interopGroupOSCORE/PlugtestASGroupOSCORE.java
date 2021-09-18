@@ -335,7 +335,7 @@ public class PlugtestASGroupOSCORE
         scopes.clear();
         scopes.add(groupName + "_requester_responder_monitor");
         auds.clear();
-        auds.add("rs4");
+        auds.add("aud4");
         keyTypes.clear();
         keyTypes.add("PSK");
         tokenTypes.clear();
@@ -348,6 +348,10 @@ public class PlugtestASGroupOSCORE
         // to the table OSCORE GroupManagers in the Database
         db.addOSCOREGroupManagers("rs4", auds);
         
+        auds.clear();
+        auds.add("aud5");
+        db.addRS("ni:///sha-256;sU09Kz-RXT8izVvD3n7v3d5vHVGF1NcYShZZ-oczcVE", profiles, scopes, auds, keyTypes, tokenTypes,
+       		 cose, expiration, authPsk_rs4, tokenPsk_rs4, akey_rs);
         
         profiles.clear();
         profiles.add("coap_oscore");
@@ -374,7 +378,7 @@ public class PlugtestASGroupOSCORE
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("aud1"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("aud5"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       

@@ -320,13 +320,14 @@ public class Util {
     }
     
     /**
-     * Build an Unprotected CWT Claim Set (UCCS) embedding a public key specified as One Key 
+     * Build an Unprotected CWT Claim Set (UCCS) including a COSE Key
+     * within a "cnf" claim and an additional "sub" claim
      *  
      * @param identityKey   The public key as a OneKey object
      * @param subjectName   The subject name associated to this key, it can be an empty string
-     * @return  The UCCS as a CBOR map, or null in case of errors
+     * @return  The serialization of the UCCS, or null in case of errors
      */
-	public static CBORObject oneKeyToUccs(OneKey identityKey, String subjectName) {
+	public static byte[] oneKeyToUccs(OneKey identityKey, String subjectName) {
 		
 		if (identityKey  == null || subjectName == null)
 			return null;
@@ -334,22 +335,17 @@ public class Util {
 		CBORObject coseKeyMap = CBORObject.NewMap();
 		coseKeyMap.Add(KeyKeys.KeyType.AsCBOR(), identityKey.get(KeyKeys.KeyType));
 		if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_OKP) {
-			coseKeyMap.Add(KeyKeys.OKP_Curve.AsCBOR(), identityKey.get(KeyKeys.OKP_Curve));
-			coseKeyMap.Add(KeyKeys.OKP_X.AsCBOR(), identityKey.get(KeyKeys.OKP_X));
-			
 			int curve = identityKey.get(KeyKeys.OKP_Curve).AsInt32();
 			if (curve == KeyKeys.OKP_Ed25519.AsInt32() || curve == KeyKeys.OKP_Ed448.AsInt32()) {
 				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.EDDSA.AsCBOR());
 			}
-			if (curve == KeyKeys.OKP_X25519 .AsInt32() || curve == KeyKeys.OKP_X448.AsInt32()) {
+			if (curve == KeyKeys.OKP_X25519.AsInt32() || curve == KeyKeys.OKP_X448.AsInt32()) {
 				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDH_ES_HKDF_256.AsCBOR());
 			}
+			coseKeyMap.Add(KeyKeys.OKP_Curve.AsCBOR(), identityKey.get(KeyKeys.OKP_Curve));
+			coseKeyMap.Add(KeyKeys.OKP_X.AsCBOR(), identityKey.get(KeyKeys.OKP_X));
 		}
 		else if (identityKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2) {
-			coseKeyMap.Add(KeyKeys.EC2_Curve.AsCBOR(), identityKey.get(KeyKeys.EC2_Curve));
-			coseKeyMap.Add(KeyKeys.EC2_X.AsCBOR(), identityKey.get(KeyKeys.EC2_X));
-			coseKeyMap.Add(KeyKeys.EC2_Y.AsCBOR(), identityKey.get(KeyKeys.EC2_Y));
-			
 			int curve = identityKey.get(KeyKeys.EC2_Curve).AsInt32();
 			if (curve == KeyKeys.EC2_P256 .AsInt32()) {
 				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_256.AsCBOR());
@@ -360,6 +356,9 @@ public class Util {
 			if (curve == KeyKeys.EC2_P521.AsInt32()) {
 				coseKeyMap.Add(KeyKeys.Algorithm.AsCBOR(), AlgorithmID.ECDSA_512.AsCBOR());
 			}
+			coseKeyMap.Add(KeyKeys.EC2_Curve.AsCBOR(), identityKey.get(KeyKeys.EC2_Curve));
+			coseKeyMap.Add(KeyKeys.EC2_X.AsCBOR(), identityKey.get(KeyKeys.EC2_X));
+			coseKeyMap.Add(KeyKeys.EC2_Y.AsCBOR(), identityKey.get(KeyKeys.EC2_Y));
 		}
 		else {
 			return null;
@@ -373,9 +372,9 @@ public class Util {
 		claimSetMap.Add(Constants.CNF, cnfMap);
 		
 		// Debug print
-		// System.out.println(claimSetMap);
+		System.out.println(claimSetMap);
 		
-        return claimSetMap;
+        return claimSetMap.EncodeToBytes();
 		
 	}
 	
