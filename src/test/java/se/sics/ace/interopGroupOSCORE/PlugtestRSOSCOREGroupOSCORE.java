@@ -307,7 +307,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         		
         	}
     		
-        	// Check if the requesting client is a group member or an authorized Verifier
+        	// Selects only names of groups where the requesting client is
+        	// a current member or is authorized to have any role about
         	for (String groupName : preliminaryGroupNames) {
         		
         		GroupInfo targetedGroup = activeGroups.get(groupName);
@@ -316,35 +317,16 @@ public class PlugtestRSOSCOREGroupOSCORE {
             		
             		// The requester is not a current group member.
             		//
-            		// This is still fine, as long as at least one Access Tokens
-            		// of the requester allows also the role "Verifier" in this group
+            		// This is still fine, as long as at least one Access Token allows
+            		// the requesting client to have any role with respect to the group
             		
-            		// Check that at least one of the Access Tokens for this node
-            		// allows (also) the Verifier role for this group
-                	
-            		int role = 1 << Constants.GROUP_OSCORE_VERIFIER;
-            		boolean allowed = false;
-                	int[] roleSetToken = getRolesFromToken(subject, groupName);
-                	if (roleSetToken == null) {
-                		exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR,
-                						 "Error when retrieving allowed roles from Access Tokens");
-                		return;
-                	}
-                	else {
-                		for (int index = 0; index < roleSetToken.length; index++) {
-                			if ((role & roleSetToken[index]) != 0) {
-                    			// 'scope' in this Access Token admits (also) the role "Verifier" for this group.
-                				// This makes it fine for the requester.
-                				allowed = true;
-                				break;
-                			}
-                		}
-                	}
-                	
-                	// Move considering the next group
-                	if (!allowed) {
-                		continue;
-                	}
+            		if (getRolesFromToken(subject, groupName) == null) {
+            	    	// No Access Token allows the requesting client node to have
+            	    	// to have any role with respect to the group
+            			
+            			// Move to considering the next group
+            			continue;
+            		}
                 	
             	}
             	
@@ -3695,7 +3677,9 @@ public class PlugtestRSOSCOREGroupOSCORE {
 	        	
         		int roleSetToken = scopeElement.AsInt32();
         		
-        		if (roleSetToken < 0) {
+        		// According to the AIF-OSCORE-GROUPCOMM data model, a valid combination 
+        		// of roles has to be a positive integer of even value (i.e., with last bit 0)
+        		if (roleSetToken <= 0 || (roleSetToken % 2 == 1)) {
       	  		    // Move to the next scope entry
       	  			continue;
         		}
@@ -3706,8 +3690,8 @@ public class PlugtestRSOSCOREGroupOSCORE {
         	
     	}
     	    	
-    	// This should never happen, since a valid Access Token
-    	// has just made a request reach a handler at the Group Manager
+    	// No Access Token allows this node to have any role
+    	// with respect to the specified group
     	if (roleSets.size() == 0) {
     		return null;
     	}
