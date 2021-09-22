@@ -410,7 +410,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -504,7 +504,7 @@ public class TestDtlspClientGroupOSCORE {
 		final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
 		
 		final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
 		
 		
 		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
@@ -625,9 +625,9 @@ public class TestDtlspClientGroupOSCORE {
         	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -641,8 +641,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -821,11 +821,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -879,11 +879,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -960,11 +960,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -1053,7 +1053,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         
@@ -1238,11 +1238,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -1297,11 +1297,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -1356,11 +1356,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -1495,11 +1495,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -1554,11 +1554,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -1668,7 +1668,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -1764,9 +1764,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -1780,8 +1780,8 @@ public class TestDtlspClientGroupOSCORE {
         */
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -1955,11 +1955,11 @@ public class TestDtlspClientGroupOSCORE {
         gmPublicKeyRetrieved = null;
         kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -2163,7 +2163,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -2370,9 +2370,9 @@ public class TestDtlspClientGroupOSCORE {
         	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -2386,8 +2386,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -2487,7 +2487,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
     	
         int pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
         
@@ -2563,11 +2563,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -2615,11 +2615,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -2702,11 +2702,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -2795,7 +2795,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
        
@@ -2977,11 +2977,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3036,11 +3036,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3095,11 +3095,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3232,11 +3232,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3291,11 +3291,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3351,11 +3351,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -3460,7 +3460,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -3555,9 +3555,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -3571,8 +3571,8 @@ public class TestDtlspClientGroupOSCORE {
         */
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -3747,11 +3747,11 @@ public class TestDtlspClientGroupOSCORE {
 		gmPublicKeyRetrieved = null;
 		kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
 		switch (pubKeyEnc) {
-		    case Constants.COSE_HEADER_PARAM_UCCS:
-		        CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-		        if (uccs.getType() == CBORType.Map) {
-		            // Retrieve the public key from the UCCS
-		            gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+		    case Constants.COSE_HEADER_PARAM_CCS:
+		        CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+		        if (ccs.getType() == CBORType.Map) {
+		            // Retrieve the public key from the CCS
+		            gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
 		        }
 		        else {
 		            Assert.fail("Invalid format of Group Manager public key");
@@ -4066,7 +4066,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -4160,7 +4160,7 @@ public class TestDtlspClientGroupOSCORE {
 		final byte[] groupId = new byte[] { (byte) 0xfe, (byte) 0xed, (byte) 0xca, (byte) 0x57, (byte) 0xf0, (byte) 0x5c };
 
 		final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
 
 		
 		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
@@ -4269,9 +4269,9 @@ public class TestDtlspClientGroupOSCORE {
 			//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -4285,8 +4285,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -4386,7 +4386,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -4460,11 +4460,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -4518,11 +4518,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -4599,11 +4599,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -4692,7 +4692,7 @@ public class TestDtlspClientGroupOSCORE {
 		// Check the presence, type and value of the signature key encoding
 		Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
 		Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-		Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+		Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
 		
 		Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         
@@ -4877,11 +4877,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -4937,11 +4937,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -4996,11 +4996,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -5135,11 +5135,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -5194,11 +5194,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -5309,7 +5309,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -5406,9 +5406,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -5422,8 +5422,8 @@ public class TestDtlspClientGroupOSCORE {
         */
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -5599,11 +5599,11 @@ public class TestDtlspClientGroupOSCORE {
 		gmPublicKeyRetrieved = null;
 		kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
 		switch (pubKeyEnc.AsInt32()) {
-		    case Constants.COSE_HEADER_PARAM_UCCS:
-		        CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-		        if (uccs.getType() == CBORType.Map) {
-		            // Retrieve the public key from the UCCS
-		            gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+		    case Constants.COSE_HEADER_PARAM_CCS:
+		        CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+		        if (ccs.getType() == CBORType.Map) {
+		            // Retrieve the public key from the CCS
+		            gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
 		        }
 		        else {
 		            Assert.fail("Invalid format of Group Manager public key");
@@ -5810,7 +5810,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -6014,9 +6014,9 @@ public class TestDtlspClientGroupOSCORE {
         	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -6030,8 +6030,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -6134,7 +6134,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         int pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
         
@@ -6210,11 +6210,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -6268,11 +6268,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -6349,11 +6349,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -6442,7 +6442,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         
@@ -6623,11 +6623,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -6682,11 +6682,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -6741,11 +6741,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -6880,11 +6880,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -6939,11 +6939,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -6999,11 +6999,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -7112,7 +7112,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -7208,9 +7208,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -7225,8 +7225,8 @@ public class TestDtlspClientGroupOSCORE {
         
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -7402,11 +7402,11 @@ public class TestDtlspClientGroupOSCORE {
 		gmPublicKeyRetrieved = null;
 		kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
 		switch (pubKeyEnc) {
-		    case Constants.COSE_HEADER_PARAM_UCCS:
-		        CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-		        if (uccs.getType() == CBORType.Map) {
-		            // Retrieve the public key from the UCCS
-		            gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+		    case Constants.COSE_HEADER_PARAM_CCS:
+		        CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+		        if (ccs.getType() == CBORType.Map) {
+		            // Retrieve the public key from the CCS
+		            gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
 		        }
 		        else {
 		            Assert.fail("Invalid format of Group Manager public key");
@@ -7848,7 +7848,7 @@ public class TestDtlspClientGroupOSCORE {
         }
         
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -7947,7 +7947,7 @@ public class TestDtlspClientGroupOSCORE {
 		
 		
 		final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+		CBORObject pubKeyEnc = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
 			
 		
 		final AlgorithmID signEncAlg = AlgorithmID.AES_CCM_16_64_128;
@@ -8053,9 +8053,9 @@ public class TestDtlspClientGroupOSCORE {
         	//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -8069,8 +8069,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -8172,7 +8172,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
     	
     	Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
     	Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -8246,11 +8246,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -8304,11 +8304,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -8384,11 +8384,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -8477,7 +8477,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
        
@@ -8664,11 +8664,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -8723,11 +8723,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -8782,11 +8782,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -8922,11 +8922,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -8981,11 +8981,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -9095,7 +9095,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the public key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -9191,9 +9191,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -9207,8 +9207,8 @@ public class TestDtlspClientGroupOSCORE {
         */
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -9384,11 +9384,11 @@ public class TestDtlspClientGroupOSCORE {
 		gmPublicKeyRetrieved = null;
 		kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
 		switch (pubKeyEnc.AsInt32()) {
-		    case Constants.COSE_HEADER_PARAM_UCCS:
-		        CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-		        if (uccs.getType() == CBORType.Map) {
-		            // Retrieve the public key from the UCCS
-		            gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+		    case Constants.COSE_HEADER_PARAM_CCS:
+		        CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+		        if (ccs.getType() == CBORType.Map) {
+		            // Retrieve the public key from the CCS
+		            gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
 		        }
 		        else {
 		            Assert.fail("Invalid format of Group Manager public key");
@@ -9662,9 +9662,9 @@ public class TestDtlspClientGroupOSCORE {
 			//       encoding in byte lexicographic order, and it has to be adjusted offline
         	publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -9678,8 +9678,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -9778,7 +9778,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
     	
         pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc));
         
@@ -9846,11 +9846,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -9905,11 +9905,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc.AsInt32()) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -9985,11 +9985,11 @@ public class TestDtlspClientGroupOSCORE {
         gmPublicKeyRetrieved = null;
         kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -10156,7 +10156,7 @@ public class TestDtlspClientGroupOSCORE {
 	        ecdhKeyParamsExpected.Add(KeyKeys.OKP_X25519);  // Curve
         }
         
-        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS);
+        final CBORObject pubKeyEncExpected = CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS);
         
         if (askForSignInfo) {
         	Assert.assertEquals(true, cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO)));
@@ -10361,9 +10361,9 @@ public class TestDtlspClientGroupOSCORE {
 			//       encoding in byte lexicographic order, and it has to be adjusted offline
         	OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPair)).PublicKey();
         	switch (pubKeyEncExpected.AsInt32()) {
-        	    case Constants.COSE_HEADER_PARAM_UCCS:
-        	        // Build a UCCS including the public key
-        	        encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+        	    case Constants.COSE_HEADER_PARAM_CCS:
+        	        // Build a CCS including the public key
+        	        encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
         	        break;
         	    case Constants.COSE_HEADER_PARAM_CWT:
         	        // Build a CWT including the public key
@@ -10377,8 +10377,8 @@ public class TestDtlspClientGroupOSCORE {
         	*/
 
         	switch (pubKeyEncExpected.AsInt32()) {
-	        	case Constants.COSE_HEADER_PARAM_UCCS:
-	        	    // A UCCS including the public key
+	        	case Constants.COSE_HEADER_PARAM_CCS:
+	        	    // A CCS including the public key
 	        	    if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        	        encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820E8F9A8D5850A533CDA24B9FA8A1EE293F6A0E1E81E1E560A64FF134D65F7ECEC225820164A6D5D4B97F56D1F60A12811D55DE7A055EBAC6164C9EF9302CBCBFF1F0ABE");
 	        	    }
@@ -10480,7 +10480,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         int pubKeyEnc = myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).AsInt32();
         
@@ -10561,11 +10561,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -10619,11 +10619,11 @@ public class TestDtlspClientGroupOSCORE {
             }
             peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
             switch (pubKeyEnc) {
-                case Constants.COSE_HEADER_PARAM_UCCS:
-                	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                    if (uccs.getType() == CBORType.Map) {
-                    	// Retrieve the public key from the UCCS
-                        peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+                case Constants.COSE_HEADER_PARAM_CCS:
+                	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                    if (ccs.getType() == CBORType.Map) {
+                    	// Retrieve the public key from the CCS
+                        peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                     }
                     else {
                         Assert.fail("Invalid format of public key");
@@ -10701,11 +10701,11 @@ public class TestDtlspClientGroupOSCORE {
         OneKey gmPublicKeyRetrieved = null;
         byte[] kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-                CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-                if (uccs.getType() == CBORType.Map) {
-                    // Retrieve the public key from the UCCS
-                    gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+                CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+                if (ccs.getType() == CBORType.Map) {
+                    // Retrieve the public key from the CCS
+                    gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of Group Manager public key");
@@ -10794,7 +10794,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
        
@@ -10977,11 +10977,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         byte[] peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11038,11 +11038,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11099,11 +11099,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11239,11 +11239,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11298,11 +11298,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11358,11 +11358,11 @@ public class TestDtlspClientGroupOSCORE {
         }
         peerPublicKeyRetrievedBytes = peerPublicKeyRetrievedEncoded.GetByteString();
         switch (pubKeyEnc) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	CBORObject uccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
-                if (uccs.getType() == CBORType.Map) {
-                	// Retrieve the public key from the UCCS
-                    peerPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	CBORObject ccs = CBORObject.DecodeFromBytes(peerPublicKeyRetrievedBytes);
+                if (ccs.getType() == CBORType.Map) {
+                	// Retrieve the public key from the CCS
+                    peerPublicKeyRetrieved = Util.ccsToOneKey(ccs);
                 }
                 else {
                     Assert.fail("Invalid format of public key");
@@ -11471,7 +11471,7 @@ public class TestDtlspClientGroupOSCORE {
         // Check the presence, type and value of the signature key encoding
         Assert.assertEquals(true, myMap.ContainsKey(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
         Assert.assertEquals(CBORType.Integer, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)).getType());        
-        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_UCCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
+        Assert.assertEquals(CBORObject.FromObject(Constants.COSE_HEADER_PARAM_CCS), myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
        
         Assert.assertArrayEquals(masterSecret, myMap.get(CBORObject.FromObject(OSCOREInputMaterialObjectParameters.ms)).GetByteString());
         Assert.assertArrayEquals(senderId, myMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)).GetByteString());
@@ -11567,9 +11567,9 @@ public class TestDtlspClientGroupOSCORE {
 	    //       encoding in byte lexicographic order, and it has to be adjusted offline
         OneKey publicKey = new OneKey(CBORObject.DecodeFromBytes(groupKeyPairUpdate)).PublicKey();
         switch (pubKeyEncExpected.AsInt32()) {
-            case Constants.COSE_HEADER_PARAM_UCCS:
-            	// Build a UCCS including the public key
-                encodedPublicKey = Util.oneKeyToUccs(publicKey, "");
+            case Constants.COSE_HEADER_PARAM_CCS:
+            	// Build a CCS including the public key
+                encodedPublicKey = Util.oneKeyToCCS(publicKey, "");
                 break;
             case Constants.COSE_HEADER_PARAM_CWT:
                 // Build/retrieve a CWT including the public key
@@ -11583,8 +11583,8 @@ public class TestDtlspClientGroupOSCORE {
         */
         
         switch (pubKeyEncExpected.AsInt32()) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	                encodedPublicKey = Utils.hexToBytes("A2026008A101A5010203262001215820D8692E6CC344A51BB8D62AB768C52F3D281317B789F4F123614806D0B051443D225820A9F0024604BB007C4A92210FEF5CA81C779BC5303F8C1E65F2686B81D2244088");
 	            }
@@ -11760,11 +11760,11 @@ public class TestDtlspClientGroupOSCORE {
 		gmPublicKeyRetrieved = null;
 		kdcCredBytes = joinResponse.get(CBORObject.FromObject(Constants.KDC_CRED)).GetByteString();
 		switch (pubKeyEnc) {
-		    case Constants.COSE_HEADER_PARAM_UCCS:
-		        CBORObject uccs = CBORObject.DecodeFromBytes(kdcCredBytes);
-		        if (uccs.getType() == CBORType.Map) {
-		            // Retrieve the public key from the UCCS
-		            gmPublicKeyRetrieved = Util.uccsToOneKey(uccs);
+		    case Constants.COSE_HEADER_PARAM_CCS:
+		        CBORObject ccs = CBORObject.DecodeFromBytes(kdcCredBytes);
+		        if (ccs.getType() == CBORType.Map) {
+		            // Retrieve the public key from the CCS
+		            gmPublicKeyRetrieved = Util.ccsToOneKey(ccs);
 		        }
 		        else {
 		            Assert.fail("Invalid format of Group Manager public key");

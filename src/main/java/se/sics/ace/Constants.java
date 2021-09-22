@@ -1065,6 +1065,6 @@ public class Constants {
       */
      public static final int COSE_HEADER_PARAM_X5CHAIN = 33;
      public static final int COSE_HEADER_PARAM_CWT = 36;
-     public static final int COSE_HEADER_PARAM_UCCS = 37;
+     public static final int COSE_HEADER_PARAM_CCS = 37;
      
 }

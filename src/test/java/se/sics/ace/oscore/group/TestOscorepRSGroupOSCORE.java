@@ -1100,11 +1100,11 @@ public class TestOscorepRSGroupOSCORE {
         		
         		byte[] clientCredBytes = clientCred.GetByteString();
         		switch(myGroup.getPubKeyEnc()) {
-        		    case Constants.COSE_HEADER_PARAM_UCCS:
-        		        CBORObject uccs = CBORObject.DecodeFromBytes(clientCredBytes);
-        		        if (uccs.getType() == CBORType.Map) {
-        		            // Retrieve the public key from the UCCS
-        		            publicKey = Util.uccsToOneKey(uccs);
+        		    case Constants.COSE_HEADER_PARAM_CCS:
+        		        CBORObject ccs = CBORObject.DecodeFromBytes(clientCredBytes);
+        		        if (ccs.getType() == CBORType.Map) {
+        		            // Retrieve the public key from the CCS
+        		            publicKey = Util.ccsToOneKey(ccs);
         		            valid = true;
         		        }
         		        else {
@@ -3020,11 +3020,11 @@ public class TestOscorepRSGroupOSCORE {
 			
 			byte[] clientCredBytes = clientCred.GetByteString();
 			switch(targetedGroup.getPubKeyEnc()) {
-			    case Constants.COSE_HEADER_PARAM_UCCS:
-			        CBORObject uccs = CBORObject.DecodeFromBytes(clientCredBytes);
-			        if (uccs.getType() == CBORType.Map) {
-			            // Retrieve the public key from the UCCS
-			            publicKey = Util.uccsToOneKey(uccs);
+			    case Constants.COSE_HEADER_PARAM_CCS:
+			        CBORObject ccs = CBORObject.DecodeFromBytes(clientCredBytes);
+			        if (ccs.getType() == CBORType.Map) {
+			            // Retrieve the public key from the CCS
+			            publicKey = Util.ccsToOneKey(ccs);
 			            valid = true;
 			        }
 			        else {
@@ -3301,7 +3301,7 @@ public class TestOscorepRSGroupOSCORE {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_UCCS;
+        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
         
         AlgorithmID signEncAlg = null;
         AlgorithmID signAlg = null;
@@ -3420,10 +3420,10 @@ public class TestOscorepRSGroupOSCORE {
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	String subjectName = "";
-	            gmPublicKey = Util.oneKeyToUccs(gmKeyPair, subjectName);
+	            gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
@@ -3437,8 +3437,8 @@ public class TestOscorepRSGroupOSCORE {
     	*/
     	
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
 	        	}
@@ -3539,10 +3539,10 @@ public class TestOscorepRSGroupOSCORE {
     	OneKey coseKeyPub1OneKey = null;
     	coseKeyPub1OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub1));
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	String subjectName = "";
-	        	pubKey1 = Util.oneKeyToUccs(coseKeyPub1OneKey, subjectName);
+	        	pubKey1 = Util.oneKeyToCCS(coseKeyPub1OneKey, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
@@ -3558,8 +3558,8 @@ public class TestOscorepRSGroupOSCORE {
     	*/
 
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        		pubKey1 = Utils.hexToBytes("A2026008A101A501020326200121582035F3656092E1269AAAEE6262CD1C0D9D38ED78820803305BC8EA41702A50B3AF2258205D31247C2959E7B7D3F62F79622A7082FF01325FC9549E61BB878C2264DF4C4F");
 	        	}
@@ -3619,10 +3619,10 @@ public class TestOscorepRSGroupOSCORE {
     	OneKey coseKeyPub2OneKey = null;
     	coseKeyPub2OneKey = new OneKey(CBORObject.DecodeFromBytes(coseKeyPub2));
     	switch (pubKeyEnc) {
-        case Constants.COSE_HEADER_PARAM_UCCS:
-            // A UCCS including the public key
+        case Constants.COSE_HEADER_PARAM_CCS:
+            // A CCS including the public key
         	String subjectName = "";
-        	pubKey2 = Util.oneKeyToUccs(coseKeyPub2OneKey, subjectName);
+        	pubKey2 = Util.oneKeyToCCS(coseKeyPub2OneKey, subjectName);
             break;
         case Constants.COSE_HEADER_PARAM_CWT:
             // A CWT including the public key
@@ -3638,8 +3638,8 @@ public class TestOscorepRSGroupOSCORE {
     	*/
     	
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        		pubKey2 = Utils.hexToBytes("A2026008A101A50102032620012158209DFA6D63FD1515761460B7B02D54F8D7345819D2E5576C160D3148CC7886D5F122582076C81A0C1A872F1730C10317AB4F3616238FB23A08719E8B982B2D9321A2EF7D");
 	        	}

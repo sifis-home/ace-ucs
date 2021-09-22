@@ -320,14 +320,14 @@ public class Util {
     }
     
     /**
-     * Build an Unprotected CWT Claim Set (UCCS) including a COSE Key
+     * Build a CWT Claims Set (CCS) including a COSE Key
      * within a "cnf" claim and an additional "sub" claim
      *  
      * @param identityKey   The public key as a OneKey object
      * @param subjectName   The subject name associated to this key, it can be an empty string
-     * @return  The serialization of the UCCS, or null in case of errors
+     * @return  The serialization of the CCS, or null in case of errors
      */
-	public static byte[] oneKeyToUccs(OneKey identityKey, String subjectName) {
+	public static byte[] oneKeyToCCS(OneKey identityKey, String subjectName) {
 		
 		if (identityKey  == null || subjectName == null)
 			return null;
@@ -379,27 +379,27 @@ public class Util {
 	}
 	
     /**
-     * Extract a public key from an Unprotected CWT Claim Set (UCCS) and return it as a OneKey object
+     * Extract a public key from a CWT Claims Set (CCS) and return it as a OneKey object
      *  
      * @param identityKey   The public key as a OneKey object
      * @param subjectName   The subject name associated to this key, it can be an empty string
-     * @return  The UCCS as a CBOR map, or null in case of errors
+     * @return  The CCS as a CBOR map, or null in case of errors
      */
-	public static OneKey uccsToOneKey(CBORObject uccs) {
+	public static OneKey ccsToOneKey(CBORObject ccs) {
 		
-		if (uccs  == null)
+		if (ccs  == null)
 			return null;
 		
-		if (!uccs.ContainsKey(Constants.CNF) || !uccs.get(Constants.CNF).ContainsKey(Constants.COSE_KEY))
+		if (!ccs.ContainsKey(Constants.CNF) || !ccs.get(Constants.CNF).ContainsKey(Constants.COSE_KEY))
 			return null;
 		
-		CBORObject pubKeyCBOR = uccs.get(Constants.CNF).get(Constants.COSE_KEY);
+		CBORObject pubKeyCBOR = ccs.get(Constants.CNF).get(Constants.COSE_KEY);
 		
 		OneKey pubKey = null;
 		try {
 			pubKey = new OneKey(pubKeyCBOR);
 		} catch (CoseException e) {
-			System.err.println("Error when building a OneKey from a UCCS: " + e.getMessage());
+			System.err.println("Error when building a OneKey from a CCS: " + e.getMessage());
 			return null;
 		}
 		

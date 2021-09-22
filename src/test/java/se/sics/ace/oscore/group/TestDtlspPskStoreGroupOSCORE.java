@@ -156,7 +156,7 @@ public class TestDtlspPskStoreGroupOSCORE {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
-        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_UCCS;
+        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
         
         int mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
 
@@ -231,10 +231,10 @@ public class TestDtlspPskStoreGroupOSCORE {
     	// Note: most likely, the result will NOT follow the required deterministic
     	//       encoding in byte lexicographic order, and it has to be adjusted offline
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	String subjectName = "";
-	            gmPublicKey = Util.oneKeyToUccs(gmKeyPair, subjectName);
+	            gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName);
 	            break;
 	        case Constants.COSE_HEADER_PARAM_CWT:
 	            // A CWT including the public key
@@ -248,8 +248,8 @@ public class TestDtlspPskStoreGroupOSCORE {
     	*/
     	
     	switch (pubKeyEnc) {
-	        case Constants.COSE_HEADER_PARAM_UCCS:
-	            // A UCCS including the public key
+	        case Constants.COSE_HEADER_PARAM_CCS:
+	            // A CCS including the public key
 	        	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
 	        		gmPublicKey = Utils.hexToBytes("A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
 	        	}
