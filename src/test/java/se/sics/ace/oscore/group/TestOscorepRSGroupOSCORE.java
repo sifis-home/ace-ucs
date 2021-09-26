@@ -659,7 +659,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
@@ -995,7 +995,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!allowed) {
         		byte[] errorResponsePayload = errorResponseMap.EncodeToBytes();
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED, errorResponsePayload,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN, errorResponsePayload,
         						 Constants.APPLICATION_ACE_CBOR);
         		return;
         	}
@@ -2338,7 +2338,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
@@ -2419,7 +2419,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
@@ -2500,7 +2500,7 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {	
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
@@ -2619,15 +2619,15 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
         		
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
-        						 "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
+        						 "Operation permitted only to the group member associated to this sub-resource");
         		return;
         	}
             	
@@ -2745,15 +2745,15 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
-        						 "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
+        						 "Operation permitted only to the group member associated to this sub-resource");
         		return;
         	}
         	
@@ -2857,15 +2857,15 @@ public class TestOscorepRSGroupOSCORE {
             
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
-        						 "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
+        						 "Operation permitted only to the group member associated to this sub-resource");
         		return;
         	}
         	
@@ -2944,15 +2944,15 @@ public class TestOscorepRSGroupOSCORE {
         	
         	if (!targetedGroup.isGroupMember(subject)) {
         		// The requester is not a current group member.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
         						 "Operation permitted only to group members");
         		return;
         	}
         	
         	if (!(targetedGroup.getGroupMemberName(subject)).equals(this.getParent().getName())) {
         		// The requester is not the group member associated to this sub-resource.
-        		exchange.respond(CoAP.ResponseCode.UNAUTHORIZED,
-        						 "Operation permitted only to group members associated to this sub-resource");
+        		exchange.respond(CoAP.ResponseCode.FORBIDDEN,
+        						 "Operation permitted only to the group member associated to this sub-resource");
         		return;
         	}
         	
@@ -3207,8 +3207,7 @@ public class TestOscorepRSGroupOSCORE {
 	
 				// Invalid Client's PoP signature
 				if (!Util.verifySignature(signKeyCurve, pubKey, popInput, rawClientPopEvidence)) {
-					exchange.respond(CoAP.ResponseCode.BAD_REQUEST,
-									 "Invalid PoP MAC");
+					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "Invalid PoP Signature");
 	        		return;
 				}
 			}

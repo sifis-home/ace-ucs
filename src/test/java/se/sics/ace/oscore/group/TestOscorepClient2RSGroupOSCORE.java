@@ -2115,7 +2115,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
         
         
         /////////////////
@@ -4563,7 +4563,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         System.out.println("");
         System.out.println("Sent Version request to GM");
 
-        Assert.assertEquals("UNAUTHORIZED", r15.getCode().name());
+        Assert.assertEquals("FORBIDDEN", r15.getCode().name());
         
     }
     
