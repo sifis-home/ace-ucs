@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,31 +18,16 @@ package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.security.InvalidAlgorithmParameterException;
 import java.security.PublicKey;
-import java.security.cert.CertPath;
-import java.security.cert.CertPathValidator;
-import java.security.cert.CertPathValidatorException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.PKIXParameters;
-import java.security.cert.TrustAnchor;
 import java.security.cert.X509Certificate;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
 
 import javax.security.auth.x500.X500Principal;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.CertificateRequest.ClientCertificateType;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.HashAlgorithm;
 import org.eclipse.californium.scandium.dtls.SignatureAndHashAlgorithm.SignatureAlgorithm;
@@ -57,8 +42,6 @@ import org.junit.experimental.categories.Category;
 @Category(Small.class)
 public class CertificateRequestTest {
 
-	private static InetSocketAddress peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 10000);
-
 	/**
 	 * Verifies that an ECDSA key is considered incompatible with the <em>dss_fixed_dh</em> certificate type.
 	 * 
@@ -68,7 +51,7 @@ public class CertificateRequestTest {
 	public void testIsSupportedKeyTypeFailsForUnsupportedKeyAlgorithm() throws Exception {
 
 		PublicKey key = DtlsTestTools.getClientPublicKey();
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.DSS_FIXED_DH);
 		assertFalse(req.isSupportedKeyType(key));
 	}
@@ -82,7 +65,7 @@ public class CertificateRequestTest {
 	public void testIsSupportedKeyTypeSucceedsForSupportedKeyAlgorithm() throws Exception {
 
 		PublicKey key = DtlsTestTools.getClientPublicKey();
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		assertTrue(req.isSupportedKeyType(key));
 	}
@@ -97,7 +80,7 @@ public class CertificateRequestTest {
 	public void testIsSupportedKeyTypeFailsForCertWithoutDigitalSignatureKeyUsage() throws Exception {
 
 		X509Certificate cert = DtlsTestTools.getNoSigningCertificate();
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		assertFalse(req.isSupportedKeyType(cert));
 	}
@@ -112,7 +95,7 @@ public class CertificateRequestTest {
 	public void testIsSupportedKeyTypeSucceedsForCertWithDigitalSignatureKeyUsage() throws Exception {
 
 		X509Certificate cert = DtlsTestTools.getClientCertificateChain()[0];
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		assertTrue(req.isSupportedKeyType(cert));
 	}
@@ -127,7 +110,7 @@ public class CertificateRequestTest {
 
 		PublicKey key = DtlsTestTools.getClientPublicKey();
 		assertThat(key.getAlgorithm(), is("EC"));
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA));
 		req.addSignatureAlgorithm(new SignatureAndHashAlgorithm(HashAlgorithm.MD5, SignatureAlgorithm.DSA));
@@ -148,7 +131,7 @@ public class CertificateRequestTest {
 		// algorithm
 		PublicKey key = DtlsTestTools.getClientPublicKey();
 		assertThat(key.getAlgorithm(), is("EC"));
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		req.addCertificateType(ClientCertificateType.ECDSA_SIGN);
 		SignatureAndHashAlgorithm preferredAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.RSA);
 		SignatureAndHashAlgorithm ecdsaBasedAlgorithm = new SignatureAndHashAlgorithm(HashAlgorithm.SHA256, SignatureAlgorithm.ECDSA);
@@ -169,7 +152,7 @@ public class CertificateRequestTest {
 	@Test
 	public void testAddCertificateAuthorityAssertsMaxLength() {
 
-		CertificateRequest req = new CertificateRequest(peerAddress);
+		CertificateRequest req = new CertificateRequest();
 		X500Principal authority = new X500Principal("O=Eclipse, OU=Hono Project, CN=test");
 		int encodedLength = 2 + authority.getEncoded().length;
 		int maxLength = (1 << 16) - 1;
@@ -179,81 +162,5 @@ public class CertificateRequestTest {
 		}
 		// next one should exceed max length
 		assertFalse(req.addCertificateAuthority(authority));
-	}
-
-	/**
-	 * Verifies that a certificate chain is truncated so that it does not include any trusted certificates.
-	 * 
-	 * @throws Exception if the key cannot be loaded.
-	 */
-	@Test
-	public void testTruncateCertificateChainReturnsNonTrustedCertsOnly() throws Exception {
-
-		// GIVEN a certificate request with a root CA trust anchor
-		CertificateFactory factory = CertificateFactory.getInstance("X.509");
-		X509Certificate[] clientChain = DtlsTestTools.getClientCertificateChain();
-		X509Certificate[] trustAnchor = new X509Certificate[1];
-		trustAnchor[0] = DtlsTestTools.getTrustedRootCA();
-		Set<TrustAnchor> trustAnchors = getTrustAnchors(trustAnchor);
-		CertificateRequest req = new CertificateRequest(peerAddress);
-		req.addCertificateAuthorities(trustAnchor);
-
-		// WHEN removing trusted certificates from a certificate chain rooting in the trust anchor
-		List<X509Certificate> truncatedChain = req.removeTrustedCertificates(Arrays.asList(clientChain));
-		CertPath clientPath = factory.generateCertPath(truncatedChain);
-
-		// THEN none of the trust anchors is part of the truncated chain
-		for (X509Certificate trustedCert : trustAnchor) {
-			if (isCertificatePartOfChain(trustedCert, truncatedChain)) {
-				fail("truncated certificate list should not contain any trust anchors");
-			}
-		}
-		// and the truncated chain can still be validated successfully based on the trust anchors
-		PKIXParameters params = new PKIXParameters(trustAnchors);
-		params.setRevocationEnabled(false);
-
-		Throwable error = null;
-		CertPathValidator validator = CertPathValidator.getInstance("PKIX");
-		try {
-			validator.validate(clientPath, params);
-		} catch (CertPathValidatorException e) {
-			HandshakerTest.failedHandshake(e);
-		} catch (InvalidAlgorithmParameterException e) {
-			error = e;
-		}
-		assertNull(error);
-	}
-
-	/**
-	 * Verifies that a certificate chain is not truncated when it consists of untrusted certificates only.
-	 *
-	 * @throws Exception if the key cannot be loaded.
-	 */
-	@Test
-	public void testTruncateCertificateChainReturnsAllNonTrustedCerts() throws Exception {
-		X509Certificate[] certChain = DtlsTestTools.getClientCertificateChain();
-		CertificateRequest req = new CertificateRequest(peerAddress);
-		List<X509Certificate> truncatedChain = req.removeTrustedCertificates(Arrays.asList(certChain));
-
-		assertThat(truncatedChain.size(), is(certChain.length));
-	}
-
-	private static boolean isCertificatePartOfChain(X509Certificate cert, List<X509Certificate> chain) {
-		for (X509Certificate certOfChain : chain) {
-			if (cert.getSubjectX500Principal().equals(certOfChain.getSubjectX500Principal())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	private static Set<TrustAnchor> getTrustAnchors(X509Certificate[] trustedCertificates) {
-		Set<TrustAnchor> result = new HashSet<>();
-		if (trustedCertificates != null) {
-			for (X509Certificate cert : trustedCertificates) {
-				result.add(new TrustAnchor((X509Certificate) cert, null));
-			}
-		}
-		return result;
 	}
 }

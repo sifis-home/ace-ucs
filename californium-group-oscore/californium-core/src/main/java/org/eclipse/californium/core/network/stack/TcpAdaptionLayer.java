@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,7 +18,6 @@ package org.eclipse.californium.core.network.stack;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
@@ -29,7 +28,7 @@ import org.eclipse.californium.core.network.Exchange;
  */
 public class TcpAdaptionLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(TcpAdaptionLayer.class);
 
 	@Override
 	public void sendEmptyMessage(final Exchange exchange, final EmptyMessage message) {
@@ -38,9 +37,12 @@ public class TcpAdaptionLayer extends AbstractLayer {
 			// CoAP over TCP uses empty messages as pings for keep alive.
 			// TODO: Should we instead rely on TCP keep-alives configured via TCP Connector?
 			lower().sendEmptyMessage(exchange, message);
+		} else if (exchange != null) {
+			// Empty messages don't make sense when running over TCP connector.
+			LOGGER.warn("attempting to send empty message ({}) in TCP mode {}", message, exchange, new Throwable());
 		} else {
 			// Empty messages don't make sense when running over TCP connector.
-			LOGGER.warn("attempting to send empty message (ACK/RST) in TCP mode {} - {}", message, exchange.getCurrentRequest(), new Throwable());
+			LOGGER.warn("attempting to send empty message ({}) in TCP mode.", message, new Throwable());
 		}
 	}
 

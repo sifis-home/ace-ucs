@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,17 +21,17 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.maninmiddle;
 
-import static org.eclipse.californium.TestTools.*;
+import static org.eclipse.californium.TestTools.LOCALHOST_EPHEMERAL;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.TestTools.getUri;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.io.IOException;
 import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.Random;
 
-import org.eclipse.californium.category.Large;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapResponse;
@@ -42,11 +42,17 @@ import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ClientBlockwiseInterceptor;
+import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -61,12 +67,15 @@ public class LossyBlockwiseTransferTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private CoapServer server;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	private Endpoint clientEndpoint;
 	private ManInTheMiddle middle;
 
-	private int clientPort;
-	private int serverPort;
 	private InetAddress middleAddress;
 	private int middlePort;
 
@@ -88,19 +97,21 @@ public class LossyBlockwiseTransferTest {
 			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 
 		clientEndpoint = builder.build();
+		cleanup.add(clientEndpoint);
 		clientEndpoint.addInterceptor(clientInterceptor);
 		clientEndpoint.start();
 
 		builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 
 		Endpoint serverEndpoint = builder.build();
-		server = new CoapServer();
+		CoapServer server = new CoapServer(config);
+		cleanup.add(server);
 		server.addEndpoint(serverEndpoint);
 		server.add(new CoapResource("test") {
 
@@ -111,25 +122,23 @@ public class LossyBlockwiseTransferTest {
 		});
 		server.start();
 
-		clientPort = clientEndpoint.getAddress().getPort();
-		serverPort = serverEndpoint.getAddress().getPort();
+		int clientPort = clientEndpoint.getAddress().getPort();
+		int serverPort = serverEndpoint.getAddress().getPort();
 		middleAddress = InetAddress.getLoopbackAddress();
 		middle = new ManInTheMiddle(middleAddress, clientPort, serverPort, config.getInt(NetworkConfig.Keys.MAX_RETRANSMIT), clientInterceptor);
 		middlePort = middle.getPort();
 
 		System.out.println(
 				String.format(
-						"client at %s:%d, middle at %s:%d, server at %s:%d",
-						clientEndpoint.getAddress().getHostString(), clientPort,
+						"client at %s, middle at %s:%d, server at %s",
+						StringUtil.toString(clientEndpoint.getAddress()),
 						middleAddress.getHostAddress(), middlePort,
-						serverEndpoint.getAddress().getHostString(), serverPort));
+						StringUtil.toString(serverEndpoint.getAddress())));
 	}
 
 	@After
 	public void shutdownServer() {
 		System.out.println();
-		server.destroy();
-		clientEndpoint.destroy();
 		System.out.printf("End %s", getClass().getSimpleName());
 		middle.stop();
 	}
@@ -137,7 +146,7 @@ public class LossyBlockwiseTransferTest {
 	@Test
 	public void testBlockwiseTransferToleratesLostMessages() throws Exception {
 
-		String uri = getUri(new InetSocketAddress(middleAddress, middlePort), "test");
+		String uri = getUri(middleAddress, middlePort, "test");
 		respPayload = generateRandomPayload(250);
 
 		CoapClient coapclient = new CoapClient(uri);
@@ -147,8 +156,8 @@ public class LossyBlockwiseTransferTest {
 		middle.drop(5, 6, 8, 9, 15);
 
 		getResourceAndAssertPayload(coapclient, respPayload);
-
-		for (int i = 0; i < 5; i++) {
+		int loops = TestScope.enableIntensiveTests() ? 5 : 1;
+		for (int i = 0; i < loops; i++) {
 			int[] numbers = new int[10];
 			for (int j = 0; j < numbers.length; j++) {
 				numbers[j] = rand.nextInt(16);
@@ -157,6 +166,7 @@ public class LossyBlockwiseTransferTest {
 
 			getResourceAndAssertPayload(coapclient, respPayload);
 		}
+		coapclient.shutdown();
 	}
 
 	private static void getResourceAndAssertPayload(final CoapClient client, final String expectedPayload) throws ConnectorException, IOException {

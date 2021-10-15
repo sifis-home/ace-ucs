@@ -1,19 +1,19 @@
-#! /bin/sh
+#!/bin/sh
 
 #/*******************************************************************************
-# * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
+# * Copyright (c) 2020 Bosch.IO GmbH and others.
 # * 
 # * All rights reserved. This program and the accompanying materials
-# * are made available under the terms of the Eclipse Public License v1.0
+# * are made available under the terms of the Eclipse Public License v2.0
 # * and Eclipse Distribution License v1.0 which accompany this distribution.
 # * 
 # * The Eclipse Public License is available at
-# *    http://www.eclipse.org/legal/epl-v10.html
+# *    http://www.eclipse.org/legal/epl-v20.html
 # * and the Eclipse Distribution License is available at
 # *    http://www.eclipse.org/org/documents/edl-v10.html.
 # * 
 # * Contributors:
-# *    Achim Kraus (Bosch Software Innovations GmbH) - initial script
+# *    Achim Kraus (Bosch.IO GmbH) - initial script
 # ******************************************************************************/
 #
 # Prepare load-balancer node for DTLS CID load-balancer
@@ -63,7 +63,7 @@ echo "Create DTLS_FILTER"
 iptables -t raw -N DTLS_FILTER
 echo "Prepare DTLS_FILTER"
 iptables -t raw -F DTLS_FILTER
-iptables -t raw -A DTLS_FILTER -m u32 ! --u32 "0>>22&0x3C@ 7&0xF0FFFF=0x10FEFD && 0>>22&0x3C@ 5&0x0F=4:9" -j DROP
+iptables -t raw -A DTLS_FILTER -m u32 ! --u32 "0>>22&0x3C@ 7&0xF0FFFD=0x10FEFD && 0>>22&0x3C@ 5&0x0F=4:9" -j DROP
 
 echo "Remove PREROUTING - DTLS FILTER $1"
 iptables -t raw -D PREROUTING ${INTERFACE} -p udp --dport 5684 -j DTLS_FILTER

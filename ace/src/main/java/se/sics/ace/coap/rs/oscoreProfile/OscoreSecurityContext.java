@@ -45,9 +45,9 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 
 /**
- * Utility class to parse, verify and access  OSCORE_Security_Context in a cnf element
+ * Utility class to parse, verify and access  OSCORE_Input_Material in a cnf element
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreSecurityContext {
@@ -59,9 +59,14 @@ public class OscoreSecurityContext {
         = Logger.getLogger(OscoreSecurityContext.class.getName());
     
     /**
-     * The Master_Secret
+     * The Master Secret
      */
     private byte[] ms;
+    
+    /**
+     * The OSCORE Input Material Identifier
+     */
+    private byte[] id;
     
     /**
      * The server identifier
@@ -72,7 +77,6 @@ public class OscoreSecurityContext {
      * The client identifier
      */
     private byte[] clientId;
-    
     
     /**
      * The context id, can be null
@@ -108,11 +112,11 @@ public class OscoreSecurityContext {
      * @throws AceException 
      */
     public OscoreSecurityContext(CBORObject cnf) throws AceException {
-        CBORObject osc = cnf.get(Constants.OSCORE_Security_Context);
+        CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
         if (osc == null || !osc.getType().equals(CBORType.Map)) {
             LOGGER.info("Missing or invalid parameter type for "
-                    + "'OSCORE_Security_Context', must be CBOR-map");
-            throw new AceException("invalid/missing OSCORE_Security_Context");
+                    + "'OSCORE_Input_Material', must be CBOR-map");
+            throw new AceException("invalid/missing OSCORE_Input_Material");
         }
         
         CBORObject algC = osc.get(Constants.OS_ALG);
@@ -135,7 +139,7 @@ public class OscoreSecurityContext {
                 throw new AceException(
                         "Malformed client Id in OSCORE security context");
             }
-            this.clientId = clientIdC.GetByteString(); 
+            this.clientId = clientIdC.GetByteString();
         }
                
         CBORObject ctxIdC = osc.get(Constants.OS_CONTEXTID);
@@ -147,6 +151,9 @@ public class OscoreSecurityContext {
                         "Malformed context Id in OSCORE security context");
             }
             this.contextId = ctxIdC.GetByteString();
+        }
+        else {
+        	this.contextId = null;
         }
 
         CBORObject kdfC = osc.get(Constants.OS_HKDF);
@@ -168,18 +175,16 @@ public class OscoreSecurityContext {
                     + " in OSCORE security context");
         }
         this.ms = msC.GetByteString();
-        
-        CBORObject rpl = osc.get(Constants.OS_RPL);
-        if (rpl != null) {
-            if (!rpl.CanFitInInt32()) {
-                LOGGER.info("Invalid parameter: 'replay window size',"
-                        + " must be 32-bit integer");
-                throw new AceException("malformed replay window size"
-                        + " in OSCORE security context");
-            }
-            this.replaySize = rpl.AsInt32();
-        }
 
+        CBORObject idC = osc.get(Constants.OS_ID);
+        if (idC == null || !idC.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Missing or invalid parameter: 'id',"
+                    + " must be byte-array");
+            throw new AceException("malformed or missing input material identifier"
+                    + " in OSCORE security context");
+        }
+        this.id = idC.GetByteString();
+        
         CBORObject saltC = osc.get(Constants.OS_SALT);
         if (saltC != null) {
             if (!saltC.getType().equals(CBORType.ByteString)) {
@@ -189,8 +194,8 @@ public class OscoreSecurityContext {
                         + " in OSCORE security context");
             }
             this.salt = saltC.GetByteString();
-        }
-
+        }        
+        
         CBORObject serverIdC = osc.get(Constants.OS_SERVERID);
         if (serverIdC == null 
                 || !serverIdC.getType().equals(CBORType.ByteString)) {
@@ -200,6 +205,7 @@ public class OscoreSecurityContext {
                     + " in OSCORE security context");
         }
         this.serverId = serverIdC.GetByteString();
+        
     }
     
     /**
@@ -215,25 +221,47 @@ public class OscoreSecurityContext {
         byte[] recipientId;
 
         byte[] finalSalt;
-        if (this.salt != null) {
-            finalSalt = new byte[this.salt.length + n1.length + n2.length];
-            System.arraycopy(this.salt, 0, finalSalt, 0, this.salt.length);
-            System.arraycopy(n1, 0, finalSalt, this.salt.length, n1.length);
-            System.arraycopy(n2, 0, finalSalt, 
-                    this.salt.length + n1.length, n2.length);
-        } else {
-            finalSalt = new byte[n1.length + n2.length];
-            System.arraycopy(n1, 0, finalSalt, 0, n1.length);
-            System.arraycopy(n2, 0, finalSalt, n1.length, n2.length);
-        }
         
+        // The final Master Salt is the concatenation of whole CBOR byte strings
+        byte[] saltEncoded = null;
+        byte[] n1Encoded = null;
+        byte[] n2Encoded = null;
+        if (this.salt != null) {
+            CBORObject saltCBOR = CBORObject.FromObject(this.salt);
+        	saltEncoded  = saltCBOR.EncodeToBytes();
+        }
+        CBORObject n1CBOR = CBORObject.FromObject(n1);
+        CBORObject n2CBOR = CBORObject.FromObject(n2);
+        n1Encoded = n1CBOR.EncodeToBytes();
+        n2Encoded = n2CBOR.EncodeToBytes();
+        if (saltEncoded != null) {
+            finalSalt = new byte[saltEncoded.length + n1Encoded.length + n2Encoded.length];
+            System.arraycopy(saltEncoded, 0, finalSalt, 0, saltEncoded.length);
+            System.arraycopy(n1Encoded, 0, finalSalt, saltEncoded.length, n1Encoded.length);
+            System.arraycopy(n2Encoded, 0, finalSalt, saltEncoded.length + n1Encoded.length, n2Encoded.length);
+        } else {
+            finalSalt = new byte[n1Encoded.length + n2Encoded.length];
+            System.arraycopy(n1Encoded, 0, finalSalt, 0, n1Encoded.length);
+            System.arraycopy(n2Encoded, 0, finalSalt, n1Encoded.length, n2Encoded.length);
+        }
+                
         if (isClient) {
+        	/*
+            senderId = id2;
+            recipientId = id1;
+            */
             senderId = this.clientId;
             recipientId = this.serverId;
+            
         } else {
+        	/*
+            senderId = id1;
+            recipientId = id2;
+            */
             senderId = this.serverId;
             recipientId = this.clientId;
         }
+        
         return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
                 recipientId, this.hkdf, this.replaySize, finalSalt, 
                 this.contextId);
@@ -244,6 +272,27 @@ public class OscoreSecurityContext {
      */
     public byte[] getClientId() {
         return this.clientId;
+    }
+    
+    /**
+     * @return  the server identifier
+     */
+    public byte[] getServerId() {
+        return this.serverId;
+    }
+    
+    /**
+     * @return  the input material identifier
+     */
+    public byte[] getId() {
+        return this.id;
+    }
+    
+    /**
+     * @return  the context id
+     */
+    public byte[] getContextId() {
+        return this.contextId;
     }
 
 }

@@ -70,7 +70,7 @@ import se.sics.ace.examples.SQLConnector;
 /**
  * Test the introspection endpoint library.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestIntrospect {
@@ -92,19 +92,16 @@ public class TestIntrospect {
      * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() 
-            throws AceException, SQLException, IOException, CoseException {
+    public static void setUp() throws AceException, SQLException, IOException, CoseException {
         DBHelper.setUpDB();
         db = DBHelper.getSQLConnector();
 
-        privateKey = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        privateKey = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         publicKey = privateKey.PublicKey();
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey key = new OneKey(keyData);
         
         //Setup RS entries
@@ -117,8 +114,8 @@ public class TestIntrospect {
         scopes.add("co2");
         
         Set<String> auds = new HashSet<>();
+        auds.add("aud1");
         auds.add("sensors");
-        auds.add("actuators");
         auds.add("failCWTpar");
         
         Set<String> keyTypes = new HashSet<>();
@@ -130,14 +127,19 @@ public class TestIntrospect {
         tokenTypes.add(AccessTokenFactory.REF_TYPE);
         
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
         cose.add(coseP);
         
         long expiration = 1000000L;
        
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, 
-                expiration, key, key, publicKey);
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, key, key, publicKey);
+        
+        
+        auds.clear();
+        auds.add("actuators");
+        db.addRS("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w",
+        		 profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, key, key, publicKey);
+        
         
         profiles.clear();
         profiles.add("coap_dtls");
@@ -163,23 +165,37 @@ public class TestIntrospect {
         db.addToken(ctiStr, claims);
         db.addCti2Client(ctiStr, "client1");
         
-        byte[] cti2 = new byte[]{0x01};
-        String cti2Str =  Base64.getEncoder().encodeToString(cti2);
+        cti = new byte[]{0x01};
+        ctiStr =  Base64.getEncoder().encodeToString(cti);
+        claims.clear();
+        claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
+        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
+        claims.put(Constants.CNF, cnf);
+        db.addToken(ctiStr, claims);
+        db.addCti2Client(ctiStr, "client1");
+        
+        cti = new byte[]{0x02};
+        String cti3Str =  Base64.getEncoder().encodeToString(cti);
         claims.clear();
         claims.put(Constants.SCOPE, CBORObject.FromObject("temp"));
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
-        claims.put(Constants.EXP, CBORObject.FromObject(
-                time.getCurrentTime() + 2000000L));
-        claims.put(Constants.CTI, CBORObject.FromObject(cti2));
+        claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime() + 2000000L));
+        claims.put(Constants.CTI, CBORObject.FromObject(cti));
         claims.put(Constants.CNF, cnf);
-        db.addToken(cti2Str, claims);
-        db.addCti2Client(cti2Str, "client1");
+        db.addToken(cti3Str, claims);
+        db.addCti2Client(cti3Str, "client1");
+        
+        
         pdp = new KissPDP(db);
-        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
+        pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w",
+        						PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs1", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs2", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
         pdp.addIntrospectAccess("rs3", PDP.IntrospectAccessLevel.ACTIVE_AND_CLAIMS);
-        i = new Introspect(pdp, db, time, publicKey);
+        i = new Introspect(pdp, db, time, publicKey, null);
+        
     }
     
     
@@ -202,14 +218,9 @@ public class TestIntrospect {
      */
     @Test
     public void testFailUnauthorized() throws Exception {
-        Message response = i.processMessage(
-                new LocalMessage(
-                        -1, "unauthorizedRS", "TestAS", CBORObject.Null));
-        assert(response.getMessageCode() == Message.FAIL_UNAUTHORIZED);
-        CBORObject cbor = CBORObject.NewMap();
-        cbor.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                cbor.EncodeToBytes());
+        Message response = i.processMessage(new LocalMessage(-1, "unauthorizedRS", "TestAS", CBORObject.Null));
+        assert(response.getMessageCode() == Message.FAIL_FORBIDDEN);
+        Assert.assertArrayEquals(null, response.getRawPayload());
     }
     
     /**
@@ -221,13 +232,13 @@ public class TestIntrospect {
     @Test
     public void testFailNoTokenSent() throws Exception {
         CBORObject nullObj = null;
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", nullObj));
+        Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", nullObj));
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
-        map.Add(Constants.ERROR, "Must provide 'token' parameter");
-        Assert.assertArrayEquals(response.getRawPayload(), 
-                map.EncodeToBytes());
+        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+        map.Add(Constants.ERROR_DESCRIPTION, "Must provide 'token' parameter");
+        Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
     /**
@@ -238,14 +249,13 @@ public class TestIntrospect {
     @Test
     public void testSuccessPurgedInactive() throws Exception {
         ReferenceToken purged = new ReferenceToken(new byte[]{0x00});
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.TOKEN, CBORObject.FromObject(purged.encode().EncodeToBytes()));
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", params));
-        assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
+        Map<Short, CBORObject> params = new HashMap<>();
         
+        params.put(Constants.TOKEN, CBORObject.FromObject(purged.encode().EncodeToBytes()));
+        Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
+        assert(response.getMessageCode() == Message.CREATED);
+        
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         System.out.println(params.toString());
         assert(params.get(Constants.ACTIVE).equals(CBORObject.False));
@@ -261,12 +271,10 @@ public class TestIntrospect {
         CBORObject notExist = CBORObject.FromObject(new byte[] {0x03});
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.TOKEN, CBORObject.FromObject(notExist.EncodeToBytes()));
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", params));
+        Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
         
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.False));
     }
@@ -279,9 +287,7 @@ public class TestIntrospect {
     @Test
     public void testSuccessCWT() throws Exception {
         Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject(
-                "rw_valve r_pressure foobar"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs3"));
+        params.put(Constants.SCOPE, CBORObject.FromObject("rw_valve r_pressure foobar"));
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
 
         // Add the audience as the KID in the header, so it can be referenced by introspection requests.
@@ -290,21 +296,16 @@ public class TestIntrospect {
         Map<HeaderKeys, CBORObject> uHeaders = new HashMap<>();
         uHeaders.put(HeaderKeys.KID, requestedAud);
 
-
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Sign1, 
-                AlgorithmID.ECDSA_256, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(
-                privateKey, coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Sign1, AlgorithmID.ECDSA_256, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.sign1Create(privateKey, coseP.getAlg().AsCBOR());
         params.clear();
         params.put(Constants.TOKEN, CBORObject.FromObject(token.encode(ctx,null, uHeaders).EncodeToBytes()));
 
-        Message response = i.processMessage(
-                new LocalMessage(-1, "rs1", "TestAS", params));
+        Message response = i.processMessage(new LocalMessage(-1, "rs1", "TestAS", params));
         assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
-       
+        
+        CBORObject rparams = CBORObject.DecodeFromBytes(response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True)); 
     }
@@ -316,17 +317,15 @@ public class TestIntrospect {
      */
     @Test
     public void testSuccessRef() throws Exception {
-        ReferenceToken t = new ReferenceToken(new byte[]{0x01});
+        ReferenceToken t = new ReferenceToken(new byte[]{0x02});
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.TOKEN, CBORObject.FromObject(t.encode().EncodeToBytes()));
-        String senderId = new RawPublicKeyIdentity(
-                publicKey.AsPublicKey()).getName().trim();
-        Message response = i.processMessage(
-                new LocalMessage(-1, senderId, "TestAS", params));
+        String senderId = new RawPublicKeyIdentity(publicKey.AsPublicKey()).getName().trim();
+        
+        Message response = i.processMessage(new LocalMessage(-1, senderId, "TestAS", params));       
         assert(response.getMessageCode() == Message.CREATED);
-        CBORObject rparams = CBORObject.DecodeFromBytes(
-                response.getRawPayload());
-       
+        
+        CBORObject rparams = CBORObject.DecodeFromBytes( response.getRawPayload());
         params = Constants.getParams(rparams);
         assert(params.get(Constants.ACTIVE).equals(CBORObject.True));
     }

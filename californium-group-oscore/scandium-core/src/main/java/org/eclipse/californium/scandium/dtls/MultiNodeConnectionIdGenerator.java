@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -25,7 +25,7 @@ import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
  * be unique in the cluster, to ensure, that other nodes of the cluster don't
  * generate the same connection id.
  */
-public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
+public class MultiNodeConnectionIdGenerator implements NodeConnectionIdGenerator {
 
 	/**
 	 * Node id. Must be unique in cluster.
@@ -80,9 +80,16 @@ public class MultiNodeConnectionIdGenerator implements ConnectionIdGenerator {
 	@Override
 	public ConnectionId read(DatagramReader reader) {
 		byte[] cidBytes = reader.readBytes(connectionIdLength);
-		if ((cidBytes[0] & 0xff) != nodeId) {
-			return null;
-		}
 		return new ConnectionId(cidBytes);
+	}
+
+	@Override
+	public int getNodeId() {
+		return nodeId;
+	}
+
+	@Override
+	public int getNodeId(ConnectionId cid) {
+		return cid.getBytes()[0] & 0xff;
 	}
 }

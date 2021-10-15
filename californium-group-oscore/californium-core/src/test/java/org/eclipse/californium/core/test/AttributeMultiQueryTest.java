@@ -1,19 +1,39 @@
+/*******************************************************************************
+ * Copyright (c) 2017 Jan Seeger and others.
+ * 
+ * All rights reserved. This program and the accompanying materials
+ * are made available under the terms of the Eclipse Public License v2.0
+ * and Eclipse Distribution License v1.0 which accompany this distribution.
+ * 
+ * The Eclipse Public License is available at
+ *    http://www.eclipse.org/legal/epl-v20.html
+ * and the Eclipse Distribution License is available at
+ *    http://www.eclipse.org/org/documents/edl-v10.html.
+ * 
+ * Contributors:
+ *    Jan Seeger  - initial implementation
+ ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class AttributeMultiQueryTest {
-    private Resource root;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	private Resource root;
 
     @Before
     public void setup() {

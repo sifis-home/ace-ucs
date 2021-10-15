@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,21 +18,21 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
+import java.security.GeneralSecurityException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.Signature;
-import java.security.SignatureException;
-import java.util.Arrays;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.List;
+
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.RandomManager;
+import org.eclipse.californium.scandium.dtls.cipher.ThreadLocalSignature;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 
 /**
@@ -44,29 +44,29 @@ import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
  * href="http://tools.ietf.org/html/rfc5246#section-7.4.8">RFC 5246</a>.
  */
 public final class CertificateVerify extends HandshakeMessage {
-	
+
 	// Logging ///////////////////////////////////////////////////////////
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(CertificateVerify.class);
 
 	// DTLS-specific constants ////////////////////////////////////////
 
 	private static final int HASH_ALGORITHM_BITS = 8;
-	
+
 	private static final int SIGNATURE_ALGORITHM_BITS = 8;
 
 	private static final int SIGNATURE_LENGTH_BITS = 16;
-	
+
 	// Members ////////////////////////////////////////////////////////
 
 	/** The digitally signed handshake messages. */
-	private byte[] signatureBytes;
-	
+	private final byte[] signatureBytes;
+
 	/** The signature and hash algorithm which must be included into the digitally-signed struct. */
 	private final SignatureAndHashAlgorithm signatureAndHashAlgorithm;
 
 	// Constructor ////////////////////////////////////////////////////
-	
+
 	/**
 	 * Called by client to create its CertificateVerify message.
 	 * 
@@ -76,13 +76,11 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            the client's private key to sign the signature.
 	 * @param handshakeMessages
 	 *            the handshake messages which are signed.
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
 	public CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey,
-			byte[] handshakeMessages, InetSocketAddress peerAddress) {
-		this(signatureAndHashAlgorithm, peerAddress);
-		this.signatureBytes = setSignature(clientPrivateKey, handshakeMessages);
+			List<HandshakeMessage> handshakeMessages) {
+		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+		this.signatureBytes = sign(signatureAndHashAlgorithm, clientPrivateKey, handshakeMessages);
 	}
 
 	/**
@@ -93,17 +91,10 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            the signature and hash algorithm used to verify the signature.
 	 * @param signatureBytes
 	 *            the signature.
-	 * @param peerAddress the IP address and port of the peer this
-	 *            message has been received from or should be sent to
 	 */
-	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes, InetSocketAddress peerAddress) {
-		this(signatureAndHashAlgorithm, peerAddress);
-		this.signatureBytes = Arrays.copyOf(signatureBytes, signatureBytes.length);
-	}
-
-	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	private CertificateVerify(SignatureAndHashAlgorithm signatureAndHashAlgorithm, byte[] signatureBytes) {
 		this.signatureAndHashAlgorithm = signatureAndHashAlgorithm;
+		this.signatureBytes = signatureBytes;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -126,21 +117,19 @@ public final class CertificateVerify extends HandshakeMessage {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
+		DatagramWriter writer = new DatagramWriter(signatureBytes.length + 4);
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
 		// signature algorithm must also be included
 		writer.write(signatureAndHashAlgorithm.getHash().getCode(), HASH_ALGORITHM_BITS);
 		writer.write(signatureAndHashAlgorithm.getSignature().getCode(), SIGNATURE_ALGORITHM_BITS);
 
-		writer.write(signatureBytes.length, SIGNATURE_LENGTH_BITS);
-		writer.writeBytes(signatureBytes);
+		writer.writeVarBytes(signatureBytes, SIGNATURE_LENGTH_BITS);
 
 		return writer.toByteArray();
 	}
 
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
+	public static HandshakeMessage fromReader(DatagramReader reader) {
 
 		// according to http://tools.ietf.org/html/rfc5246#section-4.7 the
 		// signature algorithm must also be included
@@ -148,14 +137,13 @@ public final class CertificateVerify extends HandshakeMessage {
 		int signatureAlgorithm = reader.read(SIGNATURE_ALGORITHM_BITS);
 		SignatureAndHashAlgorithm signAndHash = new SignatureAndHashAlgorithm(hashAlgorithm, signatureAlgorithm);
 
-		int length = reader.read(SIGNATURE_LENGTH_BITS);
-		byte[] signature = reader.readBytes(length);
+		byte[] signature = reader.readVarBytes(SIGNATURE_LENGTH_BITS);
 
-		return new CertificateVerify(signAndHash, signature, peerAddress);
+		return new CertificateVerify(signAndHash, signature);
 	}
-	
+
 	// Methods ////////////////////////////////////////////////////////
-	
+
 	/**
 	 * Creates the signature and signs it with the client's private key.
 	 * 
@@ -164,16 +152,21 @@ public final class CertificateVerify extends HandshakeMessage {
 	 * @param handshakeMessages
 	 *            the handshake messages used up to now in the handshake.
 	 * @return the signature.
+	 * @since 2.5 (was setSignature before)
 	 */
-	private byte[] setSignature(PrivateKey clientPrivateKey, byte[] handshakeMessages) {
-		signatureBytes = Bytes.EMPTY;
+	private static byte[] sign(SignatureAndHashAlgorithm signatureAndHashAlgorithm, PrivateKey clientPrivateKey, List<HandshakeMessage> handshakeMessages) {
+		byte[] signatureBytes = Bytes.EMPTY;
 
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
-			signature.initSign(clientPrivateKey);
-
-			signature.update(handshakeMessages);
-
+			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+			Signature signature = localSignature.currentWithCause();
+			signature.initSign(clientPrivateKey, RandomManager.currentSecureRandom());
+			int index  = 0;
+			for (HandshakeMessage message : handshakeMessages) {
+				signature.update(message.toByteArray());
+				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
+				++index;
+			}
 			signatureBytes = signature.sign();
 		} catch (Exception e) {
 			LOGGER.error("Could not create signature.", e);
@@ -181,7 +174,7 @@ public final class CertificateVerify extends HandshakeMessage {
 
 		return signatureBytes;
 	}
-	
+
 	/**
 	 * Tries to verify the client's signature contained in the CertificateVerify
 	 * message.
@@ -192,25 +185,26 @@ public final class CertificateVerify extends HandshakeMessage {
 	 *            the handshake messages exchanged so far.
 	 * @throws HandshakeException if the signature could not be verified.
 	 */
-	public void verifySignature(PublicKey clientPublicKey, byte[] handshakeMessages) throws HandshakeException {
-		boolean verified = false;
+	public void verifySignature(PublicKey clientPublicKey, List<HandshakeMessage> handshakeMessages) throws HandshakeException {
 		try {
-			Signature signature = Signature.getInstance(signatureAndHashAlgorithm.jcaName());
+			ThreadLocalSignature localSignature = signatureAndHashAlgorithm.getThreadLocalSignature();
+			Signature signature = localSignature.currentWithCause();
 			signature.initVerify(clientPublicKey);
+			int index  = 0;
+			for (HandshakeMessage message : handshakeMessages) {
+				signature.update(message.toByteArray());
+				LOGGER.trace("  [{}] - {}", index, message.getMessageType());
+				++index;
+			}
+			if (signature.verify(signatureBytes)) {
+				return;
+			}
 
-			signature.update(handshakeMessages);
-
-			verified = signature.verify(signatureBytes);
-
-		} catch (SignatureException | InvalidKeyException | NoSuchAlgorithmException e) {
+		} catch (GeneralSecurityException e) {
 			LOGGER.error("Could not verify the client's signature.", e);
 		}
-		
-		if (!verified) {
-			String message = "The client's CertificateVerify message could not be verified.";
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, getPeer());
-			throw new HandshakeException(message, alert);
-		}
+		String message = "The client's CertificateVerify message could not be verified.";
+		AlertMessage alert = new AlertMessage(AlertLevel.FATAL, AlertDescription.DECRYPT_ERROR);
+		throw new HandshakeException(message, alert);
 	}
-
 }

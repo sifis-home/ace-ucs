@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -28,8 +28,9 @@ public class ListUtils {
 	 * Initialize ordered values, testing for contained item duplicates.
 	 * 
 	 * @param <T> element type of list
-	 * @param values list of values. Maybe {@code null} for empty list.
-	 * @return unmodifiable list with unique items.
+	 * @param values list of values. May be {@code null}.
+	 * @return unmodifiable list with unique items, or {@code null}, if values
+	 *         is {@code null}.
 	 * @throws IllegalArgumentException if duplicate items are contained
 	 */
 	public static <T> List<T> init(List<T> values) {

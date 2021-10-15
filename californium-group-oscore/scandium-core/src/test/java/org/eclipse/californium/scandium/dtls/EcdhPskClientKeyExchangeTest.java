@@ -2,11 +2,11 @@
  * Copyright 2018 University of Rostock, Institute of Applied Microelectronics and Computer Engineering
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -15,16 +15,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetSocketAddress;
-import java.util.Arrays;
-
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography;
-import org.eclipse.californium.scandium.dtls.cipher.ECDHECryptography.SupportedGroup;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -33,7 +31,6 @@ import org.junit.experimental.categories.Category;
 public class EcdhPskClientKeyExchangeTest {
 
 	EcdhPskClientKeyExchange msg;
-	InetSocketAddress peerAddress = new InetSocketAddress(5000);
 	byte[] ephemeralKeyPointEncoded;
 	PskPublicInformation identity;
 	
@@ -41,8 +38,8 @@ public class EcdhPskClientKeyExchangeTest {
 	public void setUp() throws Exception {
 
 		SupportedGroup usableGroup = SupportedGroup.secp256r1;
-		ECDHECryptography ecdhe = ECDHECryptography.fromNamedCurveId(usableGroup.getId());
-		msg = new EcdhPskClientKeyExchange(new PskPublicInformation("ID"), ecdhe.getPublicKey(), peerAddress);
+		XECDHECryptography ecdhe = new XECDHECryptography(usableGroup);
+		msg = new EcdhPskClientKeyExchange(new PskPublicInformation("ID"), ecdhe.getEncodedPoint());
 		ephemeralKeyPointEncoded = msg.getEncodedPoint();
 		identity = msg.getIdentity();
 	}
@@ -57,9 +54,9 @@ public class EcdhPskClientKeyExchangeTest {
 	public void testDeserializedMsg() throws HandshakeException {
 		byte[] serializedMsg = msg.toByteArray();
 		HandshakeParameter parameter = new HandshakeParameter(KeyExchangeAlgorithm.ECDHE_PSK, CertificateType.X_509);
-		HandshakeMessage handshakeMsg = HandshakeMessage.fromByteArray(serializedMsg, parameter, peerAddress);
-		assertTrue(((EcdhPskClientKeyExchange)handshakeMsg).getIdentity().equals(identity));
+		EcdhPskClientKeyExchange handshakeMsg = DtlsTestTools.fromByteArray(serializedMsg, parameter);
+		assertTrue(handshakeMsg.getIdentity().equals(identity));
 		assertNotNull(ephemeralKeyPointEncoded);
-		assertTrue((Arrays.equals(((EcdhPskClientKeyExchange)handshakeMsg).getEncodedPoint(), ephemeralKeyPointEncoded)));
+		assertArrayEquals(handshakeMsg.getEncodedPoint(), ephemeralKeyPointEncoded);
 	}
 }

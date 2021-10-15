@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,20 +16,28 @@
  ******************************************************************************/
 package org.eclipse.californium.core.server;
 
-import static org.mockito.Mockito.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
+import static org.mockito.Matchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.Option;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
@@ -40,6 +48,8 @@ import org.mockito.ArgumentCaptor;
  */
 @Category(Small.class)
 public class ServerMessageDelivererTest {
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	private Resource rootResource;
 	private Exchange incomingRequest;

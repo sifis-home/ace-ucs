@@ -35,6 +35,9 @@ import java.net.InetSocketAddress;
 import java.sql.SQLException;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -81,7 +84,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
 
 
     @Override
-    public byte[] getKey(PskPublicInformation identity) {
+    public SecretKey getKey(PskPublicInformation identity) {
         return getKey(identity.getPublicInfoAsString());
     }
 
@@ -91,7 +94,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
      * @param identity  the identity of the key
      * @return  the key
      */
-    private byte[] getKey(String identity) {
+    private SecretKey getKey(String identity) {
         OneKey key = null;
         try {
             key = super.getCPSK(identity);
@@ -116,7 +119,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
             if ((val== null) || (val.getType() != CBORType.ByteString)) {
                 return null; //Malformed key
             }
-            return val.GetByteString();
+            return new SecretKeySpec(val.GetByteString(), "AES");  
         }
         return null; //Wrong KeyType
           
@@ -158,7 +161,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     }
 
     @Override
-    public byte[] getKey(ServerNames serverName,
+    public SecretKey getKey(ServerNames serverName,
             PskPublicInformation identity) {
         // XXX: We don't support the server names extension.
         return getKey(identity);

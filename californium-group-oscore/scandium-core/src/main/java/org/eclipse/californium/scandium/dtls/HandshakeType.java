@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,11 +22,19 @@ package org.eclipse.californium.scandium.dtls;
  * details.
  */
 public enum HandshakeType {
-	HELLO_REQUEST(0), CLIENT_HELLO(1), SERVER_HELLO(2), HELLO_VERIFY_REQUEST(3),
-	CERTIFICATE(11), SERVER_KEY_EXCHANGE(12), CERTIFICATE_REQUEST(13), SERVER_HELLO_DONE(14),
-	CERTIFICATE_VERIFY(15), CLIENT_KEY_EXCHANGE(16), FINISHED(20);
+	HELLO_REQUEST(0),
+	CLIENT_HELLO(1),
+	SERVER_HELLO(2),
+	HELLO_VERIFY_REQUEST(3),
+	CERTIFICATE(11),
+	SERVER_KEY_EXCHANGE(12),
+	CERTIFICATE_REQUEST(13),
+	SERVER_HELLO_DONE(14),
+	CERTIFICATE_VERIFY(15),
+	CLIENT_KEY_EXCHANGE(16),
+	FINISHED(20);
 
-	private int code;
+	private final int code;
 
 	private HandshakeType(int code) {
 		this.code = code;

@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -17,7 +17,6 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_OCTET_STREAM;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -26,7 +25,6 @@ import static org.eclipse.californium.core.coap.MediaTypeRegistry.UNDEFINED;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -34,10 +32,12 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -73,7 +73,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ReverseRequest extends CoapResource {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseRequest.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseRequest.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	private static final String RESOURCE_NAME = "reverse-request";
@@ -122,8 +122,8 @@ public class ReverseRequest extends CoapResource {
 		getAttributes().addContentType(TEXT_PLAIN);
 		getAttributes().addContentType(APPLICATION_OCTET_STREAM);
 		int healthStatusInterval = config.getInt(NetworkConfig.Keys.HEALTH_STATUS_INTERVAL, 60); // seconds
-		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled()) {
-			ExecutorsUtil.getScheduledExecutor().scheduleWithFixedDelay(new Runnable() {
+		if (healthStatusInterval > 0 && HEALTH_LOGGER.isDebugEnabled() && getSecondaryExecutor() != null) {
+			getSecondaryExecutor().scheduleWithFixedDelay(new Runnable() {
 
 				@Override
 				public void run() {
@@ -143,7 +143,7 @@ public class ReverseRequest extends CoapResource {
 		Request request = exchange.advanced().getRequest();
 
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != APPLICATION_OCTET_STREAM) {
+		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
@@ -198,32 +198,38 @@ public class ReverseRequest extends CoapResource {
 			getRequest.setDestinationContext(request.getSourceContext());
 			GetRequestObserver requestObserver = new GetRequestObserver(endpoint, getRequest, numberOfRequests);
 			getRequest.addMessageObserver(requestObserver);
+			getRequest.addMessageObserver(new ResponseTimeout(getRequest, RESPONSE_TIMEOUT_MILLIS, executor));
 			getRequest.send(endpoint);
-		} else {
-			exchange.respond(CONTENT, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
+		} else if (accept != APPLICATION_OCTET_STREAM) {
+			exchange.respond(CHANGED, overallRequests.get() + " reverse-requests, " + overallSentRequests.get()
 					+ " sent, " + overallPendingRequests.get() + " pending.", TEXT_PLAIN);
+		} else {
+			DatagramWriter writer = new DatagramWriter(24);
+			writer.writeLong(overallRequests.get(), 64);
+			writer.writeLong(overallSentRequests.get(), 64);
+			writer.writeLong(overallPendingRequests.get(), 64);
+			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
+			writer.close();
 		}
 	}
 
 	private class GetRequestObserver extends MessageObserverAdapter implements Runnable {
 
-		private ScheduledFuture<?> job;
-		private Endpoint endpoint;
+		private final Endpoint endpoint;
 		private Request outgoingRequest;
 		private int count;
+		private boolean failureLogged;
 
 		public GetRequestObserver(Endpoint endpoint, Request outgoingRequest, int count) {
 			this.endpoint = endpoint;
 			this.outgoingRequest = outgoingRequest;
 			this.count = count;
-			this.job = executor.schedule(this, RESPONSE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
 		}
 
 		@Override
 		public void onResponse(final Response response) {
-			job.cancel(false);
 			if (response.isError()) {
-				LOGGER.info("error: {}, pending: {}", response.getCode(), count);
+				LOGGER.info("error: {} {}, pending: {}", outgoingRequest.getScheme(), response.getCode(), count);
 				subtractPending(count);
 			} else {
 				--count;
@@ -235,7 +241,7 @@ public class ReverseRequest extends CoapResource {
 					getRequest.setDestinationContext(outgoingRequest.getDestinationContext());
 					outgoingRequest = getRequest;
 					getRequest.addMessageObserver(this);
-					this.job = executor.schedule(this, RESPONSE_TIMEOUT_MILLIS, TimeUnit.MILLISECONDS);
+					getRequest.addMessageObserver(new ResponseTimeout(getRequest, RESPONSE_TIMEOUT_MILLIS, executor));
 					getRequest.send(endpoint);
 				} else {
 					LOGGER.trace("sent requests ready!");
@@ -245,9 +251,21 @@ public class ReverseRequest extends CoapResource {
 		}
 
 		@Override
+		public void onSendError(Throwable error) {
+			if (error instanceof ConnectorException) {
+				LOGGER.warn("reverse get request failed! {} MID {}, pending: {}", outgoingRequest.getScheme(),
+						outgoingRequest.getMID(), count);
+				failureLogged = true;
+			}
+			super.onSendError(error);
+		}
+
+		@Override
 		protected void failed() {
-			job.cancel(false);
-			LOGGER.info("get request failed! MID {}, pending: {}", outgoingRequest.getMID(), count);
+			if (!failureLogged) {
+				LOGGER.debug("reverse get request failed! {} MID {}, pending: {}", outgoingRequest.getScheme(),
+						outgoingRequest.getMID(), count);
+			}
 			subtractPending(count);
 		}
 

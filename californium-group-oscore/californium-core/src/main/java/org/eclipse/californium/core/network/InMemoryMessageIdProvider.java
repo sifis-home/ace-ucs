@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,10 +26,11 @@ package org.eclipse.californium.core.network;
 import java.net.InetSocketAddress;
 import java.util.Random;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,7 +42,7 @@ import org.slf4j.LoggerFactory;
  */
 public class InMemoryMessageIdProvider implements MessageIdProvider {
 
-	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(InMemoryMessageIdProvider.class);
 
 	public enum TrackerMode {
 		NULL, GROUPED, MAPBASED
@@ -59,19 +60,19 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 	 * 
 	 * The following configuration values are used direct or indirect:
 	 * <ul>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MID_TRACKER}
+	 * <li>{@link Keys#MID_TRACKER}
 	 * - determine the tracker mode. Supported values are "NULL" (for
 	 * {@link NullMessageIdTracker}), "GROUPED" (for
 	 * {@link GroupedMessageIdTracker}), and "MAPBASED" (for
 	 * {@link MapBasedMessageIdTracker}).</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#MID_TRACKER_GROUPS}
+	 * <li>{@link Keys#MID_TRACKER_GROUPS}
 	 * - determine the group size for the message IDs, if the grouped tracker is
 	 * used. Each group is marked as <em>in use</em>, if a MID within the group
 	 * is used.</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#EXCHANGE_LIFETIME}
+	 * <li>{@link Keys#EXCHANGE_LIFETIME}
 	 * - each (group of a) message ID returned by <em>getNextMessageId</em> is
 	 * marked as <em>in use</em> for this amount of time (ms).</li>
-	 * <li>{@link org.eclipse.californium.core.network.config.NetworkConfig.Keys#USE_RANDOM_MID_START}
+	 * <li>{@link Keys#USE_RANDOM_MID_START}
 	 * - if this value is {@code true} then the message IDs returned by
 	 * <em>getNextMessageId</em> will start at a random index. Otherwise the
 	 * first message ID returned will be {@code 0}.</li>
@@ -89,7 +90,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		String textualMode = null;
 		TrackerMode mode = TrackerMode.GROUPED;
 		try {
-			textualMode = config.getString(NetworkConfig.Keys.MID_TRACKER);
+			textualMode = config.getString(Keys.MID_TRACKER);
 			mode = TrackerMode.valueOf(textualMode);
 		} catch (IllegalArgumentException e) {
 			throw new IllegalArgumentException("Tracker mode '" + textualMode + "' not supported!");
@@ -98,16 +99,16 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		}
 		this.mode = mode;
 		this.config = config;
-		if (config.getBoolean(NetworkConfig.Keys.USE_RANDOM_MID_START)) {
+		if (config.getBoolean(Keys.USE_RANDOM_MID_START)) {
 			random = new Random(ClockUtil.nanoRealtime());
 		} else {
 			random = null;
 		}
 		// 10 minutes
-		trackers = new LeastRecentlyUsedCache<>(config.getInt(NetworkConfig.Keys.MAX_ACTIVE_PEERS, 150000),
-				config.getLong(NetworkConfig.Keys.MAX_PEER_INACTIVITY_PERIOD, 10 * 60));
+		trackers = new LeastRecentlyUsedCache<>(config.getInt(Keys.MAX_ACTIVE_PEERS, 150000),
+				config.getLong(Keys.MAX_PEER_INACTIVITY_PERIOD, 10 * 60));
 		trackers.setEvictingOnReadAccess(false);
-		int multicastBaseMid = config.getInt(NetworkConfig.Keys.MULTICAST_BASE_MID);
+		int multicastBaseMid = config.getInt(Keys.MULTICAST_BASE_MID);
 		if (0 < multicastBaseMid) {
 			this.multicastBaseMid = multicastBaseMid;
 			int max = MessageIdTracker.TOTAL_NO_OF_MIDS;
@@ -135,8 +136,9 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		MessageIdTracker tracker = getTracker(destination);
 		if (tracker == null) {
 			// we have reached the maximum number of active peers
-			// TODO: throw an exception?
-			return Message.NONE;
+			String time = trackers.getExpirationThreshold() + "s";
+			throw new IllegalStateException(
+					"No MID available, max. peers " + trackers.size() + " exhausted! (Timeout " + time + ".)");
 		} else {
 			return tracker.getNextMessageId();
 		}
@@ -148,7 +150,7 @@ public class InMemoryMessageIdProvider implements MessageIdProvider {
 		// destination sp
 		// => use special range 0 - 65000
 
-		if (destination.getAddress().isMulticastAddress()) {
+		if (NetworkInterfacesUtil.isMultiAddress(destination.getAddress())) {
 			if (multicastTracker == null) {
 				LOG.warn(
 						"Destination address {} is a multicast address, please configure NetworkConfig to support multicast messaging",

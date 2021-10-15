@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -15,16 +15,17 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.rule;
 
-import java.net.InetSocketAddress;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.elements.rule.NetworkRule;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DatagramFormatter;
 import org.eclipse.californium.scandium.dtls.ContentType;
+import org.eclipse.californium.scandium.dtls.DtlsTestTools;
 import org.eclipse.californium.scandium.dtls.HandshakeType;
 import org.eclipse.californium.scandium.dtls.Record;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * DTLS network rules for junit test using datagram sockets.
@@ -43,17 +44,7 @@ import org.eclipse.californium.scandium.dtls.Record;
  */
 public class DtlsNetworkRule extends NetworkRule {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class.getName());
-
-	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0) {
-
-		private static final long serialVersionUID = 3463123750760014012L;
-
-		@Override
-		public String toString() {
-			return "";
-		}
-	};
+	public static final Logger LOGGER = LoggerFactory.getLogger(DtlsNetworkRule.class);
 
 	/**
 	 * CoAP datagram formatter. Used for logging.
@@ -68,7 +59,7 @@ public class DtlsNetworkRule extends NetworkRule {
 				return "[] (empty)";
 			}
 			try {
-				List<Record> records = Record.fromByteArray(data, ADDRESS, null);
+				List<Record> records = DtlsTestTools.fromByteArray(data, null, ClockUtil.nanoRealtime());
 				int max = records.size();
 				StringBuilder builder = new StringBuilder();
 				for (int index = 0; index < max;) {

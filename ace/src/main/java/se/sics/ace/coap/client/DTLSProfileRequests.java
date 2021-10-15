@@ -39,7 +39,6 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
@@ -48,6 +47,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
@@ -60,6 +60,7 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 
 /**
  * Implements getting a token from the /token endpoint for a client 
@@ -71,7 +72,7 @@ import se.sics.ace.Constants;
  * Clients are expected to create an instance of this class when the want to
  * perform token requests from a specific AS.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class DTLSProfileRequests {
@@ -115,7 +116,7 @@ public class DTLSProfileRequests {
                     keyId, key.get(KeyKeys.Octet_K).GetByteString()));
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        } else if (type.equals(KeyKeys.KeyType_EC2)){
+        } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
             try {
                 builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
             } catch (CoseException e) {
@@ -145,7 +146,7 @@ public class DTLSProfileRequests {
         try {
             return client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException e) {
             LOGGER.severe("DTLSConnector error: " + e.getMessage());
             throw new AceException(e.getMessage());
@@ -166,8 +167,7 @@ public class DTLSProfileRequests {
      *
      * @throws AceException 
      */
-    public static CoapResponse postToken(String rsAddr, CBORObject payload, 
-            OneKey key) throws AceException {
+    public static CoapResponse postToken(String rsAddr, CBORObject payload, OneKey key) throws AceException {
         if (payload == null) {
             throw new AceException(
                     "Payload cannot be null when POSTing to authz-info");
@@ -209,7 +209,7 @@ public class DTLSProfileRequests {
         try {
             r = client.post(
                     payload.EncodeToBytes(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
         } catch (ConnectorException | IOException ex) {
             LOGGER.severe("DTLSConnector error: " + ex.getMessage());
             throw new AceException(ex.getMessage());
@@ -218,7 +218,39 @@ public class DTLSProfileRequests {
         return r;
     }
     
-    
+    /**
+     * Sends a POST request to the /authz-info endpoint of the RS to submit an
+     * access token for updating access rights.
+     * 
+     * @param rsAddr  the full address of the /authz-info endpoint
+     *  (including scheme and hostname, and port if not default)
+     * @param payload  the token received from the getToken() method
+     * @param key  an asymmetric key-pair to use with DTLS in a raw-public 
+     *  key handshake
+     * 
+     * @return  the response 
+     *
+     * @throws AceException 
+     */
+    public static CoapResponse postTokenUpdate(String rsAddr, CBORObject payload, CoapClient c) throws AceException {
+        if (payload == null) {
+            throw new AceException(
+                    "Payload cannot be null when POSTing to authz-info");
+        }
+
+        //Submit the new token
+        c.setURI(rsAddr);
+        CoapResponse tokenPostResp = null;
+        try {
+        	tokenPostResp = c.post(payload.EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);
+        } catch (ConnectorException | IOException ex) {
+            LOGGER.severe("DTLSConnector error: " + ex.getMessage());
+            throw new AceException(ex.getMessage());
+        }
+        
+        return tokenPostResp;
+    }
+        
     /**
      * Generates a Coap client for sending requests to an RS that will pass the
      *  access token through psk-identity in the DTLS handshake.
@@ -254,12 +286,14 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         InMemoryPskStore store = new InMemoryPskStore();
-       
-        String identity = Base64.getEncoder().encodeToString(
-                token.EncodeToBytes());
+        
         LOGGER.finest("Adding key for: " + serverAddress.toString());
-        store.addKnownPeer(serverAddress, identity, 
-                key.get(KeyKeys.Octet_K).GetByteString());
+        
+        byte[] identityBytes = token.EncodeToBytes();
+        String identityStr = Base64.getEncoder().encodeToString(identityBytes);
+        PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
+        store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
+                
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
@@ -272,8 +306,9 @@ public class DTLSProfileRequests {
     
     
     /**
-     * Generates a Coap client for sending requests to an RS that will pass the
-     *  kid of a known access token through psk-identity in the DTLS handshake.
+     * Generates a Coap client for sending requests to an RS that will use
+     * a symmetric PoP key to connect to the server.
+     * 
      * @param serverAddress  the address of the server and resource this client
      *  should talk to
      * @param kid  the kid that the client should use as PSK in the handshake
@@ -308,10 +343,13 @@ public class DTLSProfileRequests {
         
         InMemoryPskStore store = new InMemoryPskStore();
 
-        String identity = new String(kid, Constants.charset);
         LOGGER.finest("Adding key for: " + serverAddress.toString());
-        store.addKnownPeer(serverAddress, identity, 
-                key.get(KeyKeys.Octet_K).GetByteString());
+        
+        byte[] identityBytes = Util.buildDtlsPskIdentity(kid);
+        String identityStr = Base64.getEncoder().encodeToString(identityBytes);
+        PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
+        store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
+        
         builder.setPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder()

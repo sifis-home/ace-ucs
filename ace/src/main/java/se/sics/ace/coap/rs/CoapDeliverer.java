@@ -35,10 +35,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Base64;
-import java.util.List;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -57,6 +54,7 @@ import org.eclipse.californium.cose.KeyKeys;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.rs.AsRequestCreationHints;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.IntrospectionHandler;
@@ -73,7 +71,7 @@ import se.sics.ace.rs.TokenRepository;
  * It's specific task is to match requests against existing access tokens
  * to see if the request is authorized.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class CoapDeliverer implements MessageDeliverer {
@@ -120,40 +118,14 @@ public class CoapDeliverer implements MessageDeliverer {
         this.d = new ServerMessageDeliverer(root);
         this.asRCH = asRCHM; 
     }
-    
-    /**
-     * Special method to allow communication from a specific OSCORE Sender ID. 
-     * (For testing)
-     *  
-     * @param senderId The OSCORE Sender ID to allow communication for.
-     */
-    public void allowForSubject(byte[] senderId) {
-    	allowedSenders.add(senderId);
-    }
-    private List<byte[]> allowedSenders = new ArrayList<byte[]>();
-    
-    /**
-     * Check if a particular subject is added to the list of allowed OSCORE senders.
-     * (For testing)
-     * 
-     * @param subject of OSCORE client to check
-     * @return if it is allowed access
-     */
-    private boolean isAllowedSender(byte[] subject) {
-    	for(byte[] senderId : allowedSenders) {
-    		if(Arrays.equals(senderId, subject)) {
-    			return true;
-    		}
-    	}
-    	return false;
-    }
-    
+  
     //Really the TokenRepository _should not_ be closed here
     @SuppressWarnings("resource") 
     @Override
     public void deliverRequest(final Exchange ex) {
         Request request = ex.getCurrentRequest();
         Response r = null;
+        
         //authz-info is not under access control
         try {
             URI uri = new URI(request.getURI());
@@ -171,22 +143,26 @@ public class CoapDeliverer implements MessageDeliverer {
         }      
        
        
-        String subject;
+        String subject = null;
+        
         if (request.getSourceContext() == null 
                 || request.getSourceContext().getPeerIdentity() == null) {
-            //XXX: Kludge for OSCORE since cf-oscore doesn't set PeerIdentity
-            if (ex.getCryptographicContextID()!= null) {                
-                subject = new String(ex.getCryptographicContextID(),
-                        Constants.charset);    
-            } else {
-                LOGGER.warning("Unauthenticated client tried to get access");
-                failUnauthz(null, ex);
-                return;
-            }
+            
+        	Request req = ex.getRequest();
+            try {
+				subject = CoapReq.getInstance(req).getSenderId();
+				if (subject == null) {
+				    LOGGER.warning("Unauthenticated client tried to get access");
+				    failUnauthz(null, ex);
+				    return;
+				}
+			} catch (AceException e) {
+	            LOGGER.severe("Error while retrieving the client identity: " + e.getMessage());
+			}
         } else  {
             subject = request.getSourceContext().getPeerIdentity().getName();
         }
-
+        	    
         TokenRepository tr = TokenRepository.getInstance();
         if (tr == null) {
             LOGGER.finest("TokenRepository not initialized");
@@ -195,13 +171,6 @@ public class CoapDeliverer implements MessageDeliverer {
         }
         String kid = TokenRepository.getInstance().getKid(subject);
        
-        //Check if this client has been allowed communication
-        //(For testing).
-        if(isAllowedSender(ex.getCryptographicContextID())) {
-        	this.d.deliverRequest(ex);
-        	return;
-        }
-        
         if (kid == null) {//Check if this was the Base64 encoded kid map
             try {
                 CBORObject cbor = CBORObject.DecodeFromBytes(
@@ -235,11 +204,30 @@ public class CoapDeliverer implements MessageDeliverer {
         }
                
         String resource = request.getOptions().getUriPathString();
-        short action = (short) request.getCode().value;  
+        short action = (short) request.getCode().value;
       
         try {
             int res = TokenRepository.getInstance().canAccess(
                     kid, subject, resource, action, this.i);
+            
+            // In case an error response is returned, it will be a Request Creation Hints message.
+            // 
+            // The message will include 'kid' as the "key identifier of a key used in the
+            // existing security association between the client and the RS". Note that:
+            //
+            // - For the DTLS profile, this is already what the RS stores as 'kid'
+            //
+            // - For the OSCORE profile, this has to actually be the identifier of
+            //   the OSCORE Input Material, which has to be separately retrieved
+            
+            // Check if the security association was an OSCORE Security Context
+            if (tr.getOscoreId(subject) != null) {
+            	
+            	// The 'kid' included in the Creation Hints message will
+            	// will be the identifier of the OSCORE Input Material
+            	kid = tr.getOscoreId(subject);
+            }
+            
             switch (res) {
             case TokenRepository.OK :
                 this.d.deliverRequest(ex);
@@ -318,6 +306,20 @@ public class CoapDeliverer implements MessageDeliverer {
     @Override
     public void deliverResponse(Exchange exchange, Response response) {
         this.d.deliverResponse(exchange, response);        
+    }
+    
+
+    public byte[] GetBytes(String str)
+    {
+        char[] chars = str.toCharArray();
+        byte[] bytes = new byte[chars.length * 2];
+        for (int i = 0; i < chars.length; i++)
+        {
+            bytes[i * 2] = (byte) (chars[i] >> 8);
+            bytes[i * 2 + 1] = (byte) chars[i];
+        }
+
+        return bytes;
     }
 
 }

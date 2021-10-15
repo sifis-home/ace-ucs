@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -16,7 +16,7 @@
 package org.eclipse.californium.scandium.dtls;
 
 import org.eclipse.californium.elements.util.DatagramReader;
-import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.config.DtlsConnectorConfig.Builder;
 
 /**
  * Connection id generator.
@@ -61,7 +61,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
  * </dl>
  * <p>
  * The behavior of a peer within the above rules could be configured using
- * {@link DtlsConnectorConfig.Builder#setConnectionIdGenerator(ConnectionIdGenerator)}.
+ * {@link Builder#setConnectionIdGenerator}.
  * <dl>
  * <dt>do not support it</dt>
  * <dd>use a {@code null} as connection id generator</dd>

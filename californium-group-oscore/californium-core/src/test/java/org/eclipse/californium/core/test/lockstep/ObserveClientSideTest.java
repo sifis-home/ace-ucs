@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -34,33 +34,47 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.TestTools.*;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.core.coap.CoAP.Code.GET;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.coap.CoAP.Type.NON;
+import static org.eclipse.californium.core.coap.CoAP.Type.RST;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertNumberOfReceivedNotifications;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createChangedLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.Token;
+import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
+import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -77,10 +91,16 @@ public class ObserveClientSideTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
-	private static NetworkConfig CONFIG;
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
+	private NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -88,10 +108,9 @@ public class ObserveClientSideTest {
 	private String respPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + ObserveClientSideTest.class.getSimpleName());
-		CONFIG = network.createTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 16)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 16)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT, 200) // client retransmits after 200 ms
@@ -100,34 +119,39 @@ public class ObserveClientSideTest {
 				.setFloat(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1f)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, 200)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, 2000);
-	}
-
-	@Before
-	public void setupEndpoints() throws Exception {
 		// don't check address, tests explicitly change it!
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG, false);
+		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config, false);
 		client.addInterceptor(clientInterceptor);
+
+		client.setMessageDeliverer(new MessageDeliverer() {
+
+			@Override
+			public void deliverResponse(Exchange exchange, Response response) {
+				exchange.getRequest().setResponse(response);
+			}
+
+			@Override
+			public void deliverRequest(Exchange exchange) {
+				exchange.sendAccept();
+			}
+		});
+
 		client.start();
+		cleanup.add(client);
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress());
+		cleanup.add(server);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllEndpointExchangesAreCompleted(client);
 		} finally {
 			printServerLog(clientInterceptor);
-			
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println("End " + ObserveClientSideTest.class.getSimpleName());
 	}
 
 	@Test
@@ -405,7 +429,7 @@ public class ObserveClientSideTest {
 				.payload(respPayload.substring(16, 32)).go();
 		// ensure client don't ask for block anymore
 		Message message = server.receiveNextMessage(1000, TimeUnit.MILLISECONDS);
-		assertNull("No block2 message expected anymore", message);
+		assertThat("No block2 message expected anymore", message, is(nullValue()));
 		assertTrue("Blockwise layer must be empty", client.getStack().getBlockwiseLayer().isEmpty());
 
 		// Send new notif without block
@@ -493,7 +517,7 @@ public class ObserveClientSideTest {
 		server.expectEmpty(ACK, mid).go();
 		// Check this one is discard.
 		Response response = request.waitForResponse(1000);
-		assertNull("Older notification must be discard", response);
+		assertThat("Older notification must be discard", response, is(nullValue()));
 
 		// Send next block
 		server.sendResponse(ACK, CONTENT).loadBoth("SECOND_BLOCK").block2(1, false, 16)
@@ -927,6 +951,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1006,7 +1031,7 @@ public class ObserveClientSideTest {
 	public void testCancelledWhileBlock2Notification() throws Exception {
 
 		System.out.println("cancelled block2 transfer:");
-		respPayload = generateRandomPayload(300);
+		respPayload = generateRandomPayload(45);
 		String path = "test";
 
 		// Established new observe relation with block2
@@ -1030,6 +1055,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1088,6 +1114,7 @@ public class ObserveClientSideTest {
 
 		// create new server with new port
 		server = createChangedLockstepEndpoint(server);
+		cleanup.add(server);
 
 		// Send new block2 notification
 		respPayload = generateRandomPayload(42);
@@ -1138,7 +1165,7 @@ public class ObserveClientSideTest {
 	@Test
 	public void testBlockwiseObserveAndTimedoutNotification() throws Exception {
 		System.out.println("Blockwise Observe:");
-		int timeoutMillis = CONFIG.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
+		int timeoutMillis = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT);
 		
 		// observer request response will be sent using blockwise
 		respPayload = generateRandomPayload(2 * 16);
@@ -1182,7 +1209,7 @@ public class ObserveClientSideTest {
 		// timeout, retransmission
 		server.expectRequest(CON, GET, path).sameBoth("SECOND_BLOCK").block2(1, false, 16).go();
 
-		assertNull("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS));
+		assertThat("unexpected message", server.receiveNextMessage(timeoutMillis, TimeUnit.MILLISECONDS),is(nullValue()));
 
 		// next notify
 		notifyPayload = generateRandomPayload(2 * 16);
@@ -1384,7 +1411,7 @@ public class ObserveClientSideTest {
 		
 		// Ensure we get the right response
 		Response cancelResponse = proactiveCancel.waitForResponse(1000);
-		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertThat("We should receive the cancel response", cancelResponse, is(notNullValue()));
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
 
 		// Ensure notification is rejected
@@ -1458,7 +1485,7 @@ public class ObserveClientSideTest {
 
 		// Ensure the 2 notifications above was not consider as response for the proactive cancel request
 		Response cancelResponse = proactiveCancel.waitForResponse(500);
-		assertNull("We should not consider notification as response", cancelResponse);
+		assertThat("We should not consider notification as response", cancelResponse, is(nullValue()));
 
 		// Send response to proactive cancel
 		String cancelPayload = generateRandomPayload(32);
@@ -1466,12 +1493,40 @@ public class ObserveClientSideTest {
 
 		// Ensure we get the right response
 		cancelResponse = proactiveCancel.waitForResponse(1000);
-		assertNotNull("We should receive the cancel response", cancelResponse);
+		assertThat("We should receive the cancel response", cancelResponse, is(notNullValue()));
 		assertResponseContainsExpectedPayload(cancelResponse, cancelPayload);
 
 		assertAllEndpointExchangesAreCompleted(client);
 	}
 
+	@Test
+	public void testNotifyRequestSameMID() throws Exception {
+		boolean replace = config.getBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE);
+		System.out.println("Observe with lost ACKs:");
+		respPayload = generateRandomPayload(10);
+		String path = "test";
+		int obs = 100;
+
+		Request request = createRequest(GET, path, server);
+		SynchronousNotificationListener notificationListener = new SynchronousNotificationListener(request);
+		client.addNotificationListener(notificationListener);
+		request.setObserve();
+		client.sendRequest(request);
+
+		server.expectRequest(CON, GET, path).storeMID("A").storeToken("B").observe(0).go();
+		server.sendEmpty(ACK).loadMID("A").go();
+		Thread.sleep(50);
+		server.sendResponse(CON, CONTENT).loadToken("B").payload(respPayload).mid(++mid).observe(++obs).go();
+		Thread.sleep(10);
+		server.sendRequest(CON, GET, new Token(new byte[] {1,1}), mid).go();
+		server.expectEmpty(ACK, mid).go();
+		if (replace) {
+			server.expectEmpty(ACK, mid).go();
+		} else {
+			server.expectEmpty(RST, mid).go();
+		}
+		Thread.sleep(1000);
+	}
 	private void assertAllEndpointExchangesAreCompleted(final CoapTestEndpoint endpoint) {
 		assertAllExchangesAreCompleted(endpoint, time);
 	}

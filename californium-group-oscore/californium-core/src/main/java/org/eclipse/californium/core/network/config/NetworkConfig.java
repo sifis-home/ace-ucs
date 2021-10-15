@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,6 +27,7 @@
  *    Achim Kraus (Bosch Software Innovations GmbH) - add clone method
  *    Achim Kraus (Bosch Software Innovations GmbH) - add support for custom defaults
  *                                                    remove clone method
+ *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -39,25 +40,29 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 
-import org.eclipse.californium.elements.util.NotForAndroid;
+import org.eclipse.californium.core.coap.Message;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * The configuration for a Californium server, endpoint and/or connector.
  * Depending on the environment, the configuration is stored and loaded from
- * properties files. If file access is not possible, there are variants, which
- * are marked as "WithoutFile" or variants, which use a {@link InputStream} to
- * read the properties.
+ * properties files. When missing, Californium will generated this properties
+ * file. If file access is not possible, there are variants, which are marked as
+ * "WithoutFile" or variants, which use a {@link InputStream} to read the
+ * properties. Please use such a variant, e.g.
+ * {@link #createStandardWithoutFile()}, if you want Californium to stop
+ * generating a properties file.
  * 
  * Note: For Android it's recommended to use the AssetManager and pass in the
  * InputStream to the variants using that as parameter. Alternatively you may
  * chose to use the "WithoutFile" variant and, if required, adjust the defaults
- * in your code.
+ * in your code. If the "File" variants are used, ensure, that you have the
+ * android-os-permission to do so.
  */
 public final class NetworkConfig {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(NetworkConfig.class);
 
 	/** The default name for the configuration. */
 	public static final String DEFAULT_FILE_NAME = "Californium.properties";
@@ -119,6 +124,13 @@ public final class NetworkConfig {
 		public static final String NSTART = "NSTART";
 		public static final String LEISURE = "LEISURE";
 		public static final String PROBING_RATE = "PROBING_RATE";
+		/**
+		 * Configure message-offloading.
+		 * 
+		 * @see Message#offload(org.eclipse.californium.core.coap.Message.OffloadMode)
+		 * @since 2.2
+		 */
+		public static final String USE_MESSAGE_OFFLOADING = "USE_MESSAGE_OFFLOADING";
 
 		public static final String USE_RANDOM_MID_START = "USE_RANDOM_MID_START";
 		public static final String MID_TRACKER = "MID_TACKER";
@@ -178,18 +190,51 @@ public final class NetworkConfig {
 		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_LIFETIME}.
 		 */
 		public static final String BLOCKWISE_STATUS_LIFETIME = "BLOCKWISE_STATUS_LIFETIME";
-		
+		/**
+		 * The interval for removing expired/stale blockwise entries.
+		 * <p>
+		 * The default value of this property is
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STATUS_INTERVAL}.
+		 * 
+		 * @since 3.0
+		 */
+		public static final String BLOCKWISE_STATUS_INTERVAL = "BLOCKWISE_STATUS_INTERVAL";
+
 		/**
 		 * Property to indicate if the response should always include the Block2 option when client request early blockwise negociation but the response can be sent on one packet.
 		 * <p>
-		 * The default value of this property is
-		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
-		 * <p>
-		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.<br/>
+		 * The default value of this property is {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION}.
+		 * </p>
+		 * 
+		 * <ul>
+		 * <li>
+		 * A value of {@code false} indicate that the server will respond without block2 option if no further blocks are required.
+		 * </li>
+		 * <li>
 		 * A value of {@code true} indicate that the server will response with block2 option event if no further blocks are required.
+		 * </li>
+		 * </ul>
 		 *  
 		 */
 		public static final String BLOCKWISE_STRICT_BLOCK2_OPTION = "BLOCKWISE_STRICT_BLOCK2_OPTION";
+
+		/**
+		 * Property to automatically handle 4.13 Entity too large error with
+		 * transparent blockwise transfer.
+		 * <p>
+		 * The default value is :
+		 * {@link NetworkConfigDefaults#DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER }.
+		 * <p>
+		 * When activated ({@code true}), CoAP client will try to use block mode
+		 * or adapt the block size when receiving a 4.13 Entity too large
+		 * response code.
+		 * <p>
+		 * See https://tools.ietf.org/html/rfc7959#section-2.9.3 for more
+		 * details.
+		 * 
+		 * @since 2.4
+		 */
+		public static final String BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = "BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER";
 
 		public static final String NOTIFICATION_CHECK_INTERVAL_TIME = "NOTIFICATION_CHECK_INTERVAL";
 		public static final String NOTIFICATION_CHECK_INTERVAL_COUNT = "NOTIFICATION_CHECK_INTERVAL_COUNT";
@@ -210,13 +255,31 @@ public final class NetworkConfig {
 		public static final String DEDUPLICATOR = "DEDUPLICATOR";
 		public static final String DEDUPLICATOR_MARK_AND_SWEEP = "DEDUPLICATOR_MARK_AND_SWEEP";
 		/**
+		 * Peers based deduplicator. Limits maxium messages kept per peer to
+		 * {@link #PEERS_MARK_AND_SWEEP_MESSAGES}. Removes messages, even if
+		 * exchange-lifetime is not expired.
+		 * 
+		 * @since 2.3
+		 */
+		public static final String DEDUPLICATOR_PEERS_MARK_AND_SWEEP = "DEDUPLICATOR_PEERS_MARK_AND_SWEEP";
+		/**
 		 * The interval after which the next sweep run should occur (in
 		 * MILLISECONDS).
 		 */
 		public static final String MARK_AND_SWEEP_INTERVAL = "MARK_AND_SWEEP_INTERVAL";
+		/**
+		 * The number of messages per peer kept for deduplication.
+		 * @since 2.3
+		 */
+		public static final String PEERS_MARK_AND_SWEEP_MESSAGES = "PEERS_MARK_AND_SWEEP_MESSAGES";
 		public static final String DEDUPLICATOR_CROP_ROTATION = "DEDUPLICATOR_CROP_ROTATION";
+		/**
+		 * The interval after which the next crop run should occur (in
+		 * MILLISECONDS).
+		 */
 		public static final String CROP_ROTATION_PERIOD = "CROP_ROTATION_PERIOD";
 		public static final String NO_DEDUPLICATOR = "NO_DEDUPLICATOR";
+		public static final String DEDUPLICATOR_AUTO_REPLACE = "DEDUPLICATOR_AUTO_REPLACE";
 		public static final String RESPONSE_MATCHING = "RESPONSE_MATCHING";
 
 		public static final String HTTP_PORT = "HTTP_PORT";
@@ -231,6 +294,14 @@ public final class NetworkConfig {
 		public static final String TCP_CONNECTION_IDLE_TIMEOUT = "TCP_CONNECTION_IDLE_TIMEOUT";
 		public static final String TCP_CONNECT_TIMEOUT = "TCP_CONNECT_TIMEOUT";
 		public static final String TCP_WORKER_THREADS = "TCP_WORKER_THREADS";
+		
+		/**
+		 * If the value is greater than 1, this sets up the active use of BERT.
+		 * i.e. Messages will be sent with BERT option. The passive
+		 * receiving of BERT message is always enabled while using TCP connector.
+		 */
+		public static final String TCP_NUMBER_OF_BULK_BLOCKS = "TCP_NUMBER_OF_BULK_BLOCKS";
+
 		public static final String TLS_HANDSHAKE_TIMEOUT = "TLS_HANDSHAKE_TIMEOUT";
 
 		/** Properties for encryption */
@@ -246,7 +317,7 @@ public final class NetworkConfig {
 		/**
 		 * DTLS connection id length.
 		 * 
-		 * <a https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02>
+		 * <a href="https://tools.ietf.org/html/draft-ietf-tls-dtls-connection-id-02">
 		 * draft-ietf-tls-dtls-connection-id-02</a>
 		 * 
 		 * <ul>
@@ -359,7 +430,6 @@ public final class NetworkConfig {
 	 * @param file the configuration file
 	 * @return the network configuration
 	 */
-	@NotForAndroid
 	public static NetworkConfig createStandardWithFile(final File file) {
 		standard = createWithFile(file, DEFAULT_HEADER, null);
 		return standard;
@@ -379,7 +449,6 @@ public final class NetworkConfig {
 	 * @param customHandler custom defaults handler. Maybe {@code null}.
 	 * @return the network configuration
 	 */
-	@NotForAndroid
 	public static NetworkConfig createWithFile(final File file, final String header,
 			final NetworkConfigDefaultHandler customHandler) {
 		NetworkConfig standard = new NetworkConfig();
@@ -404,8 +473,10 @@ public final class NetworkConfig {
 	}
 
 	/**
-	 * Instantiates a new network configuration and sets the values
-	 * from the provided configuration.
+	 * Instantiates a new network configuration and sets the values from the
+	 * provided configuration.
+	 * 
+	 * @param config network config to copy
 	 */
 	public NetworkConfig(NetworkConfig config) {
 		this.properties = new Properties();
@@ -420,7 +491,6 @@ public final class NetworkConfig {
 	 * @param file the file
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	@NotForAndroid
 	public void load(final File file) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
@@ -430,7 +500,7 @@ public final class NetworkConfig {
 				load(inStream);
 			} catch (IOException e) {
 				LOGGER.warn("cannot load properties from file {}: {}",
-						new Object[] { file.getAbsolutePath(), e.getMessage() });
+						file.getAbsolutePath(), e.getMessage());
 			}
 		}
 	}
@@ -440,6 +510,7 @@ public final class NetworkConfig {
 	 *
 	 * @param inStream the input stream
 	 * @throws NullPointerException if the inStream is {@code null}.
+	 * @throws IOException if an error occurred when reading from the input stream
 	 */
 	public void load(final InputStream inStream) throws IOException {
 		if (inStream == null) {
@@ -451,12 +522,11 @@ public final class NetworkConfig {
 	/**
 	 * Stores the configuration to a file.
 	 * 
-	 * For available for Android!
+	 * Not intended for Android!
 	 *
 	 * @param file The file to write to.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	@NotForAndroid
 	public void store(final File file) {
 		store(file, DEFAULT_HEADER);
 	}
@@ -464,13 +534,12 @@ public final class NetworkConfig {
 	/**
 	 * Stores the configuration to a file using a given header.
 	 * 
-	 * For available for Android!
+	 * Not intended for Android!
 	 * 
 	 * @param file The file to write to.
 	 * @param header The header to write to the top of the file.
 	 * @throws NullPointerException if the file is {@code null}.
 	 */
-	@NotForAndroid
 	public void store(File file, String header) {
 		if (file == null) {
 			throw new NullPointerException("file must not be null");
@@ -480,7 +549,7 @@ public final class NetworkConfig {
 				properties.store(writer, header);
 			} catch (IOException e) {
 				LOGGER.warn("cannot write properties to file {}: {}",
-						new Object[] { file.getAbsolutePath(), e.getMessage() });
+						file.getAbsolutePath(), e.getMessage());
 			}
 		}
 	}
@@ -489,7 +558,7 @@ public final class NetworkConfig {
 	 * Gets the string value for a key.
 	 *
 	 * @param key the key to look up.
-	 * @return the value or {@code null} if this configuration does not contain
+	 * @return the value, or {@code null}, if this configuration does not contain
 	 *         the given key.
 	 */
 	public String getString(final String key) {
@@ -677,9 +746,9 @@ public final class NetworkConfig {
 				LOGGER.warn("value for key [{}] is not a {0}, returning default value", key, defaultValue.getClass());
 			}
 		} else if (value == null) {
-			LOGGER.warn("key [{}] is undefined, returning default value", key);
+			LOGGER.debug("key [{}] is undefined, returning default value", key);
 		} else {
-			LOGGER.warn("key [{}] is empty, returning default value", key);
+			LOGGER.debug("key [{}] is empty, returning default value", key);
 		}
 		return result;
 	}

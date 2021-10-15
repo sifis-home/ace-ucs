@@ -35,6 +35,9 @@ import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
@@ -59,7 +62,7 @@ import se.sics.ace.rs.TokenRepository;
  * Implements the retrieval of the access token as defined in section 4.1. of 
  * draft-ietf-ace-dtls-authorize.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class DtlspPskStore implements PskStore {
@@ -87,18 +90,26 @@ public class DtlspPskStore implements PskStore {
     }
     
     @Override
-    public byte[] getKey(PskPublicInformation identity) {
-        return getKey(identity.getPublicInfoAsString());
+    public SecretKey getKey(PskPublicInformation identity) {
+    	
+    	// This profile expects opaque bytes as "psk_identity" on the wire.
+    	// If character strings were also used, an alternative method
+    	// would have to be invoked here to process it accordingly,
+    	// such as getKey(identity.getPublicInfoAsString())
+    	
+        return getKey(identity.getBytes(), identity);
+        
     }
    
     /**
      * Avoid having to refactor all my code since the CF people decided 
      * they needed to change public APIs
      * 
-     * @param identity  the String identity of the key
+     * @param identity  the identity of the key
      * @return  the bytes of the key
      */
-    private byte[] getKey(String identity) {
+    private SecretKey getKey(byte[] rawIdentity, PskPublicInformation originalIdentity) {
+    
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
             return null;
@@ -106,9 +117,48 @@ public class DtlspPskStore implements PskStore {
         //First try if we have that key
         OneKey key = null;
         try {
-            key = TokenRepository.getInstance().getKey(identity);
+        	
+        	CBORObject identityStructure;
+        	
+        	try {
+        		identityStructure = CBORObject.DecodeFromBytes(rawIdentity);
+        	}
+        	catch (CBORException e) {
+                LOGGER.severe("Error: " + e.getMessage());
+                return null;
+        	}
+
+        	if (identityStructure != null && identityStructure.getType() == CBORType.Map && identityStructure.size() == 1) {
+
+        		CBORObject cnfStructure = identityStructure.get(Constants.CNF);
+        		if (cnfStructure != null && cnfStructure.getType() == CBORType.Map && cnfStructure.size() == 1) {
+
+        			CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
+        			if (COSEKeyStructure != null && COSEKeyStructure.getType() == CBORType.Map && COSEKeyStructure.size() == 2) {
+        		
+        				if(COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR())) == KeyKeys.KeyType_Octet &&
+        				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR())) != null) {
+
+        				    byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
+        				    
+        				    String kidString = Base64.getEncoder().encodeToString(kid);
+        					key = TokenRepository.getInstance().getKey(kidString);
+        					
+        	           	    // For correct storage in the DTLS Key Store, change the originally received
+        	           	    // key identity from the "psk_identity" on the wire to only the "kid" included in it
+        					originalIdentity.normalize(kidString);
+
+        				}
+        				
+        			}
+        		
+        		}
+        	
+        	}
+            
             if (key != null) {
-                return key.get(KeyKeys.Octet_K).GetByteString();
+                return new SecretKeySpec(
+                        key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             }
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
@@ -118,16 +168,21 @@ public class DtlspPskStore implements PskStore {
         //We don't have that key, try if the identity is an access token
         CBORObject payload = null;
         try {
-            payload = CBORObject.DecodeFromBytes(
-                    Base64.getDecoder().decode(identity));
+            payload = CBORObject.DecodeFromBytes(rawIdentity);       	
         } catch (NullPointerException | CBORException e) {
             LOGGER.severe("Error decoding the psk_identity: " 
                     + e.getMessage());
             return null;
         }
         
-        //We may have an access token, continue processing it        
-        LocalMessage message = new LocalMessage(0, identity, null, payload);
+        //We may have an access token, continue processing it
+
+        // For correct storage in the Token Repository, use as subject identity
+   	    // the base 64 serialization of what seen as "psk_identity" on the wire
+        String identityStr = Base64.getEncoder().encodeToString(rawIdentity);
+        LocalMessage message = new LocalMessage(0, identityStr, null, payload);
+        
+        
         LocalMessage res
             = (LocalMessage)this.authzInfo.processMessage(message);
         if (res.getMessageCode() == Message.CREATED) {
@@ -142,8 +197,14 @@ public class DtlspPskStore implements PskStore {
             String ctiStr = Base64.getEncoder().encodeToString(
                     cti.GetByteString());
             try {
+            	 
+           	    // For correct storage in the DTLS Key Store, change the originally received
+           	    // the base 64 serialization of what seen as "psk_identity" on the wire
+            	originalIdentity.normalize(identityStr);
+            	 
                  key = TokenRepository.getInstance().getPoP(ctiStr);
-                 return key.get(KeyKeys.Octet_K).GetByteString();
+                 return new SecretKeySpec(
+                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;
@@ -161,7 +222,7 @@ public class DtlspPskStore implements PskStore {
 
 
     @Override
-    public byte[] getKey(ServerNames serverNames, PskPublicInformation identity) {
+    public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
         //XXX: No support for ServerNames extension yet
         return getKey(identity);
     }

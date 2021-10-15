@@ -35,11 +35,12 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.EndpointContext;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.CoapRes;
@@ -80,13 +81,21 @@ public class CoapAuthzInfo extends CoapResource {
         exchange.accept();
         Request req = new Request(exchange.getRequestCode());
         req.setPayload(exchange.getRequestPayload());
+        
+        // The Token POST may be protected, i.e. when updating access rights
+        //
+        // To cover this case, copy the information from the traversed security layer
+        // into the request to process at the underlying authz-info library
+        EndpointContext ctx = exchange.advanced().getRequest().getSourceContext();
+        req.setSourceContext(ctx);
+        
         try {
-            CoapReq msg = CoapReq.getInstance(req, exchange);
+            CoapReq msg = CoapReq.getInstance(req);
             Message reply = this.ai.processMessage(msg);
             //Safe to cast, since CoapReq only ever renders a CoapRes
-            CoapRes response = (CoapRes)reply; 
+            CoapRes response = (CoapRes)reply;
             exchange.respond(response.getCode(), response.getRawPayload(),
-                    MediaTypeRegistry.APPLICATION_CBOR);
+            		Constants.APPLICATION_ACE_CBOR);
         } catch (AceException e) {
             LOGGER.severe("Error while handling incoming POST: " 
                     + e.getMessage());

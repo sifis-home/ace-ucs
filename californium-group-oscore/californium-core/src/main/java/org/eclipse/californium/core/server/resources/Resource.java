@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.network.Endpoint;
@@ -253,7 +254,15 @@ public interface Resource {
 	 * @return the executor
 	 */
 	public ExecutorService getExecutor();
-	
+
+	/**
+	 * Gets the scheduled executor of this resource. Generally used for rare
+	 * executing timers (e.g. cleanup tasks).
+	 *
+	 * @return the executor
+	 */
+	public ScheduledThreadPoolExecutor getSecondaryExecutor();
+
 	/**
 	 * Gets the endpoints this resource is bound to. As long as a resource is
 	 * not added to a server, it should return an empty list. After a resource

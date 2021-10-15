@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -32,39 +32,49 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.TestTools.*;
-import static org.eclipse.californium.core.coap.CoAP.Code.*;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.core.coap.CoAP.Code.GET;
+import static org.eclipse.californium.core.coap.CoAP.Code.POST;
+import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_INCOMPLETE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_TOO_LARGE;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertNumberOfReceivedNotifications;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.assertResponseContainsExpectedPayload;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createRequest;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapClient;
-import org.eclipse.californium.core.CoapHandler;
-import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.test.CountingCoapHandler;
 import org.eclipse.californium.core.test.CountingMessageObserver;
 import org.eclipse.californium.core.test.ErrorInjector;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -81,10 +91,17 @@ public class BlockwiseClientSideTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
+	private static final int TEST_BLOCKWISE_STATUS_INTERVAL = 50;
 	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 300;
 
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
@@ -93,7 +110,7 @@ public class BlockwiseClientSideTest {
 	// client retransmits after 200 ms
 	private static final int ACK_TIMEOUT_IN_MS = 200;
 
-	private static NetworkConfig config;
+	private NetworkConfig config;
 
 	private LockstepEndpoint server;
 	private CoapTestEndpoint client;
@@ -102,11 +119,9 @@ public class BlockwiseClientSideTest {
 	private String reqtPayload;
 	private ClientBlockwiseInterceptor clientInterceptor = new ClientBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + BlockwiseClientSideTest.class.getSimpleName());
-
-		config = network.getStandardTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 128)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
@@ -116,33 +131,25 @@ public class BlockwiseClientSideTest {
 				.setInt(NetworkConfig.Keys.ACK_RANDOM_FACTOR, 1)
 				.setInt(NetworkConfig.Keys.MAX_RETRANSMIT, 2)
 				.setInt(NetworkConfig.Keys.ACK_TIMEOUT_SCALE, 1)
+				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
 				.setInt(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
-	}
 
-	@Before
-	public void setupEndpoints() throws Exception {
-
-		client = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), config);
+		client = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
+		cleanup.add(client);
 		client.addInterceptor(clientInterceptor);
 		client.start();
 		System.out.println("Client binds to port " + client.getAddress().getPort());
 		server = createLockstepEndpoint(client.getAddress());
+		cleanup.add(server);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllExchangesAreCompleted(client, time);
 		} finally {
 			printServerLog(clientInterceptor);
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void end() {
-		System.out.println("End " + BlockwiseClientSideTest.class.getSimpleName());
 	}
 
 	/**
@@ -164,6 +171,7 @@ public class BlockwiseClientSideTest {
 
 		request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertTrue("Request should have been cancelled", request.isCanceled());
+		assertThat("Request should have failed with error", request.getOnResponseError(), is(notNullValue()));
 	}
 
 	/**
@@ -340,6 +348,40 @@ public class BlockwiseClientSideTest {
 	}
 
 	/**
+	 * Block1 late negotiation in the middle of the transfer.
+	 */
+	@Test
+	public void testLateNegotiationInTheMiddle() throws Exception {
+		System.out.println("Blockwise PUT with late negotiation in the middle");
+		reqtPayload = generateRandomPayload(290);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length())
+				.payload(reqtPayload.substring(0, 128)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, true, 128).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload.substring(128, 256)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(1, true, 32).go(); // late negotiation
+
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(8, true, 32).payload(reqtPayload.substring(256, 288)).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(8, true, 32).go();
+
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(9, false, 32)
+				.payload(reqtPayload.substring(288, 290)).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(9, false, 32).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
 	 * <pre>
 	 * CLIENT                                                     SERVER
      * |                                                          |
@@ -431,9 +473,7 @@ public class BlockwiseClientSideTest {
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 64).size2(respPayload.length()).payload(respPayload, 0, 64).go();
 		// lost ACK
 		//server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
-		// give client a chance to repeat
-		int timeout = config.getInt(NetworkConfig.Keys.ACK_TIMEOUT, ACK_TIMEOUT_IN_MS);
-		Thread.sleep((long) (timeout*1.25));
+
 		// repeat GET 1
 		server.expectRequest(CON, GET, path).sameBoth("B").block2(1, false, 64).go();
 		server.sendResponse(ACK, CONTENT).loadBoth("B").block2(1, true, 64).payload(respPayload, 64, 128).go();
@@ -465,6 +505,284 @@ public class BlockwiseClientSideTest {
 		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
 		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(MAX_RESOURCE_BODY_SIZE).go();
 
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code at beginning with a smaller size1 option is retried with a smaller blocksize.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithBegining413AndSmallerSZX() throws Exception {
+
+		System.out.println("Block1 with  REQUEST_ENTITY_TOO_LARGE negotiation");
+		reqtPayload = generateRandomPayload(128 + 10);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, true, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(1, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(2, false, 64).payload(reqtPayload, 128, 138).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("D").block1(2, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with a smaller size1 option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBeginning413WithSize1TurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller size1 turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").size1(90).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with out option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBeginning413WithoutOptionTurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with out option, then failed when another 4.13 is raised
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413Again() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE again");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning without option, then successfull size negotiation.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413WithoutOptionTurnInBlockPUTWith413BlockSizeNegotiation() throws Exception {
+
+		System.out.println(
+				"REQUEST_ENTITY_TOO_LARGE without option turn PUT in blockwise transfer, then REQUEST_ENTITY_TOO_LARGE with block size negotiation");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(0, true, 32).go(); // size negotiation
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(0, true, 32).size1(reqtPayload.length()).payload(reqtPayload, 0, 32).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("C").block1(0, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("D").block1(1, true, 32).payload(reqtPayload, 32, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("D").block1(1, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("E").block1(2, true, 32).payload(reqtPayload, 64, 96).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("E").block1(2, true, 32).go();
+		server.expectRequest(CON, PUT, path).storeBoth("F").block1(3, false, 32).payload(reqtPayload, 96, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("F").block1(3, false, 32).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that none block request will turn in block transfer if 4.13 code
+	 * is received at beginning with a smaller szx option.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testPUTWithBegining413AndSmallerSZXTurnInBlockPUT() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size turn PUT in blockwise transfer");
+		reqtPayload = generateRandomPayload(128);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").payload(reqtPayload).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(0, true, 64).size1(reqtPayload.length()).payload(reqtPayload, 0, 64).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("B").block1(0, true, 64).go();
+		server.expectRequest(CON, PUT, path).storeBoth("C").block1(1, false, 64).payload(reqtPayload, 64, 128).go();
+		server.sendResponse(ACK, CHANGED).loadBoth("C").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(RESPONSE_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(CHANGED));
+		assertThat(response.getToken(), is(request.getToken()));
+	}
+
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code in the middle with a smaller szx option is a failure.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithMiddle413AndSmallerSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
+		reqtPayload = generateRandomPayload(260);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, true, 128).payload(reqtPayload, 128, 256).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code in the end with a smaller szx option is a failure.
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWithEnding413AndSmallerSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with smaller block size received in the middle of block1");
+		reqtPayload = generateRandomPayload(250);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, CONTINUE).loadBoth("A").block1(0, false, 128).go();
+		server.expectRequest(CON, PUT, path).storeBoth("B").block1(1, false, 128).payload(reqtPayload, 128, 250).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("B").block1(1, false, 64).go();
+
+		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
+		assertThat(response, is(notNullValue()));
+		assertThat(response.getPayloadSize(), is(0));
+		assertThat(response.getCode(), is(REQUEST_ENTITY_TOO_LARGE));
+		assertThat(response.getToken(), is(request.getToken()));
+		assertThat(response.getMID(), is(request.getMID()));
+	}
+	/**
+	 * Verifies that a block1 transfer with a 4.13 code with an equals szx option failed
+	 * 
+	 * @throws Exception if the test fails.
+	 */
+	@Test
+	public void testBlockwisePUTWith413AndEqualsSZX() throws Exception {
+
+		System.out.println("REQUEST_ENTITY_TOO_LARGE with same block size");
+		reqtPayload = generateRandomPayload(128 + 10);
+		respPayload = generateRandomPayload(30);
+		String path = "test";
+
+		Request request = createRequest(PUT, path, server);
+		request.setPayload(reqtPayload);
+		client.sendRequest(request);
+
+		server.expectRequest(CON, PUT, path).storeBoth("A").block1(0, true, 128).size1(reqtPayload.length()).payload(reqtPayload, 0, 128).go();
+		server.sendResponse(ACK, REQUEST_ENTITY_TOO_LARGE).loadBoth("A").block1(0, false, 128).go();
+		
 		Response response = request.waitForResponse(ERROR_TIMEOUT_IN_MS);
 		assertThat(response, is(notNullValue()));
 		assertThat(response.getPayloadSize(), is(0));
@@ -932,7 +1250,7 @@ public class BlockwiseClientSideTest {
 	public void testGETCallsOnErrorAfterLostACK() throws Exception {
 		String path = "test";
 
-		final CountDownLatch latch = new CountDownLatch(1);
+		CountingCoapHandler handler = new CountingCoapHandler();
 		System.out.println("Blockwise GET with Lost ACK:");
 
 		respPayload = generateRandomPayload(300);
@@ -941,21 +1259,13 @@ public class BlockwiseClientSideTest {
 		coapClient.setEndpoint(client);
 		Request request = createRequest(GET, path, server);
 
-		coapClient.advanced(new CoapHandler() {
-
-			@Override
-			public void onLoad(CoapResponse response) {}
-
-			@Override
-			public void onError() {
-				latch.countDown();
-			}
-		}, request);
+		coapClient.advanced(handler, request);
 
 		server.expectRequest(CON, GET, path).storeBoth("A").go();
 		server.sendResponse(ACK, CONTENT).loadBoth("A").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
-		assertTrue(latch.await(3, TimeUnit.SECONDS));
+		assertTrue(handler.waitOnErrorCalls(1, 3, TimeUnit.SECONDS));
+		coapClient.shutdown();
 	}
 	
 	/**

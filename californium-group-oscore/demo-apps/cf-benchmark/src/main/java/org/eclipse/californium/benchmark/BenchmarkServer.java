@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -25,6 +25,7 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
 
 
 /**
@@ -99,10 +100,12 @@ public class BenchmarkServer {
 		CoapServer server = new CoapServer();
 		if (use_workers) {
 			System.out.println("Use queues with "+protocol_threads+" workers");
-			server.setExecutor(new WorkQueueExecutor(protocol_threads));
+			server.setExecutors(new WorkQueueExecutor(protocol_threads),
+					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		} else {
 			System.out.println("Endpoint thread-pool size: "+protocol_threads);
-			server.setExecutor(Executors.newScheduledThreadPool(protocol_threads));
+			server.setExecutors(Executors.newScheduledThreadPool(protocol_threads),
+					ExecutorsUtil.newDefaultSecondaryScheduler("CoapServer(secondary)#"), false);
 		}
 		System.out.println("Number of receiver/sender threads: "+udp_receiver+"/"+udp_sender);
 			

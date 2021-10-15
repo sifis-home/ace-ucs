@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -21,24 +21,21 @@ import java.util.Arrays;
 
 import org.eclipse.californium.elements.auth.PreSharedKeyIdentity;
 import org.eclipse.californium.elements.util.Bytes;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 
 /**
  * Implementation of byte array based PSK public information (hint or identity).
  * 
- * Note: <a "https://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279, Section
+ * Note: <a href="https://tools.ietf.org/html/rfc4279#section-5.1">RFC 4279, Section
  * 5.1</a> defines to use UTF-8 to encode the identities. However, some peers
  * seems to use non UTF-8 encoded identities. This byte array based
  * implementation allows to support such non-compliant clients. The string based
  * identity is used for {@link PreSharedKeyIdentity}, therefore it's required to
  * use {@link #PskPublicInformation(String, byte[])} to setup a proper name for
  * such non-compliant peers in the
- * {@link org.eclipse.californium.scandium.dtls.pskstore.BytesPskStore}. During
+ * {@link org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore}. During
  * the lookup of the secret key in the handshake, such a non-compliant identity
  * is normalized with the identity provided by the store.
- * 
- * <pre>
- * 
  */
 public final class PskPublicInformation extends Bytes {
 
@@ -119,9 +116,8 @@ public final class PskPublicInformation extends Bytes {
 	 * @param publicInfo PSK public information as string. Identity or hint.
 	 * @throws NullPointerException if public information is {@code null}
 	 * @throws IllegalArgumentException if public information is empty.
-	 * @see PskStore#getKey(PskPublicInformation)
-	 * @see PskStore#getKey(org.eclipse.californium.scandium.util.ServerNames,
-	 *      PskPublicInformation)
+	 * @see AdvancedPskStore#getIdentity(java.net.InetSocketAddress,
+	 *      org.eclipse.californium.scandium.util.ServerNames)
 	 */
 	public void normalize(String publicInfo) {
 		if (publicInfo == null) {

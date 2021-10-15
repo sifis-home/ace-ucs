@@ -33,7 +33,9 @@ package se.sics.ace;
 
 import java.nio.charset.Charset;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -419,55 +421,60 @@ public class Constants {
 
 
 	/**
-	 * OSCORE_Security_Context abbreviations =================================
+	 * OSCORE_Input_Material abbreviations =================================
 	 */  
 
 	/**
-	 * The outer map key of a OSCORE_Security_Context object
+	 * The outer map key of a OSCORE_Input_Material object
 	 * XXX: not specified yet
 	 */
-	public static final CBORObject OSCORE_Security_Context 
-	    = CBORObject.FromObject(4);
+	public static final CBORObject OSCORE_Input_Material
+	    = CBORObject.FromObject(99);
 
+    /**
+     * The input material identifier
+     */
+    public static final CBORObject OS_ID = CBORObject.FromObject(0);
+	
+	/**
+	 * The version
+	 */
+	public static final CBORObject OS_VERSION = CBORObject.FromObject(1);
+	
 	/**
 	 * The master secret
 	 */
-	public static final CBORObject OS_MS = CBORObject.FromObject(1);
+	public static final CBORObject OS_MS = CBORObject.FromObject(2);
+	
+    /**
+     * The HKDF algorithm
+     */
+    public static final CBORObject OS_HKDF = CBORObject.FromObject(3);
 
+    /**
+     * The AEAD algorithm
+     */
+    public static final CBORObject OS_ALG = CBORObject.FromObject(4);
+
+    /**
+     * The Master Salt
+     */
+    public static final CBORObject OS_SALT = CBORObject.FromObject(5);
+    
+    /**
+     * The Id Context
+     */
+    public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(6);
+    
 	/**
 	 * The client Id
 	 */
-	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(2);
+	public static final CBORObject OS_CLIENTID = CBORObject.FromObject(-65537);
 
 	/**
 	 * The server Id
 	 */
-	public static final CBORObject OS_SERVERID = CBORObject.FromObject(3);
-
-    /**
-     * The master secret
-     */
-    public static final CBORObject OS_HKDF = CBORObject.FromObject(4);
-
-    /**
-     * The client Id
-     */
-    public static final CBORObject OS_ALG = CBORObject.FromObject(5);
-
-    /**
-     * The server Id
-     */
-    public static final CBORObject OS_SALT = CBORObject.FromObject(6);
-    
-    /**
-     * The server Id
-     */
-    public static final CBORObject OS_CONTEXTID = CBORObject.FromObject(7);
-
-    /**
-     * The master secret
-     */
-    public static final CBORObject OS_RPL = CBORObject.FromObject(8);
+	public static final CBORObject OS_SERVERID = CBORObject.FromObject(-65538);
 
 
     /**
@@ -481,13 +488,7 @@ public class Constants {
      * Default value for hkdf
      */
     public static final short OS_DEFAULT_HKDF 
-        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();
-    
-    /**
-     * Default value for rpl
-     */
-    public static final short OS_DEFAULT_RPL = 32;
-    
+        = AlgorithmID.HKDF_HMAC_SHA_256.AsCBOR().AsInt16();    
     
 	/**
 	 * RESTful action names ===================================================
@@ -567,7 +568,7 @@ public class Constants {
         }
         Map<Short, CBORObject> ret = new HashMap<>();
         for (CBORObject key : cbor.getKeys()) {
-            if (!key.getType().equals(CBORType.Number)) {
+            if (!key.getType().equals(CBORType.Integer)) {
                 throw new AceException("CBOR key was not a Short: "
                         + key.toString());
             }
@@ -596,16 +597,36 @@ public class Constants {
     public static final String[] GRANT_TYPES = {"password", 
             "authorization_code", "client_credentials", "refresh_token"};
 
-
-    /**
-     * The abbreviation code for the DTLS profile
-     */
-    public static final short COAP_DTLS = 1;
     
     /**
      * The abbreviation code for the OSCORE profile
      */
     public static final short COAP_OSCORE = 2;
+
+    /**
+     * The abbreviation code for the DTLS profile
+     */
+    public static final short COAP_DTLS = 4;
+    
+    /**
+     * Value for the label "nonce1" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE1 = 65;
+    
+    /**
+     * Value for the label "nonce2" in the Token POST request for the OSCORE profile
+     */
+    public static final short NONCE2 = 66;
+    
+    /**
+     * Value for the label "id1" in the Token POST request for the OSCORE profile
+     */
+    public static final short ID1 = 67;
+    
+    /**
+     * Value for the label "id2" in the Token POST request for the OSCORE profile
+     */
+    public static final short ID2 = 68;
     
     /**
      * Return the abbreviated profile id for the full profile name.
@@ -776,10 +797,10 @@ public class Constants {
                 if (keyInt > 0 && keyInt < abbrev.length) {
                    keyStr = abbrev[keyInt];
                     if (keyInt == GRANT_TYPE
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(GRANT_TYPES[obj.AsInt32()]);
                     } else if (keyInt == ERROR
-                            && map.get(key).getType().equals(CBORType.Number)) {
+                            && map.get(key).getType().equals(CBORType.Integer)) {
                         obj = CBORObject.FromObject(ERROR_CODES[obj.AsInt32()]);
                     }                   
                 } else {
@@ -831,89 +852,219 @@ public class Constants {
     public static final short iPATCH = 7;
     
     
+
+    /**
+     * Content-Format ace+cbor
+     */
+    public static final int APPLICATION_ACE_CBOR = 65000;
+    
+    /**
+     * Content-Format ace-groupcomm+cbor
+     */
+    public static final int APPLICATION_ACE_GROUPCOMM_CBOR = 65001;
+    
+    
     /**
 	 * Group OSCORE abbreviations =================================
 	 */
+
+    /**
+     * The OSCORE group uses only the group mode
+     */
+    public static final short GROUP_OSCORE_GROUP_MODE_ONLY = 1;
     
-    // TODO: Remove when the latest RESTification of the Group Manager is completed.
-//    /**
-//	 * ACE Groupcomm Request Type "Key Distribution" (1)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_KEY_DISTRIBUTION = CBORObject.FromObject(1);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Leave" (2)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_LEAVE = CBORObject.FromObject(2);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Update Key" (3)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_UPDATE_KEY = CBORObject.FromObject(3);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "New" (4)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_NEW = CBORObject.FromObject(4);
-//    
-//    /**
-//	 * ACE Groupcomm Request Type "Pub Keys" (5)
-//	 * Source: ace-key-groupcomm
-//	 */
-//    public static final CBORObject GROUPCOMM_REQ_PUB_KEYS = CBORObject.FromObject(5);
+    /**
+     * The OSCORE group uses both the group mode and the pairwise mode
+     */
+    public static final short GROUP_OSCORE_GROUP_PAIRWISE_MODE = 2;
     
-     /*
+    /**
+     * The OSCORE group uses only the pairwise mode
+     */
+    public static final short GROUP_OSCORE_PAIRWISE_MODE_ONLY = 3;
+    
+    
+    /**
+     * Requester role
+     */
+    public static final short GROUP_OSCORE_REQUESTER = 1;
+    
+    /**
+     * Responder role
+     */
+    public static final short GROUP_OSCORE_RESPONDER = 2;
+    
+    /**
+     * Monitor role
+     */
+    public static final short GROUP_OSCORE_MONITOR = 3;
+    
+    /**
+     * Verifier role
+     */
+    public static final short GROUP_OSCORE_VERIFIER = 4;
+    
+    /**
+     * Roles as strings
+     */
+    public static final String[] GROUP_OSCORE_ROLES = {"reserved", "requester", "responder", "monitor", "verifier"};
+    
+     /**
       * Value for the label "get_pub_keys" in the Join Request message
       */
      public static final short GET_PUB_KEYS = 101;
      
-     /*
+     /**
       * Value for the label "client_cred" in the Join Request message
       */
      public static final short CLIENT_CRED = 102;
      
-     /*
+     /**
       * Value for the label "client_cred_verify" in the Join Request message
       */
      public static final short CLIENT_CRED_VERIFY = 103;
      
-     /*
-      * Value for the label "kty" in the Join Response message
+     /**
+      * Value for the label "gkty" in the Join Response message
       */
-     public static final short KTY = 1;
+     public static final short GKTY = 1;
      
-     /*
+     /**
       * Value for the label "key" in the Join Response message
       */
      public static final short KEY = 2;
      
-     /*
+     /**
       * Value for the label "pub_keys" in the Join Response message
       */
      public static final short PUB_KEYS = 3;
      
-     /*
-      * Value for the label "sign_info" in the Token POST request and in the Join Response message
+     /**
+      * Value for the label "ace-groupcomm-profile" in the Join Response message
       */
-     public static final short SIGN_INFO = 201;
+     public static final short ACE_GROUPCOMM_PROFILE = 38;
      
-     /*
-      * Value for the label "pub_key_enc" in the Token POST request and in the Join Response message
+     /**
+      * Value for the label "sign_info" in the Token POST request/response and in the error response to the Join Request
       */
-     public static final short PUB_KEY_ENC = 202;
+     public static final short SIGN_INFO = 203;
      
-     /*
-      * Value for the label "rs_nonce" in the Token POST response
+     /**
+      * Value for the label "ecdh_info" in the Token POST request/response and in the error response to the Join Request
       */
-     public static final short RSNONCE = 203;
+     public static final short ECDH_INFO = 204;
      
-     /*
-     * Value for the label "num" in the Join Response message
-     */
-     public static final short NUM = 204;
-
+     /**
+      * Value for the label "gm_dh_pub_keys" in the Token POST request/response and in the error response to the Join Request
+      */
+     public static final short GM_DH_PUB_KEYS = 205;
+     
+     /**
+      * Value for the label "kdcchallenge" in the Token POST response
+      */
+     public static final short KDCCHALLENGE = 206;
+     
+     /**
+      * Value for the label "num" in the Join Response message
+      */
+     public static final short NUM = 207;
+     
+     /**
+      * Value for the label "group_policies" in the Join Response message
+      */
+     public static final short GROUP_POLICIES = 208;
+     
+     /**
+      * Value for the label "peer_roles" in the Join Response message
+      */
+     public static final short PEER_ROLES = 209;
+     
+     /**
+      * Value for the label "peer_identifiers" in the Join Response message
+      */
+     public static final short PEER_IDENTIFIERS = 210;
+     
+     /**
+      * Value for the label "kdc_nonce" in the Join Response message
+      */
+     public static final short KDC_NONCE = 211;
+     
+     /**
+      * Value for the label "kdc_cred" in the Join Response message
+      */
+     public static final short KDC_CRED = 212;
+     
+     /**
+      * Value for the label "kdc_cred_verify" in the Join Response message
+      */
+     public static final short KDC_CRED_VERIFY = 213;
+     
+     /**
+      * Value for the label "group_senderId" in the Key Renewal Response message
+      */
+     public static final short GROUP_SENDER_ID = 214;
+     
+     /**
+      * Value for the label "gid" in the Group Name and URI Retrieval Request/Response message
+      */
+     public static final short GID = 215;
+     
+     /**
+      * Value for the label "gname" in the Group Name and URI Retrieval Response message
+      */
+     public static final short GNAME = 216;
+     
+     /**
+      * Value for the label "guri" in the Group Name and URI Retrieval Response message
+      */
+     public static final short GURI = 217;
+     
+     /**
+      * Value for the label "group_key_enc" in the Signature Verification Data Response message
+      */
+     public static final short GROUP_KEY_ENC = 218;
+     
+     
+     /**
+      * Value for the group key type "Group_OSCORE_Input_Material object"
+      */
+     public static final short GROUP_OSCORE_INPUT_MATERIAL_OBJECT = 1;
+     
+     /**
+      * Value for the application profile "coap_group_oscore_app"
+      */
+     public static final short COAP_GROUP_OSCORE_APP = 1;
+     
+     
+     /* Values for labels of group policies */
+     /**
+      * Value for the label of "Sequence Number Synchronization Method"
+      * 
+      * This policy is not used by this application profile
+      */
+     public static final short POLICY_SN_SYNCH = 1;
+     
+     /**
+      * Value for the label of "Key Update Check Interval"
+      * 
+      * Default: 3600 s
+      */
+     public static final short POLICY_KEY_CHECK_INTERVAL = 2;
+     
+     /**
+      * Value for the label of "Expiration delta"
+      * 
+      * Default: 0 s
+      */
+     public static final short POLICY_EXP_DELTA = 3;
+     
+     
+     /**
+      * COSE Header Parameters
+      * https://www.iana.org/assignments/cose/cose.xhtml
+      */
+     public static final int COSE_HEADER_PARAM_X5CHAIN = 33;
+     public static final int COSE_HEADER_PARAM_CWT = 36;
+     public static final int COSE_HEADER_PARAM_CCS = 37;
+     
 }

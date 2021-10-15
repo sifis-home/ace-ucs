@@ -2,11 +2,11 @@
  * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,20 +22,25 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
+import java.net.InetSocketAddress;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import org.eclipse.californium.elements.util.StringUtil;
+
 /**
  * Key set based endpoint context matcher.
  */
-public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
+public abstract class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 
 	/**
 	 * Name of matcher. Used for logging.
 	 */
 	private final String name;
+	private final String sendTag;
+	private final String recvTag;
 	/**
 	 * Key set to be used for matching.
 	 * 
@@ -68,6 +73,8 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	 */
 	public KeySetEndpointContextMatcher(String name, String keys[], boolean compareHostname) {
 		this.name = name;
+		this.sendTag = name + " sending";
+		this.recvTag = name + " receiving";
 		this.keys = createKeySet(keys);
 		this.compareHostname = compareHostname;
 	}
@@ -78,10 +85,19 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 	}
 
 	@Override
+	public Object getEndpointIdentity(EndpointContext context) {
+		InetSocketAddress address = context.getPeerAddress();
+		if (address.isUnresolved()) {
+			throw new IllegalArgumentException(StringUtil.toDisplayString(address) + " must be resolved!");
+		}
+		return address;
+	}
+
+	@Override
 	public boolean isResponseRelatedToRequest(EndpointContext requestContext, EndpointContext responseContext) {
 
 		boolean result = compareHostname ? isSameVirtualHost(requestContext, responseContext) : true;
-		return result && internalMatch(requestContext, responseContext);
+		return result && internalMatch(recvTag, requestContext, responseContext);
 	}
 
 	@Override
@@ -90,14 +106,23 @@ public class KeySetEndpointContextMatcher implements EndpointContextMatcher {
 			return !messageContext.hasCriticalEntries();
 		}
 		boolean result = compareHostname ? isSameVirtualHost(messageContext, connectionContext) : true;
-		return result && internalMatch(messageContext, connectionContext);
+		return result && internalMatch(sendTag, messageContext, connectionContext);
 	}
 
-	private final boolean internalMatch(EndpointContext requestedContext, EndpointContext availableContext) {
+	private final boolean internalMatch(String tag, EndpointContext requestedContext, EndpointContext availableContext) {
 		if (!requestedContext.hasCriticalEntries()) {
 			return true;
 		}
-		return EndpointContextUtil.match(getName(), keys, requestedContext, availableContext);
+		return EndpointContextUtil.match(tag, keys, requestedContext, availableContext);
+	}
+
+	@Override
+	public String toRelevantState(EndpointContext context) {
+		if (context == null) {
+			return "n.a.";
+		} else {
+			return context.toString();
+		}
 	}
 
 	/**

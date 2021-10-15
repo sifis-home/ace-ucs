@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,9 +27,10 @@ public final class ObservationUtil {
 	/**
 	 * Create shallow clone of observation and the contained request.
 	 * 
+	 * @param observation observation to clone
 	 * @return a cloned observation with a shallow clone of request, or null, if
 	 *         null was provided.
-	 * @throws IllegalArgumentException, if observation didn't contain a
+	 * @throws IllegalArgumentException if observation didn't contain a
 	 *             request.
 	 */
 	public static Observation shallowClone(Observation observation) {
@@ -46,8 +47,12 @@ public final class ObservationUtil {
 		clonedRequest.setMID(request.getMID());
 		clonedRequest.setToken(request.getToken());
 		clonedRequest.setOptions(request.getOptions());
+		if (request.isUnintendedPayload()) {
+			clonedRequest.setUnintendedPayload();
+		}
 		clonedRequest.setPayload(request.getPayload());
 		clonedRequest.setUserContext(request.getUserContext());
+		clonedRequest.setMaxResourceBodySize(request.getMaxResourceBodySize());
 		return new Observation(clonedRequest, observation.getContext());
 	}
 }

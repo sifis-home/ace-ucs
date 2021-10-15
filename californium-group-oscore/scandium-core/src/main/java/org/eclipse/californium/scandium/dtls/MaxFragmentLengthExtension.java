@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -14,8 +14,6 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - initial creation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -61,15 +59,12 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	 * Creates an instance from a <em>MaxFragmentLength</em> structure as defined
 	 * in <a href="http://tools.ietf.org/html/rfc6066#section-4">RFC 6066, Section 4</a>.
 	 * 
-	 * @param extensionData the extension data struct containing the length code
-	 * @param peerAddress the IP address and port of the peer that sent the extension
+	 * @param extensionDataReader the extension data struct containing the length code
 	 * @return the extension object
 	 * @throws HandshakeException if the extension data contains an unknown code
 	 */
-	static final MaxFragmentLengthExtension fromExtensionData(byte[] extensionData,
-			InetSocketAddress peerAddress) throws HandshakeException {
-		DatagramReader reader = new DatagramReader(extensionData);
-		int code = reader.read(CODE_BITS);
+	static final MaxFragmentLengthExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
+		int code = extensionDataReader.read(CODE_BITS);
 		Length length = Length.fromCode(code);
 		if (length != null) {
 			return new MaxFragmentLengthExtension(length);
@@ -80,8 +75,7 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 							code, ExtensionType.MAX_FRAGMENT_LENGTH.name()),
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							peerAddress));
+							AlertDescription.ILLEGAL_PARAMETER));
 		}
 	}
 
@@ -104,10 +98,13 @@ public class MaxFragmentLengthExtension extends HelloExtension {
 	 * <em>Max Fragment Length</em> Hello extension.
 	 */
 	public enum Length {
-		BYTES_512(1, 512), BYTES_1024(2, 1024), BYTES_2048(3, 2048), BYTES_4096(4, 4096);
+		BYTES_512(1, 512),
+		BYTES_1024(2, 1024),
+		BYTES_2048(3, 2048),
+		BYTES_4096(4, 4096);
 
-		private int code;
-		private int length;
+		private final int code;
+		private final int length;
 		
 		private Length(int code, int length) {
 			this.code = code;

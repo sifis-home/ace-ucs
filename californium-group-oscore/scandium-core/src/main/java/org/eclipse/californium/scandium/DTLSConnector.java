@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -120,46 +120,65 @@
 package org.eclipse.californium.scandium;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InterruptedIOException;
+import java.io.OutputStream;
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
-import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.NetworkInterface;
-import java.nio.channels.ClosedByInterruptException;
+import java.net.PortUnreachableException;
 import java.security.GeneralSecurityException;
+import java.security.MessageDigest;
+import java.security.Principal;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Enumeration;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
+import org.slf4j.MDC;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.PersistentConnector;
 import org.eclipse.californium.elements.exception.EndpointMismatchException;
 import org.eclipse.californium.elements.exception.EndpointUnconnectedException;
 import org.eclipse.californium.elements.exception.MulticastNotSupportedException;
 import org.eclipse.californium.elements.RawData;
 import org.eclipse.californium.elements.RawDataChannel;
-import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ClockUtil;
 import org.eclipse.californium.elements.util.DaemonThreadFactory;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.LeastRecentlyUsedCache;
 import org.eclipse.californium.elements.util.NamedThreadFactory;
+import org.eclipse.californium.elements.util.NetworkInterfacesUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.SerialExecutor;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.WipAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
@@ -169,12 +188,18 @@ import org.eclipse.californium.scandium.dtls.AvailableConnections;
 import org.eclipse.californium.scandium.dtls.ClientHandshaker;
 import org.eclipse.californium.scandium.dtls.ClientHello;
 import org.eclipse.californium.scandium.dtls.Connection;
+import org.eclipse.californium.scandium.dtls.ConnectionEvictedException;
 import org.eclipse.californium.scandium.dtls.ConnectionId;
 import org.eclipse.californium.scandium.dtls.ConnectionIdGenerator;
+import org.eclipse.californium.scandium.dtls.HandshakeResult;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.ContentType;
-import org.eclipse.californium.scandium.dtls.DTLSFlight;
+import org.eclipse.californium.scandium.dtls.DTLSConnectionState;
+import org.eclipse.californium.scandium.dtls.DTLSContext;
 import org.eclipse.californium.scandium.dtls.DTLSSession;
+import org.eclipse.californium.scandium.dtls.DtlsException;
 import org.eclipse.californium.scandium.dtls.DtlsHandshakeException;
+import org.eclipse.californium.scandium.dtls.ExtendedMasterSecretMode;
 import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.HandshakeMessage;
 import org.eclipse.californium.scandium.dtls.Handshaker;
@@ -193,17 +218,26 @@ import org.eclipse.californium.scandium.dtls.SessionAdapter;
 import org.eclipse.californium.scandium.dtls.SessionCache;
 import org.eclipse.californium.scandium.dtls.SessionId;
 import org.eclipse.californium.scandium.dtls.SessionListener;
-import org.eclipse.californium.scandium.dtls.SessionTicket;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.util.ByteArrayUtils;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
+import org.eclipse.californium.scandium.dtls.x509.NewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.util.SecretUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
  * A {@link Connector} using <em>Datagram TLS</em> (DTLS) as specified in
  * <a href="http://tools.ietf.org/html/rfc6347">RFC 6347</a> for securing data
  * exchanged between networked clients and a server application.
+ * 
+ * Note: using IPv6 interfaces with multiple addresses including permanent and
+ * temporary (with potentially several different prefixes) currently causes
+ * issues on the server side. The outgoing traffic in response to incoming may
+ * select a different source address than the incoming destination address. To
+ * overcome this, please ensure that the 'any address' is not used on the server
+ * side and a separate Connector is created for each address to receive incoming
+ * traffic.
  */
-public class DTLSConnector implements Connector, RecordLayer {
+public class DTLSConnector implements Connector, PersistentConnector, RecordLayer {
 
 	/**
 	 * The {@code EndpointContext} key used to store the host name indicated by a
@@ -211,20 +245,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public static final String KEY_TLS_SERVER_HOST_NAME = "TLS_SERVER_HOST_NAME";
 
-	public static final int MAX_MTU = 65535;
-	/**
-	 * MTU values according 
-	 * <a href="https://en.wikipedia.org/wiki/Maximum_transmission_unit">MTU - Wikipedia</a>.
-	 */
-	public static final int DEFAULT_IPV6_MTU = 1280;
-	public static final int DEFAULT_IPV4_MTU = 576;
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnector.class);
+	private static final Logger DROP_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".drops");
 	private static final int MAX_PLAINTEXT_FRAGMENT_LENGTH = 16384; // max. DTLSPlaintext.length (2^14 bytes)
 	private static final int MAX_CIPHERTEXT_EXPANSION = CipherSuite.getOverallMaxCiphertextExpansion();
 	private static final int MAX_DATAGRAM_BUFFER_SIZE = MAX_PLAINTEXT_FRAGMENT_LENGTH
-			+ 12 // DTLS message headers
-			+ 13 // DTLS record headers
+			+ Record.DTLS_HANDSHAKE_HEADER_LENGTH
 			+ MAX_CIPHERTEXT_EXPANSION;
 
 	/**
@@ -235,10 +261,19 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private static final int TLS12_CID_PADDING = 0;
 
+	private static final long CLIENT_HELLO_TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(60);
+
 	/** all the configuration options for the DTLS connector */ 
-	private final DtlsConnectorConfig config;
+	protected final DtlsConnectorConfig config;
 
 	private final ResumptionSupportingConnectionStore connectionStore;
+
+	/**
+	 * Queue with recent successful handshakes.
+	 * 
+	 * @since 3.0
+	 */
+	private final Queue<Connection> recentHandshakes = new ConcurrentLinkedQueue<>();
 
 	/**
 	 * General auto resumption timeout in milliseconds. {@code null}, if auto
@@ -248,16 +283,22 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	private final int thresholdHandshakesWithoutVerifiedPeer;
 	private final AtomicInteger pendingHandshakesWithoutVerifiedPeer = new AtomicInteger();
+	protected final DtlsHealth health;
 
 	private final boolean serverOnly;
+	private final String defaultHandshakeMode;
 	/**
 	 * Apply record filter only for records within the receive window.
 	 */
-	private final boolean useWindowFilter;
+	private final int useExtendedWindowFilter;
 	/**
 	 * Apply record filter.
 	 */
 	private final boolean useFilter;
+	/**
+	 * Apply address update only for newer records based on epoch/sequence_number.
+	 */
+	private final boolean useCidUpdateAddressOnNewerRecordFilter;
 
 	/**
 	 * (Down-)counter for pending outbound messages. Initialized with
@@ -271,19 +312,42 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Configure connection id generator. May be {@code null}, if connection id
 	 * should not be supported.
 	 */
-	private final ConnectionIdGenerator connectionIdGenerator;
+	protected final ConnectionIdGenerator connectionIdGenerator;
+	/**
+	 * Protocol version to use for sending a hello verify request. Default
+	 * {@code null} to reply the client's version.
+	 * 
+	 * @since 2.5
+	 */
+	private final ProtocolVersion protocolVersionForHelloVerifyRequests;
+
+	private ScheduledFuture<?> recentHandshakeCleaner;
+
+	private ScheduledFuture<?> statusLogger;
 
 	private InetSocketAddress lastBindAddress;
-	private int maximumTransmissionUnit = DEFAULT_IPV4_MTU;
-	private int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
+	/**
+	 * Provided or configured maximum transmission unit.
+	 */
+	private Integer maximumTransmissionUnit;
+	/**
+	 * IPv4 maximum transmission unit.
+	 * @since 2.4
+	 */
+	private int ipv4Mtu = DEFAULT_IPV4_MTU;
+	/**
+	 * IPv6 maximum transmission unit.
+	 * @since 2.4
+	 */
+	private int ipv6Mtu = DEFAULT_IPV6_MTU;
+	protected int inboundDatagramBufferSize = MAX_DATAGRAM_BUFFER_SIZE;
 
-	private CookieGenerator cookieGenerator = new CookieGenerator();
-	private Object alertHandlerLock= new Object();
+	private final CookieGenerator cookieGenerator = new CookieGenerator();
 
 	private volatile DatagramSocket socket;
 
 	/** The timer daemon to schedule retransmissions. */
-	private ScheduledExecutorService timer;
+	protected ScheduledExecutorService timer;
 
 	/** Indicates whether the connector has started and not stopped yet */
 	private AtomicBoolean running = new AtomicBoolean(false);
@@ -296,20 +360,21 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @see #sendMessage(RawData, Connection)
 	 * @see #sendMessage(RawData, Connection, DTLSSession)
 	 */
-	private EndpointContextMatcher endpointContextMatcher;
+	private volatile EndpointContextMatcher endpointContextMatcher;
 
-	private RawDataChannel messageHandler;
-	private AlertHandler alertHandler;
-	private SessionListener sessionListener;
+	private volatile RawDataChannel messageHandler;
+	private volatile AlertHandler alertHandler;
+	private final SessionListener sessionListener;
+	private final ConnectionListener connectionListener;
 	private ExecutorService executorService;
 	private boolean hasInternalExecutor;
 
 	/**
-	 * Creates a DTLS connector from a given configuration object
-	 * using the standard in-memory <code>ConnectionStore</code>. 
+	 * Creates a DTLS connector from a given configuration object using the
+	 * standard in-memory {@code ConnectionStore}.
 	 * 
 	 * @param configuration the configuration options
-	 * @throws NullPointerException if the configuration is <code>null</code>
+	 * @throws NullPointerException if the configuration is {@code null}
 	 */
 	public DTLSConnector(DtlsConnectorConfig configuration) {
 		this(configuration, (SessionCache) null);
@@ -319,33 +384,57 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Creates a DTLS connector for a given set of configuration options.
 	 * 
 	 * @param configuration The configuration options.
-	 * @param sessionCache An (optional) cache for <code>DTLSSession</code> objects that can be used for
-	 *       persisting and/or sharing of session state among multiple instances of <code>DTLSConnector</code>.
-	 *       Whenever a handshake with a client is finished the negotiated session is put to this cache.
-	 *       Similarly, whenever a client wants to perform an abbreviated handshake based on an existing session
-	 *       the connection store will try to retrieve the session from this cache if it is
-	 *       not available from the connection store's in-memory (first-level) cache.
-	 * @throws NullPointerException if the configuration is <code>null</code>.
+	 * @param sessionCache An (optional) cache for {@code DTLSSession} objects
+	 *            that can be used for persisting and/or sharing of session
+	 *            state among multiple instances of {@code DTLSConnector}.
+	 *            Whenever a handshake with a client is finished the negotiated
+	 *            session is put to this cache. Similarly, whenever a client
+	 *            wants to perform an abbreviated handshake based on an existing
+	 *            session the connection store will try to retrieve the session
+	 *            from this cache if it is not available from the connection
+	 *            store's in-memory (first-level) cache.
+	 * @throws NullPointerException if the configuration is {@code null}.
 	 */
 	public DTLSConnector(final DtlsConnectorConfig configuration, final SessionCache sessionCache) {
-		this(configuration,
-				new InMemoryConnectionStore(
-						configuration.getMaxConnections(),
-						configuration.getStaleConnectionThreshold(),
-						sessionCache).setTag(configuration.getLoggingTag()));
+		this(configuration, createConnectionStore(configuration, sessionCache));
+	}
+
+	/**
+	 * Create and initialize default connection store.
+	 * 
+	 * @param configuration configuration for initialization
+	 * @param sessionCache An (optional) cache for {@code DTLSSession} objects
+	 *            that can be used for persisting and/or sharing of session
+	 *            state among multiple instances of {@code DTLSConnector}.
+	 *            Whenever a handshake with a client is finished the negotiated
+	 *            session is put to this cache. Similarly, whenever a client
+	 *            wants to perform an abbreviated handshake based on an existing
+	 *            session the connection store will try to retrieve the session
+	 *            from this cache if it is not available from the connection
+	 *            store's in-memory (first-level) cache.
+	 * @return connection store
+	 * @since 2.5
+	 */
+	protected static ResumptionSupportingConnectionStore createConnectionStore(DtlsConnectorConfig configuration,
+			SessionCache sessionCache) {
+		return new InMemoryConnectionStore(configuration.getMaxConnections(),
+				configuration.getStaleConnectionThreshold(), sessionCache).setTag(configuration.getLoggingTag());
+
 	}
 
 	/**
 	 * Creates a DTLS connector for a given set of configuration options.
-	 * 
+	 * <p>
 	 * The connection store must use the same connection id generator as
-	 * configured in the provided configuration.
+	 * configured in the provided configuration. The current implementation synchronize on the connection store,
+	 * therefore it is important not to use the connection store within a
+	 * different synchronization scope.
+	 * </p>
 	 * 
 	 * @param configuration The configuration options.
 	 * @param connectionStore The registry to use for managing connections to
 	 *            peers.
-	 * @throws NullPointerException if any of the parameters is
-	 *             <code>null</code>.
+	 * @throws NullPointerException if any of the parameters is {@code null}.
 	 * @throws IllegalArgumentException if the connection store uses a different
 	 *             cid generator than the configuration.
 	 */
@@ -355,25 +444,69 @@ public class DTLSConnector implements Connector, RecordLayer {
 		} else if (connectionStore == null) {
 			throw new NullPointerException("Connection store must not be null");
 		} else {
-			this.connectionIdGenerator = configuration.getConnectionIdGenerator();
 			this.config = configuration;
+			this.connectionIdGenerator = config.getConnectionIdGenerator();
+			this.protocolVersionForHelloVerifyRequests = config.getProtocolVersionForHelloVerifyRequests();
 			this.pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 			this.autoResumptionTimeoutMillis = config.getAutoResumptionTimeoutMillis();
 			this.serverOnly = config.isServerOnly();
-			this.useWindowFilter = config.useWindowFilter();
-			this.useFilter = config.useAntiReplayFilter() || useWindowFilter;
+			this.defaultHandshakeMode = config.getDefaultHandshakeMode();
+			this.useExtendedWindowFilter = config.useExtendedWindowFilter();
+			this.useFilter = config.useAntiReplayFilter() || useExtendedWindowFilter != 0;
+			this.useCidUpdateAddressOnNewerRecordFilter = config.useCidUpdateAddressOnNewerRecordFilter();
 			this.connectionStore = connectionStore;
 			this.connectionStore.attach(connectionIdGenerator);
+			this.connectionStore.setConnectionListener(config.getConnectionListener());
+			this.connectionListener = config.getConnectionListener();
+			HandshakeResultHandler handler = new HandshakeResultHandler() {
+
+				@Override
+				public void apply(HandshakeResult connectionResult) {
+					processAsynchronousHandshakeResult(connectionResult);
+				}
+			};
+			AdvancedPskStore advancedPskStore = config.getAdvancedPskStore();
+			if (advancedPskStore != null) {
+				advancedPskStore.setResultHandler(handler);
+			}
+			NewAdvancedCertificateVerifier certificateVerifier = config.getAdvancedCertificateVerifier();
+			if (certificateVerifier != null) {
+				certificateVerifier.setResultHandler(handler);
+			}
+			DtlsHealth healthHandler = config.getHealthHandler();
+			Integer healthStatusInterval = config.getHealthStatusInterval();
+			// this is a useful health metric
+			// that could later be exported to some kind of monitoring interface
+			if (healthHandler == null && healthStatusInterval != null && healthStatusInterval > 0) {
+				healthHandler = createDefaultHealthHandler(config);
+				if (!healthHandler.isEnabled()) {
+					healthHandler = null;
+				}
+			}
+			this.health = healthHandler;
 			this.sessionListener = new SessionAdapter() {
 
 				@Override
-				public void sessionEstablished(Handshaker handshaker, DTLSSession establishedSession)
-						throws HandshakeException {
-					DTLSConnector.this.sessionEstablished(handshaker, establishedSession);
+				public void contextEstablished(Handshaker handshaker, DTLSContext establishedContext) {
+					DTLSConnector.this.contextEstablished(handshaker, establishedContext);
+				}
+
+				@Override
+				public void handshakeCompleted(final Handshaker handshaker) {
+					if (health != null) {
+						health.endHandshake(true);
+					}
+					final Connection connection = handshaker.getConnection();
+					if (connection.getStartNanos() != null) {
+						recentHandshakes.add(connection);
+					}
 				}
 
 				@Override
 				public void handshakeFailed(Handshaker handshaker, Throwable error) {
+					if (health != null) {
+						health.endHandshake(false);
+					}
 					List<RawData> listOut = handshaker.takeDeferredApplicationData();
 					if (!listOut.isEmpty()) {
 						LOGGER.debug("Handshake with [{}] failed, report error to deferred {} messages",
@@ -383,20 +516,40 @@ public class DTLSConnector implements Connector, RecordLayer {
 						}
 					}
 					Connection connection = handshaker.getConnection();
-					if (!connection.hasEstablishedSession()) {
+					if (handshaker.isRemovingConnection()) {
 						connectionStore.remove(connection, false);
-					} else if (connection.getEstablishedSession() == handshaker.getSession()) {
-						// failure after established (last FINISH),
-						// but before completed (first data)
-						LOGGER.warn("Handshake with [{}] failed after session was established!",
-								handshaker.getPeerAddress());
-					} else {
+					} else if (handshaker.isProbing()) {
+						LOGGER.debug("Handshake with [{}] failed within probe!", handshaker.getPeerAddress());
+					} else if (connection.getEstablishedDtlsContext() == handshaker.getDtlsContext()) {
+						if (error instanceof HandshakeException) {
+							AlertMessage alert = ((HandshakeException)error).getAlert();
+							if (alert != null && alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+								LOGGER.debug("Handshake with [{}] closed after session was established!",
+										handshaker.getPeerAddress());
+							} else {
+								LOGGER.warn("Handshake with [{}] failed after session was established! {}",
+										handshaker.getPeerAddress(), alert);
+							}
+						} else {
+							// failure after established (last FINISH),
+							// but before completed (first data)
+							if (error instanceof ConnectionEvictedException) {
+								LOGGER.debug("Handshake with [{}] never get APPLICATION_DATA",
+										handshaker.getPeerAddress(), error);
+							} else {
+								LOGGER.warn("Handshake with [{}] failed after session was established!",
+										handshaker.getPeerAddress(), error);
+							}
+						}
+					} else if (connection.hasEstablishedDtlsContext()) {
 						LOGGER.warn("Handshake with [{}] failed, but has an established session!",
 								handshaker.getPeerAddress());
+					} else {
+						LOGGER.warn("Handshake with [{}] failed, connection preserved!", handshaker.getPeerAddress());
 					}
 				}
 			};
-			int maxConnections = configuration.getMaxConnections();
+			int maxConnections = config.getMaxConnections();
 			// calculate absolute threshold from relative.
 			long thresholdInPercent = config.getVerifyPeersOnResumptionThreshold();
 			long threshold = (((long) maxConnections * thresholdInPercent) + 50L) / 100L;
@@ -407,41 +560,32 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	private final void sessionEstablished(Handshaker handshaker, final DTLSSession establishedSession)
-			throws HandshakeException {
-		final Connection connection = handshaker.getConnection();
-		connectionStore.putEstablishedSession(establishedSession, connection);
-		final SerialExecutor serialExecutor = connection.getExecutor();
-		List<RawData> listOut = handshaker.takeDeferredApplicationData();
-		if (!listOut.isEmpty()) {
-			LOGGER.debug("Session with [{}] established, now process deferred {} messages",
-					establishedSession.getPeer(), listOut.size());
-			for (RawData message : listOut) {
-				final RawData rawData = message;
-				serialExecutor.execute(new Runnable() {
+	/**
+	 * Create default health handler.
+	 * 
+	 * @param configuration configuration
+	 * @return default health handler.
+	 * @since 2.5
+	 */
+	protected DtlsHealth createDefaultHealthHandler(DtlsConnectorConfig configuration) {
+		return new DtlsHealthLogger(configuration.getLoggingTag());
+	}
 
-					@Override
-					public void run() {
-						sendMessage(rawData, connection, establishedSession);
-					}
-				});
+	/**
+	 * Initialize new create handshaker.
+	 * 
+	 * Add {@link #sessionListener}.
+	 * 
+	 * @param handshaker new create handshaker
+	 */
+	private final void initializeHandshaker(final Handshaker handshaker) {
+		if (sessionListener != null) {
+			handshaker.addSessionListener(sessionListener);
+			if (health != null) {
+				health.startHandshake();
 			}
 		}
-		List<Record> listIn = handshaker.takeDeferredRecords();
-		if (!listIn.isEmpty()) {
-			LOGGER.debug("Session with [{}] established, now process deferred {} messages",
-					establishedSession.getPeer(), listIn.size());
-			for (Record message : listIn) {
-				final Record record = message;
-				serialExecutor.execute(new Runnable() {
-
-					@Override
-					public void run() {
-						processRecord(record, connection);
-					}
-				});
-			}
-		}
+		onInitializeHandshaker(handshaker);
 	}
 
 	/**
@@ -455,17 +599,100 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	/**
-	 * Initialize new create handshaker.
+	 * Process context established.
 	 * 
-	 * Add {@link #sessionListener}.
+	 * Called from
+	 * {@link SessionListener#contextEstablished(Handshaker, DTLSContext)} to
+	 * store {@link DTLSSession} and process deferred messages.
 	 * 
-	 * @param handshaker new create handshaker
+	 * @param handshaker handshaker
+	 * @param establishedContext established context.
+	 * @since 3.0 (was sessionEstablished).
 	 */
-	private final void initializeHandshaker(final Handshaker handshaker) {
-		if (sessionListener != null) {
-			handshaker.addSessionListener(sessionListener);
+	private final void contextEstablished(Handshaker handshaker, DTLSContext establishedContext) {
+		try {
+			final Connection connection = handshaker.getConnection();
+			connectionStore.putEstablishedSession(establishedContext.getSession(), connection);
+			final SerialExecutor serialExecutor = connection.getExecutor();
+			List<RawData> listOut = handshaker.takeDeferredApplicationData();
+			if (!listOut.isEmpty()) {
+				LOGGER.trace("DTLS context with [{}] established, now process deferred {} outgoing messages",
+						handshaker.getPeerAddress(), listOut.size());
+				for (RawData message : listOut) {
+					final RawData rawData = message;
+					serialExecutor.execute(new Runnable() {
+
+						@Override
+						public void run() {
+							sendMessage(rawData, connection);
+						}
+					});
+				}
+			}
+			List<Record> listIn = handshaker.takeDeferredRecordsOfNextEpoch();
+			if (!listIn.isEmpty()) {
+				LOGGER.trace("DTLS context with [{}] established, now process deferred {} incoming messages",
+						handshaker.getPeerAddress(), listIn.size());
+				for (Record message : listIn) {
+					final Record record = message;
+					serialExecutor.execute(new Runnable() {
+
+						@Override
+						public void run() {
+							processRecord(record, connection);
+						}
+					});
+				}
+			}
+		} catch (RejectedExecutionException ex) {
+			LOGGER.debug("stopping.");
 		}
-		onInitializeHandshaker(handshaker);
+	}
+
+	/**
+	 * Calculate start time of recent handshakes, which starting client hellos are
+	 * expired.
+	 * 
+	 * To prevent starting handshakes accidentally from repeated client hellos,
+	 * the client's random is used to filter that for
+	 * {@link #CLIENT_HELLO_TIMEOUT_MILLIS}.
+	 * 
+	 * @return system nanoseconds.
+	 * @since 3.0
+	 */
+	private long calculateRecentHandshakeExpires() {
+		return ClockUtil.nanoRealtime() - TimeUnit.MILLISECONDS.toNanos(CLIENT_HELLO_TIMEOUT_MILLIS);
+	}
+
+	/**
+	 * Cleanup recent handshakes.
+	 * 
+	 * Remove starting hello client, if expired.
+	 * 
+	 * @since 3.0
+	 */
+	private void cleanupRecentHandshakes() {
+		int count = 0;
+		int size = 0;
+		long expires = calculateRecentHandshakeExpires();
+		while (true) {
+			size = recentHandshakes.size();
+			Connection connection = recentHandshakes.peek();
+			if (connection == null) {
+				break;
+			}
+			Long startNanos = connection.getStartNanos();
+			if (startNanos == null || (expires - startNanos) >= 0) {
+				connection.startByClientHello(null);
+				recentHandshakes.poll();
+				++count;
+			} else {
+				break;
+			}
+		}
+		if (count > 0 || size > 0) {
+			LOGGER.warn("Cleanup {} recent handshakes, left {}!", count, size);
+		}
 	}
 
 	/**
@@ -498,23 +725,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Closes a connection with a given peer.
 	 * 
 	 * The connection is gracefully shut down, i.e. a final
-	 * <em>CLOSE_NOTIFY</em> alert message is sent to the peer
-	 * prior to removing all session state.
+	 * <em>CLOSE_NOTIFY</em> alert message is sent to the peer.
 	 * 
 	 * @param peerAddress the address of the peer to close the connection to
-	 * @throws IllegalStateException if executor cache is exceeded.
+	 * @throws RejectedExecutionException is connector is stopping or stopped.
 	 */
 	public final void close(InetSocketAddress peerAddress) {
 		final Connection connection = getConnection(peerAddress, null, false);
-		if (connection != null && connection.hasEstablishedSession()) {
+		if (connection != null && connection.hasEstablishedDtlsContext()) {
 			SerialExecutor serialExecutor = connection.getExecutor();
 			serialExecutor.execute(new Runnable() {
 
 				@Override
 				public void run() {
-					terminateConnection(connection, 
-							new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, connection.getPeerAddress()),
-							connection.getEstablishedSession());
+					closeConnection(connection);
 				}
 			});
 		}
@@ -532,6 +756,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Re-starts the connector binding to the same IP address and port as
 	 * on the previous start.
 	 * 
+	 * Note: intended for unit tests only!
+	 * 
 	 * @throws IOException if the connector cannot be bound to the previous
 	 *            IP address and port
 	 */
@@ -547,32 +773,33 @@ public class DTLSConnector implements Connector, RecordLayer {
 		return executorService;
 	}
 
-	private void start(final InetSocketAddress bindAddress) throws IOException {
-
+	/**
+	 * Start connector.
+	 * 
+	 * @param bindAddress address to bind socket.
+	 * @throws IOException I/O error
+	 */
+	protected void start(InetSocketAddress bindAddress) throws IOException {
 		if (running.get()) {
 			return;
 		}
+		init(bindAddress, new DatagramSocket(null), config.getMaxTransmissionUnit());
+	}
 
+	/**
+	 * Initialize socket ad start connector.
+	 * 
+	 * @param bindAddress address to bind socket
+	 * @param socket socket
+	 * @param mtu mtu of socket, or {@code null}, if socket implementation
+	 *            doesn't use a special mtu.
+	 * @throws IOException I/O error
+	 * @since 2.1
+	 */
+	protected void init(InetSocketAddress bindAddress, DatagramSocket socket, Integer mtu) throws IOException {
+		this.socket = socket;
 		pendingOutboundMessagesCountdown.set(config.getOutboundMessageBufferSize());
 
-		if (executorService instanceof ScheduledExecutorService) {
-			timer = (ScheduledExecutorService) executorService;
-		} else {
-			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(
-					new DaemonThreadFactory("DTLS-Retransmit-Task-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-		}
-
-		if (executorService == null) {
-			int threadCount = config.getConnectionThreadCount();
-			if (threadCount > 1) {
-				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1,
-						new DaemonThreadFactory("DTLS-Connection-Handler-", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
-			} else {
-				executorService = timer;
-			}
-			this.hasInternalExecutor = true;
-		}
-		socket = new DatagramSocket(null);
 		if (bindAddress.getPort() != 0 && config.isAddressReuseEnabled()) {
 			// make it easier to stop/start a server consecutively without delays
 			LOGGER.info("Enable address reuse for socket!");
@@ -582,43 +809,29 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 
-		socket.bind(bindAddress);
-		if (lastBindAddress != null && (!socket.getLocalAddress().equals(lastBindAddress.getAddress()) || socket.getLocalPort() != lastBindAddress.getPort())){
-			if (connectionStore instanceof ResumptionSupportingConnectionStore) {
-				((ResumptionSupportingConnectionStore) connectionStore).markAllAsResumptionRequired();
-			} else {
-				connectionStore.clear();
+		Integer size = config.getSocketReceiveBufferSize();
+		try {
+			if (size != null && size != 0) {
+				socket.setReceiveBufferSize(size);
 			}
-		}
-		if (config.getMaxTransmissionUnit() == null) {
-			InetAddress localInterfaceAddress = bindAddress.getAddress();
-			if (localInterfaceAddress.isAnyLocalAddress()) {
-				int mtu = MAX_MTU;
-				Enumeration<NetworkInterface> interfaces = NetworkInterface.getNetworkInterfaces();
-				while (interfaces.hasMoreElements()) {
-					NetworkInterface iface = interfaces.nextElement();
-					int ifaceMtu = iface.getMTU();
-					if (ifaceMtu > 0 && ifaceMtu < mtu) {
-						mtu = ifaceMtu;
-					}
-				}
-				LOGGER.info("multiple network interfaces, using smallest MTU [{}]", mtu);
-				this.maximumTransmissionUnit = mtu;
-			} else {
-				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
-				if (ni != null && ni.getMTU() > 0) {
-					this.maximumTransmissionUnit = ni.getMTU();
-				} else if (localInterfaceAddress instanceof Inet4Address) {
-					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", DEFAULT_IPV4_MTU);
-					this.maximumTransmissionUnit = DEFAULT_IPV4_MTU;
-				} else {
-					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv6 instead", DEFAULT_IPV6_MTU);
-					this.maximumTransmissionUnit = DEFAULT_IPV6_MTU;
-				}
+			size = config.getSocketSendBufferSize();
+			if (size != null && size != 0) {
+				socket.setSendBufferSize(size);
 			}
+		} catch (IllegalArgumentException ex) {
+			LOGGER.error("failed to apply {}", size, ex);
 		}
-		else {
-			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
+		// don't try to access the buffer sizes,
+		// when receive may already lock the socket!
+		int recvBuffer = socket.getReceiveBufferSize();
+		int sendBuffer = socket.getSendBufferSize();
+
+		if (!socket.isBound()) {
+			socket.bind(bindAddress);
+		}
+		InetSocketAddress actualBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		if (lastBindAddress != null && !actualBindAddress.equals(lastBindAddress)) {
+			connectionStore.markAllAsResumptionRequired();
 		}
 
 		if (config.getMaxFragmentLengthCode() != null) {
@@ -627,10 +840,128 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// reduce inbound buffer size accordingly
 			inboundDatagramBufferSize = lengthCode.length()
 					+ MAX_CIPHERTEXT_EXPANSION
-					+ 25; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
+					+ Record.DTLS_HANDSHAKE_HEADER_LENGTH; // 12 bytes DTLS message headers, 13 bytes DTLS record headers
 		}
 
-		lastBindAddress = new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+		if (config.getMaxTransmissionUnit() != null) {
+			this.maximumTransmissionUnit = config.getMaxTransmissionUnit();
+			LOGGER.info("Configured MTU [{}]", this.maximumTransmissionUnit);
+		} else if (mtu != null) {
+			this.maximumTransmissionUnit = mtu;
+			LOGGER.info("Forced MTU [{}]", this.maximumTransmissionUnit);
+		} else {
+			InetAddress localInterfaceAddress = bindAddress.getAddress();
+			if (localInterfaceAddress.isAnyLocalAddress()) {
+				ipv4Mtu = NetworkInterfacesUtil.getIPv4Mtu();
+				ipv6Mtu = NetworkInterfacesUtil.getIPv6Mtu();
+				LOGGER.info("multiple network interfaces, using smallest MTU [IPv4 {}, IPv6 {}]", ipv4Mtu, ipv6Mtu);
+			} else {
+				NetworkInterface ni = NetworkInterface.getByInetAddress(localInterfaceAddress);
+				boolean ipv6 = localInterfaceAddress instanceof Inet6Address;
+				if (ni != null && ni.getMTU() > 0) {
+					if (ipv6) {
+						ipv6Mtu = ni.getMTU();
+					} else {
+						ipv4Mtu = ni.getMTU();
+					}
+				} else if (ipv6) {
+					ipv6Mtu = NetworkInterfacesUtil.getIPv6Mtu();
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv6 instead", ipv6Mtu);
+				} else {
+					ipv4Mtu = NetworkInterfacesUtil.getIPv4Mtu();
+					LOGGER.info("Cannot determine MTU of network interface, using minimum MTU [{}] of IPv4 instead", ipv4Mtu);
+				}
+			}
+			if (inboundDatagramBufferSize > config.getMaxTransmissionUnitLimit()) {
+				if (ipv4Mtu > config.getMaxTransmissionUnitLimit()) {
+					ipv4Mtu = config.getMaxTransmissionUnitLimit();
+					LOGGER.info("Limit MTU IPv4[{}]", ipv4Mtu);
+				}
+				if (ipv6Mtu > config.getMaxTransmissionUnitLimit()) {
+					ipv6Mtu = config.getMaxTransmissionUnitLimit();
+					LOGGER.info("Limit MTU IPv6[{}]", ipv6Mtu);
+				}
+			} else {
+				if (ipv4Mtu > inboundDatagramBufferSize) {
+					ipv4Mtu = inboundDatagramBufferSize;
+					LOGGER.info("Buffersize MTU IPv4[{}]", ipv4Mtu);
+				}
+				if (ipv6Mtu > inboundDatagramBufferSize) {
+					ipv6Mtu = inboundDatagramBufferSize;
+					LOGGER.info("Buffersize MTU IPv6[{}]", ipv6Mtu);
+				}
+			}
+		}
+
+		lastBindAddress = actualBindAddress;
+
+		if (executorService instanceof ScheduledExecutorService) {
+			timer = (ScheduledExecutorService) executorService;
+		} else {
+			timer = ExecutorsUtil.newSingleThreadScheduledExecutor(new DaemonThreadFactory(
+					"DTLS-Timer-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+		}
+
+		if (executorService == null) {
+			int threadCount = config.getConnectionThreadCount();
+			if (threadCount > 1) {
+				executorService = ExecutorsUtil.newFixedThreadPool(threadCount - 1, new DaemonThreadFactory(
+						"DTLS-Worker-" + lastBindAddress + "#", NamedThreadFactory.SCANDIUM_THREAD_GROUP)); //$NON-NLS-1$
+			} else {
+				executorService = timer;
+			}
+			this.hasInternalExecutor = true;
+		}
+		// prepare restored connections.
+		long expires = calculateRecentHandshakeExpires();
+		int recentCounter = 0;
+		List<Connection> recent = new ArrayList<>();
+		Iterator<Connection> iterator = connectionStore.iterator();
+		while (iterator.hasNext()) {
+			Connection connection = iterator.next();
+			if (connection.hasEstablishedDtlsContext()) {
+				if (!connection.isExecuting()) {
+					connection.setExecutor(new SerialExecutor(executorService));
+				}
+				Long start = connection.getStartNanos();
+				if (start != null) {
+					++recentCounter;
+					if ((expires - start) < 0) {
+						recent.add(connection);
+					} else {
+						connection.startByClientHello(null);
+					}
+				}
+			}
+		}
+		if (recentCounter > 0) {
+			LOGGER.warn("Restore {} recent handshakes!", recent.size());
+			if (!recent.isEmpty()) {
+				Collections.sort(recent, new Comparator<Connection>() {
+
+					@Override
+					public int compare(Connection o1, Connection o2) {
+						Long time1 = o1.getStartNanos();
+						Long time2 = o2.getStartNanos();
+						if (time1 != null && time2 != null) {
+							long diff = time1 - time2;
+							if (diff > 0) {
+								return 1;
+							} else if (diff < 0) {
+								return -1;
+							}
+						} else if (time1 == null) {
+							return -1;
+						} else if (time2 == null) {
+							return 1;
+						}
+						return 0;
+					}
+				});
+				recentHandshakes.addAll(recent);
+				cleanupRecentHandshakes();
+			}
+		}
 		running.set(true);
 
 		int receiverThreadCount = config.getReceiverThreadCount();
@@ -642,6 +973,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 				@Override
 				public void doWork() throws Exception {
+					MDC.clear();
 					packet.setData(receiverBuffer);
 					receiveNextDatagramFromNetwork(packet);
 				}
@@ -651,9 +983,38 @@ public class DTLSConnector implements Connector, RecordLayer {
 			receiverThreads.add(receiver);
 		}
 
-		LOGGER.info(
-				"DTLS connector listening on [{}] with MTU [{}] using (inbound) datagram buffer size [{} bytes]",
-				lastBindAddress, maximumTransmissionUnit, inboundDatagramBufferSize);
+		String mtuDescription = maximumTransmissionUnit != null ? maximumTransmissionUnit.toString() : "IPv4 " + ipv4Mtu + " / IPv6 " + ipv6Mtu;
+		LOGGER.info("DTLSConnector listening on {}, recv buf = {}, send buf = {}, recv packet size = {}, MTU = {}",
+				lastBindAddress, recvBuffer, sendBuffer, inboundDatagramBufferSize, mtuDescription);
+
+		// this is a useful health metric
+		// that could later be exported to some kind of monitoring interface
+		if (health != null && health.isEnabled()) {
+			final Integer healthStatusInterval = config.getHealthStatusInterval();
+			if (healthStatusInterval != null) {
+				statusLogger = timer.scheduleAtFixedRate(new Runnable() {
+
+					@Override
+					public void run() {
+						health.dump(config.getLoggingTag(), config.getMaxConnections(), connectionStore.remainingCapacity(), pendingHandshakesWithoutVerifiedPeer.get());
+					}
+
+				}, healthStatusInterval, healthStatusInterval, TimeUnit.SECONDS);
+			}
+		}
+
+		recentHandshakeCleaner = timer.scheduleWithFixedDelay(new Runnable() {
+
+			@Override
+			public void run() {
+				try {
+					cleanupRecentHandshakes();
+				} catch (Throwable t) {
+					LOGGER.warn("Cleanup recent handshakes failed!", t);
+				}
+			}
+
+		}, 5000, 5000, TimeUnit.MILLISECONDS);
 	}
 
 	/**
@@ -664,7 +1025,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	public final synchronized void forceResumeSessionFor(InetSocketAddress peer) {
 		Connection peerConnection = connectionStore.get(peer);
-		if (peerConnection != null && peerConnection.hasEstablishedSession()) {
+		if (peerConnection != null && peerConnection.hasEstablishedDtlsContext()) {
 			peerConnection.setResumptionRequired(true);
 		}
 	}
@@ -690,27 +1051,40 @@ public class DTLSConnector implements Connector, RecordLayer {
 		connectionStore.clear();
 	}
 
-	private final synchronized DatagramSocket getSocket() {
+	private final DatagramSocket getSocket() {
 		return socket;
 	}
 
 	@Override
-	public final void stop() {
+	public void stop() {
 		ExecutorService shutdownTimer = null;
 		ExecutorService shutdown = null;
 		List<Runnable> pending = new ArrayList<>();
+		boolean stop;
 		synchronized (this) {
-			if (running.compareAndSet(true, false)) {
-				LOGGER.info("Stopping DTLS connector on [{}]", lastBindAddress);
+			stop = running.compareAndSet(true, false);
+			if (stop) {
+				LOGGER.debug("DTLS connector on [{}] stopping ...", lastBindAddress);
+				if (statusLogger != null) {
+					statusLogger.cancel(false);
+					statusLogger = null;
+				}
+				if (recentHandshakeCleaner != null) {
+					recentHandshakeCleaner.cancel(false);
+					recentHandshakeCleaner = null;
+				}
+				// recent handshakes will be restored from connection store,
+				recentHandshakes.clear();
 				for (Thread t : receiverThreads) {
 					t.interrupt();
 				}
-				receiverThreads.clear();
 				if (socket != null) {
 					socket.close();
 					socket = null;
 				}
-				maximumTransmissionUnit = 0;
+				maximumTransmissionUnit = null;
+				ipv4Mtu = DEFAULT_IPV4_MTU;
+				ipv6Mtu = DEFAULT_IPV6_MTU;
 				connectionStore.stop(pending);
 				if (executorService != timer) {
 					pending.addAll(timer.shutdownNow());
@@ -723,6 +1097,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 					executorService = null;
 					hasInternalExecutor = false;
 				}
+				for (Thread t : receiverThreads) {
+					t.interrupt();
+					try {
+						t.join(500);
+					} catch (InterruptedException e) {
+					}
+				}
+				receiverThreads.clear();
 			}
 		}
 		if (shutdownTimer != null) {
@@ -742,7 +1124,14 @@ public class DTLSConnector implements Connector, RecordLayer {
 			}
 		}
 		for (Runnable job : pending) {
-			job.run();
+			try {
+				job.run();
+			} catch (Exception e) {
+				LOGGER.warn("Shutdown DTLS connector:", e);
+			}
+		}
+		if (stop) {
+			LOGGER.debug("DTLS connector on [{}] stopped.", lastBindAddress);
 		}
 	}
 
@@ -757,9 +1146,183 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * </p>
 	 */
 	@Override
-	public final synchronized void destroy() {
+	public synchronized void destroy() {
 		stop();
 		connectionStore.clear();
+		messageHandler = null;
+	}
+
+	@WipAPI
+	@Override
+	public int saveConnections(OutputStream out, long maxQuietPeriodInSeconds) throws IOException {
+		if (isRunning()) {
+			throw new IllegalStateException("Connector is running, save not possible!");
+		}
+		return connectionStore.saveConnections(out, maxQuietPeriodInSeconds);
+	}
+
+	@WipAPI
+	@Override
+	public int loadConnections(InputStream in, long delta) throws IOException {
+		return connectionStore.loadConnections(in, delta);
+	}
+
+	@WipAPI
+	public boolean restoreConnection(Connection connection) {
+		return connectionStore.restore(connection);
+	}
+
+	/**
+	 * Start to terminate connections related to the provided principals.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store.
+	 * 
+	 * @param principal principal, which connections are to terminate
+	 * @return future to cancel or wait for completion
+	 */
+	public Future<Void> startDropConnectionsForPrincipal(final Principal principal) {
+		if (principal == null) {
+			throw new NullPointerException("principal must not be null!");
+		}
+		LeastRecentlyUsedCache.Predicate<Principal> handler = new LeastRecentlyUsedCache.Predicate<Principal>() {
+
+			@Override
+			public boolean accept(Principal connectionPrincipal) {
+				return principal.equals(connectionPrincipal);
+			}
+		};
+		return startTerminateConnectionsForPrincipal(handler);
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store. All
+	 * available connections will be removed from that session cache as well.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated and the session is removed
+	 *            from the session cache.
+	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate,
+	 *      boolean)
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			LeastRecentlyUsedCache.Predicate<Principal> principalHandler) {
+		return startTerminateConnectionsForPrincipal(principalHandler, true);
+	}
+
+	/**
+	 * Start to terminate connections applying the provided handler to the
+	 * principals of all connections.
+	 * 
+	 * Note: if {@link SessionCache} is used, it's not possible to remove a
+	 * cache entry, if no related connection is in the connection store.
+	 * 
+	 * @param principalHandler handler to be called within the serial execution
+	 *            of the related connection. If {@code true} is returned, the
+	 *            related connection is terminated
+	 * @param removeFromSessionCache {@code true} if the session of the
+	 *            connection should be removed from the session cache,
+	 *            {@code false}, otherwise
+	 * @return future to cancel or wait for completion
+	 * @see #startTerminateConnectionsForPrincipal(org.eclipse.californium.elements.util.LeastRecentlyUsedCache.Predicate)
+	 * @since 2.6
+	 */
+	public Future<Void> startTerminateConnectionsForPrincipal(
+			final LeastRecentlyUsedCache.Predicate<Principal> principalHandler, final boolean removeFromSessionCache) {
+		if (principalHandler == null) {
+			throw new NullPointerException("principal handler must not be null!");
+		}
+		LeastRecentlyUsedCache.Predicate<Connection> connectionHandler = new LeastRecentlyUsedCache.Predicate<Connection>() {
+
+			@Override
+			public boolean accept(Connection connection) {
+				Principal peer = null;
+				DTLSSession session = connection.getSession();
+				if (session != null) {
+					peer = session.getPeerIdentity();
+					if (peer != null && principalHandler.accept(peer)) {
+						connectionStore.remove(connection, removeFromSessionCache);
+					}
+				}
+				return false;
+			}
+		};
+		return startForEach(connectionHandler);
+	}
+
+	/**
+	 * Start applying provided handler to all connections.
+	 * 
+	 * @param handler handler to be called within the serial execution of the
+	 *            passed in connection. If {@code true} is returned, iterating
+	 *            is stopped.
+	 * @return future to cancel or wait for completion
+	 */
+	public Future<Void> startForEach(LeastRecentlyUsedCache.Predicate<Connection> handler) {
+		if (handler == null) {
+			throw new NullPointerException("handler must not be null!");
+		}
+		ForEachFuture result = new ForEachFuture();
+		nextForEach(connectionStore.iterator(), handler, result);
+		return result;
+	}
+
+	/**
+	 * Calls provided handler for each connection returned be the provided
+	 * iterator.
+	 * 
+	 * @param iterator iterator over connections
+	 * @param handler handler to be called for all connections returned by the
+	 *            iterator. Iteration is stopped, when handler returns
+	 *            {@code true}
+	 * @param result future to get cancelled or signal completion
+	 */
+	private void nextForEach(final Iterator<Connection> iterator,
+			final LeastRecentlyUsedCache.Predicate<Connection> handler, final ForEachFuture result) {
+
+		if (!result.isStopped() && iterator.hasNext()) {
+			final Connection next = iterator.next();
+			try {
+				next.getExecutor().execute(new Runnable() {
+
+					@Override
+					public void run() {
+						boolean done = true;
+						try {
+							if (!result.isStopped() && !handler.accept(next)) {
+								done = false;
+								nextForEach(iterator, handler, result);
+							}
+						} catch (Exception exception) {
+							result.failed(exception);
+						} finally {
+							if (done) {
+								result.done();
+							}
+						}
+					}
+				});
+				return;
+			} catch (RejectedExecutionException ex) {
+				if (!handler.accept(next)) {
+					while (iterator.hasNext()) {
+						if (handler.accept(iterator.next())) {
+							break;
+						}
+						if (result.isStopped()) {
+							break;
+						}
+					}
+				}
+			}
+		}
+		result.done();
 	}
 
 	/**
@@ -782,8 +1345,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} else {
 				connection = connectionStore.get(peerAddress);
 				if (connection == null && create) {
-					LOGGER.debug("create new connection for {}", peerAddress);
+					LOGGER.trace("create new connection for {}", peerAddress);
 					Connection newConnection = new Connection(peerAddress, new SerialExecutor(executor));
+					newConnection.setExecutionListener(connectionListener);
 					if (running.get()) {
 						// only add, if connector is running!
 						if (!connectionStore.put(newConnection)) {
@@ -794,9 +1358,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 				}
 			}
 			if (connection == null) {
-				LOGGER.debug("no connection available for {},{}", peerAddress, cid);
+				LOGGER.trace("no connection available for {},{}", peerAddress, cid);
 			} else if (!connection.isExecuting() && running.get()) {
-				LOGGER.debug("revive connection for {},{}", peerAddress, cid);
+				LOGGER.trace("revive connection for {},{}", peerAddress, cid);
 				connection.setExecutor(new SerialExecutor(executor));
 			} else {
 				LOGGER.trace("connection available for {},{}", peerAddress, cid);
@@ -805,7 +1369,16 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	private void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
+	/**
+	 * Receive the next datagram from network.
+	 * 
+	 * Potentially called by multiple threads.
+	 * 
+	 * @param packet datagram the be read from network
+	 * @throws IOException if an io- error occurred
+	 * @see #processDatagram(DatagramPacket, InetSocketAddress)
+	 */
+	protected void receiveNextDatagramFromNetwork(DatagramPacket packet) throws IOException {
 
 		DatagramSocket currentSocket = getSocket();
 		if (currentSocket == null) {
@@ -819,45 +1392,86 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// nothing to do
 			return;
 		}
-		InetSocketAddress peerAddress = new InetSocketAddress(packet.getAddress(), packet.getPort());
 
-		byte[] data = Arrays.copyOfRange(packet.getData(), packet.getOffset(), packet.getLength());
-		List<Record> records = Record.fromByteArray(data, peerAddress, connectionIdGenerator);
-		LOGGER.debug("Received {} DTLS records from {} using a {} byte datagram buffer",
-				records.size(), peerAddress, inboundDatagramBufferSize);
+		processDatagram(packet, null);
+	}
+
+	@Override
+	public void processDatagram(DatagramPacket datagram) {
+		processDatagram(datagram, null);
+	}
+
+	/**
+	 * Process received datagram.
+	 * 
+	 * Potentially called by multiple threads.
+	 * 
+	 * @param packet received message
+	 * @param router router address, {@code null}, if no router is used.
+	 * @since 2.5
+	 */
+	protected void processDatagram(DatagramPacket packet, InetSocketAddress router) {
+		InetSocketAddress peerAddress = (InetSocketAddress) packet.getSocketAddress();
+		MDC.put("PEER", StringUtil.toString(peerAddress));
+		if (health != null) {
+			health.receivingRecord(false);
+		}
+		long timestamp = ClockUtil.nanoRealtime();
+
+		DatagramReader reader = new DatagramReader(packet.getData(), packet.getOffset(), packet.getLength());
+		List<Record> records = Record.fromReader(reader, connectionIdGenerator, timestamp);
+		LOGGER.trace("Received {} DTLS records from {} using a {} byte datagram buffer", records.size(),
+				StringUtil.toLog(peerAddress), inboundDatagramBufferSize);
 
 		if (records.isEmpty()) {
+			DROP_LOGGER.trace("Discarding malicious record with {} bytes from [{}]", packet.getLength(),
+					StringUtil.toLog(peerAddress));
+			if (health != null) {
+				health.receivingRecord(true);
+			}
 			return;
 		}
 
 		if (!running.get()) {
-			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}", peerAddress);
+			DROP_LOGGER.trace("Discarding {} records, startting with {} from [{}] on shutdown", records.size(),
+					records.get(0).getType(), StringUtil.toLog(peerAddress));
+			LOGGER.debug("Execution shutdown while processing incoming records from peer: {}",
+					StringUtil.toLog(peerAddress));
+			if (health != null) {
+				health.receivingRecord(true);
+			}
 			return;
 		}
 
-		final Record fristRecord = records.get(0);
+		final Record firstRecord = records.get(0);
 
-		if (records.size() == 1 && fristRecord.isNewClientHello()) {
+		if (records.size() == 1 && firstRecord.isNewClientHello()) {
+			firstRecord.setAddress(peerAddress, router);
 			executorService.execute(new Runnable() {
 
 				@Override
 				public void run() {
-					processNewClientHello(fristRecord);
+					MDC.put("PEER", StringUtil.toString(firstRecord.getPeerAddress()));
+					processNewClientHello(firstRecord);
+					MDC.clear();
 				}
 			});
 			return;
 		}
 
-		final ConnectionId connectionId = fristRecord.getConnectionId();
+		final ConnectionId connectionId = firstRecord.getConnectionId();
 		final Connection connection = getConnection(peerAddress, connectionId, false);
 
 		if (connection == null) {
+			if (health != null) {
+				health.receivingRecord(true);
+			}
 			if (connectionId == null) {
-				LOGGER.debug("Discarding {} records from [{}] received without existing connection",
-						records.size(), peerAddress);
+				DROP_LOGGER.trace("Discarding {} records from [{}] received without existing connection",
+						records.size(), StringUtil.toLog(peerAddress));
 			} else {
-				LOGGER.debug("Discarding {} records from [{},{}] received without existing connection",
-						records.size(), peerAddress, connectionId);
+				DROP_LOGGER.trace("Discarding {} records from [{},{}] received without existing connection",
+						records.size(), StringUtil.toLog(peerAddress), connectionId);
 			}
 			return;
 		}
@@ -866,7 +1480,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 		for (final Record record : records) {
 			try {
-
+				record.setAddress(peerAddress, router);
 				serialExecutor.execute(new Runnable() {
 
 					@Override
@@ -879,12 +1493,12 @@ public class DTLSConnector implements Connector, RecordLayer {
 			} catch (RejectedExecutionException e) {
 				// dont't terminate connection on shutdown!
 				LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
-						record.getType(), peerAddress, e);
+						record.getType(), StringUtil.toLog(peerAddress), e);
 				break;
 			} catch (RuntimeException e) {
-				LOGGER.info("Unexpected error occurred while processing record [type: {}, peer: {}]",
-						record.getType(), peerAddress, e);
-				terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+				LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
+						record.getType(), StringUtil.toLog(peerAddress), e);
+				terminateConnectionWithInternalError(connection);
 				break;
 			}
 		}
@@ -896,50 +1510,116 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param record received record.
 	 * @param connection connection to process record.
 	 */
-	private void processRecord(Record record, Connection connection) {
+	@Override
+	public void processRecord(Record record, Connection connection) {
 
 		try {
 			// ensure, that connection is still related to record 
 			// and not changed by processing an other record before 
 			if (record.getConnectionId() == null && !connection.equalsPeerAddress(record.getPeerAddress())) {
-				LOGGER.warn("Drop record {}, connection changed address {} => {}!", record.getType(),
-						record.getPeerAddress(), connection.getPeerAddress());
+				long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - record.getReceiveNanos());
+				DROP_LOGGER.debug("Drop received record {}, connection changed address {} => {}! (shift {}ms)",
+						record.getType(), StringUtil.toLog(record.getPeerAddress()),
+						StringUtil.toLog(connection.getPeerAddress()), delay);
+				if (health != null) {
+					health.receivingRecord(true);
+				}
 				return;
 			}
+
 			int epoch = record.getEpoch();
-			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},reqn:{}]", 
+			LOGGER.trace("Received DTLS record of type [{}], length: {}, [epoche:{},rseqn:{}]", 
 					record.getType(), record.getFragmentLength(), epoch, record.getSequenceNumber());
+
+			Handshaker handshaker = connection.getOngoingHandshake();
+			if (handshaker != null && handshaker.isExpired()) {
+				// handshake expired during Android / OS "deep sleep"
+				// on receiving, fail to remove connection, if session is not established 
+				handshaker.handshakeFailed(new Exception("handshake already expired!"));
+				if (connectionStore.get(connection.getConnectionId()) != connection) {
+					// connection removed, then drop record
+					DROP_LOGGER.debug(
+							"Discarding {} record [epoch {}, rseqn {}] received from peer [{}], handshake expired!",
+							record.getType(), epoch, record.getSequenceNumber(),
+							StringUtil.toLog(record.getPeerAddress()), epoch);
+					if (health != null) {
+						health.receivingRecord(true);
+					}
+					return;
+				}
+				handshaker = null;
+			}
+
+			final DTLSContext context = connection.getDtlsContext(epoch);
+
+			if (context == null) {
+				if (handshaker != null && handshaker.getDtlsContext().getReadEpoch() == 0 && epoch == 1) {
+					// future records, apply session after handshake finished.
+					handshaker.addRecordsOfNextEpochForDeferredProcessing(record);
+				} else {
+					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from peer [{}] without an active dtls context",
+							record.getType(), epoch, record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+					if (health != null) {
+						health.receivingRecord(true);
+					}
+				}
+				return;
+			}
+
+			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
+			// before MAC validation based on the record's sequence numbers
+			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
+			boolean closed = connection.isClosed();
+			boolean discard = (useFilter || closed)
+					&& !context.isRecordProcessable(epoch, record.getSequenceNumber(), useExtendedWindowFilter);
+			if (discard) {
+				if (closed) {
+					DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] received from closed peer [{}]", record.getType(),
+							epoch, record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+				} else {
+					DROP_LOGGER.debug("Discarding duplicate {} record [epoch {}, rseqn {}] received from peer [{}]",
+							record.getType(), epoch, record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+				}
+				if (health != null) {
+					health.receivingRecord(true);
+				}
+				return;
+			}
 
 			boolean useCid = connectionIdGenerator != null && connectionIdGenerator.useConnectionId();
 			if (record.getType() == ContentType.TLS12_CID) {
 				// !useCid already dropped in Record.fromByteArray
 				if (epoch == 0) {
-					LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
-							record.getPeerAddress());
-					return;
-				}
-				DTLSSession session = connection.getSession(epoch);
-				if (session == null && epoch > 0) {
-					// received record of epoch 1 during handshake
-					Handshaker handshaker = connection.getOngoingHandshake();
-					if (handshaker != null && handshaker.isChangeCipherSpecMessageExpected()) {
-						handshaker.addRecordsForDeferredProcessing(record);
-					} else {
-						LOGGER.debug("Discarding TLS_CID record received from peer [{}] without an active session",
-								record.getPeerAddress());
+					DROP_LOGGER.debug("Discarding TLS_CID record received from peer [{}] during handshake",
+							StringUtil.toLog(record.getPeerAddress()));
+					if (health != null) {
+						health.receivingRecord(true);
 					}
 					return;
-				} else {
-					// decode record to access "inner type" with record.getType()
-					record.setSession(session);
-					record.getFragment();
 				}
-			} else if (epoch > 0 && useCid) {
-				DTLSSession session = connection.getSession();
-				if (session != null && session.getWriteConnectionId() != null) {
-					LOGGER.debug("Discarding record received from peer [{}], CID required!", record.getPeerAddress());
-					return;
+			} else if (epoch > 0 && useCid && connection.expectCid()) {
+				DROP_LOGGER.debug("Discarding record received from peer [{}], CID required!",
+						StringUtil.toLog(record.getPeerAddress()));
+				if (health != null) {
+					health.receivingRecord(true);
 				}
+				return;
+			}
+
+			if (!record.isDecoded() || record.getType() != ContentType.APPLICATION_DATA) {
+				// application data may be deferred again until the session is really established
+				record.decodeFragment(context.getReadState());
+			}
+
+			if (handshaker != null && handshaker.isProbing()) {
+				// received record, probe successful
+				DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
+				if (dtlsContext != null) {
+					connectionStore.removeFromEstablishedSessions(dtlsContext.getSession(), connection);
+				}
+				connection.resetContext();
+				handshaker.resetProbing();
+				LOGGER.trace("handshake probe successful {}", StringUtil.toLog(connection.getPeerAddress()));
 			}
 
 			switch (record.getType()) {
@@ -947,122 +1627,72 @@ public class DTLSConnector implements Connector, RecordLayer {
 				processApplicationDataRecord(record, connection);
 				break;
 			case ALERT:
-				processAlertRecord(record, connection);
+				processAlertRecord(record, connection, context);
 				break;
 			case CHANGE_CIPHER_SPEC:
 				processChangeCipherSpecRecord(record, connection);
 				break;
 			case HANDSHAKE:
-				processHandshakeRecord(record, connection);
+				processHandshakeRecord(record, connection, context);
 				break;
 			default:
-				LOGGER.debug("Discarding record of unsupported type [{}] from peer [{}]",
-					record.getType(), record.getPeerAddress());
+				DROP_LOGGER.debug("Discarding record of unsupported type [{}] from peer [{}]",
+					record.getType(), StringUtil.toLog(record.getPeerAddress()));
 			}
 		} catch (RuntimeException e) {
-			LOGGER.info("Unexpected error occurred while processing record from peer [{}]",
-					record.getPeerAddress(), e);
-			terminateConnection(connection, e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+			if (health != null) {
+				health.receivingRecord(true);
+			}
+			LOGGER.warn("Unexpected error occurred while processing record from peer [{}]",
+					StringUtil.toLog(record.getPeerAddress()), e);
+			terminateConnectionWithInternalError(connection);
 		} catch (GeneralSecurityException e) {
-			LOGGER.info("error occurred while processing record from peer [{}]",
-					record.getPeerAddress(), e);
-		} catch (HandshakeException e) {
-			LOGGER.info("error occurred while processing record from peer [{}]",
-					record.getPeerAddress(), e);
-		}
-	}
-
-	/**
-	 * Immediately terminates an ongoing handshake with a peer.
-	 * 
-	 * Terminating the handshake includes
-	 * <ul>
-	 * <li>canceling any pending retransmissions to the peer</li>
-	 * <li>destroying any state for an ongoing handshake with the peer</li>
-	 * </ul>
-	 * 
-	 * @param connection the peer to terminate the handshake with
-	 * @param cause the exception that is the cause for terminating the handshake
-	 * @param description the reason to indicate in the message sent to the peer before terminating the handshake
-	 */
-	private void terminateOngoingHandshake(final Connection connection, final Throwable cause, final AlertDescription description) {
-
-		Handshaker handshaker = connection.getOngoingHandshake();
-		if (handshaker != null) {
-			if (LOGGER.isTraceEnabled()) {
-				LOGGER.trace("Aborting handshake with peer [{}]:", connection.getPeerAddress(), cause);
-			} else if (LOGGER.isInfoEnabled()) {
-				LOGGER.info("Aborting handshake with peer [{}]: {}", connection.getPeerAddress(), cause.getMessage());
-			}
-			handshaker.setFailureCause(cause);
-			DTLSSession session = handshaker.getSession();
-			AlertMessage alert = new AlertMessage(AlertLevel.FATAL, description, connection.getPeerAddress());
-			if (!connection.hasEstablishedSession()) {
-				terminateConnection(connection, alert, session);
-			} else {
-				// keep established session intact and only terminate ongoing handshake
-				if (connection.getEstablishedSession() == handshaker.getSession()) {
-					// failure after established (last FINISH), but before completed (first data)
-					LOGGER.warn("Handshake with [{}] failed after session was established!", handshaker.getPeerAddress());
-				} else {
-					LOGGER.warn("Handshake with [{}] failed, but has an established session!", handshaker.getPeerAddress());
+			DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
+			if (dtlsContext != null) {
+				dtlsContext.incrementMacErrors();
+				if (connectionListener != null) {
+					if (connectionListener.onConnectionMacError(connection)) {
+						closeConnection(connection);
+					}
 				}
-				send(alert, session);
 			}
-			handshaker.handshakeFailed(cause);
+			DROP_LOGGER.debug("Discarding {} received from peer [{}] caused by {}",
+					record.getType(), StringUtil.toLog(record.getPeerAddress()), e.getMessage());
+			if (health != null) {
+				health.receivingRecord(true);
+			}
+			LOGGER.debug("error occurred while processing record from peer [{}]",
+					StringUtil.toLog(record.getPeerAddress()), e);
+		} catch (HandshakeException e) {
+			LOGGER.debug("error occurred while processing record from peer [{}]",
+					StringUtil.toLog(record.getPeerAddress()), e);
 		}
 	}
 
-	private void terminateConnection(Connection connection) {
-		if (connection != null) {
-			// clear session & (pending) handshaker
-			connectionStore.remove(connection);
-		}
-	}
-
-	private void terminateConnection(Connection connection, Throwable cause, AlertLevel level, AlertDescription description) {
-		if (connection.hasEstablishedSession()) {
-			terminateConnection(
-					connection,
-					new AlertMessage(level, description, connection.getPeerAddress()),
-					connection.getEstablishedSession());
-		} else if (connection.hasOngoingHandshake()) {
-			terminateConnection(
-					connection,
-					new AlertMessage(level, description, connection.getPeerAddress()),
-					connection.getOngoingHandshake().getSession());
+	private void closeConnection(Connection connection) {
+		DTLSContext context = connection.getEstablishedDtlsContext();
+		if (context != null) {
+			LOGGER.trace("Closing connection with peer [{}]", connection.getPeerAddress());
+			sendAlert(connection, context, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+			connection.setResumptionRequired(true);
 		}
 	}
 
 	/**
-	 * Immediately terminates a connection with a peer.
+	 * Terminate connection with internal error.
 	 * 
-	 * Terminating the connection includes
-	 * <ul>
-	 * <li>canceling any pending retransmissions to the peer</li>
-	 * <li>destroying any established session with the peer</li>
-	 * <li>destroying any handshakers for the peer</li>
-	 * <li>optionally sending a final ALERT to the peer (if a session exists with the peer)</li>
-	 * </ul>
+	 * Send alert, if connection has dtls context. Remove connection from store.
 	 * 
-	 * @param connection the connection to terminate
-	 * @param alert the message to send to the peer before terminating the connection (may be <code>null</code>)
-	 * @param session the parameters to encrypt the alert message with (may be <code>null</code> if alert is
-	 *           <code>null</code>)
+	 * @param connection connection to terminate
+	 * @since 3.0
 	 */
-	private void terminateConnection(Connection connection, AlertMessage alert, DTLSSession session) {
-		if (alert != null && session == null) {
-			throw new IllegalArgumentException("Session must not be NULL if alert message is to be sent");
+	private void terminateConnectionWithInternalError(Connection connection) {
+		DTLSContext context = connection.getDtlsContext();
+		if (context != null) {
+			LOGGER.trace("Terminating connection with peer [{}], Internal Error", StringUtil.toLog(connection.getPeerAddress()));
+			sendAlert(connection, context, new AlertMessage(AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR));
+			// clear session & (pending) handshaker
 		}
-
-		if (alert == null) {
-			LOGGER.debug("Terminating connection with peer [{}]", connection.getPeerAddress());
-		} else {
-			LOGGER.debug("Terminating connection with peer [{}], reason [{}]", connection.getPeerAddress(),
-					alert.getDescription());
-			send(alert, session);
-		}
-		// clear session & (pending) handshaker
 		connectionStore.remove(connection);
 	}
 
@@ -1074,52 +1704,33 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private void processApplicationDataRecord(final Record record, final Connection connection) {
 		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
-		final DTLSSession session = connection.getEstablishedSession();
-		if (session != null) {
-			// The DTLS 1.2 spec (section 4.1.2.6) advises to do replay detection
-			// before MAC validation based on the record's sequence numbers
-			// see http://tools.ietf.org/html/rfc6347#section-4.1.2.6
-			if (!useFilter || session.isRecordProcessable(record.getEpoch(), record.getSequenceNumber(), useWindowFilter)) {
-				try {
-					// APPLICATION_DATA can only be processed within the context of
-					// an established, i.e. fully negotiated, session
-					record.setSession(session);
-					ApplicationMessage message = (ApplicationMessage) record.getFragment();
-					// the fragment could be de-crypted, mark it
-					session.markRecordAsRead(record.getEpoch(), record.getSequenceNumber());
-					if (ongoingHandshake != null) {
-						// the handshake has been completed successfully
-						ongoingHandshake.handshakeCompleted();
-					}
-					connection.refreshAutoResumptionTime();
-					connectionStore.update(connection, record.getPeerAddress());
+		final DTLSContext dtlsContext = connection.getEstablishedDtlsContext();
+		if (dtlsContext != null && !connection.isResumptionRequired()) {
+			// APPLICATION_DATA can only be processed within the context of
+			// an established, i.e. fully negotiated, session
+			ApplicationMessage message = (ApplicationMessage) record.getFragment();
 
-					final RawDataChannel channel = messageHandler;
-					// finally, forward de-crypted message to application layer
-					if (channel != null) {
-						// create application message.
-						DtlsEndpointContext context = session.getConnectionWriteContext();
-						LOGGER.debug("Received APPLICATION_DATA for {}", context);
-						RawData receivedApplicationMessage = RawData.inbound(message.getData(), context, false);
-						channel.receiveData(receivedApplicationMessage);
-					}
-				} catch (HandshakeException | GeneralSecurityException e) {
-					// this means that we could not parse or decrypt the message
-					LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}]",
-							record.getPeerAddress(), e);
-					discardRecord(record, e);
-				}
-			} else {
-				LOGGER.debug("Discarding duplicate APPLICATION_DATA record received from peer [{}]",
-						record.getPeerAddress());
+			updateConnectionAddress(record, connection);
+
+			final RawDataChannel channel = messageHandler;
+			// finally, forward de-crypted message to application layer
+			if (channel != null) {
+				// context
+				DtlsEndpointContext endpointContext = connection.getReadContext(record.getPeerAddress());
+				LOGGER.trace("Received APPLICATION_DATA for {}", endpointContext);
+				// create application message.
+				RawData receivedApplicationMessage = RawData.inbound(message.getData(), endpointContext, false,
+						record.getReceiveNanos(), lastBindAddress);
+				channel.receiveData(receivedApplicationMessage);
 			}
+		} else if (ongoingHandshake != null) {
+			// wait for FINISH
+			// the record is already decoded, so adding it for deferred processing
+			// requires to protect it from applying the session again in processRecord!
+			ongoingHandshake.addRecordsOfNextEpochForDeferredProcessing(record);
 		} else {
-			if (ongoingHandshake != null && ongoingHandshake.isChangeCipherSpecMessageExpected()) {
-				ongoingHandshake.addRecordsForDeferredProcessing(record);
-			} else {
-				LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}] without an active session",
-						record.getPeerAddress());
-			}
+			DROP_LOGGER.debug("Discarding APPLICATION_DATA record received from peer [{}]",
+					StringUtil.toLog(record.getPeerAddress()));
 		}
 	}
 
@@ -1128,58 +1739,79 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param record alert record
 	 * @param connection connection to process the received record
+	 * @param epochContext session applied to decode record
 	 */
-	private void processAlertRecord(final Record record, final Connection connection) {
-		DTLSSession session = connection.getSession(record.getEpoch());
-		if (session == null) {
-			LOGGER.debug(
-					"Epoch of ALERT record [epoch={}] from [{}] does not match expected epoch(s), discarding ...",
-					record.getEpoch(), record.getPeerAddress());
-			return;
-		}
-		record.setSession(session);
-		try {
-			AlertMessage alert = (AlertMessage) record.getFragment();
-			Handshaker handshaker = connection.getOngoingHandshake();
-			HandshakeException error = null;
-			LOGGER.trace("Processing {} ALERT from [{}]: {}",
-					alert.getLevel(), alert.getPeer(), alert.getDescription());
-			if (AlertDescription.CLOSE_NOTIFY.equals(alert.getDescription())) {
-				// according to section 7.2.1 of the TLS 1.2 spec
-				// (http://tools.ietf.org/html/rfc5246#section-7.2.1)
-				// we need to respond with a CLOSE_NOTIFY alert and
-				// then close and remove the connection immediately
+	private void processAlertRecord(Record record, Connection connection, DTLSContext epochContext) {
+		AlertMessage alert = (AlertMessage) record.getFragment();
+		Handshaker handshaker = connection.getOngoingHandshake();
+		HandshakeException error = null;
+		LOGGER.trace("Processing {} ALERT from [{}]: {}", alert.getLevel(),
+				StringUtil.toLog(connection.getPeerAddress()), alert.getDescription());
+		if (AlertDescription.CLOSE_NOTIFY.equals(alert.getDescription())) {
+			// according to section 7.2.1 of the TLS 1.2 spec
+			// (http://tools.ietf.org/html/rfc5246#section-7.2.1)
+			// we need to respond with a CLOSE_NOTIFY alert and
+			// then close and remove the connection immediately
+			if (connection.hasEstablishedDtlsContext()) {
+				updateConnectionAddress(record, connection);
+			} else {
 				error = new HandshakeException("Received 'close notify'", alert);
 				if (handshaker != null) {
 					handshaker.setFailureCause(error);
 				}
-				terminateConnection(
-						connection,
-						new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY, alert.getPeer()),
-						session);
-			} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
-				// according to section 7.2 of the TLS 1.2 spec
-				// (http://tools.ietf.org/html/rfc5246#section-7.2)
-				// the connection needs to be terminated immediately
-				error = new HandshakeException("Received 'fatal alert'", alert);
-				if (handshaker != null) {
-					handshaker.setFailureCause(error);
-				}
-				terminateConnection(connection);
-			} else {
-				// non-fatal alerts do not require any special handling
 			}
+			if (!connection.isResumptionRequired()) {
+				if (connection.getPeerAddress() != null) {
+					sendAlert(connection, epochContext, new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+				}
+				if (connection.hasEstablishedDtlsContext()) {
+					connection.close(record);
+				} else {
+					connectionStore.remove(connection);
+				}
+			}
+		} else if (AlertLevel.FATAL.equals(alert.getLevel())) {
+			// according to section 7.2 of the TLS 1.2 spec
+			// (http://tools.ietf.org/html/rfc5246#section-7.2)
+			// the connection needs to be terminated immediately
+			error = new HandshakeException("Received 'fatal alert/" + alert.getDescription() + "'", alert);
+			if (handshaker != null) {
+				handshaker.setFailureCause(error);
+			}
+			connectionStore.remove(connection);
+		} else {
+			// non-fatal alerts do not require any special handling
+		}
+		reportAlertInternal(connection, alert);
+		if (null != error && null != handshaker) {
+			handshaker.handshakeFailed(error);
+		}
+	}
 
-			synchronized (alertHandlerLock) {
-				if (alertHandler != null) {
-					alertHandler.onAlert(alert.getPeer(), alert);
-				}
+	/**
+	 * Update connection address.
+	 * 
+	 * @param record received record.
+	 * @param connection connection of received record
+	 * @since 3.0 (removed DTLS context parameter)
+	 */
+	private void updateConnectionAddress(Record record, Connection connection) {
+		InetSocketAddress newAddress = null;
+		if (connection.markRecordAsRead(record) || !useCidUpdateAddressOnNewerRecordFilter) {
+			// address update, it's a newer record!
+			connection.setRouter(record.getRouter());
+			newAddress = record.getPeerAddress();
+		}
+		connectionStore.update(connection, newAddress);
+		final Handshaker ongoingHandshake = connection.getOngoingHandshake();
+		if (ongoingHandshake != null) {
+			// the handshake has been completed successfully
+			ongoingHandshake.handshakeCompleted();
+		}
+		if (connectionListener != null) {
+			if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, false)) {
+				closeConnection(connection);
 			}
-			if (null != error && null != handshaker) {
-				handshaker.handshakeFailed(error);
-			}
-		} catch (HandshakeException | GeneralSecurityException e) {
-			discardRecord(record, e);
 		}
 	}
 
@@ -1196,12 +1828,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 			try {
 				ongoingHandshaker.processMessage(record);
 			} catch (HandshakeException e) {
-				handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
+				processExceptionDuringHandshake(record, connection, e);
 			}
 		} else {
 			// change cipher spec can only be processed within the
 			// context of an existing handshake -> ignore record
-			LOGGER.debug("Received CHANGE_CIPHER_SPEC record from peer [{}] with no handshake going on", record.getPeerAddress());
+			DROP_LOGGER.debug("Received CHANGE_CIPHER_SPEC record from peer [{}] with no handshake going on",
+					StringUtil.toLog(record.getPeerAddress()));
 		}
 	}
 
@@ -1210,119 +1843,53 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @param record handshake record
 	 * @param connection connection to process the record.
+	 * @param dtlsContext dtls context of the record.
 	 */
-	private void processHandshakeRecord(final Record record, final Connection connection) {
-		LOGGER.debug("Received {} record from peer [{}]", record.getType(), record.getPeerAddress());
+	private void processHandshakeRecord(Record record, Connection connection, DTLSContext dtlsContext) {
+		LOGGER.trace("Received {} record from peer [{}]", record.getType(), StringUtil.toLog(record.getPeerAddress()));
+		if (record.isNewClientHello()) {
+			throw new IllegalArgumentException("new CLIENT_HELLO must be processed by processClientHello!");
+		}
 		try {
-			if (connection.hasOngoingHandshake()) {
-				DTLSSession handshakeSession = connection.getOngoingHandshake().getSession();
-				if (handshakeSession.getReadEpoch() == record.getEpoch()) {
-					// evaluate message in context of ongoing handshake
-					record.setSession(handshakeSession);
-				} else if (!record.isNewClientHello()) {
-					// epoch is not the same as the current session so we
-					// can not decrypt the message now. Let handshaker handle it
-					// (it can queue it to deal with it later)
-					connection.getOngoingHandshake().processMessage(record);
-					return;
+			Handshaker handshaker = connection.getOngoingHandshake();
+			HandshakeMessage handshakeMessage = (HandshakeMessage) record.getFragment();
+			switch (handshakeMessage.getMessageType()) {
+			case CLIENT_HELLO:
+				// We do not support re-negotiation as recommended in :
+				// https://tools.ietf.org/html/rfc7925#section-17
+				DROP_LOGGER.debug("Reject re-negotiation from peer [{}]", StringUtil.toLog(record.getPeerAddress()));
+				sendAlert(connection, dtlsContext,
+						new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION));
+				break;
+			case HELLO_REQUEST:
+				if (handshaker != null) {
+					// TLS 1.2, Section 7.4.1.1 advises to ignore HELLO_REQUEST
+					// messages during an ongoing handshake
+					// (http://tools.ietf.org/html/rfc5246#section-7.4.1.1)
+					DROP_LOGGER.debug("Ignore HELLO_REQUEST received from peer [{}] during ongoing handshake",
+							StringUtil.toLog(connection.getPeerAddress()));
+				} else {
+					// TLS 1.2, Section 7.4.1.1 allows to reject HELLO_REQUEST
+					// messages
+					// (http://tools.ietf.org/html/rfc5246#section-7.4.1.1.)
+					DROP_LOGGER.debug("Reject HELLO_REQUEST received from peer [{}]", StringUtil.toLog(connection.getPeerAddress()));
+					// We do not support re-negotiation as recommended in :
+					// https://tools.ietf.org/html/rfc7925#section-17
+					sendAlert(connection, dtlsContext,
+							new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION));
 				}
-			} else if (connection.hasEstablishedSession()
-					&& connection.getEstablishedSession().getReadEpoch() == record.getEpoch()) {
-				// client wants to re-negotiate established connection's
-				// crypto params evaluate message in context of established session
-				record.setSession(connection.getEstablishedSession());
-			} else if (record.isNewClientHello()) {
-				// client has lost track of existing connection and wants to
-				// negotiate a new connection
-				// in epoch 0 no crypto params have been established yet, thus
-				// we do not need to set a session
-			} else {
-				LOGGER.debug(
-						"Discarding HANDSHAKE message [epoch={}] from peer [{}] which does not match expected epoch(s) [{}]",
-						record.getEpoch(), record.getPeerAddress());
-				return;
-			}
-
-			try {
-				HandshakeMessage handshakeMessage = (HandshakeMessage) record.getFragment();
-				processDecryptedHandshakeMessage(handshakeMessage, record, connection);
-			} catch (GeneralSecurityException e) {
-				discardRecord(record, e);
+				break;
+			default:
+				if (handshaker != null) {
+					handshaker.processMessage(record);
+				} else {
+					DROP_LOGGER.debug("Discarding HANDSHAKE message [epoch={}] from peer [{}], no ongoing handshake!",
+							record.getEpoch(), StringUtil.toLog(record.getPeerAddress()));
+				}
+				break;
 			}
 		} catch (HandshakeException e) {
-			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
-		}
-	}
-
-	/**
-	 * Process handshake message.
-	 * 
-	 * @param handshakeMessage handshake message
-	 * @param record record of handshake message
-	 * @param connection connection to process the handshake message
-	 * @throws HandshakeException if the handshake message cannot be processed
-	 */
-	private void processDecryptedHandshakeMessage(final HandshakeMessage handshakeMessage, final Record record,
-			final Connection connection) throws HandshakeException {
-		switch (handshakeMessage.getMessageType()) {
-		case CLIENT_HELLO:
-			// We do not support re-negotiation as recommended in :
-			// https://tools.ietf.org/html/rfc7925#section-17
-			if (record.getEpoch() > 0) {
-				DTLSSession session = connection.getEstablishedSession();
-				send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, record.getPeerAddress()),
-						session);
-			} else {
-				LOGGER.error("Unexpected CLIENT_HELLO {}", record.getPeerAddress(),
-						new IllegalArgumentException("Unexpected CLIENT_HELLO"));
-			}
-			break;
-		case HELLO_REQUEST:
-			processHelloRequest(connection);
-			break;
-		default:
-			processOngoingHandshakeMessage(handshakeMessage, record, connection);
-		}
-	}
-
-	/**
-	 * Process handshake message of an ongoing handshake.
-	 * 
-	 * @param message handshake message
-	 * @param record record of handshake message
-	 * @param connection connection to process handshake message.
-	 * @throws HandshakeException if the handshake message cannot be processed
-	 */
-	private void processOngoingHandshakeMessage(final HandshakeMessage message, final Record record, final Connection connection) throws HandshakeException {
-		if (connection.hasOngoingHandshake()) {
-			connection.getOngoingHandshake().processMessage(record);
-		} else {
-			LOGGER.debug(
-				"Discarding {} message received from peer [{}] with no handshake going on",
-				message.getMessageType(), message.getPeer());
-		}
-	}
-
-	/**
-	 * Process HELLO_REQUEST.
-	 * 
-	 * @param connection connection to process HELLO_REQUEST message.
-	 * @throws HandshakeException if the message to initiate the handshake with
-	 *             the peer cannot be created
-	 */
-	private void processHelloRequest(final Connection connection) throws HandshakeException {
-		if (connection.hasOngoingHandshake()) {
-			// TLS 1.2, Section 7.4 advises to ignore HELLO_REQUEST messages
-			// arriving while in an ongoing handshake
-			// (http://tools.ietf.org/html/rfc5246#section-7.4)
-			LOGGER.debug("Ignoring HELLO_REQUEST received from [{}] while already in an ongoing handshake with peer",
-					connection.getPeerAddress());
-		} else {
-			// We do not support re-negotiation as recommended in :
-			// https://tools.ietf.org/html/rfc7925#section-17
-			DTLSSession session = connection.getEstablishedSession();
-			send(new AlertMessage(AlertLevel.WARNING, AlertDescription.NO_RENEGOTIATION, connection.getPeerAddress()),
-					session);
+			processExceptionDuringHandshake(record, connection, e);
 		}
 	}
 
@@ -1340,15 +1907,13 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 */
 	private void processNewClientHello(final Record record) {
 		InetSocketAddress peerAddress = record.getPeerAddress();
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder("Processing new CLIENT_HELLO from peer [")
-					.append(peerAddress).append("]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(record);
-			}
-			LOGGER.debug(msg.toString());
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("Processing new CLIENT_HELLO from peer [{}]:{}{}", StringUtil.toLog(peerAddress),
+					StringUtil.lineSeparator(), record);
 		}
 		try {
+			// CLIENT_HELLO with epoch 0 is not encrypted, so use DTLSConnectionState.NULL 
+			record.decodeFragment(DTLSConnectionState.NULL);
 			final ClientHello clientHello = (ClientHello) record.getFragment();
 
 			// before starting a new handshake or resuming an established
@@ -1356,43 +1921,82 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// the IP address indicated in the client hello message
 			final AvailableConnections connections = new AvailableConnections();
 			if (isClientInControlOfSourceIpAddress(clientHello, record, connections)) {
+				boolean verify = false;
 				Connection connection;
 				synchronized (connectionStore) {
 					connection = connectionStore.get(peerAddress);
-					if (connection == null || !connection.isStartedByClientHello(clientHello)) {
+					if (connection != null && !connection.isStartedByClientHello(clientHello)) {
+						Connection sessionConnection = connections.getConnectionBySessionId();
+						if (sessionConnection != null && sessionConnection != connection) {
+							// don't overwrite
+							verify = true;
+						} else {
+							if (sessionConnection != null && sessionConnection == connection) {
+								connections.setRemoveConnectionBySessionId(true);
+							}
+							final Handshaker handshaker = connection.getOngoingHandshake();
+							if (handshaker != null) {
+								DTLSContext establishedContext = connection.getEstablishedDtlsContext();
+								if (establishedContext == null || handshaker.getDtlsContext() != establishedContext) {
+									final DtlsException cause = new DtlsException(
+											"Received new CLIENT_HELLO from " + StringUtil.toDisplayString(peerAddress));
+									handshaker.setFailureCause(cause);
+									connection.getExecutor().execute(new Runnable() {
+
+										@Override
+										public void run() {
+											if (running.get()) {
+												handshaker.handshakeFailed(cause);
+											}
+										}
+									});
+								}
+							}
+							connection = null;
+						}
+					}
+					if (connection == null) {
 						connection = new Connection(peerAddress, new SerialExecutor(getExecutorService()));
+						connection.setExecutionListener(connectionListener);
 						connection.startByClientHello(clientHello);
 						if (!connectionStore.put(connection)) {
 							return;
 						}
 					}
 				}
-				connections.setConnectionByAddress(connection);
-				try {
-
-					connection.getExecutor().execute(new Runnable() {
-
-						@Override
-						public void run() {
-							if (running.get()) {
-								processClientHello(clientHello, record, connections);
+				if (verify) {
+					sendHelloVerify(clientHello, record, null);
+				} else {
+					connections.setConnectionByAddress(connection);
+					try {
+						connection.getExecutor().execute(new Runnable() {
+							@Override
+							public void run() {
+								if (running.get()) {
+									processClientHello(clientHello, record, connections);
+								}
 							}
-						}
-					});
-				} catch (RejectedExecutionException e) {
-					// dont't terminate connection on shutdown!
-					LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
-							record.getType(), peerAddress, e);
-				} catch (RuntimeException e) {
-					LOGGER.info("Unexpected error occurred while processing record [type: {}, peer: {}]",
-							record.getType(), peerAddress, e);
-					terminateConnection(connections.getConnectionByAddress(), e, AlertLevel.FATAL, AlertDescription.INTERNAL_ERROR);
+						});
+					} catch (RejectedExecutionException e) {
+						// dont't terminate connection on shutdown!
+						LOGGER.debug("Execution rejected while processing record [type: {}, peer: {}]",
+								record.getType(), StringUtil.toLog(peerAddress), e);
+					} catch (RuntimeException e) {
+						LOGGER.warn("Unexpected error occurred while processing record [type: {}, peer: {}]",
+								record.getType(), StringUtil.toLog(peerAddress), e);
+						terminateConnectionWithInternalError(connections.getConnectionByAddress());
+					}
 				}
 			}
 		} catch (HandshakeException e) {
-			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
+			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!",
+					StringUtil.toLog(record.getPeerAddress()), e);
 		} catch (GeneralSecurityException e) {
-			LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!", record.getPeerAddress(), e);
+			DROP_LOGGER.debug("Processing new CLIENT_HELLO from peer [{}] failed!",
+					StringUtil.toLog(record.getPeerAddress()), e);
+		} catch (RuntimeException e) {
+			LOGGER.warn("Processing new CLIENT_HELLO from peer [{}] failed!", StringUtil.toLog(record.getPeerAddress()),
+					e);
 		}
 	}
 
@@ -1410,26 +2014,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 		Connection connection = connections.getConnectionByAddress();
 		if (connection == null) {
 			throw new NullPointerException("connection by address must not be null!");
-		}
-		if (!connection.equalsPeerAddress(record.getPeerAddress())) {
-			LOGGER.warn("Drop CLIENT_HELLO, changed address {} => {}!",
-					record.getPeerAddress(), connection.getPeerAddress());
+		} else if (!connection.equalsPeerAddress(record.getPeerAddress())) {
+			DROP_LOGGER.info("Drop received CLIENT_HELLO, changed address {} => {}!",
+					StringUtil.toLog(record.getPeerAddress()), StringUtil.toLog(connection.getPeerAddress()));
 			return;
 		}
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder("Processing CLIENT_HELLO from peer [").append(record.getPeerAddress()).append("]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(record);
-			}
-			LOGGER.debug(msg.toString());
+		if (LOGGER.isTraceEnabled()) {
+			LOGGER.trace("Processing CLIENT_HELLO from peer [{}]:{}{}", StringUtil.toLog(record.getPeerAddress()),
+					StringUtil.lineSeparator(), record);
 		}
 
 		try {
-			if (connection.hasOngoingHandshake() && connection.isStartedByClientHello(clientHello)) {
-				// client has sent this message before (maybe our response flight has been lost)
-				// but we do not want to start over again, so let the existing handshaker handle
-				// the duplicate
-				processOngoingHandshakeMessage(clientHello, record, connection);
+			if (connection.hasEstablishedDtlsContext() || connection.hasOngoingHandshake()) {
+				DROP_LOGGER.debug("Discarding received duplicate CLIENT_HELLO message [epoch={}] from peer [{}]!", record.getEpoch(),
+						StringUtil.toLog(record.getPeerAddress()));
 			} else if (clientHello.hasSessionId()) {
 				// client wants to resume a cached session
 				resumeExistingSession(clientHello, record, connections);
@@ -1440,7 +2038,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 				startNewHandshake(clientHello, record, connection);
 			}
 		} catch (HandshakeException e) {
-			handleExceptionDuringHandshake(e, e.getAlert().getLevel(), e.getAlert().getDescription(), connection, record);
+			processExceptionDuringHandshake(record, connection, e);
 		}
 	}
 
@@ -1449,11 +2047,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * in its client hello message.
 	 * <p>
 	 * The check is done by means of comparing the cookie contained in the client hello
-	 * message with the cookie computed for the request using the <code>generateCookie</code>
+	 * message with the cookie computed for the request using the {@code generateCookie}
 	 * method.
 	 * </p>
 	 * <p>This method sends a <em>HELLO_VERIFY_REQUEST</em> to the peer if the cookie contained
-	 * in <code>clientHello</code> does not match the expected cookie.
+	 * in {@code clientHello} does not match the expected cookie.
 	 * </p>
 	 * <p>If a matching session id is contained, but no cookie, it depends on the
 	 * number of pending resumption handshakes, if a
@@ -1466,11 +2064,10 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param clientHello the peer's client hello method including the cookie to
 	 *            verify
 	 * @param record the received record
-	 * @param connections expect the {@link AvailableConnections#byAddress} to
-	 *            be provided and set the
+	 * @param connections used to set the
 	 *            {@link AvailableConnections#bySessionId} with the result of
 	 *            {@link ResumptionSupportingConnectionStore#find(SessionId)}.
-	 * @return <code>true</code> if the client hello message contains a cookie
+	 * @return {@code true} if the client hello message contains a cookie
 	 *         and the cookie is identical to the cookie expected from the peer
 	 *         address, or it contains a matching session id.
 	 */
@@ -1484,20 +2081,25 @@ public class DTLSConnector implements Connector, RecordLayer {
 		try {
 			byte[] expectedCookie = null;
 			byte[] providedCookie = clientHello.getCookie();
-			if (providedCookie != null && providedCookie.length > 0) {
-				expectedCookie = cookieGenerator.generateCookie(clientHello);
+			if (providedCookie.length > 0) {
+				expectedCookie = cookieGenerator.generateCookie(record.getPeerAddress(), clientHello);
 				// if cookie is present, it must match
-				if (Arrays.equals(expectedCookie, providedCookie)) {
+				if (MessageDigest.isEqual(expectedCookie, providedCookie)) {
+					return true;
+				}
+				// check, if cookie of the past period matches
+				byte[] pastCookie = cookieGenerator.generatePastCookie(record.getPeerAddress(), clientHello);
+				if (pastCookie != null && MessageDigest.isEqual(pastCookie, providedCookie)) {
 					return true;
 				}
 				if (LOGGER.isDebugEnabled()) {
 					LOGGER.debug("provided cookie must {} match {}. Send verify request to {}",
 							StringUtil.byteArray2HexString(providedCookie, StringUtil.NO_SEPARATOR, 6),
 							StringUtil.byteArray2HexString(expectedCookie, StringUtil.NO_SEPARATOR, 6),
-							record.getPeerAddress());
+							StringUtil.toLog(record.getPeerAddress()));
 				}
 				// otherwise send verify request
-			} else  {
+			} else {
 				// threshold 0 always use a verify request
 				if (0 < thresholdHandshakesWithoutVerifiedPeer) {
 					int pending = pendingHandshakesWithoutVerifiedPeer.get();
@@ -1511,34 +2113,17 @@ public class DTLSConnector implements Connector, RecordLayer {
 						connections.setConnectionBySessionId(sessionConnection);
 						if (sessionConnection != null) {
 							// found provided session.
-							if (sessionConnection.equalsPeerAddress(record.getPeerAddress())) {
-								// same peer wants to resume his session,
-								// no verify request required
-								LOGGER.trace("resuming peer's [{}] session", record.getPeerAddress());
-								return true;
-							} else {
-								Connection addressConnection = connectionStore.get(record.getPeerAddress());
-								if (addressConnection == null || !addressConnection.hasEstablishedSession()) {
-									LOGGER.trace("fast resume for peer [{}] [{}]", record.getPeerAddress(),
-											pending);
-									return true;
-								}
-							}
-							// for connection with other established session,
-							// use the verify request
+							return true;
 						}
 					}
 				}
-			}
-			if (expectedCookie == null) {
-				expectedCookie = cookieGenerator.generateCookie(clientHello);
 			}
 			// for all cases not detected above, use a verify request.
 			sendHelloVerify(clientHello, record, expectedCookie);
 			return false;
 		} catch (GeneralSecurityException e) {
 			throw new DtlsHandshakeException("Cannot compute cookie for peer", AlertDescription.INTERNAL_ERROR,
-					AlertLevel.FATAL, clientHello.getPeer(), e);
+					AlertLevel.FATAL, e);
 		}
 	}
 
@@ -1554,11 +2139,9 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void startNewHandshake(final ClientHello clientHello, final Record record, final Connection connection) throws HandshakeException {
 		// use the record sequence number from CLIENT_HELLO as initial sequence number
 		// for records sent to the client (see section 4.2.1 of RFC 6347 (DTLS 1.2))
-		DTLSSession newSession = new DTLSSession(record.getPeerAddress(), record.getSequenceNumber());
 		// initialize handshaker based on CLIENT_HELLO (this accounts
 		// for the case that multiple cookie exchanges have taken place)
-		Handshaker handshaker = new ServerHandshaker(clientHello.getMessageSeq(), newSession,
-				this, connection, config, maximumTransmissionUnit);
+		Handshaker handshaker = new ServerHandshaker(record.getSequenceNumber(), clientHello.getMessageSeq(), this, timer, connection, config);
 		initializeHandshaker(handshaker);
 		handshaker.processMessage(record);
 	}
@@ -1575,7 +2158,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private void resumeExistingSession(ClientHello clientHello, Record record, final AvailableConnections connections)
 			throws HandshakeException {
 		InetSocketAddress peerAddress = record.getPeerAddress();
-		LOGGER.debug("Client [{}] wants to resume session with ID [{}]", peerAddress, clientHello.getSessionId());
+		LOGGER.trace("Client [{}] wants to resume session with ID [{}]", StringUtil.toLog(peerAddress), clientHello.getSessionId());
 
 		if (connections == null) {
 			throw new NullPointerException("available connections must not be null!");
@@ -1587,47 +2170,65 @@ public class DTLSConnector implements Connector, RecordLayer {
 			throw new IllegalArgumentException("connection must have records address!");
 		}
 
-		SessionTicket ticket = null;
 		if (!connections.isConnectionBySessionIdKnown()) {
 			connections.setConnectionBySessionId(connectionStore.find(clientHello.getSessionId()));
 		}
+		DTLSSession newSession = null;
 		Connection previousConnection = connections.getConnectionBySessionId();
 		if (previousConnection != null && previousConnection.isActive()) {
-			if (previousConnection.hasEstablishedSession()) {
-				ticket = previousConnection.getEstablishedSession().getSessionTicket();
+			boolean destroy = false;
+			DTLSSession session;
+			if (previousConnection.hasEstablishedDtlsContext()) {
+				session = previousConnection.getEstablishedSession();
 			} else {
-				ticket = previousConnection.getSessionTicket();
+				session = previousConnection.getResumeSession();
+				destroy = true;
 			}
-			if (ticket != null && config.isSniEnabled()) {
-				ServerNames serverNames1 = ticket.getServerNames();
+			boolean ok = session != null;
+			if (ok && config.isSniEnabled()) {
+				ServerNames serverNames1 = session.getServerNames();
 				ServerNames serverNames2 = null;
 				ServerNameExtension extension = clientHello.getServerNameExtension();
 				if (extension != null) {
 					serverNames2 = extension.getServerNames();
 				}
 				if (serverNames1 != null) {
-					if (!serverNames1.equals(serverNames2)) {
-						// invalidate ticket, server names mismatch
-						ticket = null;
-					}
+					ok = serverNames1.equals(serverNames2);
 				} else if (serverNames2 != null) {
 					// invalidate ticket, server names mismatch
-					ticket = null;
+					ok = false;
 				}
 			}
+			if (ok && config.getExtendedMasterSecretMode() != ExtendedMasterSecretMode.NONE) {
+				// https://tools.ietf.org/html/rfc7627#section-5.3
+				if (!session.useExtendedMasterSecret() && clientHello.hasExtendedMasterSecret()) {
+					// If the original session did not use the
+					// "extended_master_secret" extension but the new
+					// ClientHello contains the extension, then the
+					// server MUST NOT perform the abbreviated handshake.
+					// Instead, it SHOULD continue with a full handshake (as
+					// described in Section 5.2) to negotiate a new session.
+					ok = false;
+				}
+				// aborting handshakes is done in ResumingServerHandshaker
+			}
+			if (ok) {
+				newSession = new DTLSSession(session);
+			}
+			if (destroy) {
+				SecretUtil.destroy(session);
+			}
 		}
-		if (ticket != null) {
+		if (newSession != null) {
 			// session has been found in cache, resume it
-			final DTLSSession sessionToResume = new DTLSSession(clientHello.getSessionId(), peerAddress, ticket,
-					record.getSequenceNumber());
-			final Handshaker handshaker = new ResumingServerHandshaker(clientHello.getMessageSeq(), sessionToResume,
-					this, connection, config, maximumTransmissionUnit);
+			final Handshaker handshaker = new ResumingServerHandshaker(record.getSequenceNumber(), clientHello.getMessageSeq(), newSession,
+					this, timer, connection, config);
 			initializeHandshaker(handshaker);
 
-			if (previousConnection.hasEstablishedSession()) {
+			if (previousConnection.hasEstablishedDtlsContext()) {
 				// client wants to resume a session that has been negotiated by this node
 				// make sure that the same client only has a single active connection to this server
-				if (previousConnection.getPeerAddress() == null || previousConnection.equalsPeerAddress(peerAddress)) {
+				if (connections.isRemoveConnectionBySessionId()) {
 					// immediately remove previous connection
 					connectionStore.remove(previousConnection, false);
 				} else if (clientHello.getCookie().length == 0) {
@@ -1636,8 +2237,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 					handshaker.addSessionListener(new SessionAdapter() {
 
 						@Override
-						public void sessionEstablished(final Handshaker currentHandshaker,
-								final DTLSSession establishedSession) throws HandshakeException {
+						public void contextEstablished(Handshaker currentHandshaker, DTLSContext establishedContext)
+								throws HandshakeException {
 							pendingHandshakesWithoutVerifiedPeer.decrementAndGet();
 						}
 
@@ -1653,18 +2254,32 @@ public class DTLSConnector implements Connector, RecordLayer {
 			// process message
 			handshaker.processMessage(record);
 		} else {
-			LOGGER.debug(
+			LOGGER.trace(
 					"Client [{}] tries to resume non-existing session [ID={}], performing full handshake instead ...",
-					peerAddress, clientHello.getSessionId());
+					StringUtil.toLog(peerAddress), clientHello.getSessionId());
 			startNewHandshake(clientHello, record, connection);
 		}
 	}
 
-	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) {
+	private void sendHelloVerify(ClientHello clientHello, Record record, byte[] expectedCookie) throws GeneralSecurityException {
 		// send CLIENT_HELLO_VERIFY with cookie in order to prevent
 		// DOS attack as described in DTLS 1.2 spec
-		LOGGER.debug("Verifying client IP address [{}] using HELLO_VERIFY_REQUEST", record.getPeerAddress());
-		HelloVerifyRequest msg = new HelloVerifyRequest(new ProtocolVersion(), expectedCookie, record.getPeerAddress());
+		LOGGER.trace("Verifying client IP address [{}] using HELLO_VERIFY_REQUEST", StringUtil.toLog(record.getPeerAddress()));
+		if (expectedCookie == null) {
+			expectedCookie = cookieGenerator.generateCookie(record.getPeerAddress(), clientHello);
+		}
+		ProtocolVersion version = protocolVersionForHelloVerifyRequests;
+		if (version == null) {
+			// no fixed version configured, reply the client's version.
+			version = clientHello.getClientVersion();
+			if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_0) < 0) {
+				version = ProtocolVersion.VERSION_DTLS_1_0;
+			} else if (version.compareTo(ProtocolVersion.VERSION_DTLS_1_2) > 0) {
+				version = ProtocolVersion.VERSION_DTLS_1_2;
+			}
+		}
+		// according RFC 6347, 4.2.1. Denial-of-Service Countermeasures, the HelloVerifyRequest should use version 1.0
+		HelloVerifyRequest msg = new HelloVerifyRequest(version, expectedCookie);
 		// because we do not have a handshaker in place yet that
 		// manages message_seq numbers, we need to set it explicitly
 		// use message_seq from CLIENT_HELLO in order to allow for
@@ -1673,7 +2288,8 @@ public class DTLSConnector implements Connector, RecordLayer {
 		// use epoch 0 and sequence no from CLIENT_HELLO record as
 		// mandated by section 4.2.1 of the DTLS 1.2 spec
 		// see http://tools.ietf.org/html/rfc6347#section-4.2.1
-		Record helloVerify = new Record(ContentType.HANDSHAKE, record.getSequenceNumber(), msg, record.getPeerAddress());
+		Record helloVerify = new Record(ContentType.HANDSHAKE, version, record.getSequenceNumber(), msg);
+		helloVerify.setAddress(record.getPeerAddress(), null);
 		try {
 			sendRecord(helloVerify);
 		} catch (IOException e) {
@@ -1681,21 +2297,133 @@ public class DTLSConnector implements Connector, RecordLayer {
 		}
 	}
 
-	void send(AlertMessage alert, DTLSSession session) {
-		if (alert == null) {
-			throw new IllegalArgumentException("Alert must not be NULL");
-		} else if (session == null) {
-			throw new IllegalArgumentException("Session must not be NULL");
-		} else {
-			try {
-				boolean useCid = session.getWriteEpoch() > 0;
-				sendRecord(new Record(ContentType.ALERT, session.getWriteEpoch(), session.getSequenceNumber(), alert,
-						session, useCid, TLS12_CID_PADDING));
-			} catch (IOException e) {
-				// already logged ...
-			} catch (GeneralSecurityException e) {
-				LOGGER.debug("Cannot create ALERT message for peer [{}]", session.getPeer(), e);
+	/**
+	 * Handle a exception occurring during the handshake.
+	 * 
+	 * Suppress {@link AlertDescription#UNKNOWN_PSK_IDENTITY} and none
+	 * {@link AlertLevel#FATAL} alerts. Other alerts during an ongoing handshake
+	 * are send to the other peer and terminates that handshake with that peer
+	 * immediately.
+	 * 
+	 * That includes:
+	 * <ul>
+	 * <li>canceling any pending retransmissions to the peer</li>
+	 * <li>destroying any state for an ongoing handshake with the peer</li>
+	 * </ul>
+	 * 
+	 * @param record related received record. Since 2.3, this may be
+	 *            {@code null} in order to support exception during processing
+	 *            of a asynchronous master secret result.
+	 * @param connection connection
+	 * @param cause the exception that is the cause for terminating the
+	 *            handshake
+	 * @since 3.0
+	 */
+	private void processExceptionDuringHandshake(Record record, Connection connection, HandshakeException cause) {
+		AlertMessage alert = cause.getAlert();
+		// discard none fatal alert exception
+		if (!AlertLevel.FATAL.equals(alert.getLevel())) {
+			if (record != null) {
+				discardRecord(record, cause);
 			}
+			reportAlertInternal(connection, alert);
+			return;
+		}
+
+		// "Unknown identity" and "bad PSK" should be both handled in a same way.
+		// Generally "bad PSK" means invalid MAC on FINISHED message.
+		// In production both should be silently ignored : https://bugs.eclipse.org/bugs/show_bug.cgi?id=533258
+		if (AlertDescription.UNKNOWN_PSK_IDENTITY.equals(alert.getDescription())) {
+			if (record != null) {
+				discardRecord(record, cause);
+			}
+			reportAlertInternal(connection, alert);
+			return;
+		}
+
+		// in other cases terminate handshake
+		Handshaker handshaker = connection.getOngoingHandshake();
+		if (handshaker != null) {
+			if (LOGGER.isTraceEnabled()) {
+				LOGGER.trace("Aborting handshake with peer [{}]:", StringUtil.toLog(connection.getPeerAddress()),
+						cause);
+			} else if (LOGGER.isDebugEnabled()) {
+				LOGGER.debug("Aborting handshake with peer [{}]: {}", StringUtil.toLog(connection.getPeerAddress()),
+						cause.getMessage());
+			}
+			handshaker.setFailureCause(cause);
+			DTLSContext handshakeContext = handshaker.getDtlsContext();
+			DTLSContext connectionContext = connection.getEstablishedDtlsContext();
+			// keep established session intact and only terminate ongoing handshake
+			// failure after established (last FINISH), but before completed (first data)
+			if (connectionContext == handshakeContext) {
+				if (alert.getDescription() == AlertDescription.CLOSE_NOTIFY) {
+					LOGGER.debug("Handshake with [{}] closed after session was established!",
+							StringUtil.toLog(handshaker.getPeerAddress()));
+				} else {
+					LOGGER.warn("Handshake with [{}] failed after session was established! {}",
+							StringUtil.toLog(handshaker.getPeerAddress()), alert);
+				}
+			} else if (connectionContext != null) {
+				LOGGER.warn("Handshake with [{}] failed, but has an established session!",
+						StringUtil.toLog(handshaker.getPeerAddress()));
+			}
+			sendAlert(connection, handshakeContext, alert);
+			handshaker.handshakeFailed(cause);
+			reportAlertInternal(connection, alert);
+		}
+	}
+
+	/**
+	 * Handle alert internally.
+	 * 
+	 * Keeps first reported alert as root cause and reports that to the
+	 * {@link AlertHandler}, if available.
+	 * @param connection connection affected by that alert
+	 * @param alert received alert or detected alert
+	 * 
+	 * @since 3.0 (was handleAlertInternal)
+	 */
+	private void reportAlertInternal(Connection connection, AlertMessage alert) {
+		if (connection.setRootCause(alert)) {
+			AlertHandler handler = alertHandler;
+			if (handler != null) {
+				handler.onAlert(connection.getPeerAddress(), alert);
+			}
+		}
+	}
+
+	void sendAlert(Connection connection, DTLSContext context, AlertMessage alert) {
+		if (connection == null) {
+			throw new NullPointerException("Connection must not be null");
+		} else if (context == null) {
+			throw new NullPointerException("DTLS Context must not be null");
+		} else if (alert == null) {
+			throw new NullPointerException("Alert must not be null");
+		}
+		if (connection.isResumptionRequired()) {
+			return;
+		}
+		try {
+			LOGGER.trace("send ALERT {} for peer {}.", alert, StringUtil.toLog(connection.getPeerAddress()));
+			Record record;
+			boolean useCid = context.getWriteEpoch() > 0;
+			if (useCid || alert.getProtocolVersion() == null) {
+				record = new Record(ContentType.ALERT, context.getWriteEpoch(), alert, context,
+						useCid, TLS12_CID_PADDING);
+			} else {
+				record = new Record(ContentType.ALERT, alert.getProtocolVersion(), context.getNextSequenceNumber(), alert);
+			}
+			record.setAddress(connection.getPeerAddress(), connection.getRouter());
+			sendRecord(record);
+			if (connectionListener != null) {
+				connectionListener.onConnectionUpdatesSequenceNumbers(connection, true);
+			}
+		} catch (IOException e) {
+			// already logged ...
+		} catch (GeneralSecurityException e) {
+			DROP_LOGGER.warn("Cannot create ALERT message for peer [{}]", StringUtil.toLog(connection.getPeerAddress()),
+					e);
 		}
 	}
 
@@ -1703,13 +2431,20 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public final void send(final RawData msg) {
-		if (msg == null) {
+	public void send(final RawData message) {
+		if (message == null) {
 			throw new NullPointerException("Message must not be null");
 		}
-		if (msg.isMulticast()) {
-			LOGGER.warn("DTLSConnector drops {} bytes to multicast {}:{}", msg.getSize(), msg.getAddress(), msg.getPort());
-			msg.onError(new MulticastNotSupportedException("DTLS doesn't support multicast!"));
+		if (health != null) {
+			health.sendingRecord(false);
+		}
+		if (message.isMulticast()) {
+			DROP_LOGGER.warn("DTLSConnector drops {} outgoing bytes to multicast {}", message.getSize(),
+					StringUtil.toLog(message.getInetSocketAddress()));
+			message.onError(new MulticastNotSupportedException("DTLS doesn't support multicast!"));
+			if (health != null) {
+				health.sendingRecord(true);
+			}
 			return;
 		}
 		final Connection connection;
@@ -1718,26 +2453,45 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (!running.get()) {
 			connection = null;
 			error = new IllegalStateException("connector must be started before sending messages is possible");
-		} else if (msg.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
+		} else if (message.getSize() > MAX_PLAINTEXT_FRAGMENT_LENGTH) {
 			connection = null;
 			error = new IllegalArgumentException(
 					"Message data must not exceed " + MAX_PLAINTEXT_FRAGMENT_LENGTH + " bytes");
 		} else {
-			connection = getConnection(msg.getInetSocketAddress(), null, !serverOnly);
+			boolean create = !serverOnly;
+			if (create) {
+				create = !getEffectiveHandshakeMode(message).equals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+			}
+			connection = getConnection(message.getInetSocketAddress(), null, create);
 			if (connection == null) {
-				if (serverOnly) {
-					msg.onError(new EndpointUnconnectedException());
-					return;
-				} else {
+				if (create) {
 					error = new IllegalStateException("connection store is exhausted!");
+				} else {
+					if (serverOnly) {
+						message.onError(new EndpointUnconnectedException("server only, connection missing!"));
+					} else {
+						message.onError(new EndpointUnconnectedException("connection missing!"));
+					}
+					DROP_LOGGER.debug("DTLSConnector drops {} outgoing bytes to {}, connection missing!",
+							message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+					if (health != null) {
+						health.sendingRecord(true);
+					}
+					return;
 				}
 			}
 		}
 		if (error != null) {
-			msg.onError(error);
+			DROP_LOGGER.debug("DTLSConnector drops {} outgoing bytes to {}, {}!", message.getSize(),
+					StringUtil.toLog(message.getInetSocketAddress()), error.getMessage());
+			message.onError(error);
+			if (health != null) {
+				health.sendingRecord(true);
+			}
 			throw error;
 		}
 
+		final long now = ClockUtil.nanoRealtime();
 		if (pendingOutboundMessagesCountdown.decrementAndGet() >= 0) {
 			try {
 				SerialExecutor executor = connection.getExecutor();
@@ -1750,16 +2504,26 @@ public class DTLSConnector implements Connector, RecordLayer {
 					public void run() {
 						try {
 							if (running.get()) {
-								sendMessage(msg, connection);
+								sendMessage(now, message, connection);
 							} else {
-								msg.onError(new InterruptedIOException("Connector is not running."));
+								DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connector not running!",
+										message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+								message.onError(new InterruptedIOException("Connector is not running."));
+								if (health != null) {
+									health.sendingRecord(true);
+								}
 							}
 						} catch (Exception e) {
 							if (running.get()) {
-								LOGGER.debug("Exception thrown by executor thread [{}]",
+								LOGGER.warn("Exception thrown by executor thread [{}]",
 										Thread.currentThread().getName(), e);
 							}
-							msg.onError(e);
+							DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {} {}", message.getSize(),
+									StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+							if (health != null) {
+								health.sendingRecord(true);
+							}
+							message.onError(e);
 						} finally {
 							pendingOutboundMessagesCountdown.incrementAndGet();
 						}
@@ -1767,14 +2531,22 @@ public class DTLSConnector implements Connector, RecordLayer {
 				});
 			} catch (RejectedExecutionException e) {
 				LOGGER.debug("Execution rejected while sending application record [peer: {}]",
-						msg.getInetSocketAddress(), e);
-				msg.onError(new InterruptedIOException("Connector is not running."));
+						StringUtil.toLog(message.getInetSocketAddress()), e);
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, {}", message.getSize(),
+						StringUtil.toLog(message.getInetSocketAddress()), e.getMessage());
+				message.onError(new InterruptedIOException("Connector is not running."));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
 			}
 		} else {
 			pendingOutboundMessagesCountdown.incrementAndGet();
-			LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
-					msg.getInetSocketAddress());
-			msg.onError(new IllegalStateException("Outbound message overflow!"));
+			DROP_LOGGER.warn("Outbound message overflow! Dropping outbound message to peer [{}]",
+					StringUtil.toLog(message.getInetSocketAddress()));
+			message.onError(new IllegalStateException("Outbound message overflow!"));
+			if (health != null) {
+				health.sendingRecord(true);
+			}
 		}
 	}
 
@@ -1787,119 +2559,239 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * deferred to after the handshake has been completed and a session is established.
 	 * </p>
 	 * 
+	 * @param nanos system nanoseconds of receiving the data
 	 * @param message the data to send to the peer
 	 * @param connection connection of the peer
-	 * @throws HandshakeException if starting a handshake fails
+	 * @throws HandshakeException if starting the handshake fails
 	 */
-	private void sendMessage(final RawData message, final Connection connection) throws HandshakeException {
+	private void sendMessage(final long nanos, final RawData message, final Connection connection) throws HandshakeException {
 
-		InetSocketAddress peerAddress = message.getInetSocketAddress();
-		LOGGER.debug("Sending application layer message to [{}]", message.getEndpointContext());
-
-		DTLSSession session = connection.getEstablishedSession();
-		SessionTicket ticket = connection.getSessionTicket();
-		if (session == null && ticket == null) {
-			if (serverOnly) {
-				message.onError(new EndpointUnconnectedException());
-				return;
+		if (connection.getPeerAddress() == null) {
+			long delay = TimeUnit.NANOSECONDS.toMillis(ClockUtil.nanoRealtime() - nanos);
+			DROP_LOGGER.info("Drop outgoing record with {} bytes, connection lost address {}! (shift {}ms)", message.getSize(),
+					StringUtil.toLog(message.getInetSocketAddress()), delay);
+			message.onError(new EndpointUnconnectedException("connection not longer assigned to address!"));
+			if (health != null) {
+				health.sendingRecord(true);
 			}
-			if (!checkOutboundEndpointContext(message, null)) {
-				return;
-			}
-			message.onConnecting();
-			Handshaker handshaker = connection.getOngoingHandshake();
-			if (handshaker == null) {
-				session = new DTLSSession(peerAddress);
-				session.setVirtualHost(message.getEndpointContext().getVirtualHost());
-				// no session with peer established nor handshaker started yet,
-				// create new empty session & start handshake
-				handshaker = new ClientHandshaker(session, this, connection, config, maximumTransmissionUnit);
-				initializeHandshaker(handshaker);
-				handshaker.startHandshake();
-			}
-			handshaker.addApplicationDataForDeferredProcessing(message);
+			return;
 		}
-		else {
-			Long timeout = autoResumptionTimeoutMillis;
-			String contextTimeout = message.getEndpointContext().get(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
-			if (contextTimeout != null) {
-				if (contextTimeout.isEmpty()) {
-					timeout = null;
-				} else {
-					try {
-						timeout = Long.valueOf(contextTimeout);
-					} catch (NumberFormatException e) {
-					}
+		LOGGER.trace("Sending application layer message to [{}]", message.getEndpointContext());
+
+		Handshaker handshaker = connection.getOngoingHandshake();
+		if (handshaker != null && !handshaker.hasContextEstablished()) {
+			if (handshaker.isExpired()) {
+				// handshake expired during Android / OS "deep sleep"
+				// on sending, abort, keep connection for new handshake
+				handshaker.handshakeAborted(new Exception("handshake already expired!"));
+			} else if (handshaker.isProbing()) {
+				if (checkOutboundEndpointContext(message, null)) {
+					message.onConnecting();
+					handshaker.addApplicationDataForDeferredProcessing(message);
 				}
+				return;
 			}
-			if (connection.isAutoResumptionRequired(timeout)) {
-				// create the session to resume from the previous one.
-				if (serverOnly) {
-					message.onError(new EndpointMismatchException());
-					return;
-				}
-				message.onConnecting();
-				Handshaker handshaker;
-				SessionId sessionId;
-				if (session != null) {
-					ticket = session.getSessionTicket();
-					sessionId = session.getSessionIdentifier();
-					connectionStore.removeFromEstablishedSessions(session, connection);
-				} else {
-					sessionId = connection.getSessionIdentity();
-				}
-				connection.resetSession();
-				Handshaker previous = connection.getOngoingHandshake();
-				if (sessionId.isEmpty()) {
-					// server may use a empty session id to indicate,
-					// that resumption is not supported
-					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
-					DTLSSession newSession = new DTLSSession(peerAddress);
-					newSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
-					handshaker = new ClientHandshaker(newSession, this, connection, config, maximumTransmissionUnit);
-				} else {
-					DTLSSession resumableSession = new DTLSSession(sessionId, peerAddress, ticket, 0);
-					resumableSession.setVirtualHost(message.getEndpointContext().getVirtualHost());
-					handshaker = new ResumingClientHandshaker(resumableSession, this, connection, config,
-							maximumTransmissionUnit);
-				}
-				initializeHandshaker(handshaker);
-				if (previous != null) {
-					handshaker.takeDeferredApplicationData(previous);
-				}
-				handshaker.addApplicationDataForDeferredProcessing(message);
-				handshaker.startHandshake();
-			} else {
-				// session with peer has already been established,
-				// use it to send encrypted message
-				sendMessage(message, connection, session);
-			}
+		}
+
+		if (connection.isActive() && !connection.isClosed()) {
+			sendMessageWithSession(message, connection);
+		} else {
+			sendMessageWithoutSession(message, connection);
 		}
 	}
 
-	private void sendMessage(final RawData message, final Connection connection, final DTLSSession session) {
+	/**
+	 * Send message without session.
+	 * 
+	 * Starts handshake, if not already pending, and queue message.
+	 * 
+	 * @param message message to send after handshake completes
+	 * @param connection connection to send message
+	 * @throws HandshakeException If exception occurred starting the handshake
+	 * @since 2.1
+	 */
+	private void sendMessageWithoutSession(final RawData message, final Connection connection)
+			throws HandshakeException {
+
+		if (!checkOutboundEndpointContext(message, null)) {
+			return;
+		}
+		Handshaker handshaker = connection.getOngoingHandshake();
+		if (handshaker == null) {
+			if (serverOnly) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, server only, connection missing!",
+						message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+				message.onError(new EndpointUnconnectedException("server only, connection missing!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
+			boolean none = getEffectiveHandshakeMode(message).contentEquals(DtlsEndpointContext.HANDSHAKE_MODE_NONE);
+			if (none) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, connection missing!", message.getSize(),
+						StringUtil.toLog(message.getInetSocketAddress()));
+				message.onError(new EndpointUnconnectedException("connection missing!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
+			String hostname = message.getEndpointContext().getVirtualHost();
+			// no session with peer established nor handshaker started yet,
+			// create new empty session & start handshake
+			ClientHandshaker clientHandshaker = new ClientHandshaker(hostname, this, timer, connection, config, false);
+			initializeHandshaker(clientHandshaker);
+			message.onConnecting();
+			clientHandshaker.addApplicationDataForDeferredProcessing(message);
+			clientHandshaker.startHandshake(); // may fail with IOException!
+		} else {
+			message.onConnecting();
+			handshaker.addApplicationDataForDeferredProcessing(message);
+		}
+	}
+
+	/**
+	 * Send message with session.
+	 * 
+	 * Starts handshake, if requested by resumption or {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}.
+	 * 
+	 * @param message message to send
+	 * @param connection connection to send message
+	 * @throws HandshakeException If exception occurred starting the handshake
+	 * @since 2.1
+	 */
+	private void sendMessageWithSession(final RawData message, final Connection connection) throws HandshakeException {
+
+		DTLSContext context = connection.getEstablishedDtlsContext();
+		boolean markedAsClosed = context != null && context.isMarkedAsClosed();
+		String handshakeMode = getEffectiveHandshakeMode(message);
+		boolean none = DtlsEndpointContext.HANDSHAKE_MODE_NONE.equals(handshakeMode);
+		if (none) {
+			if (markedAsClosed || connection.isResumptionRequired()) {
+				DROP_LOGGER.trace("DTLSConnector drops {} outgoing bytes to {}, resumption required!", message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+				message.onError(new EndpointUnconnectedException("resumption required!"));
+				if (health != null) {
+					health.sendingRecord(true);
+				}
+				return;
+			}
+		} else {
+			boolean probing = DtlsEndpointContext.HANDSHAKE_MODE_PROBE.equals(handshakeMode);
+			boolean full = DtlsEndpointContext.HANDSHAKE_MODE_FORCE_FULL.equals(handshakeMode);
+			boolean force = probing || full || DtlsEndpointContext.HANDSHAKE_MODE_FORCE.equals(handshakeMode);
+			if (force || markedAsClosed || connection.isAutoResumptionRequired(getAutResumptionTimeout(message))) {
+				// create the session to resume from the previous one.
+				if (serverOnly) {
+					DROP_LOGGER.trace(
+							"DTLSConnector drops {} outgoing bytes to {}, server only, resumption requested failed!",
+							message.getSize(), StringUtil.toLog(message.getInetSocketAddress()));
+					message.onError(new EndpointUnconnectedException("server only, resumption requested failed!"));
+					if (health != null) {
+						health.sendingRecord(true);
+					}
+					return;
+				}
+				message.onConnecting();
+				String hostname = message.getEndpointContext().getVirtualHost();
+				Handshaker previousHandshaker = connection.getOngoingHandshake();
+				DTLSSession newSession = null;
+				if (!full) {
+					boolean destroy = false;
+					DTLSSession resume;
+					if (context != null) {
+						resume = context.getSession();
+					} else {
+						resume = connection.getResumeSession();
+						destroy = true;
+					}
+					full = resume.getSessionIdentifier().isEmpty();
+					if (!full && config.getExtendedMasterSecretMode().is(ExtendedMasterSecretMode.ENABLED)) {
+						// https://tools.ietf.org/html/rfc7627#section-5.3
+						// The client SHOULD NOT offer an abbreviated handshake
+						// to resume a session that does not use an extended
+						// master secret. Instead, it SHOULD offer a full
+						// handshake.
+						full = !resume.useExtendedMasterSecret();
+					}
+					if (!full) {
+						newSession = new DTLSSession(resume);
+						newSession.setHostName(hostname);
+					}
+					if (destroy) {
+						SecretUtil.destroy(resume);
+					}
+				}
+				if (context != null) {
+					if (!probing) {
+						connectionStore.removeFromEstablishedSessions(context.getSession(), connection);
+					}
+				} else {
+					probing = false;
+				}
+				if (probing) {
+					// Only reset the resumption trigger, but keep the session for now
+					// the session will be reseted with the first received data
+					connection.setResumptionRequired(false);
+				} else {
+					connection.resetContext();
+				}
+				ClientHandshaker newHandshaker;
+				if (full) {
+					// server may use a empty session id to indicate,
+					// that resumption is not supported
+					// https://tools.ietf.org/html/rfc5246#section-7.4.1.3
+					newHandshaker = new ClientHandshaker(hostname, this, timer, connection, config, probing);
+				} else {
+					newHandshaker = new ResumingClientHandshaker(newSession, this, timer, connection, config, probing);
+				}
+				initializeHandshaker(newHandshaker);
+				if (previousHandshaker != null) {
+					newHandshaker.takeDeferredApplicationData(previousHandshaker);
+					// abort, keep connection
+					previousHandshaker.handshakeAborted(new Exception("handshake replaced!"));
+				}
+				newHandshaker.addApplicationDataForDeferredProcessing(message);
+				newHandshaker.startHandshake();
+				return;
+			}
+		}
+		// session with peer has already been established,
+		// use it to send encrypted message
+		sendMessage(message, connection);
+	}
+
+	private void sendMessage(final RawData message, final Connection connection) {
 		try {
-			LOGGER.trace("send {}-{} using {}-{}", connection.getConnectionId(), connection.getPeerAddress(),
-					session.getSessionIdentifier(), session.getPeer());
-			final EndpointContext ctx = session.getConnectionWriteContext();
-			if (!checkOutboundEndpointContext(message, ctx)) {
+			DTLSContext dltsContext = connection.getEstablishedDtlsContext();
+			LOGGER.trace("send {}-{} using {}", connection.getConnectionId(),
+					StringUtil.toLog(connection.getPeerAddress()), dltsContext.getSession().getSessionIdentifier());
+			final DtlsEndpointContext context = connection.getWriteContext();
+			if (!checkOutboundEndpointContext(message, context)) {
 				return;
 			}
 
-			message.onContextEstablished(ctx);
+			message.onContextEstablished(context);
 			Record record = new Record(
 					ContentType.APPLICATION_DATA,
-					session.getWriteEpoch(),
-					session.getSequenceNumber(),
-					new ApplicationMessage(message.getBytes(), message.getInetSocketAddress()),
-					session, true, TLS12_CID_PADDING);
+					dltsContext.getWriteEpoch(),
+					new ApplicationMessage(message.getBytes()),
+					dltsContext,
+					true, TLS12_CID_PADDING);
+			record.setAddress(connection.getPeerAddress(), connection.getRouter());
 			sendRecord(record);
 			message.onSent();
-			connection.refreshAutoResumptionTime();
+			connectionStore.update(connection, null);
+			if (connectionListener != null) {
+				if (connectionListener.onConnectionUpdatesSequenceNumbers(connection, true)) {
+					closeConnection(connection);
+				}
+			}
 		} catch (IOException e) {
 			message.onError(e);
 		} catch (GeneralSecurityException e) {
-			LOGGER.debug("Cannot send APPLICATION record to peer [{}]", message.getInetSocketAddress(), e);
+			DROP_LOGGER.warn("Cannot send APPLICATION record to peer [{}]",
+					StringUtil.toLog(message.getInetSocketAddress()), e);
 			message.onError(e);
 		}
 	}
@@ -1918,9 +2810,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 	private boolean checkOutboundEndpointContext(final RawData message, final EndpointContext connectionContext) {
 		final EndpointContextMatcher endpointMatcher = getEndpointContextMatcher();
 		if (null != endpointMatcher && !endpointMatcher.isToBeSent(message.getEndpointContext(), connectionContext)) {
-			LOGGER.warn("DTLSConnector ({}) drops {} bytes, {} != {}", this, message.getSize(),
-					message.getEndpointContext(), connectionContext);
-			message.onError(new EndpointMismatchException());
+			if (DROP_LOGGER.isInfoEnabled()) {
+				DROP_LOGGER.info("DTLSConnector ({}) drops {} bytes outgoing, {} != {}", this, message.getSize(),
+						endpointMatcher.toRelevantState(message.getEndpointContext()),
+						endpointMatcher.toRelevantState(connectionContext));
+			}
+			message.onError(new EndpointMismatchException("DTLS sending"));
+			if (health != null) {
+				health.sendingRecord(true);
+			}
 			return false;
 		}
 		return true;
@@ -1930,73 +2828,71 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * Returns the {@link DTLSSession} related to the given peer address.
 	 * 
 	 * @param address the peer address
-	 * @return the {@link DTLSSession} or <code>null</code> if no session found.
+	 * @return the {@link DTLSSession}, or {@code null}, if session is not available.
 	 */
 	public final DTLSSession getSessionByAddress(InetSocketAddress address) {
+		DTLSContext context = getDtlsContextByAddress(address);
+		if (context != null) {
+			return context.getSession();
+		}
+		return null;
+	}
+
+	/**
+	 * Returns the {@link DTLSContext} related to the given peer address.
+	 * 
+	 * @param address the peer address
+	 * @return the {@link DTLSContext}, or {@code null}, if context is not available.
+	 */
+	public final DTLSContext getDtlsContextByAddress(InetSocketAddress address) {
 		if (address == null) {
 			return null;
 		}
 		Connection connection = connectionStore.get(address);
 		if (connection != null) {
-			return connection.getEstablishedSession();
+			return connection.getEstablishedDtlsContext();
 		} else {
 			return null;
 		}
 	}
 
 	@Override
-	public void sendFlight(DTLSFlight flight, Connection connection) throws IOException {
-		if (flight != null) {
-			if (flight.isRetransmissionNeeded()) {
-				scheduleRetransmission(flight, connection);
-			}
-			sendFlightOverNetwork(flight);
+	public void dropReceivedRecord(Record record) {
+		DROP_LOGGER.debug("Discarding {} record [epoch {}, rseqn {}] dropped by handshaker for peer [{}]", record.getType(),
+				record.getEpoch(), record.getSequenceNumber(), StringUtil.toLog(record.getPeerAddress()));
+		if (health != null) {
+			health.receivingRecord(true);
 		}
 	}
 
-	private void sendFlightOverNetwork(DTLSFlight flight) throws IOException {
-		byte[] payload = Bytes.EMPTY;
-		int maxDatagramSize = flight.getSession().getMaxDatagramSize();
-
-		// put as many records into one datagram as allowed by the max. payload size
-		List<DatagramPacket> datagrams = new ArrayList<DatagramPacket>();
-
-		for (Record record : flight.getMessages()) {
-			byte[] recordBytes = record.toByteArray();
-			if (recordBytes.length > maxDatagramSize) {
-				LOGGER.info("{} record of {} bytes for peer [{}] exceeds max. datagram size [{}], discarding...",
-						record.getType(), recordBytes.length, record.getPeerAddress(), maxDatagramSize);
-				// TODO: inform application layer, e.g. using error handler
-				continue;
-			}
-			LOGGER.trace("Sending record of {} bytes to peer [{}]:\n{}", recordBytes.length, flight.getPeerAddress(),
-					record);
-
-			if (payload.length + recordBytes.length > maxDatagramSize) {
-				// current record does not fit into datagram anymore
-				// thus, send out current datagram and put record into new one
-				DatagramPacket datagram = new DatagramPacket(payload, payload.length,
-						flight.getPeerAddress().getAddress(), flight.getPeerAddress().getPort());
-				datagrams.add(datagram);
-				payload = Bytes.EMPTY;
-			}
-
-			payload = ByteArrayUtils.concatenate(payload, recordBytes);
+	@Override
+	public int getMaxDatagramSize(boolean ipv6) {
+		int headerSize = ipv6 ? IPV6_HEADER_LENGTH : IPV4_HEADER_LENGTH;
+		int mtu = maximumTransmissionUnit != null ? maximumTransmissionUnit : (ipv6 ? ipv6Mtu : ipv4Mtu);
+		int size = mtu - headerSize;
+		if (size < 64) {
+			throw new IllegalStateException(
+					String.format("%s, datagram size %d, mtu %d", ipv6 ? "IPV6" : "IPv4", size, mtu));
 		}
+		return mtu - headerSize;
+	}
 
-		DatagramPacket datagram = new DatagramPacket(payload, payload.length, flight.getPeerAddress().getAddress(),
-				flight.getPeerAddress().getPort());
-		datagrams.add(datagram);
-
+	@NoPublicAPI
+	@Override
+	public void sendFlight(List<DatagramPacket> datagrams) throws IOException {
 		// send it over the UDP socket
-		LOGGER.debug("Sending flight of {} message(s) to peer [{}] using {} datagram(s) of max. {} bytes",
-				flight.getMessages().size(), flight.getPeerAddress(), datagrams.size(), maxDatagramSize);
 		for (DatagramPacket datagramPacket : datagrams) {
+			if (health != null) {
+				health.sendingRecord(false);
+			}
 			sendNextDatagramOverNetwork(datagramPacket);
 		}
 	}
 
 	protected void sendRecord(Record record) throws IOException {
+		if (health != null && record.getType() != ContentType.APPLICATION_DATA) {
+			health.sendingRecord(false);
+		}
 		byte[] recordBytes = record.toByteArray();
 		DatagramPacket datagram = new DatagramPacket(recordBytes, recordBytes.length, record.getPeerAddress());
 		sendNextDatagramOverNetwork(datagram);
@@ -2008,6 +2904,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 			try {
 				socket.send(datagramPacket);
 				return;
+			} catch (PortUnreachableException e) {
+				if (!socket.isClosed()) {
+					LOGGER.warn("Could not send record, destination {} unreachable!",
+							StringUtil.toLog(datagramPacket.getSocketAddress()));
+				}
 			} catch (IOException e) {
 				if (!socket.isClosed()) {
 					LOGGER.warn("Could not send record", e);
@@ -2019,117 +2920,78 @@ public class DTLSConnector implements Connector, RecordLayer {
 		if (address == null) {
 			address = config.getAddress();
 		}
-		LOGGER.debug("Socket [{}] is closed, discarding packet ...", address);
+		DROP_LOGGER.debug("Socket [{}] is closed, discarding packet ...", address);
 		throw new IOException("Socket closed.");
 	}
 
-	private void handleTimeout(DTLSFlight flight, Connection connection) {
+	/**
+	 * Process handshake result.
+	 * 
+	 * @param handshakeResult asynchronous handshake result
+	 * @since 2.5
+	 */
+	private void processAsynchronousHandshakeResult(final HandshakeResult handshakeResult) {
+		final Connection connection = connectionStore.get(handshakeResult.getConnectionId());
+		if (connection != null && connection.hasOngoingHandshake()) {
+			SerialExecutor serialExecutor = connection.getExecutor();
 
-		if (!flight.isResponseCompleted() && !connection.hasEstablishedSession()) {
-			Handshaker handshaker = connection.getOngoingHandshake();
-			if (null != handshaker) {
-				Exception cause = null;
-				if (!connection.isExecuting() || !running.get()) {
-					cause = new Exception("Stopped by shutdown!");
-				} else if (!connection.equalsPeerAddress(flight.getPeerAddress())) {
-					cause = new Exception("Stopped by address change!");
-				} else {
-					// set DTLS retransmission maximum
-					final int max = config.getMaxRetransmissions();
-					int tries = flight.getTries();
+			try {
 
-					if (tries < max) {
-						// limit of retransmissions not reached
-						if (config.isEarlyStopRetransmission() && flight.isResponseStarted()) {
-							// don't retransmit, just schedule last timeout
-							while (tries < max) {
-								++tries;
-								flight.incrementTries();
-								flight.incrementTimeout();
+				serialExecutor.execute(new Runnable() {
+
+					@Override
+					public void run() {
+						if (running.get()) {
+							Handshaker handshaker = connection.getOngoingHandshake();
+							if (handshaker != null) {
+								try {
+									handshaker.processAsyncHandshakeResult(handshakeResult);
+								} catch (HandshakeException e) {
+									processExceptionDuringHandshake(null, connection, e);
+								} catch (IllegalStateException e) {
+									LOGGER.warn("Exception while processing handshake result [{}]", connection, e);
+								}
+							} else {
+								LOGGER.debug("No ongoing handshake for result [{}]", connection);
 							}
-							// increment one more to indicate, that
-							// handshake times out without reaching
-							// the max retransmissions.
-							flight.incrementTries();
-							LOGGER.debug("schedule handshake timeout {}ms after flight {}", flight.getTimeout(),
-									flight.getFlightNumber());
-							ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(),
-									TimeUnit.MILLISECONDS);
-							flight.setTimeoutTask(f);
-							return;
+						} else {
+							LOGGER.debug("Execution stopped while processing handshake result [{}]", connection);
 						}
-
-						LOGGER.debug("Re-transmitting flight for [{}], [{}] retransmissions left",
-								flight.getPeerAddress(), max - tries - 1);
-						try {
-							flight.incrementTries();
-							flight.setNewSequenceNumbers();
-							sendFlightOverNetwork(flight);
-
-							// schedule next retransmission
-							scheduleRetransmission(flight, connection);
-							handshaker.handshakeFlightRetransmitted(flight.getFlightNumber());
-							return;
-						} catch (IOException e) {
-							// stop retransmission on IOExceptions
-							cause = e;
-							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-						} catch (GeneralSecurityException e) {
-							LOGGER.info("Cannot retransmit flight to peer [{}]", flight.getPeerAddress(), e);
-							cause = e;
-						}
-					} else if (tries > max) {
-						LOGGER.debug("Flight for [{}] has reached timeout, discarding ...",
-								flight.getPeerAddress());
-						cause = new Exception("handshake timeout with flight " + flight.getFlightNumber() + "!");
-					} else {
-						LOGGER.debug(
-								"Flight for [{}] has reached maximum no. [{}] of retransmissions, discarding ...",
-								flight.getPeerAddress(), max);
-						cause = new Exception("handshake flight " + flight.getFlightNumber() + " timeout after "
-								+ max + " retransmissions!");
 					}
-				}
-				cause = new Exception("handshake flight " + flight.getFlightNumber() + " failed!", cause);
-
-				// inform handshaker
-				handshaker.handshakeFailed(cause);
+				});
+			} catch (RejectedExecutionException e) {
+				// dont't terminate connection on shutdown!
+				LOGGER.debug("Execution rejected while processing handshake result [{}]", connection, e);
+			} catch (RuntimeException e) {
+				LOGGER.warn("Unexpected error occurred while processing handshake result [{}]", connection, e);
 			}
-		}
-	}
-
-	private void scheduleRetransmission(DTLSFlight flight, Connection connection) {
-
-		if (flight.isRetransmissionNeeded()) {
-
-			// calculate timeout using exponential back-off
-			if (flight.getTimeout() == 0) {
-				// use initial timeout
-				flight.setTimeout(config.getRetransmissionTimeout());
-			} else {
-				// double timeout
-				flight.incrementTimeout();
-			}
-
-			// schedule retransmission task
-			ScheduledFuture<?> f = timer.schedule(new TimeoutPeerTask(connection, flight), flight.getTimeout(), TimeUnit.MILLISECONDS);
-			flight.setTimeoutTask(f);
+		} else {
+			LOGGER.debug("No connection or ongoing handshake for handshake result [{}]", connection);
 		}
 	}
 
 	/**
-	 * Gets the MTU value of the network interface this connector is bound to.
-	 * <p>
-	 * Applications may use this property to determine the maximum length of application
-	 * layer data that can be sent using this connector without requiring IP fragmentation.
-	 * <p> 
-	 * The value returned will be 0 if this connector is not running or the network interface
-	 * this connector is bound to does not provide an MTU value.
+	 * Get auto resumption timeout.
 	 * 
-	 * @return the MTU provided by the network interface
+	 * Check, if {@link DtlsEndpointContext#KEY_RESUMPTION_TIMEOUT} is provided,
+	 * or use {@link #autoResumptionTimeoutMillis} as default.
+	 * 
+	 * @param message message to check for auto resumption timeout.
+	 * @return resulting timeout in milliseconds. {@code null} for no auto
+	 *         resumption.
+	 * @since 2.1
 	 */
-	public final int getMaximumTransmissionUnit() {
-		return maximumTransmissionUnit;
+	private Long getAutResumptionTimeout(RawData message) {
+		Long timeout = autoResumptionTimeoutMillis;
+		Number contextTimeout = message.getEndpointContext().getNumber(DtlsEndpointContext.KEY_RESUMPTION_TIMEOUT);
+		if (contextTimeout != null) {
+			if (contextTimeout.longValue() >= 0) {
+				timeout = contextTimeout.longValue();
+			} else {
+				timeout = null;
+			}
+		}
+		return timeout;
 	}
 
 	/**
@@ -2150,7 +3012,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * </p>
 	 * <pre>
 	 *   maxFragmentLength = network interface's <em>Maximum Transmission Unit</em>
-	 *                     - IP header length (20 bytes)
+	 *                     - IP header length (20 bytes IPv4, 120 IPv6)
 	 *                     - UDP header length (8 bytes)
 	 *                     - DTLS record header length (13 bytes)
 	 *                     - DTLS message header length (12 bytes)
@@ -2161,11 +3023,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @return the maximum length in bytes
 	 */
 	public final int getMaximumFragmentLength(InetSocketAddress peer) {
-		Connection con = connectionStore.get(peer);
-		if (con != null && con.hasEstablishedSession()) {
-			return con.getEstablishedSession().getMaxFragmentLength();
+		DTLSContext dtlsContext = getDtlsContextByAddress(peer);
+		if (dtlsContext != null) {
+			return dtlsContext.getSession().getMaxFragmentLength();
 		} else {
-			return maximumTransmissionUnit - DTLSSession.HEADER_LENGTH;
+			return getMaxDatagramSize(peer.getAddress() instanceof Inet6Address) - Record.DTLS_HANDSHAKE_HEADER_LENGTH;
 		}
 	}
 
@@ -2178,10 +3040,11 @@ public class DTLSConnector implements Connector, RecordLayer {
 	@Override
 	public final InetSocketAddress getAddress() {
 		DatagramSocket socket = getSocket();
-		if (socket == null) {
+		int localPort = socket == null ? -1 : socket.getLocalPort();
+		if (localPort < 0) {
 			return config.getAddress();
 		} else {
-			return new InetSocketAddress(socket.getLocalAddress(), socket.getLocalPort());
+			return new InetSocketAddress(socket.getLocalAddress(), localPort);
 		}
 	}
 
@@ -2190,75 +3053,15 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * 
 	 * @return {@code true} if running.
 	 */
+	@Override
 	public final boolean isRunning() {
 		return running.get();
 	}
 
 	/**
-	 * Peer related task for executing in serial executor.
-	 */
-	private class ConnectionTask implements Runnable {
-		/**
-		 * Related peer.
-		 */
-		private final Connection connection;
-		/**
-		 * Task to execute in serial executor.
-		 */
-		private final Runnable task;
-		/**
-		 * Flag to force execution, if serial execution is exhausted or
-		 * shutdown. The task is then executed in the context of this
-		 * {@link Runnable}.
-		 */
-		private final boolean force;
-		/**
-		 * Create peer task.
-		 * 
-		 * @param connection connection for related peer
-		 * @param task task to be execute in serial executor
-		 * @param force flag indicating, that the task should be executed, even
-		 *            if the serial executors are exhausted or shutdown.
-		 */
-		private ConnectionTask(Connection connection, Runnable task, boolean force) {
-			this.connection = connection;
-			this.task = task;
-			this.force = force;
-		}
-
-		@Override
-		public void run() {
-			final SerialExecutor serialExecutor = connection.getExecutor();
-			try {
-				serialExecutor.execute(task);
-			} catch (RejectedExecutionException e) {
-				LOGGER.debug("Execution rejected while execute task of peer: {}", connection.getPeerAddress(), e);
-				if (force) {
-					task.run();
-				}
-			}
-		}
-	}
-
-	/**
-	 * Peer task calling the {@link #handleTimeout(DTLSFlight, Connection)}. 
-	 */
-	private class TimeoutPeerTask extends ConnectionTask {
-
-		private TimeoutPeerTask(final Connection connection, final DTLSFlight flight) {
-			super(connection, new Runnable() {
-				@Override
-				public void run() {
-					handleTimeout(flight, connection);
-				}
-			}, true);
-		}
-	}
-
-	/**
 	 * A worker thread for continuously doing repetitive tasks.
 	 */
-	private abstract class Worker extends Thread {
+	protected abstract class Worker extends Thread {
 		/**
 		 * Instantiates a new worker.
 		 *
@@ -2275,16 +3078,32 @@ public class DTLSConnector implements Connector, RecordLayer {
 				while (running.get()) {
 					try {
 						doWork();
-					} catch (ClosedByInterruptException e) {
-						LOGGER.info("Worker thread [{}] has been interrupted", getName());
+					} catch (InterruptedIOException e) {
+						if (running.get()) {
+							LOGGER.info("Worker thread [{}] IO has been interrupted", getName());
+						} else {
+							LOGGER.debug("Worker thread [{}] IO has been interrupted", getName());
+						}
+					} catch (InterruptedException e) {
+						if (running.get()) {
+							LOGGER.info("Worker thread [{}] has been interrupted", getName());
+						} else {
+							LOGGER.debug("Worker thread [{}] has been interrupted", getName());
+						}
 					} catch (Exception e) {
 						if (running.get()) {
 							LOGGER.debug("Exception thrown by worker thread [{}]", getName(), e);
+						} else {
+							LOGGER.trace("Exception thrown by worker thread [{}]", getName(), e);
 						}
 					}
 				}
 			} finally {
-				LOGGER.info("Worker thread [{}] has terminated", getName());
+				if (running.get()) {
+					LOGGER.info("Worker thread [{}] has terminated", getName());
+				} else {
+					LOGGER.debug("Worker thread [{}] has terminated", getName());
+				}
 			}
 		}
 
@@ -2298,6 +3117,112 @@ public class DTLSConnector implements Connector, RecordLayer {
 		protected abstract void doWork() throws Exception;
 	}
 
+	/**
+	 * Future implementation for tasks passed in to the serial executors for each
+	 * connection.
+	 */
+	private static class ForEachFuture implements Future<Void> {
+
+		private final Lock lock = new ReentrantLock();
+		private final Condition waitDone = lock.newCondition();
+		private volatile boolean cancel;
+		private volatile boolean done;
+		private volatile Exception exception;
+
+		/**
+		 * {@inheritDoc}
+		 * 
+		 * Cancel iteration for each connection.
+		 * 
+		 * Note: if a connection serial execution busy executing a different
+		 * blocking task, cancel will not interrupt that task!
+		 */
+		@Override
+		public boolean cancel(boolean mayInterruptIfRunning) {
+			boolean cancelled = false;
+			lock.lock();
+			try {
+				if (!done && !cancel) {
+					cancelled = true;
+					cancel = true;
+				}
+			} finally {
+				lock.unlock();
+			}
+			return cancelled;
+		}
+
+		@Override
+		public boolean isCancelled() {
+			return cancel;
+		}
+
+		@Override
+		public boolean isDone() {
+			return done;
+		}
+
+		@Override
+		public Void get() throws InterruptedException, ExecutionException {
+			lock.lock();
+			try {
+				if (!done) {
+					waitDone.await();
+				}
+				if (exception != null) {
+					throw new ExecutionException(exception);
+				}
+			} finally {
+				lock.unlock();
+			}
+			return null;
+		}
+
+		@Override
+		public Void get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
+			lock.lock();
+			try {
+				if (!done) {
+					waitDone.await(timeout, unit);
+				}
+				if (exception != null) {
+					throw new ExecutionException(exception);
+				}
+			} finally {
+				lock.unlock();
+			}
+			return null;
+		}
+
+		/**
+		 * Signals, that the task has completed.
+		 */
+		public void done() {
+			lock.lock();
+			try {
+				done = true;
+				waitDone.signalAll();
+			} finally {
+				lock.unlock();
+			}
+		}
+
+		public void failed(Exception exception) {
+			lock.lock();
+			try {
+				this.exception = exception;
+				done = true;
+				waitDone.signalAll();
+			} finally {
+				lock.unlock();
+			}
+		}
+
+		public boolean isStopped() {
+			return done || cancel;
+		}
+	}
+
 	@Override
 	public void setRawDataReceiver(final RawDataChannel messageHandler) {
 		if (isRunning()) {
@@ -2307,14 +3232,34 @@ public class DTLSConnector implements Connector, RecordLayer {
 	}
 
 	@Override
-	public synchronized void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
+	public void setEndpointContextMatcher(EndpointContextMatcher endpointContextMatcher) {
 		this.endpointContextMatcher = endpointContextMatcher;
 	}
 
-	private synchronized EndpointContextMatcher getEndpointContextMatcher() {
+	private EndpointContextMatcher getEndpointContextMatcher() {
 		return endpointContextMatcher;
 	}
 
+	/**
+	 * Get effective handshake mode.
+	 * 
+	 * Either the handshake mode provided in the message's endpoint-context, see
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, or, if that is not
+	 * available, the default from the configuration
+	 * {@link DtlsConnectorConfig#getDefaultHandshakeMode()}.
+	 * 
+	 * @param message message to be sent
+	 * @return effective handshake mode.
+	 * @since 2.1
+	 */
+	private String getEffectiveHandshakeMode(RawData message) {
+		String mode = message.getEndpointContext().getString(DtlsEndpointContext.KEY_HANDSHAKE_MODE);
+		if (mode == null) {
+			mode = defaultHandshakeMode;
+		}
+		return mode;
+	}
+	
 	/**
 	 * Sets a handler to call back if an alert message is received from a peer.
 	 * <p>
@@ -2334,37 +3279,23 @@ public class DTLSConnector implements Connector, RecordLayer {
 	 * @param handler The handler to notify.
 	 */
 	public final void setAlertHandler(AlertHandler handler) {
-		synchronized (alertHandlerLock) {
-			this.alertHandler = handler;
-		}
+		this.alertHandler = handler;
 	}
 
-	private void handleExceptionDuringHandshake(HandshakeException cause, AlertLevel level, AlertDescription description, Connection connection, Record record) {
-		// discard none fatal alert exception
-		if (!AlertLevel.FATAL.equals(level)) {
-			discardRecord(record, cause);
-			return;
+	private void discardRecord(final Record record, final Throwable cause) {
+		if (health != null) {
+			health.receivingRecord(true);
 		}
-
-		// "Unknown identity" and "bad PSK" should be both handled in a same way.
-		// Generally "bad PSK" means invalid MAC on FINISHED message.
-		// In production both should be silently ignored : https://bugs.eclipse.org/bugs/show_bug.cgi?id=533258
-		if (AlertDescription.UNKNOWN_PSK_IDENTITY == description) {
-			discardRecord(record, cause);
-			return;
-		}
-
-		// in other cases terminate handshake
-		terminateOngoingHandshake(connection, cause, description);
-	}
-
-	private static void discardRecord(final Record record, final Throwable cause) {
-		if (LOGGER.isTraceEnabled()) {
-			LOGGER.trace("Discarding {} record from peer [{}]: ", record.getType(), record.getPeerAddress(), cause);
-		} else if (LOGGER.isDebugEnabled()) {
-			LOGGER.debug(
-				"Discarding {} record from peer [{}]: {}",
-				record.getType(), record.getPeerAddress(), cause.getMessage());
+		byte[] bytes = record.getFragmentBytes();
+		if (DROP_LOGGER.isTraceEnabled()) {
+			String hexString = StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 64);
+			DROP_LOGGER.trace("Discarding received {} record (epoch {}, payload: {}) from peer [{}]: ",
+					record.getType(), record.getEpoch(), hexString, StringUtil.toLog(record.getPeerAddress()), cause);
+		} else if (DROP_LOGGER.isDebugEnabled()) {
+			String hexString = StringUtil.byteArray2HexString(bytes, StringUtil.NO_SEPARATOR, 16);
+			DROP_LOGGER.debug("Discarding received {} record (epoch {}, payload: {}) from peer [{}]: {}",
+					record.getType(), record.getEpoch(), hexString, StringUtil.toLog(record.getPeerAddress()),
+					cause.getMessage());
 		}
 	}
 
@@ -2375,6 +3306,7 @@ public class DTLSConnector implements Connector, RecordLayer {
 
 	@Override
 	public String toString() {
-		return getProtocol() + "-" + getAddress();
-	}	
+		return getProtocol() + "-" + StringUtil.toString(getAddress());
+	}
+	
 }

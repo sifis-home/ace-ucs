@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,11 +27,12 @@ import org.slf4j.LoggerFactory;
  * Rule to adjust the test time nanoseconds.
  * 
  * Only affects {@link ClockUtil#nanoRealtime()}, but not
- * {@link ScheduledExecutorService} nor {@link Thread#wait()}.
+ * {@link java.util.concurrent.ScheduledExecutorService} nor
+ * {@link Thread#wait()}.
  */
 public class TestTimeRule extends TestWatcher {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(TestTimeRule.class);
 
 	/**
 	 * Realtime handler applying the {@link #timeShiftNanos}.
@@ -40,7 +41,17 @@ public class TestTimeRule extends TestWatcher {
 
 		@Override
 		public long nanoRealtime() {
-			return System.nanoTime() + getTestTimeShiftNanos();
+			long shift;
+			Long fixed;
+			synchronized (TestTimeRule.this) {
+				shift = timeShiftNanos;
+				fixed = timeFixed;
+			}
+			if (fixed != null) {
+				return fixed + shift;
+			} else {
+				return System.nanoTime() + shift;
+			}
 		}
 	};
 
@@ -52,6 +63,34 @@ public class TestTimeRule extends TestWatcher {
 	 * @see #getTestTimeShiftNanos()
 	 */
 	private long timeShiftNanos;
+
+	/**
+	 * Fix test time.
+	 * 
+	 * @see #setFixedTestTime(boolean)
+	 * @since 3.0
+	 */
+	private Long timeFixed;
+
+	/**
+	 * Set fixed test time.
+	 * 
+	 * If enabled, fixes the time of {@link ClockUtil} except the modifications
+	 * applied by {@link #addTestTimeShift(long, TimeUnit)} or
+	 * {@link #setTestTimeShift(long, TimeUnit)}.
+	 * 
+	 * @param enable {@code true} to fix the {@link ClockUtil} time,
+	 *            {@code false}, to release it.
+	 * @since 3.0
+	 */
+	public final synchronized void setFixedTestTime(boolean enable) {
+		LOGGER.debug("set fixed test time {}", enable);
+		if (enable) {
+			timeFixed = System.nanoTime();
+		} else {
+			timeFixed = null;
+		}
+	}
 
 	/**
 	 * Add provided time to {@link #timeShiftNanos}.

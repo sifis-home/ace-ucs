@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
  */
 public class SerialExecutor extends AbstractExecutorService {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(SerialExecutor.class);
 
 	/**
 	 * Target executor to execute job serially.
@@ -50,6 +50,15 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * Owner thread, which currently executes the {@link #currentlyExecutedJob}.
 	 */
 	private final AtomicReference<Thread> owner = new AtomicReference<Thread>();
+
+	/**
+	 * Execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @since 2.4
+	 */
+	private final AtomicReference<ExecutionListener> listener = new AtomicReference<ExecutionListener>();
 
 	/**
 	 * Queue for serialized jobs.
@@ -173,7 +182,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * Doesn't shutdown the target executor {@link #executor}.
 	 */
 	@Override
-	public final void shutdown() {
+	public void shutdown() {
 		lock.lock();
 		try {
 			shutdown = true;
@@ -190,12 +199,11 @@ public class SerialExecutor extends AbstractExecutorService {
 	 * @see #shutdownNow(Collection)
 	 */
 	@Override
-	public final List<Runnable> shutdownNow() {
+	public List<Runnable> shutdownNow() {
 		lock.lock();
 		try {
-			shutdown = true;
 			List<Runnable> pending = new ArrayList<>(tasks.size());
-			tasks.drainTo(pending);
+			shutdownNow(pending);
 			return pending;
 		} finally {
 			lock.unlock();
@@ -213,7 +221,7 @@ public class SerialExecutor extends AbstractExecutorService {
 	public int shutdownNow(final Collection<Runnable> jobs) {
 		lock.lock();
 		try {
-			shutdown = true;
+			shutdown();
 			return tasks.drainTo(jobs);
 		} finally {
 			lock.unlock();
@@ -272,16 +280,31 @@ public class SerialExecutor extends AbstractExecutorService {
 					@Override
 					public void run() {
 						try {
-							setOwner();
 							try {
-								command.run();
-							} catch (Throwable t) {
-								LOGGER.error("unexpected error occurred:", t);
+								setOwner();
+								ExecutionListener current = listener.get();
+								try {
+									if (current != null) {
+										current.beforeExecution();
+									}
+									command.run();
+								} catch (Throwable t) {
+									LOGGER.error("unexpected error occurred:", t);
+								} finally {
+									try {
+										if (current != null) {
+											current.afterExecution();
+										}
+									} catch (Throwable t) {
+										LOGGER.error("unexpected error occurred:", t);
+									}
+									clearOwner();
+								}
 							} finally {
-								clearOwner();
+								scheduleNextJob();
 							}
-						} finally {
-							scheduleNextJob();
+						} catch (RejectedExecutionException ex) {
+							LOGGER.debug("shutdown?", ex);
 						}
 					}
 				});
@@ -306,5 +329,32 @@ public class SerialExecutor extends AbstractExecutorService {
 			return new SerialExecutor(executor);
 		}
 		return null;
+	}
+
+	/**
+	 * Set execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @param listener execution listener.
+	 * @return previous execution listener
+	 * @since 2.4
+	 */
+	public ExecutionListener setExecutionListener(ExecutionListener listener) {
+		return this.listener.getAndSet(listener);
+	}
+
+	/**
+	 * Execution listener.
+	 * 
+	 * Called before and after executing a task.
+	 * 
+	 * @since 2.4
+	 */
+	public interface ExecutionListener {
+
+		void beforeExecution();
+
+		void afterExecution();
 	}
 }

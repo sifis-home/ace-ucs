@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -31,10 +31,12 @@
  ******************************************************************************/
 package org.eclipse.californium.elements;
 
-import java.net.InetAddress;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
 import java.net.InetSocketAddress;
 import java.security.Principal;
-import java.util.Arrays;
+
+import org.eclipse.californium.elements.util.ClockUtil;
 
 /**
  * A container object for the data received or sent via a {@link Connector}.
@@ -56,8 +58,20 @@ public final class RawData {
 	/** The raw message. */
 	public final byte[] bytes;
 
+	/**
+	 * Nano timestamp of receive time.
+	 */
+	private final long receiveNanoTimestamp;
+
 	/** Indicates if this message is a multicast message */
 	private final boolean multicast;
+
+	/**
+	 * Connectors inet socket address.
+	 * 
+	 * @since 3.0
+	 */
+	private final InetSocketAddress connector;
 
 	/**
 	 * Endpoint context of the remote peer.
@@ -80,9 +94,14 @@ public final class RawData {
 	 * @param endpointContext remote peers endpoint context.
 	 * @param multicast indicates whether the data represents a multicast
 	 *            message
-	 * @throws NullPointerException if data or address is {@code null}
+	 * @param nanoTimestamp nano-timestamp for received messages. {@code 0} for
+	 *            outgoing messages.
+	 * @param connector connector's address. {@code null} for outgoing data.
+	 * @throws NullPointerException if data or endpoint context is {@code null}
+	 * @since 3.0 (added parameter connector)
 	 */
-	private RawData(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback, boolean multicast) {
+	private RawData(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback, boolean multicast,
+			long nanoTimestamp, InetSocketAddress connector) {
 		if (data == null) {
 			throw new NullPointerException("Data must not be null");
 		} else if (peerEndpointContext == null) {
@@ -92,6 +111,8 @@ public final class RawData {
 			this.peerEndpointContext = peerEndpointContext;
 			this.callback = callback;
 			this.multicast = multicast;
+			this.receiveNanoTimestamp = nanoTimestamp;
+			this.connector = connector;
 		}
 	}
 
@@ -105,12 +126,22 @@ public final class RawData {
 	 *            the message has been received in, and can be used to correlate
 	 *            this message with another (previously sent) message.
 	 * @param isMulticast indicates whether the data has been received as a
-	 *            multicast message.
+	 *            multicast message. (Currently {@link DatagramPacket} nor
+	 *            {@link DatagramSocket} offers this information!)
+	 * @param nanoTimestamp nano-timestamp for received messages.
+	 * @param connector connector's address
 	 * @return the raw data object containing the inbound message.
-	 * @throws NullPointerException if data or address is {@code null}.
+	 * @throws NullPointerException if data, endpoint context, or connector is
+	 *             {@code null}.
+	 * @see ClockUtil#nanoRealtime()
+	 * @since 3.0 (added parameter connector)
 	 */
-	public static RawData inbound(byte[] data, EndpointContext peerEndpointContext, boolean isMulticast) {
-		return new RawData(data, peerEndpointContext, null, isMulticast);
+	public static RawData inbound(byte[] data, EndpointContext peerEndpointContext, boolean isMulticast,
+			long nanoTimestamp, InetSocketAddress connector) {
+		if (connector == null) {
+			throw new NullPointerException("Connectors's address must not be null");
+		}
+		return new RawData(data, peerEndpointContext, null, isMulticast, nanoTimestamp, connector);
 	}
 
 	/**
@@ -142,16 +173,16 @@ public final class RawData {
 	 */
 	public static RawData outbound(byte[] data, EndpointContext peerEndpointContext, MessageCallback callback,
 			boolean useMulticast) {
-		return new RawData(data, peerEndpointContext, callback, useMulticast);
+		return new RawData(data, peerEndpointContext, callback, useMulticast, 0, null);
 	}
 
 	/**
 	 * Gets the raw message.
 	 *
-	 * @return a copy of the raw message bytes
+	 * @return raw message bytes
 	 */
 	public byte[] getBytes() {
-		return Arrays.copyOf(bytes, bytes.length);
+		return bytes;
 	}
 
 	/**
@@ -164,21 +195,14 @@ public final class RawData {
 	}
 
 	/**
-	 * Gets the address.
-	 *
-	 * @return the address
+	 * Get nano receive timestamp.
+	 * 
+	 * @return nano-time of receiving this message. {@code 0} for outgoing
+	 *         messages.
+	 * @see ClockUtil#nanoRealtime()
 	 */
-	public InetAddress getAddress() {
-		return peerEndpointContext.getPeerAddress().getAddress();
-	}
-
-	/**
-	 * Gets the port.
-	 *
-	 * @return the port
-	 */
-	public int getPort() {
-		return peerEndpointContext.getPeerAddress().getPort();
+	public long getReceiveNanoTimestamp() {
+		return receiveNanoTimestamp;
 	}
 
 	/**
@@ -188,6 +212,16 @@ public final class RawData {
 	 */
 	public boolean isMulticast() {
 		return multicast;
+	}
+
+	/**
+	 * Gets the IP address and port of the connector.
+	 *
+	 * @return the connector's address, {@code null}, for outgoing data.
+	 * @since 3.0
+	 */
+	public InetSocketAddress getConnectorAddress() {
+		return connector;
 	}
 
 	/**

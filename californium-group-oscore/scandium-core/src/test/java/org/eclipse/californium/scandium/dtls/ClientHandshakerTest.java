@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,18 +26,30 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.fail;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
-import java.security.cert.Certificate;
+import java.util.List;
+import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestScheduledExecutorService;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier.Builder;
 import org.eclipse.californium.scandium.util.ServerName.NameType;
+import org.junit.After;
+import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -50,11 +62,25 @@ public class ClientHandshakerTest {
 
 	final static int MAX_TRANSMISSION_UNIT = 1500;
 
-	final InetSocketAddress localPeer = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
+
 	final SimpleRecordLayer recordLayer = new SimpleRecordLayer();
 	final String serverName = "iot.eclipse.org";
 
 	ClientHandshaker handshaker;
+	ScheduledExecutorService timer;
+
+	@Before
+	public void setup() {
+		timer = new TestScheduledExecutorService();
+	}
+
+	@After
+	public void tearDown() {
+		timer.shutdown();
+		timer = null;
+	}
 
 	/**
 	 * Assert that the <em>CLIENT_HELLO</em> message created by the handshaker
@@ -82,7 +108,7 @@ public class ClientHandshakerTest {
 	@Test
 	public void testServerCertExtPrefersX509WithEmptyTrustStore() throws Exception {
 
-		givenAClientHandshaker(localPeer, false, true);
+		givenAClientHandshaker(false, true);
 		handshaker.startHandshake();
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.X_509);
@@ -98,7 +124,7 @@ public class ClientHandshakerTest {
 	@Test
 	public void testServerCertExtPrefersRawPublicKeysWithoutTrustStore() throws Exception {
 
-		givenAClientHandshaker(localPeer, null, false, false, true, false);
+		givenAClientHandshaker(null, false, false, true, false);
 		handshaker.startHandshake();
 		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
 		assertPreferredServerCertificateExtension(clientHello, CertificateType.RAW_PUBLIC_KEY);
@@ -135,7 +161,7 @@ public class ClientHandshakerTest {
 	public void testClientHelloLacksServerNameExtensionForDisabledSni() throws Exception {
 
 		// GIVEN a handshaker for a virtual host but with SNI disabled
-		givenAClientHandshaker(localPeer, serverName, false, false, false, false);
+		givenAClientHandshaker(serverName, false, false, false, false);
 
 		// WHEN a handshake is started with the peer
 		handshaker.startHandshake();
@@ -166,6 +192,34 @@ public class ClientHandshakerTest {
 		assertThat(
 				clientHello.getServerNameExtension().getServerNames().getServerName(NameType.HOST_NAME).getNameAsString(),
 				is(serverName));
+		
+	}
+
+	@Test
+	public void testClientReceivesBrokenServerHello() throws Exception {
+
+		givenAClientHandshaker(false);
+
+		// WHEN a handshake is started
+		handshaker.startHandshake();
+
+		// THEN assert that the sent client hello contains an SNI extension
+		ClientHello clientHello = getClientHello(recordLayer.getSentFlight());
+		assertNotNull(clientHello);
+		CipherSuite cipherSuite = clientHello.getCipherSuites().get(0);
+		HelloExtensions extensions = new HelloExtensions();
+		extensions.addExtension(ConnectionIdExtension.fromConnectionId(ConnectionId.EMPTY));
+		ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), new Random(), new SessionId(),
+				cipherSuite, CompressionMethod.NULL, extensions);
+		Record record =  DtlsTestTools.getRecordForMessage(0, 1, serverHello);
+		record.decodeFragment(handshaker.getDtlsContext().getReadState());
+		try {
+			handshaker.processMessage(record);
+			fail("Broken SERVER_HELLO not detected!");
+		} catch (HandshakeException ex) {
+			assertThat(ex.getAlert().getLevel(), is(AlertLevel.FATAL));
+			assertThat(ex.getAlert().getDescription(), is(AlertDescription.UNSUPPORTED_EXTENSION));
+		}
 	}
 
 	private void givenAClientHandshaker(final boolean configureTrustStore) throws Exception {
@@ -173,15 +227,14 @@ public class ClientHandshakerTest {
 	}
 
 	private void givenAClientHandshaker(final String virtualHost, final boolean configureTrustStore) throws Exception {
-		givenAClientHandshaker(localPeer, virtualHost, configureTrustStore, false, false, true);
+		givenAClientHandshaker(virtualHost, configureTrustStore, false, false, true);
 	}
 
-	private void givenAClientHandshaker(final InetSocketAddress peer, final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
-		givenAClientHandshaker(peer, serverName, configureTrustStore, configureEmptyTrustStore, false, true);
+	private void givenAClientHandshaker(final boolean configureTrustStore, final boolean configureEmptyTrustStore) throws Exception {
+		givenAClientHandshaker(serverName, configureTrustStore, configureEmptyTrustStore, false, true);
 	}
 
 	private void givenAClientHandshaker(
-			final InetSocketAddress peer,
 			final String virtualHost,
 			final boolean configureTrustStore,
 			final boolean configureEmptyTrustStore,
@@ -189,31 +242,33 @@ public class ClientHandshakerTest {
 			final boolean sniEnabled) throws Exception {
 
 		DtlsConnectorConfig.Builder builder = 
-				new DtlsConnectorConfig.Builder()
-					.setAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0))
+				DtlsConnectorConfig.builder()
 					.setIdentity(
 						DtlsTestTools.getClientPrivateKey(),
 						DtlsTestTools.getClientCertificateChain(),
 						CertificateType.X_509)
 					.setSniEnabled(sniEnabled);
 
+		Builder verifierBuilder = StaticNewAdvancedCertificateVerifier.builder();
 		if (configureTrustStore) {
-			builder.setTrustStore(DtlsTestTools.getTrustedCertificates());
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustedCertificates(DtlsTestTools.getTrustedCertificates()).build());
 		} else if (configureEmptyTrustStore) {
-			builder.setTrustStore(new Certificate[0]);
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllCertificates().build());
 		} else if (configureRpkTrustAll) {
-			builder.setRpkTrustAll();
+			builder.setAdvancedCertificateVerifier(verifierBuilder.setTrustAllRPKs().build());
 		} else {
 			builder.setClientAuthenticationRequired(false);
 		}
-		DTLSSession session = new DTLSSession(peer);
-		session.setVirtualHost(virtualHost);
+		DtlsConnectorConfig config = builder.build();
+		Connection connection = new Connection(config.getAddress(), new SyncSerialExecutor());
 		handshaker = new ClientHandshaker(
-				session,
+				virtualHost,
 				recordLayer,
-				null,
-				builder.build(),
-				MAX_TRANSMISSION_UNIT);
+				timer,
+				connection,
+				config,
+				false);
+		recordLayer.setHandshaker(handshaker);
 	}
 
 	private static void assertPreferredServerCertificateExtension(final ClientHello msg, final CertificateType expectedType) {
@@ -233,8 +288,8 @@ public class ClientHandshakerTest {
 		assertThat(preferred, is(expectedType));
 	}
 
-	private static ClientHello getClientHello(final DTLSFlight flight) throws GeneralSecurityException, HandshakeException {
-		Record record = flight.getMessages().get(0);
+	private static ClientHello getClientHello(List<Record> flight) throws GeneralSecurityException, HandshakeException {
+		Record record = flight.get(0);
 		return (ClientHello) record.getFragment();
 	}
 }

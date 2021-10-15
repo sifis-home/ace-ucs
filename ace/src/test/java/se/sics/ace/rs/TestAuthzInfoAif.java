@@ -91,8 +91,7 @@ public class TestAuthzInfoAif {
      * @throws CoseException 
      */
     @BeforeClass
-    public static void setUp() 
-            throws SQLException, AceException, IOException, CoseException {
+    public static void setUp() throws SQLException, AceException, IOException, CoseException {
         //Delete lingering old token file
         new File(TestConfig.testFilePath + "tokens.json").delete();
         DBHelper.setUpDB();
@@ -111,26 +110,28 @@ public class TestAuthzInfoAif {
         profiles.add("coap_dtls");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
-        db.addClient("client1", profiles, null, null, keyTypes, null, 
-                publicKey);
-        db.addClient("client2", profiles, null, null, keyTypes, sharedKey,
-                publicKey);
+        db.addClient("client1", profiles, null, null, keyTypes, null, publicKey);
+        db.addClient("client2", profiles, null, null, keyTypes, sharedKey, publicKey);
       
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
         Aif aif = new Aif(resources);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
+        
+        String rsId = "rs1";
+        
         pdp = new KissPDP(db);
         pdp.addIntrospectAccess("ni:///sha-256;xzLa24yOBeCkos3VFzD2gd83Urohr9TsXqY9nhdDN0w");
-        pdp.addIntrospectAccess("rs1");
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"), null);
-        String tokenFile = TestConfig.testFilePath + "tokens.json";   
-        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, tokenFile, aif, false);
+        pdp.addIntrospectAccess(rsId);
+        
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), null);
+        
+        String tokenFile = TestConfig.testFilePath + "tokens.json";
+        
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
+        				   null, rsId, valid, ctx, null, 0, tokenFile, aif, false);
     }
     
     /**
@@ -164,13 +165,12 @@ public class TestAuthzInfoAif {
         scopeElement.Add(1);
         scope.Add(scopeElement); 
         params.put(Constants.SCOPE, scope);
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
         String kidStr = "ourKey";
-        CBORObject kid = CBORObject.FromObject(
-                kidStr.getBytes(Constants.charset));
+        CBORObject kid = CBORObject.FromObject(kidStr.getBytes(Constants.charset));
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cbor = CBORObject.NewMap();
@@ -178,19 +178,16 @@ public class TestAuthzInfoAif {
         params.put(Constants.CNF, cbor);
        
         CWT token = new CWT(params);
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-               token.encode(ctx));
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
                 
         LocalMessage response = (LocalMessage)ai.processMessage(request);
         System.out.println(response.toString());
         assert(response.getMessageCode() == Message.CREATED);
+        
         CBORObject resP = CBORObject.DecodeFromBytes(response.getRawPayload());
         CBORObject cti = resP.get(CBORObject.FromObject(Constants.CTI));
-        Assert.assertArrayEquals(cti.GetByteString(), 
-                new byte[]{0x09});
+        Assert.assertArrayEquals(cti.GetByteString(), new byte[]{0x09});
     }       
 }

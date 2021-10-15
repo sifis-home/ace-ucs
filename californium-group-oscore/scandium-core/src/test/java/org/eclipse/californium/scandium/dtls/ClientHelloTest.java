@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,16 +19,16 @@
 package org.eclipse.californium.scandium.dtls;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
-import java.net.InetSocketAddress;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.californium.scandium.category.Small;
-import org.eclipse.californium.scandium.dtls.CertificateType;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.junit.Before;
+import org.eclipse.californium.scandium.dtls.cipher.XECDHECryptography.SupportedGroup;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,15 +40,6 @@ import org.junit.experimental.categories.Category;
 public class ClientHelloTest {
 
 	ClientHello clientHello;
-	InetSocketAddress peerAddress;
-
-	/**
-	 * Sets up fixture.
-	 */
-	@Before
-	public void setUp() {
-		peerAddress = new InetSocketAddress("localhost", 5684);
-	}
 
 	/**
 	 * Verifies that the calculated message length is the same as the length
@@ -70,8 +61,10 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CBC_SHA256),
+				SignatureAndHashAlgorithm.DEFAULT,
 				Collections.<CertificateType> emptyList(),
-				Collections.<CertificateType> emptyList());
+				Collections.<CertificateType> emptyList(),
+				Collections.singletonList(SupportedGroup.secp256r1));
 		assertNull(
 				"ClientHello should not contain elliptic_curves extension for non-ECC based cipher suites",
 				clientHello.getSupportedEllipticCurvesExtension());
@@ -89,8 +82,10 @@ public class ClientHelloTest {
 
 		givenAClientHello(
 				Collections.singletonList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256),
+				SignatureAndHashAlgorithm.DEFAULT,
 				Collections.<CertificateType> emptyList(),
-				Collections.<CertificateType> emptyList());
+				Collections.<CertificateType> emptyList(),
+				Collections.singletonList(SupportedGroup.secp256r1));
 		assertNotNull(
 				"ClientHello should contain elliptic_curves extension for ECC based cipher suites",
 				clientHello.getSupportedEllipticCurvesExtension());
@@ -100,17 +95,27 @@ public class ClientHelloTest {
 	}
 
 	private void givenAClientHelloWithEmptyExtensions() {
-		clientHello = new ClientHello(new ProtocolVersion(), Collections.<CipherSuite> emptyList(),
-				null, null, peerAddress);
+		clientHello = new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, Collections.<CipherSuite> emptyList(),
+				SignatureAndHashAlgorithm.DEFAULT, null, null,
+				Collections.<SupportedGroup> emptyList());
 	}
 
-	private void givenAClientHello(
-			List<CipherSuite> supportedCipherSuites,
-			List<CertificateType> supportedClientCertTypes,
-			List<CertificateType> supportedServerCertTypes) {
+	private void givenAClientHello(List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
+			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
+			List<SupportedGroup> supportedGroups) {
 
-		clientHello = new ClientHello(new ProtocolVersion(), supportedCipherSuites, null, null,
-				peerAddress);
+		clientHello = createClientHello(supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+				supportedClientCertTypes, supportedServerCertTypes, supportedGroups);
 	}
-	
+
+	public static ClientHello createClientHello(List<CipherSuite> supportedCipherSuites,
+			List<SignatureAndHashAlgorithm> supportedSignatureAndHashAlgorithms,
+			List<CertificateType> supportedClientCertTypes, List<CertificateType> supportedServerCertTypes,
+			List<SupportedGroup> supportedGroups) {
+
+		return new ClientHello(ProtocolVersion.VERSION_DTLS_1_2, supportedCipherSuites, supportedSignatureAndHashAlgorithms,
+				supportedClientCertTypes, supportedServerCertTypes, supportedGroups);
+	}
+
 }

@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,22 +19,25 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
-import static org.eclipse.californium.TestTools.inRange;
 import static org.eclipse.californium.core.network.MessageIdTracker.TOTAL_NO_OF_MIDS;
+import static org.eclipse.californium.elements.util.TestConditionTools.inRange;
+import static org.hamcrest.CoreMatchers.containsString;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.CheckCondition;
 import org.eclipse.californium.TestTools;
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 
 /**
  * Verifies that MessageIdTracker correctly marks MIDs as <em>in use</em>.
@@ -44,6 +47,12 @@ import org.junit.experimental.categories.Category;
 public class MapBasedMessageIdTrackerTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	private static final int INITIAL_MID = 0;
 
@@ -56,11 +65,11 @@ public class MapBasedMessageIdTrackerTest {
 			tracker.getNextMessageId();
 		}
 
-		// WHEN retrieving the next message IDs from the tracker
-		int mid = tracker.getNextMessageId();
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage(containsString("No MID available, all"));
 
-		// THEN the returned MID is -1
-		assertThat(mid, is(-1));
+		// WHEN retrieving the next message IDs from the tracker
+		tracker.getNextMessageId();
 	}
 
 	@Test
@@ -75,10 +84,12 @@ public class MapBasedMessageIdTrackerTest {
 			int mid = tracker.getNextMessageId();
 			assertThat(mid, is(inRange(minMid, maxMid)));
 		}
+
+		exception.expect(IllegalStateException.class);
+		exception.expectMessage(containsString("No MID available, all"));
+
 		// WHEN retrieving the next message IDs from the tracker
-		int mid = tracker.getNextMessageId();
-		// THEN the returned MID is -1
-		assertThat(mid, is(-1));
+		tracker.getNextMessageId();
 	}
 
 	@Test
@@ -98,16 +109,9 @@ public class MapBasedMessageIdTrackerTest {
 		// THEN the first message ID is re-used after 
 		// EXCHANGE_LIFETIME has expired
 		exchangeLifetime += (exchangeLifetime >> 1); // a little longer
-		final AtomicInteger mid = new AtomicInteger(-1);
-		TestTools.waitForCondition(exchangeLifetime, 10, TimeUnit.MILLISECONDS, new CheckCondition() {
 
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				mid.set(tracker.getNextMessageId());
-				return 0 <= mid.get();
-			}
-		});
-		assertThat(mid.get(), is(firstMid));
+		int mid = TestTools.waitForNextMID(tracker, inRange(0, TOTAL_NO_OF_MIDS), exchangeLifetime, 10, TimeUnit.MILLISECONDS);
+		assertThat(mid, is(firstMid));
 	}
 
 	@Test

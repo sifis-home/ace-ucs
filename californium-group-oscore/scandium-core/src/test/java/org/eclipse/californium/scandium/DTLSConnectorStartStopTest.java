@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,9 +16,8 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium;
 
-import static org.eclipse.californium.scandium.ConnectorHelper.newStandardClientConfigBuilder;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
@@ -28,20 +27,21 @@ import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.category.Large;
 import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.elements.util.SimpleMessageCallback;
 import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestScope;
 import org.eclipse.californium.scandium.ConnectorHelper.LatchDecrementingRawDataChannel;
-import org.eclipse.californium.scandium.category.Large;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.Connection;
 import org.eclipse.californium.scandium.dtls.DebugConnectionStore;
-import org.eclipse.californium.scandium.dtls.InMemoryClientSessionCache;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
 import org.junit.After;
 import org.junit.AfterClass;
@@ -63,10 +63,13 @@ import org.slf4j.LoggerFactory;
 @Category(Large.class)
 public class DTLSConnectorStartStopTest {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorStartStopTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(DTLSConnectorStartStopTest.class);
 
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
 
 	@Rule
 	public TestNameLoggerRule names = new TestNameLoggerRule();
@@ -75,13 +78,13 @@ public class DTLSConnectorStartStopTest {
 	private static final int MAX_TIME_TO_WAIT_SECS				= 5;
 
 	static ConnectorHelper serverHelper;
-	static InMemoryClientSessionCache clientSessionCache;
 	static String testLogTagHead;
 	static int testLogTagCounter;
 
 	DTLSConnector client;
 	LatchDecrementingRawDataChannel clientChannel;
 	DebugConnectionStore clientConnectionStore;
+	Connection restoreClientConnection;
 
 	String testLogTag = "";
 
@@ -103,7 +106,6 @@ public class DTLSConnectorStartStopTest {
 		}
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer();
-		clientSessionCache = new InMemoryClientSessionCache();
 	}
 
 	/**
@@ -117,21 +119,27 @@ public class DTLSConnectorStartStopTest {
 	@Before
 	public void setUp() throws IOException, GeneralSecurityException {
 		testLogTag = testLogTagHead + testLogTagCounter++;
-		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, clientSessionCache);
+		clientConnectionStore = new DebugConnectionStore(CLIENT_CONNECTION_STORE_CAPACITY, 60, null);
 		clientConnectionStore.setTag(testLogTag + "-client");
 		InetSocketAddress clientEndpoint = new InetSocketAddress(InetAddress.getLoopbackAddress(), 0);
-		DtlsConnectorConfig.Builder builder = newStandardClientConfigBuilder(clientEndpoint)
+		DtlsConnectorConfig.Builder builder = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setLoggingTag(testLogTag + "-client")
 				.setMaxConnections(CLIENT_CONNECTION_STORE_CAPACITY);
 		DtlsConnectorConfig clientConfig = builder.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);
-		clientChannel = new ConnectorHelper.LatchDecrementingRawDataChannel(client);
+		clientChannel = new LatchDecrementingRawDataChannel();
 		client.setRawDataReceiver(clientChannel);
+		if (restoreClientConnection != null) {
+			client.restoreConnection(restoreClientConnection);
+			restoreClientConnection = null;
+		}
 	}
 
 	@After
 	public void cleanUp() {
 		if (client != null) {
+			client.stop();
+			ConnectorHelper.assertReloadConnections("client", client);
 			client.destroy();
 		}
 		serverHelper.cleanUpServer();
@@ -140,18 +148,30 @@ public class DTLSConnectorStartStopTest {
 	@Test
 	public void testStopCallsMessageCallbackOnError()
 			throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(100, 20, false);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(100, 20, false);
+		} else {
+			testStopCallsMessageCallbackOnError(20, 5, false);
+		}
 	}
 
 	@Test
 	public void testStopCallsMessageCallbackOnErrorCirtical()
 			throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(2, 20, false);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(2, 20, false);
+		} else {
+			testStopCallsMessageCallbackOnError(2, 10, false);
+		}
 	}
 
 	@Test
 	public void testRestartFromClientSessionCache() throws InterruptedException, IOException, GeneralSecurityException {
-		testStopCallsMessageCallbackOnError(10, 20, true);
+		if (TestScope.enableIntensiveTests()) {
+			testStopCallsMessageCallbackOnError(10, 20, true);
+		} else {
+			testStopCallsMessageCallbackOnError(4, 10, true);
+		}
 	}
 
 	private void testStopCallsMessageCallbackOnError(final int pending, final int loops, boolean restart)
@@ -177,8 +197,7 @@ public class DTLSConnectorStartStopTest {
 
 			List<SimpleMessageCallback> callbacks = new ArrayList<>();
 
-			CountDownLatch latch = new CountDownLatch(1);
-			clientChannel.setLatch(latch);
+			clientChannel.setLatchCount(1);
 
 			SimpleMessageCallback callback = new SimpleMessageCallback(pending, false);
 			SimpleMessageCallback messageCallback = new SimpleMessageCallback(0, true, callback);
@@ -187,7 +206,7 @@ public class DTLSConnectorStartStopTest {
 			client.send(message);
 			assertTrue(testLogTag + " loop: " + loop + ", " + pending + " msgs," 
 					+ " DTLS handshake timed out after " + MAX_TIME_TO_WAIT_SECS + " seconds",
-					latch.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
+					clientChannel.await(MAX_TIME_TO_WAIT_SECS, TimeUnit.SECONDS));
 			if (lastServerRemaining > -1) {
 				assertThat(testLogTag + " number of server sessions changed!", 
 						serverHelper.serverConnectionStore.remainingCapacity(), is(lastServerRemaining));
@@ -217,6 +236,8 @@ public class DTLSConnectorStartStopTest {
 			assertThat(testLogTag + " loop: " + loop + ", missing callbacks " + callback, complete, is(true));
 			lastServerRemaining = serverHelper.serverConnectionStore.remainingCapacity();
 			if (restart) {
+				restoreClientConnection = clientConnectionStore.get(serverHelper.serverEndpoint);
+				restoreClientConnection.setResumptionRequired(true);
 				client.destroy();
 				setup = true;
 			}

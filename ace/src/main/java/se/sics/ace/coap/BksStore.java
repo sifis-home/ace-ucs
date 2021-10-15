@@ -53,6 +53,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
 
+import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
@@ -166,7 +167,7 @@ public class BksStore implements PskStore {
     }
     
     @Override
-    public byte[] getKey(PskPublicInformation info) {
+    public SecretKey getKey(PskPublicInformation info) {
         String identity = info.getPublicInfoAsString();
         try {
             if (!this.keystore.containsAlias(identity)) {
@@ -186,7 +187,7 @@ public class BksStore implements PskStore {
             LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
             return null;
         }
-        return key.getEncoded();
+       return (SecretKey)key;
     }
           
     @Override
@@ -300,7 +301,7 @@ public class BksStore implements PskStore {
     }
 
     @Override
-    public byte[] getKey(ServerNames serverName,
+    public SecretKey getKey(ServerNames serverName,
             PskPublicInformation identity) {
         //XXX SNI not implemented
         return getKey(identity);

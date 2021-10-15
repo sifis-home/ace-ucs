@@ -76,10 +76,8 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
     public Map<Short, CBORObject> getParams(byte[] tokenReference)
             throws IntrospectionException, AceException {
         Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.TOKEN, 
-                CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
-        params.put(Constants.TOKEN_TYPE_HINT, 
-                CBORObject.FromObject("pop"));
+        params.put(Constants.TOKEN, CBORObject.FromObject(CBORObject.FromObject(tokenReference).EncodeToBytes()));
+        params.put(Constants.TOKEN_TYPE_HINT, CBORObject.FromObject("pop"));
         
         LocalMessage req = new LocalMessage(0, this.rsId, this.asId, params);
         LocalMessage res = (LocalMessage)this.i.processMessage(req);
@@ -89,8 +87,7 @@ public class IntrospectionHandler4Tests implements IntrospectionHandler {
             }
             //Client error
             throw new IntrospectionException(res.getMessageCode(),
-                    CBORObject.DecodeFromBytes(
-                            res.getRawPayload()).toString());
+                    CBORObject.DecodeFromBytes(res.getRawPayload()).toString());
         }
         CBORObject resC = CBORObject.DecodeFromBytes(res.getRawPayload());
         if (resC.getType().equals(CBORType.Map)) {

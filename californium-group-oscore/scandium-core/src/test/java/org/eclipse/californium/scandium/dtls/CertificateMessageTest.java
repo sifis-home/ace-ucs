@@ -2,11 +2,11 @@
  * Copyright (c) 2015 - 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,12 +21,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.instanceOf;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.junit.Assert.assertNotNull;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
 import java.security.GeneralSecurityException;
 import java.security.PublicKey;
 import java.security.cert.CertPath;
@@ -38,9 +40,10 @@ import java.util.List;
 
 import javax.security.auth.x500.X500Principal;
 
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.scandium.category.Small;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite.KeyExchangeAlgorithm;
 import org.junit.Before;
 import org.junit.Test;
@@ -52,13 +55,11 @@ public class CertificateMessageTest {
 	CertificateMessage message;
 	X509Certificate[] certificateChain;
 	X509Certificate[] trustAnchor;
-	InetSocketAddress peerAddress;
 	byte[] serializedMessage;
 	PublicKey serverPublicKey;
 
 	@Before
 	public void setUp() throws Exception {
-		peerAddress = new InetSocketAddress(InetAddress.getLoopbackAddress(), 5684);
 		certificateChain = DtlsTestTools.getServerCertificateChain();
 		serverPublicKey = DtlsTestTools.getPublicKey();
 		trustAnchor = DtlsTestTools.getTrustedCertificates();
@@ -66,6 +67,8 @@ public class CertificateMessageTest {
 
 	@Test
 	public void testCertificateMessageDoesNotContainRootCert() throws IOException, GeneralSecurityException {
+		X509Certificate[] chain = DtlsTestTools.getServerCertificateChain();
+		assertThat(chain.length, is(greaterThan(1)));
 		givenACertificateMessage(DtlsTestTools.getServerCertificateChain(), false);
 		assertThatCertificateChainDoesNotContainRootCert(message.getCertificateChain());
 	}
@@ -97,11 +100,11 @@ public class CertificateMessageTest {
 	public void testFromByteArrayHandlesEmptyMessageCorrectly() throws HandshakeException {
 		serializedMessage = new byte[]{0x00, 0x00, 0x00}; // length = 0 (empty message)
 		// parse expecting X.509 payload
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.X_509, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.X_509);
 		assertSerializedMessageLength(3);
 
 		// parse expecting RawPublicKey payload
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY);
 		assertSerializedMessageLength(3);
 	}
 
@@ -112,7 +115,7 @@ public class CertificateMessageTest {
 	@Test
 	public void testFromByteArrayCompliesWithRfc7250() throws Exception {
 		givenASerializedRawPublicKeyCertificateMessage(serverPublicKey);
-		message = CertificateMessage.fromByteArray(serializedMessage, CertificateType.RAW_PUBLIC_KEY, peerAddress);
+		message = CertificateMessage.fromReader(new DatagramReader(serializedMessage), CertificateType.RAW_PUBLIC_KEY);
 		assertThat(message.getPublicKey(), is(serverPublicKey));
 	}
 
@@ -143,8 +146,7 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		CertificateMessage msg = (CertificateMessage) HandshakeMessage.fromByteArray(
-				serializedMessage, parameter, peerAddress);
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter);
 		assertThat(msg.getPublicKey(), is(pk));
 	}
 
@@ -155,8 +157,8 @@ public class CertificateMessageTest {
 		PublicKey pk = message.getPublicKey();
 		assertNotNull(pk);
 		serializedMessage = message.toByteArray();
-		message = (CertificateMessage) HandshakeMessage.fromByteArray(serializedMessage, parameter, peerAddress);
-		assertThat(message.getPublicKey(), is(pk));
+		CertificateMessage msg = DtlsTestTools.fromByteArray(serializedMessage, parameter);
+		assertThat(msg.getPublicKey(), is(pk));
 	}
 
 	private void assertSerializedMessageLength(int length) {
@@ -168,14 +170,14 @@ public class CertificateMessageTest {
 	private void givenACertificateMessage(X509Certificate[] chain, boolean useRawPublicKey) throws IOException, GeneralSecurityException {
 		certificateChain = chain;
 		if (useRawPublicKey) {
-			message = new CertificateMessage(chain[0].getPublicKey().getEncoded(), peerAddress);
+			message = new CertificateMessage(chain[0].getPublicKey().getEncoded());
 		} else {
-			message = new CertificateMessage(Arrays.asList(chain), peerAddress);
+			message = new CertificateMessage(Arrays.asList(chain));
 		}
 	}
 
 	private void givenARawPublicKeyCertificateMessage(PublicKey publicKey) {
-		message = new CertificateMessage(publicKey.getEncoded(), peerAddress);
+		message = new CertificateMessage(publicKey.getEncoded());
 	}
 
 	private void givenASerializedRawPublicKeyCertificateMessage(PublicKey publicKey) throws IOException, GeneralSecurityException {
@@ -188,10 +190,10 @@ public class CertificateMessageTest {
 
 	private void givenAnEmptyCertificateMessage() {
 		List<X509Certificate> certPath = Collections.emptyList();
-		message = new CertificateMessage(certPath, peerAddress);
+		message = new CertificateMessage(certPath);
 	}
 
 	private void givenAnEmptyRawPublicKeyCertificateMessage() {
-		message = new CertificateMessage(new byte[]{}, peerAddress);
+		message = new CertificateMessage(Bytes.EMPTY);
 	}
 }

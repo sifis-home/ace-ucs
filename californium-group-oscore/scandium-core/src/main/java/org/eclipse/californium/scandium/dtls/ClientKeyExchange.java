@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,9 +16,6 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
-
 
 /**
  * This message is always sent by the client. It MUST immediately follow the
@@ -30,10 +27,9 @@ import java.net.InetSocketAddress;
  */
 public abstract class ClientKeyExchange extends HandshakeMessage {
 
-	protected ClientKeyExchange(InetSocketAddress peerAddress) {
-		super(peerAddress);
+	protected ClientKeyExchange() {
 	}
-	
+
 	@Override
 	public final HandshakeType getMessageType() {
 		return HandshakeType.CLIENT_KEY_EXCHANGE;

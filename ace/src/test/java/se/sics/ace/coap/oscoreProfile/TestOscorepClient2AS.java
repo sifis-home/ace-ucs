@@ -35,6 +35,7 @@ import java.util.Map;
 
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -51,15 +52,20 @@ import se.sics.ace.coap.client.OSCOREProfileRequests;
  *  
  * NOTE: This will automatically start an AS in another thread 
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestOscorepClient2AS {
     
-
-    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+	
+    /**
+     * The Master Secret of the AS <-> C OSCORE Security Context
+     */
+    private static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};    
     private static RunTestServer srv = null;
     private static OSCoreCtx ctx;
+    
+    private static OSCoreCtxDB ctxDB;
     
     private static class RunTestServer implements Runnable {
         
@@ -97,10 +103,14 @@ public class TestOscorepClient2AS {
      */
     @BeforeClass
     public static void setUp() throws OSException {
-        ctx = new OSCoreCtx(key128, true, null, 
-                "clientA".getBytes(Constants.charset),
-                "AS".getBytes(Constants.charset),
+    	
+    	ctx = new OSCoreCtx(key128, true, null, 
+    			new byte[] {0x01},
+    			new byte[] {0x00},
                 null, null, null, null);
+        
+        ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
+        
         srv = new RunTestServer();
         srv.run();
     }
@@ -120,12 +130,14 @@ public class TestOscorepClient2AS {
      * @throws Exception 
      */
     @Test
-    public void testSuccess() throws Exception {
+    public void testSuccess() throws Exception { 	
         CBORObject params = GetToken.getClientCredentialsRequest(
                 CBORObject.FromObject("rs1"),
                 CBORObject.FromObject("r_temp rw_config foobar"), null);
+        
         Response response = OSCOREProfileRequests.getToken(
-                "coap://localhost/token", params, ctx);
+                "coap://localhost/token", params, ctx, ctxDB);
+        
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
@@ -136,5 +148,49 @@ public class TestOscorepClient2AS {
         assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
     }
 
+    /**
+     * Test successful retrieval of a token over OSCORE, followed
+     * by a second request for a new access token to update access rights
+     * 
+     * @throws Exception 
+     */
+    @Test
+    public void testSuccessUpdateAccessRights() throws Exception { 	
+        CBORObject params = GetToken.getClientCredentialsRequest(
+                CBORObject.FromObject("rs2"),
+                CBORObject.FromObject("r_temp rw_config foobar"), null);
+        
+        Response response = OSCOREProfileRequests.getToken(
+                "coap://localhost/token", params, ctx, ctxDB);
+        
+        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
+        Map<Short, CBORObject> map = Constants.getParams(res);
+        System.out.println(map);
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(map.containsKey(Constants.CNF));
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config"));
+        
+        // Ask for a new Token for updating access rights, with a different 'scope'
+        
+        params = GetToken.getClientCredentialsRequest(
+                CBORObject.FromObject("rs2"),
+                CBORObject.FromObject("r_temp rw_config rw_light foobar"), null);
+        
+        response = OSCOREProfileRequests.getToken(
+                "coap://localhost/token", params, ctx, ctxDB);
+        
+        res = CBORObject.DecodeFromBytes(response.getPayload());
+        map = Constants.getParams(res);
+        System.out.println(map);
+        assert(map.containsKey(Constants.ACCESS_TOKEN));
+        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
+        assert(!map.containsKey(Constants.CNF)); // The 'cnf' parameter must not be present here
+        assert(map.containsKey(Constants.SCOPE));
+        assert(map.get(Constants.SCOPE).AsString().equals("r_temp rw_config rw_light"));
+        
+    }
+    
 }
 

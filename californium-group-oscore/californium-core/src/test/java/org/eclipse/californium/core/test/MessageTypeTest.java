@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -24,10 +24,7 @@ package org.eclipse.californium.core.test;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-
-import org.eclipse.californium.category.Medium;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.Code;
@@ -35,12 +32,16 @@ import org.eclipse.californium.core.coap.CoAP.Type;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.AfterClass;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -53,24 +54,29 @@ public class MessageTypeTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
+
 	private static final String SERVER_RESPONSE = "server responds hi";
 	private static final String ACC_RESOURCE = "acc-res";
 	private static final String NO_ACC_RESOURCE = "no-acc-res";
 
-	private static CoapServer server;
-	private static int serverPort;
+	private static Endpoint serverEndpoint;
 
 	@BeforeClass
 	public static void setupServer() {
-		System.out.println(System.lineSeparator() + "Start " + MessageTypeTest.class.getSimpleName());
 		EndpointManager.clear();
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
-		CoapEndpoint endpoint = builder.build();
+		builder.setInetSocketAddress(TestTools.LOCALHOST_EPHEMERAL);
+		serverEndpoint = builder.build();
 
-		server = new CoapServer();
-		server.addEndpoint(endpoint);
+		CoapServer server = new CoapServer(network.getStandardTestConfig());
+		cleanup.add(server);
+		server.addEndpoint(serverEndpoint);
 		server.add(new CoapResource(ACC_RESOURCE) {
 			public void handlePOST(CoapExchange exchange) {
 				exchange.accept();
@@ -84,16 +90,6 @@ public class MessageTypeTest {
 			}
 		});
 		server.start();
-		serverPort = endpoint.getAddress().getPort();
-	}
-
-	@AfterClass
-	public static void destroyServer() {
-
-		if (server != null) {
-			server.destroy();
-		}
-		System.out.println(System.lineSeparator() + "End " + MessageTypeTest.class.getSimpleName());
 	}
 
 	@Test
@@ -152,6 +148,6 @@ public class MessageTypeTest {
 	}
 
 	private static String getUri(final String resourceName) {
-		return String.format("coap://%s:%d/%s", InetAddress.getLoopbackAddress().getHostAddress(), serverPort, resourceName);
+		return TestTools.getUri(serverEndpoint, resourceName);
 	}
 }

@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,8 +16,6 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - add accessor for peer address
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
@@ -44,13 +42,11 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	// Constructors ///////////////////////////////////////////////////
 	
-	public PSKServerKeyExchange(PskPublicInformation hint, InetSocketAddress peerAddress) {
-		super(peerAddress);
+	public PSKServerKeyExchange(PskPublicInformation hint) {
 		this.hint = hint;
 	}
-	
-	private PSKServerKeyExchange(byte[] hintEncoded, InetSocketAddress peerAddress) {
-		super(peerAddress);
+
+	private PSKServerKeyExchange(byte[] hintEncoded) {
 		this.hint = PskPublicInformation.fromByteArray(hintEncoded);
 	}
 
@@ -75,21 +71,18 @@ public final class PSKServerKeyExchange extends ServerKeyExchange {
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		DatagramWriter writer = new DatagramWriter();
-		
-		writer.write(hint.length(), IDENTITY_HINT_LENGTH_BITS);
-		writer.writeBytes(hint.getBytes());
-		
+		DatagramWriter writer = new DatagramWriter(hint.length() + 2);
+
+		writer.writeVarBytes(hint, IDENTITY_HINT_LENGTH_BITS);
+
 		return writer.toByteArray();
 	}
 	
-	public static HandshakeMessage fromByteArray(byte[] byteArray, InetSocketAddress peerAddress) {
-		DatagramReader reader = new DatagramReader(byteArray);
-		
-		int length = reader.read(IDENTITY_HINT_LENGTH_BITS);
-		byte[] hintEncoded = reader.readBytes(length);
-		
-		return new PSKServerKeyExchange(hintEncoded, peerAddress);
+	public static HandshakeMessage fromReader(DatagramReader reader) {
+
+		byte[] hintEncoded = reader.readVarBytes(IDENTITY_HINT_LENGTH_BITS);
+
+		return new PSKServerKeyExchange(hintEncoded);
 	}
 	
 	// Getters and Setters ////////////////////////////////////////////

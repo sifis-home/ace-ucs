@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -20,6 +20,7 @@
 package org.eclipse.californium.core.server;
 
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.List;
 
 import org.eclipse.californium.core.network.Endpoint;
@@ -39,7 +40,15 @@ import org.eclipse.californium.core.server.resources.Resource;
 public interface ServerInterface {
 
 	// be a server
-	
+
+	/**
+	 * Server is running.
+	 * 
+	 * @return {@code true}, if running, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	boolean isRunning();
+
 	/**
 	 * Starts the server by starting all endpoints this server is assigned to.
 	 * Each endpoint binds to its port. If no endpoint is assigned to the
@@ -82,7 +91,7 @@ public interface ServerInterface {
 	 * Removes a resource from the server.
 	 * 
 	 * @param resource the resource to be removed
-	 * @return <code>true</code> if the resource has been removed successfully
+	 * @return {@code true} if the resource has been removed successfully
 	 */
 	boolean remove(Resource resource);
 	
@@ -90,7 +99,7 @@ public interface ServerInterface {
 	 * Adds an endpoint for receive and sending CoAP messages on.
 	 *  
 	 * @param endpoint the endpoint
-	 * @throws NullPointerException if the endpoint is <code>null</code>
+	 * @throws NullPointerException if the endpoint is {@code null}
 	 */
 	void addEndpoint(Endpoint endpoint);
 	
@@ -102,10 +111,20 @@ public interface ServerInterface {
 	List<Endpoint> getEndpoints();
 
 	/**
+	 * Gets the endpoint bound to a particular URI.
+	 * 
+	 * @param uri the uri
+	 * @return the endpoint, or {@code null}, if none of the server's
+	 *         endpoints is bound to the given uri
+	 * @since 3.0
+	 */
+	Endpoint getEndpoint(URI uri);
+
+	/**
 	 * Gets the endpoint bound to a particular address.
 	 * 
 	 * @param address the address
-	 * @return the endpoint or <code>null</code> if none of the
+	 * @return the endpoint, or {@code null}, if none of the
 	 * server's endpoints is bound to the given address
 	 */
 	Endpoint getEndpoint(InetSocketAddress address);
@@ -117,10 +136,20 @@ public interface ServerInterface {
 	 * bound to the same port, an implementation may return any of those endpoints.  
 	 * 
 	 * @param port the port
-	 * @return the endpoint or <code>null</code> if none of the
+	 * @return the endpoint, or {@code null}, if none of the
 	 * server's endpoints is bound to the given port on any of its
 	 * network interfaces
 	 */
 	Endpoint getEndpoint(int port);
-	
+
+	/**
+	 * Get sever's tag.
+	 * 
+	 * Support multiple server in same process.
+	 * Used for logging and as marker for persistence.
+	 * 
+	 * @return tag
+	 * @since 3.0
+	 */
+	String getTag();
 }

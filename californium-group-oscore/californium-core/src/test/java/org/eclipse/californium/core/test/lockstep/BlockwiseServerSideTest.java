@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -31,20 +31,31 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test.lockstep;
 
-import static org.eclipse.californium.TestTools.*;
-import static org.eclipse.californium.core.coap.CoAP.Code.*;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.*;
-import static org.eclipse.californium.core.coap.CoAP.Type.*;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.core.coap.CoAP.Code.GET;
+import static org.eclipse.californium.core.coap.CoAP.Code.POST;
+import static org.eclipse.californium.core.coap.CoAP.Code.PUT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTINUE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_INCOMPLETE;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.REQUEST_ENTITY_TOO_LARGE;
+import static org.eclipse.californium.core.coap.CoAP.Type.ACK;
+import static org.eclipse.californium.core.coap.CoAP.Type.CON;
+import static org.eclipse.californium.core.coap.CoAP.Type.NON;
 import static org.eclipse.californium.core.coap.OptionNumberRegistry.OBSERVE;
-import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.*;
-import static org.eclipse.californium.core.test.MessageExchangeStoreTool.*;
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.core.test.MessageExchangeStoreTool.assertAllExchangesAreCompleted;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.createLockstepEndpoint;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.generateNextToken;
+import static org.eclipse.californium.core.test.lockstep.IntegrationTestTools.printServerLog;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.category.Large;
+import org.eclipse.californium.TestTools;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -54,12 +65,15 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.MessageExchangeStoreTool.CoapTestEndpoint;
 import org.eclipse.californium.elements.assume.TimeAssume;
+import org.eclipse.californium.elements.category.Large;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.elements.util.TestCondition;
+import org.eclipse.californium.elements.util.TestConditionTools;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -76,16 +90,23 @@ public class BlockwiseServerSideTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
 
 	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
 	public TestTimeRule time = new TestTimeRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final int TEST_EXCHANGE_LIFETIME = 247; // milliseconds
 	private static final int TEST_SWEEP_DEDUPLICATOR_INTERVAL = 100; // milliseconds
 	private static final int TEST_PREFERRED_BLOCK_SIZE = 128; // bytes
+	private static final int TEST_BLOCKWISE_STATUS_INTERVAL = 100;
 	private static final int TEST_BLOCKWISE_STATUS_LIFETIME = 500;
 	private static final int MAX_RESOURCE_BODY_SIZE = 1024;
 	private static final String RESOURCE_PATH = "test";
 
-	private static NetworkConfig CONFIG;
+	private NetworkConfig config;
 
 	private CoapServer server;
 	private CoapTestEndpoint serverEndpoint;
@@ -99,20 +120,16 @@ public class BlockwiseServerSideTest {
 	private Token expectedToken;
 	private ServerBlockwiseInterceptor serverInterceptor = new ServerBlockwiseInterceptor();
 
-	@BeforeClass
-	public static void init() {
-		System.out.println(System.lineSeparator() + "Start " + BlockwiseServerSideTest.class.getSimpleName());
-		CONFIG = network.createTestConfig()
+	@Before
+	public void setup() throws Exception {
+		config = network.createStandardTestConfig()
 				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, TEST_PREFERRED_BLOCK_SIZE)
 				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, MAX_RESOURCE_BODY_SIZE)
 				.setInt(NetworkConfig.Keys.MARK_AND_SWEEP_INTERVAL, TEST_SWEEP_DEDUPLICATOR_INTERVAL)
 				.setLong(NetworkConfig.Keys.EXCHANGE_LIFETIME, TEST_EXCHANGE_LIFETIME)
+				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_INTERVAL, TEST_BLOCKWISE_STATUS_INTERVAL)
 				.setLong(NetworkConfig.Keys.BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_LIFETIME);
-	}
-
-	@Before
-	public void setupEndpoints() throws Exception {
 
 		etag = null;
 		expectedMid = null;
@@ -120,33 +137,26 @@ public class BlockwiseServerSideTest {
 		testResource = new TestResource(RESOURCE_PATH);
 		testResource.setObservable(true);
 		// bind to loopback address using an ephemeral port
-		serverEndpoint = new CoapTestEndpoint(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0), CONFIG);
+		serverEndpoint = new CoapTestEndpoint(TestTools.LOCALHOST_EPHEMERAL, config);
 		serverEndpoint.addInterceptor(serverInterceptor);
-		server = new CoapServer();
+		server = new CoapServer(config);
 		server.addEndpoint(serverEndpoint);
 		server.add(testResource);
 		server.start();
+		cleanup.add(server);
 		InetSocketAddress serverAddress = serverEndpoint.getAddress();
 		System.out.println("Server binds to port " + serverAddress.getPort());
 		client = createLockstepEndpoint(serverAddress);
+		cleanup.add(client);
 	}
 
 	@After
-	public void shutdownEndpoints() {
+	public void shutdown() {
 		try {
 			assertAllExchangesAreCompleted(serverEndpoint, time);
 		} finally {
 			printServerLog(serverInterceptor);
-
-			System.out.println();
-			client.destroy();
-			server.destroy();
 		}
-	}
-
-	@AfterClass
-	public static void finish() {
-		System.out.println("End " + BlockwiseServerSideTest.class.getSimpleName());
 	}
 
 	/**
@@ -270,6 +280,29 @@ public class BlockwiseServerSideTest {
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(2, false, 64).payload(respPayload, 128, 170).go();
 	}
 
+	@Test
+	public void testGETLateNegotiationInTheMiddle() throws Exception {
+		System.out.println("Blockwise GET with late negotiation in the middle:");
+		respPayload = generateRandomPayload(400);
+		Token tok = generateNextToken();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, TEST_PREFERRED_BLOCK_SIZE).size2(respPayload.length())
+			.payload(respPayload.substring(0, TEST_PREFERRED_BLOCK_SIZE)).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, true, TEST_PREFERRED_BLOCK_SIZE).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, TEST_PREFERRED_BLOCK_SIZE).payload(respPayload, 128, 256).go();
+
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(4, true, 64).go(); // late negotiation
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(4, true, 64).payload(respPayload, 256, 320).go();
+		
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(5, true, 64).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(5, true, 64).payload(respPayload, 320, 384).go();
+		
+		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(6, true, 64).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(6, false, 64).payload(respPayload, 384, 400).go();
+	}
+
 	/**
 	 * <pre>
 	 * CLIENT                                                     SERVER
@@ -339,19 +372,33 @@ public class BlockwiseServerSideTest {
 	@Test
 	public void testIncompleteGET() throws Exception {
 		System.out.println("Incomplete blockwise GET:");
+		time.setFixedTestTime(true);
 		respPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length())
 			.payload(respPayload.substring(0, 128)).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
-		
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 128).payload(respPayload.substring(128, 256)).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
-		
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
+
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+			}
+		});
+
+		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
 		serverInterceptor.logNewLine("//////// Missing last GET ////////");
 	}
 
@@ -377,20 +424,33 @@ public class BlockwiseServerSideTest {
 	public void testIncompletePUT() throws Exception {
 
 		System.out.println("Incomplete blockwise PUT:");
-
+		time.setFixedTestTime(true);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(0, true, 128).size1(reqtPayload.length())
 			.payload(reqtPayload.substring(0,  128)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(0, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
 		client.sendRequest(CON, PUT, tok, ++mid).path(RESOURCE_PATH).block1(1, true, 128).payload(reqtPayload.substring(128,  256)).go();
 		client.expectResponse(ACK, ResponseCode.CONTINUE, tok, mid).block1(1, true, 128).go();
-		Thread.sleep((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75));
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
 
 		assertTrue(!serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+
+		time.addTestTimeShift((long) (TEST_BLOCKWISE_STATUS_LIFETIME * 0.75), TimeUnit.MILLISECONDS);
+
+		TestConditionTools.waitForCondition(TEST_BLOCKWISE_STATUS_LIFETIME, TEST_BLOCKWISE_STATUS_INTERVAL, TimeUnit.MILLISECONDS,  new TestCondition() {
+
+			@Override
+			public boolean isFulFilled() throws IllegalStateException {
+				return serverEndpoint.getStack().getBlockwiseLayer().isEmpty();
+			}
+		});
+
+		assertTrue(serverEndpoint.getStack().getBlockwiseLayer().isEmpty());
+		
 		serverInterceptor.logNewLine("//////// Missing last PUT ////////");
 	}
 
@@ -424,7 +484,7 @@ public class BlockwiseServerSideTest {
 
 		System.out.println("2 consecutive complete PUT with block1 transfer:");
 
-		TimeAssume assume = new TimeAssume();
+		TimeAssume assume = new TimeAssume(time);
 		reqtPayload = generateRandomPayload(300);
 		Token tok = generateNextToken();
 
@@ -850,7 +910,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).observe(0).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 128).size2(respPayload.length()).storeObserve("O1").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 
 		Token tok1 = generateNextToken();
 		client.sendRequest(CON, GET, tok1, ++mid).path(RESOURCE_PATH).block2(1, false, 128).go();
@@ -864,7 +924,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(280);
 		testResource.changed();
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(1).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).checkObs("O1", "O2").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -880,7 +940,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(290);
 		testResource.changed();
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).observe(2).block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").size2(respPayload.length()).checkObs("O2", "O3").block2(0, true, 128).payload(respPayload.substring(0, 128)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -902,7 +962,7 @@ public class BlockwiseServerSideTest {
 		System.out.println("Establish observe relation to " + RESOURCE_PATH);
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).observe(0).block2(0, false, 64).go();
-		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).observe(0).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse(ACK, CONTENT, tok, mid).block2(0, true, 64).storeObserve("O1").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 
 		client.sendRequest(CON, GET, tok, ++mid).path(RESOURCE_PATH).block2(1, false, 64).go();
 		client.expectResponse(ACK, CONTENT, tok, mid).block2(1, true, 64).noOption(OBSERVE).payload(respPayload.substring(64, 128)).go();
@@ -915,7 +975,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(140);
 		testResource.changed(); // First notification
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(1).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").checkObs("O1", "O2").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 
@@ -931,7 +991,7 @@ public class BlockwiseServerSideTest {
 		respPayload = generateRandomPayload(145);
 		testResource.changed(); // Second notification
 
-		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").observe(2).size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
+		client.expectResponse().type(CON, NON).storeType("T").code(CONTENT).token(tok).storeMID("A").checkObs("O2", "O3").size2(respPayload.length()).block2(0, true, 64).payload(respPayload.substring(0, 64)).go();
 		if (client.get("T") == CON)
 			client.sendEmpty(ACK).loadMID("A").go();
 

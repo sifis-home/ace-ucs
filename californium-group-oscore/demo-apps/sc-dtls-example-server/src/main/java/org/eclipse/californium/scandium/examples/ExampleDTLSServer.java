@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -29,7 +29,8 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ public class ExampleDTLSServer {
 	private DTLSConnector dtlsConnector;
 
 	public ExampleDTLSServer() {
-		InMemoryPskStore pskStore = new InMemoryPskStore();
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
 		// put in the PSK store the default identity/psk for tinydtls tests
 		pskStore.setKey("Client_identity", "secretPSK".getBytes());
 		try {
@@ -58,12 +59,13 @@ public class ExampleDTLSServer {
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+			builder.setRecommendedCipherSuitesOnly(false);
 			builder.setAddress(new InetSocketAddress(DEFAULT_PORT));
-			builder.setPskStore(pskStore);
+			builder.setAdvancedPskStore(pskStore);
 			builder.setIdentity(serverCredentials.getPrivateKey(), serverCredentials.getCertificateChain(),
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
-			builder.setTrustStore(trustedCertificates);
-			builder.setRpkTrustAll();
+			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector
 					.setRawDataReceiver(new RawDataChannelImpl(dtlsConnector));

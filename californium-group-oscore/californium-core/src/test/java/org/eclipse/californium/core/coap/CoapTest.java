@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -20,27 +20,30 @@
  ******************************************************************************/
 package org.eclipse.californium.core.coap;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertFalse;
-
-import org.eclipse.californium.category.Small;
-import org.eclipse.californium.core.coap.CoAP;
-import org.eclipse.californium.core.coap.CoAP.CodeClass;
-import org.eclipse.californium.core.coap.CoAP.Code;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.CoAP.MessageFormat;
-import org.junit.Test;
-import org.junit.experimental.categories.Category;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+import org.eclipse.californium.core.coap.CoAP.Code;
+import org.eclipse.californium.core.coap.CoAP.CodeClass;
+import org.eclipse.californium.core.coap.CoAP.MessageFormat;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.CoAP.Type;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
+import org.junit.Rule;
+import org.junit.Test;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests that the mapping from a value to an enum is correct.
  */
 @Category(Small.class)
 public class CoapTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	@Test
 	public void testType() {

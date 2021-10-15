@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -25,6 +25,7 @@
  *                                                    to 8192.
  *    Achim Kraus (Bosch Software Innovations GmbH) - replace USE_STRICT_RESPONSE_MATCHING
  *                                                    by DTLS_RESPONSE_MATCHING
+ *    Pratheek Rai - Added TCP_NUMBER_OF_BULK_BLOCKS for BERT option.
  ******************************************************************************/
 package org.eclipse.californium.core.network.config;
 
@@ -64,14 +65,24 @@ public class NetworkConfigDefaults {
 	 * EXCHANGE_LIFETIME of 247s.
 	 */
 	public static final int DEFAULT_BLOCKWISE_STATUS_LIFETIME = 5 * 60 * 1000; // 5 mins [ms]
-	
+
 	/**
-	 * The default mode used to respond for early bockwise negociation when response can be sent on one packet.
+	 * The default interval for removing expired/stale blockwise entries.
+	 * 
+	 * @since 3.0
+	 */
+	public static final int DEFAULT_BLOCKWISE_STATUS_INTERVAL = 5 * 1000; // 5s [ms]
+
+	/**
+	 * The default mode used to respond for early blockwise negotiation when response can be sent on one packet.
 	 * <p>
 	 * The default value is false, which indicate that the server will not include the Block2 option.
 	 */
 	public static final boolean DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION = false;
-	
+
+	/** @since 2.4 */
+	public static final boolean DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER = true;
+
 	/**
 	 * The default value for {@link Keys#PREFERRED_BLOCK_SIZE}
 	 */
@@ -104,6 +115,20 @@ public class NetworkConfigDefaults {
 	 * The default value is 247s.
 	 */
 	public static final long DEFAULT_EXCHANGE_LIFETIME = 247 * 1000;
+
+	public static final String DEFAULT_DEDUPLICATOR =  Keys.DEDUPLICATOR_MARK_AND_SWEEP;
+
+	/**
+	 * Default for message per peers mark and sweep.
+	 * @since 2.3 
+	 */
+	public static final int DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES = 64;
+
+	public static final long DEFAULT_MARK_AND_SWEEP_INTERVAL =  10 * 1000; // 10 secs
+
+	public static final int DEFAULT_CROP_ROTATION_PERIOD = (int) DEFAULT_EXCHANGE_LIFETIME;
+
+	public static final boolean DEFAULT_DEDUPLICATOR_AUTO_REPLACE = true;
 
 	/**
 	 * The default DTLS response matcher.
@@ -190,6 +215,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.NSTART, 1);
 		config.setInt(Keys.LEISURE, 5000);
 		config.setFloat(Keys.PROBING_RATE, 1f);
+		config.setBoolean(Keys.USE_MESSAGE_OFFLOADING, false);
 
 		config.setInt(Keys.MAX_LATENCY, 100 * 1000); //ms
 		config.setInt(Keys.MAX_SERVER_RESPONSE_DELAY, 250 * 1000); //ms
@@ -203,7 +229,9 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.MAX_MESSAGE_SIZE, DEFAULT_MAX_MESSAGE_SIZE);
 		config.setInt(Keys.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_BODY_SIZE);
 		config.setInt(Keys.BLOCKWISE_STATUS_LIFETIME, DEFAULT_BLOCKWISE_STATUS_LIFETIME); // [ms]
+		config.setInt(Keys.BLOCKWISE_STATUS_INTERVAL, DEFAULT_BLOCKWISE_STATUS_INTERVAL); // [ms]
 		config.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, DEFAULT_BLOCKWISE_STRICT_BLOCK2_OPTION);
+		config.setBoolean(Keys.BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER, DEFAULT_BLOCKWISE_ENTITY_TOO_LARGE_AUTO_FAILOVER);
 
 		
 		config.setLong(Keys.NOTIFICATION_CHECK_INTERVAL_TIME, 24 * 60 * 60 * 1000); //24 [ms]
@@ -222,15 +250,17 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.UDP_CONNECTOR_SEND_BUFFER, UDPConnector.UNDEFINED);
 		config.setInt(Keys.UDP_CONNECTOR_OUT_CAPACITY, Integer.MAX_VALUE); // unbounded
 
-		config.setString(Keys.DEDUPLICATOR, Keys.DEDUPLICATOR_MARK_AND_SWEEP);
-		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, 10 * 1000); // 10 secs
-		config.setInt(Keys.CROP_ROTATION_PERIOD, 2000);
+		config.setString(Keys.DEDUPLICATOR, DEFAULT_DEDUPLICATOR);
+		config.setLong(Keys.MARK_AND_SWEEP_INTERVAL, DEFAULT_MARK_AND_SWEEP_INTERVAL);
+		config.setInt(Keys.PEERS_MARK_AND_SWEEP_MESSAGES, DEFAULT_PEERS_MARK_AND_SWEEP_MESSAGES);
+		config.setInt(Keys.CROP_ROTATION_PERIOD, DEFAULT_CROP_ROTATION_PERIOD);
+		config.setBoolean(Keys.DEDUPLICATOR_AUTO_REPLACE, DEFAULT_DEDUPLICATOR_AUTO_REPLACE);
 		config.setString(Keys.RESPONSE_MATCHING, DEFAULT_RESPONSE_MATCHING);
 
 		config.setInt(Keys.HTTP_PORT, 8080);
 		config.setInt(Keys.HTTP_SERVER_SOCKET_TIMEOUT, 100000);
 		config.setInt(Keys.HTTP_SERVER_SOCKET_BUFFER_SIZE, 8192);
-		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400);
+		config.setInt(Keys.HTTP_CACHE_RESPONSE_MAX_AGE, 86400); // 24h
 		config.setInt(Keys.HTTP_CACHE_SIZE, 32);
 
 		config.setInt(Keys.HEALTH_STATUS_INTERVAL, DEFAULT_HEALTH_STATUS_INTERVAL); // s, 0 for disable
@@ -238,6 +268,7 @@ public class NetworkConfigDefaults {
 		config.setInt(Keys.TCP_CONNECTION_IDLE_TIMEOUT, DEFAULT_TCP_CONNECTION_IDLE_TIMEOUT); // s
 		config.setInt(Keys.TCP_WORKER_THREADS, 1);
 		config.setInt(Keys.TCP_CONNECT_TIMEOUT, DEFAULT_TCP_CONNECT_TIMEOUT); // ms
+		config.setInt(Keys.TCP_NUMBER_OF_BULK_BLOCKS, 2);// BERT enabled when > 1.
 		config.setInt(Keys.TLS_HANDSHAKE_TIMEOUT, DEFAULT_TLS_HANDSHAKE_TIMEOUT); // ms
 
 		config.setLong(Keys.SECURE_SESSION_TIMEOUT, DEFAULT_SECURE_SESSION_TIMEOUT);

@@ -31,8 +31,12 @@
  *******************************************************************************/
 package se.sics.ace.oscore;
 
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -40,6 +44,11 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.cose.OneKey;
+import net.i2p.crypto.eddsa.Utils;
+import se.sics.ace.Util;
+import se.sics.ace.Constants;
+import se.sics.ace.Hkdf;
 
 /**
  * A class implementing the status of an OSCORE Group at its Group ManagerOSCORE
@@ -52,66 +61,134 @@ public class GroupInfo {
 	/**
 	 * Information element for the OSCORE group
 	 */
+	
+	private String groupName;
+	
 	private byte[] masterSecret;
 	private byte[] masterSalt;
+	private byte[] groupEncryptionKey = null;
+	private AlgorithmID hkdf = null;
+	private int pubKeyEnc; // the format of public keys used in the group
 	
-	private Set<Integer> usedSenderIds = new HashSet<>();
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 includes as elements Sender IDs with size 1 byte.
+	private List<Set<Integer>> usedSenderIds = new ArrayList<Set<Integer>>();
+	
 	private int senderIdSize; // Size in bytes of the byte array representation of Sender IDs 
 	private int maxSenderIdValue;
 	
-	// This map stores the public keys of the group members as COSE Keys (CBOR Maps).
-	// The map key (label) is the integer representation of the Sender ID of the group member. 
-	private Map<Integer, CBORObject> publicKeyRepo = new HashMap<>();
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as values CBOR byte strings, with value the serialization of the public keys
+	// of the group members, according to the format used in the group.
+	// The map key (label) is a CBOR byte string with value the Sender ID of the group member.
+	private List<Map<CBORObject, CBORObject>> publicKeyRepo = new ArrayList<Map<CBORObject, CBORObject>>();
+	
+	// Each set of the list refers to a different size of Sender IDs.
+	// The element with index 0 has elements referring to Sender IDs with size 1 byte.
+	// Each map has as value the AIF-based role(s) of group members.
+	// The map key (label) is the integer representation of the Sender ID of the group member.
+	private List<Map<Integer, Integer>> nodeRoles = new ArrayList<Map<Integer, Integer>>();
+	
+	// The value of each map entry is the node name of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+	private Map<String, String> identities2nodeNames = new HashMap<String, String>();
+
+	// The value of each map entry is the current Sender ID (CBOR byte string) of a group member with a certain identity.
+	// The map (key) label is the identity of each group member, as per its secure association with the Group Manager.
+	private Map<String, CBORObject> identities2senderIDs = new HashMap<String, CBORObject>();
+	
+	// The value of each map entry is the "Birth GID" (CBOR byte string) of that group member.
+	// The map (key) label is the node name of the group member.
+	private Map<String, CBORObject> birthGIDs = new HashMap<String, CBORObject>();
 	
 	private final int groupIdPrefixSize; // Prefix size (bytes), same for every Group ID on the same Group Manager
 	private byte[] groupIdPrefix;
+	
+	private final String prefixMonitorNames; // Initial part of the node name for monitors, since they do not have a Sender ID
+	
+	private final String nodeNameSeparator; // For non-monitor members, separator between the two components of the node name
+	
+	// Each element of the set is an allocated variable part of the node name for monitors, since they do not have a Sender ID
+	private Set<Integer> suffixMonitorNames = new HashSet<Integer>();
 	
 	private int groupIdEpochSize; // Epoch size (bytes) in the {Prefix ; Epoch} Group ID
 	private int maxGroupIdEpochValue;
 	private int groupIdEpoch;
 	
+	private int mode; // The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	
+	// Specific to the group mode
+	private AlgorithmID signEncAlg = null;
+	private AlgorithmID signAlg = null;
+	private CBORObject signParams = null;
+
+	// Specific to the pairwise mode
 	private AlgorithmID alg = null;
-	private AlgorithmID hkdf = null;
-	private AlgorithmID csAlg = null;
-	private CBORObject csParams = null;
-	private CBORObject csKeyParams = null;
-	private CBORObject csKeyEnc = null;
+	private AlgorithmID ecdhAlg = null;
+	private CBORObject ecdhParams = null;
+	
+	private CBORObject groupPolicies = null;
 	
 	private int version; // Version of the current symmetric keying material
-
+	private boolean status; // True if the group is currently active, false otherwise
+	
+	private OneKey gmKeyPair;   // The asymmetric key pair of the Group Manager, as a OneKey object
+	private byte[] gmPublicKey; // The serialization of the public key of the Group Manager, in the format used in the group
+	
 	/**
 	 * Creates a new GroupInfo object tracking the current status of an OSCORE group.
 	 * 
+	 * @param groupName           the invariant name of the OSCORE group.
 	 * @param masterSecret        the OSCORE Master Secret.
 	 * @param masterSalt          the OSCORE Master Salt.
 	 * @param groupIdPrefixSize   the size in bytes of the Prefix part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdPrefix       the Prefix part of the OSCORE Group ID.
 	 * @param groupIdEpochSize    the size in bytes of the byte array representation of the Epoch part of the OSCORE Group ID. Up to 4 bytes.
 	 * @param groupIdEpoch        the current value of the Epoch part of the OSCORE Group ID as a positive integer.
-	 * @param senderIdSize        the size in bytes of Sender IDs in the OSCORE Group. Up to 4 bytes, same for all Sender IDs in the OSCORE group.
-	 * @param alg                 the AEAD algorithm used in the OSCORE group.
-	 * @param hkdf                the HKDF used in the OSCORE group.
-	 * @param csAlg               the countersignature algorithm used in the OSCORE group.
-	 * @param csParams            the parameters of the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyParams         the parameters of the key for the countersignature algorithm used in the OSCORE group.
-	 * @param csKeyEnc            the encoding of the key for the countersignature algorithm used in the OSCORE group.
+	 * @param prefixMonitorNames  the prefix string used to build the name of a group member acting as monitor.
+	 * @param nodeNameSeparator   the string separator used to build the name of a group member non acting as monitor.
+	 * @param hkdf                the HKDF Algorithm.
+	 * @param pubKeyEnc           the format of the public keys used in the OSCORE group.
+	 * @param mode			      the mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+	 * @param signEncAlg          the Signature Encryption Algorithm if the group mode is used, or null otherwise
+	 * @param signAlg             the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param signParams          the parameters of the Signature Algorithm if the group mode is used, or null otherwise
+	 * @param alg                 the AEAD algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhAlg             the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param ecdhParams          the parameters of the Pairwise Key Agreement Algorithm if the pairwise mode is used, or null otherwise
+	 * @param groupPolicies		  the map of group policies, or Null for building one with default values
+	 * @param gmKeyPair           the asymmetric key pair of the Group Manager
+	 * @param gmPublicKey		  the serialization of the public key of the Group Manager (in the format used in the group)
 	 */
-    public GroupInfo(final byte[] masterSecret,
+    public GroupInfo(final String groupName,
+    				 final byte[] masterSecret,
     				 final byte[] masterSalt,
     				 final int groupIdPrefixSize,
     		         final byte[] groupIdPrefix,
     		         final int groupIdEpochSize,
     		         final int groupIdEpoch,
-    		         final int senderIdSize,
-    		         final AlgorithmID alg,
+    		         final String prefixMonitorNames,
+    		         final String nodeNameSeparator,
     		         final AlgorithmID hkdf,
-    		         final AlgorithmID csAlg,
-    		         final CBORObject csParams,
-    		         final CBORObject csKeyParams,
-    		         final CBORObject csKeyEnc) {
+    		         final int pubKeyEnc,
+    		         final int mode,
+    		         final AlgorithmID signEncAlg,
+    		         final AlgorithmID signAlg,
+    		         final CBORObject signParams,
+    		         final AlgorithmID alg,
+    		         final AlgorithmID ecdhAlg,
+    		         final CBORObject ecdhParams,
+    		         final CBORObject groupPolicies,
+    		         final OneKey gmKeyPair,
+    		         final byte[] gmPublicKey) {
     	
-        this.version = 0;
-
+    	this.version = 0;
+    	this.status = false;
+    	
+    	setGroupName(groupName);
+    	
+    	setHkdf(hkdf);
     	setMasterSecret(masterSecret);
     	setMasterSalt(masterSalt);
     	
@@ -119,24 +196,126 @@ public class GroupInfo {
     	setGroupIdPrefix(groupIdPrefix);
     	setGroupIdEpoch(groupIdEpochSize, groupIdEpoch);
     	
-    	setAlg(alg);
-    	setHkdf(hkdf);
-    	setCsAlg(csAlg);
-    	setCsParams(csParams);
-    	setCsKeyParams(csKeyParams);
-    	setCsKeyEnc(csKeyEnc);
+    	this.mode = mode;
+    	this.pubKeyEnc = pubKeyEnc;
+    	this.prefixMonitorNames = prefixMonitorNames;
+    	this.nodeNameSeparator = nodeNameSeparator;
     	
-    	if (senderIdSize < 1)
-    		this.senderIdSize = 1;
-    	else if (senderIdSize > 4)
-    		this.senderIdSize = 4;
-    	else
-    		this.senderIdSize = senderIdSize;
+    	// The group mode is used
+    	if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+    		setSignEncAlg(signEncAlg);
+	    	setSignAlg(signAlg);
+	    	setSignParams(signParams);
+	    	setGroupEncryptionKey();
+    	}
     	
-    	if (senderIdSize == 4)
-    		this.maxSenderIdValue = (2 << 31) - 1;
-    	else
-    		this.maxSenderIdValue = (2 << (senderIdSize * 8)) - 1;
+    	// The pairwise mode is used
+    	if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+    		setAlg(alg);
+	    	setEcdhAlg(ecdhAlg);
+	    	setEcdhParams(ecdhParams);
+    	}
+    	
+    	this.senderIdSize = 1;
+    	this.maxSenderIdValue = 255;
+    	
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedSenderIds.add(new HashSet<Integer>());
+    		
+        	// Empty sets of stored public keys; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		publicKeyRepo.add(new HashMap<CBORObject, CBORObject>());
+    		
+        	// Empty sets of roles; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		nodeRoles.add(new HashMap<Integer, Integer>());
+    		
+    	}
+    	
+    	this.groupPolicies = groupPolicies;
+    	
+    	if (groupPolicies == null) {
+    		// Set default policy values
+        	CBORObject defaultGroupPolicies = CBORObject.NewMap();
+        	defaultGroupPolicies.Add(Constants.POLICY_KEY_CHECK_INTERVAL, CBORObject.FromObject(3600));
+        	defaultGroupPolicies.Add(Constants.POLICY_EXP_DELTA, CBORObject.FromObject(0));
+        	this.groupPolicies = defaultGroupPolicies;
+    	}
+    	
+    	this.gmKeyPair = gmKeyPair;
+    	this.gmPublicKey = gmPublicKey;
+    	
+    }
+    
+    /** Retrieve the mode(s) of operation used in the group
+     * 
+     * @return  The mode(s) of operation used in the group (group only / group+pairwise / pairwise only)
+     */
+    synchronized public final int getMode() {
+    	
+    	return this.mode;
+    	
+    }
+    
+    /** Retrieve the current status of the group
+     * 
+     * @return  True if the group is currently active, false otherwise
+     */
+    synchronized public final boolean getStatus() {
+    	
+    	return this.status;
+    	
+    }
+    
+    /** 
+     * Set the status of the group
+     * @param The new status to set for the group, i.e. true for active, false for inactive
+     */
+    synchronized public void setStatus(final boolean status) {
+    	
+    	this.status = status;
+    	
+    }
+    
+    /** Retrieve the asymmetric key pair of the Group Manager
+     * 
+     * @return  The asymmetric key pair of the Group Manager
+     */
+    synchronized public final OneKey getGmKeyPair() {
+    	
+    	return this.gmKeyPair;
+    	
+    }
+    
+    /** 
+     * Set the asymmetric key pair of the Group Manager
+     * @param The new asymmetric key pair of the Group Manager
+     */
+    synchronized public void setGmKeyPair(OneKey gmKeyPair) {
+    	
+    	this.gmKeyPair = gmKeyPair;
+    	
+    }
+    
+    /** Retrieve the public key of the Group Manager, according to the format used in the group
+     * 
+     * @return  The public key of the Group Manager
+     */
+    synchronized public final byte[] getGmPublicKey() {
+    	
+    	return this.gmPublicKey;
+    	
+    }
+    
+    /** 
+     * Set the public key of the Group Manager, according to the format used in the group
+     * @param The new public key of the Group Manager
+     */
+    synchronized public void setGmPublicKey(byte[] gmPublicKey) {
+    	
+    	this.gmPublicKey = gmPublicKey;
     	
     }
     
@@ -160,6 +339,25 @@ public class GroupInfo {
     	
     	this.masterSecret = new byte[masterSecret.length];
     	System.arraycopy(masterSecret, 0, this.masterSecret, 0, masterSecret.length);
+    	
+    }
+    
+    /** Retrieve the name of the OSCORE group
+     * @return  the name of the OSCORE group
+     */
+    synchronized public final String getGroupName() {
+    	
+    	return new String(this.groupName); 
+    	
+    }
+    
+    /** 
+     * Set the name of the OSCORE group
+     * @param groupName
+     */
+    synchronized public void setGroupName(final String groupName) {
+    	
+    	this.groupName = new String(groupName);
     	
     }
     
@@ -188,6 +386,59 @@ public class GroupInfo {
     		this.masterSalt = new byte[masterSalt.length];
     		System.arraycopy(masterSalt, 0, this.masterSalt, 0, masterSalt.length);
     	}
+    	
+    }
+    
+    /**
+     *  Retrieve the OSCORE Group Encryption Key
+     * @return  the Group Encryption Key, or null in case of error
+     */
+    synchronized public final byte[] getGroupEncryptionKey() {
+    	
+    	if (this.groupEncryptionKey == null || this.mode == Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY)
+    		return null;
+    	
+    	byte[] myArray = new byte[this.groupEncryptionKey.length];
+    	System.arraycopy(this.groupEncryptionKey, 0, myArray, 0, this.groupEncryptionKey.length);
+    	return myArray;
+    	
+    }
+    
+    /**
+     * Set the OSCORE Group Encryption Key
+     * 
+     */
+    synchronized public void setGroupEncryptionKey() {
+    	
+    	CBORObject info = CBORObject.NewArray();
+    	
+    	 // 'id'
+    	byte[] emptyArray = new byte[0];
+    	info.Add(emptyArray);
+    	
+    	// 'id_context'
+    	info.Add(getGroupId());
+    	
+    	// 'alg_aead'
+    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.Integer)
+        	info.Add(this.getSignEncAlg().AsCBOR().AsInt32());
+    	if (this.getSignEncAlg().AsCBOR().getType() == CBORType.TextString)
+        	info.Add(this.getSignEncAlg().AsCBOR().AsString());
+    	
+    	// 'type'
+    	info.Add("Group Encryption Key");
+    	
+    	// 'L'
+    	int L = getKeyLengthSignatureEncryptionAlgorithm();
+    	info.Add(L);
+    	
+    	try {
+			this.groupEncryptionKey = Hkdf.extractExpand(getMasterSalt(), getMasterSecret(), info.EncodeToBytes(), L);
+		} catch (InvalidKeyException e) {
+			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+		} catch (NoSuchAlgorithmException e) {
+			System.err.println("Error when deriving the Group Encryption Key: " + e.getMessage());
+		}
     	
     }
     
@@ -239,16 +490,15 @@ public class GroupInfo {
     		return false;
     	else if (groupIdEpochSize > 4)
     		return false;
-    	else
-    		this.groupIdEpochSize = groupIdEpochSize;
+
+    	this.groupIdEpochSize = groupIdEpochSize;
+    	this.groupIdEpoch = groupIdEpoch;
     	
     	if (groupIdEpochSize == 4)
-    		this.maxGroupIdEpochValue = (2 << 31) - 1;
+    		this.maxGroupIdEpochValue = (1 << 31) - 1;
     	else
-    	    this.maxGroupIdEpochValue = (2 << (groupIdEpochSize * 8)) - 1;
-
-    	this.groupIdEpoch = groupIdEpoch;
-
+    		this.maxGroupIdEpochValue = (1 << (groupIdEpochSize * 8)) - 1;
+    	
     	return true;
     }
 
@@ -298,43 +548,20 @@ public class GroupInfo {
     synchronized public final byte[] getGroupId() {
     	
     	byte[] myArray = new byte[this.groupIdPrefix.length + this.groupIdEpochSize];
+    	for (int i = 0; i < myArray.length; i++)
+    		myArray[i] = (byte) 0x00;
+    	
     	System.arraycopy(this.groupIdPrefix, 0, myArray, 0, this.groupIdPrefix.length);
     	
-    	byte[] groupIdEpochArray = intToBytes(this.groupIdEpoch);
+    	// The returned array has the minimal size to represent integer, hence the possible padding with zeros
+    	byte[] groupIdEpochArray = Util.intToBytes(this.groupIdEpoch);
     	
-    	if (groupIdEpochArray.length != 0)
-    		System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
+    	if (groupIdEpochArray.length == 0 || groupIdEpochArray.length > this.groupIdEpochSize)
+    		return null;
     	
-    	// Ensure that the Group ID Epoch have the intended size in bytes
-    	int diff = this.groupIdEpochSize - groupIdEpochArray.length;
-    	for (int i = 0; i < diff; i++) {
-    		int offset = this.groupIdPrefix.length + groupIdEpochArray.length + i; 
-    		myArray[offset] = (byte) 0x00;
-    	}
-    	
+    	System.arraycopy(groupIdEpochArray, 0, myArray, this.groupIdPrefix.length, groupIdEpochArray.length);
+    	     
     	return myArray;
-    	
-    }
-    
-    /**
-     * @return the AEAD algorithm used in the group
-     */
-    synchronized public final AlgorithmID getAlg() {
-    	
-    	return this.alg;
-    	
-    }
-    
-    /**
-     *  Set the AEAD algorithm used in the group
-     * @param alg
-     */
-    synchronized public void setAlg(final AlgorithmID alg) {
-    	
-    	if (alg == null)
-			this.alg = AlgorithmID.AES_CCM_16_64_128;
-    	else
-    		this.alg = alg;
     	
     }
     
@@ -361,121 +588,201 @@ public class GroupInfo {
     }
     
     /**
-     * @return  the countersignature algorithm used in the group
+     * @return the Signature Encryption Algorithm used in the group for the group mode
      */
-    synchronized public final AlgorithmID getCsAlg() {
+    synchronized public final AlgorithmID getSignEncAlg() {
     	
-    	return this.csAlg;
+    	return this.signEncAlg;
     	
     }
     
     /**
-     *  Set the countersignature algorithm used in the group
-     * @param csAlg
+     *  Set the Signature Encryption Algorithm used in the group for the group mode
+     * @param signEncAlg
      */
-    synchronized public void setCsAlg(final AlgorithmID csAlg) {
+    synchronized public void setSignEncAlg(final AlgorithmID signEncAlg) {
     	
-    	if (csAlg == null)
-    		this.csAlg = AlgorithmID.EDDSA;
+    	if (signEncAlg == null)
+			this.signEncAlg = AlgorithmID.AES_CCM_16_64_128;
     	else
-    		this.csAlg = csAlg;
+    		this.signEncAlg = signEncAlg;
+    	
+    }
+    
+    /**
+     * @return  the Signature Algorithm used in the group for the group mode
+     */
+    synchronized public final AlgorithmID getSignAlg() {
+    	
+    	return this.signAlg;
+    	
+    }
+    
+    /**
+     *  Set the Signature Algorithm used in the group for the group mode
+     * @param signAlg
+     */
+    synchronized public void setSignAlg(final AlgorithmID signAlg) {
+    	
+    	if (signAlg == null)
+    		this.signAlg = AlgorithmID.EDDSA;
+    	else
+    		this.signAlg = signAlg;
     	
     }    
     
     /**
-     * @return  the countersignature algorithm used in the group
+     * @return  the parameters of the Signature Algorithm used in the group for the group mode
      */
-    synchronized public final CBORObject getCsParams() {
+    synchronized public final CBORObject getSignParams() {
     	
-    	return this.csParams;
+    	return this.signParams;
     	
     }
 
     /**
-     * Set the countersignature parameters used in the group
-     * @param csParams
+     * Set the parameters of the Signature Algorithm used in the group for the group mode
+     * @param signParams
      * 
      * @return true of the parameters were successfully set, false otherwise
      */
-    synchronized public boolean setCsParams(final CBORObject csParams) {
+    synchronized public boolean setSignParams(final CBORObject signParams) {
 
-    	if (csParams.getType() != CBORType.Map)
+    	if (signParams.getType() != CBORType.Array)
     		return false;
     	
-    	this.csParams = csParams;
+    	this.signParams = signParams;
     	
     	return true;
     	
     }
     
     /**
-     * @return parameters of the key of the countersignature algorithm 
-     *      used in the group
+     * @return the AEAD Algorithm used in the group for the pairwise mode
      */
-    synchronized public final CBORObject getCsKeyParams() {
+    synchronized public final AlgorithmID getAlg() {
     	
-    	return this.csKeyParams;
+    	return this.alg;
     	
     }
     
     /**
-     *  Set the parameters of the key of the countersignature algorithm used
-     *   in the group
-     * @param csKeyParams  the parameters
-     * @return  true if the parameters were successfully set, false otherwise
+     *  Set the AEAD Algorithm used in the group for the pairwise mode
+     * @param alg
      */
-    synchronized public boolean setCsKeyParams(final CBORObject csKeyParams) {
-    
-    	if (csKeyParams.getType() != CBORType.Map)
-    		return false;
+    synchronized public void setAlg(final AlgorithmID alg) {
     	
-    	this.csKeyParams = csKeyParams;
-    	return true;
+    	if (alg == null)
+			this.alg = AlgorithmID.AES_CCM_16_64_128;
+    	else
+    		this.alg = alg;
     	
     }
     
     /**
-     * @return encoding of the key of the countersignature algorithm 
-     *      used in the group
+     * @return the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
      */
-    synchronized public final CBORObject getCsKeyEnc() {
+    synchronized public final AlgorithmID getEcdhAlg() {
     	
-    	return this.csKeyEnc;
+    	return this.ecdhAlg;
     	
     }
     
     /**
-     *  Set the encoding of the key of the countersignature algorithm used
-     *   in the group
-     * @param csKeyEnc  the encoding
-     * @return  true if the encoding was successfully set, false otherwise
+     *  Set the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhAlg
      */
-    synchronized public boolean setCsKeyEnc(final CBORObject csKeyEnc) {
+    synchronized public void setEcdhAlg(final AlgorithmID ecdhAlg) {
     	
-    	if (csKeyEnc.getType() != CBORType.Number)
-    		return false;
+    	if (ecdhAlg == null)
+			this.ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+    	else
+    		this.ecdhAlg = ecdhAlg;
     	
-    	this.csKeyEnc = csKeyEnc;
-    	return true;
+    }
+    
+    /**
+     * @return  the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     */
+    synchronized public final CBORObject getEcdhParams() {
+    	
+    	return this.ecdhParams;
     	
     }
 
+    /**
+     * Set the parameters of the Pairwise Key Agreement Algorithm used in the group for the pairwise mode
+     * @param ecdhParams
+     * 
+     * @return true of the parameters were successfully set, false otherwise
+     */
+    synchronized public boolean setEcdhParams(final CBORObject ecdhParams) {
+
+    	if (ecdhParams.getType() != CBORType.Array)
+    		return false;
+    	
+    	this.ecdhParams = ecdhParams;
+    	
+    	return true;
+    	
+    }
+    
+    /**
+     * @return format of the public keys used in the group
+     */
+    synchronized public final int getPubKeyEnc() {
+    	
+    	return this.pubKeyEnc;
+    	
+    }
+
+    /**
+     *  Return the whole collection of Sender IDs assigned so far.
+     *  Note that this includes also Sender IDs of members that have left the group.
+     *  On top of uniqueness, there is not re-cycling of previously assigned Sender IDs.
+     * @return   The whole collection of assigned Sender IDs.
+     */
+    synchronized public List<Set<Integer>> getUsedSenderIds() {
+    	
+    	return this.usedSenderIds;
+    	
+    }
+    
     /**
      * Find the first available Sender ID value and allocate it.
      * @return  the allocated Sender ID value as a byte array, or null if all values are used.
      */
     synchronized public byte[] allocateSenderId() {
     	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
-    		return null;
+    	// All the possible values for the Sender IDs with this size have been allocated.
+    	// Switch to the next size, up to 4 bytes, and update the maximum Sender ID value.
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1)) {
+	    		this.senderIdSize++;
+	    
+        	// All Sender IDs with all possible sizes have been assigned already
+        	if (this.senderIdSize > 4)
+        		return null;
+        	
+        	if (senderIdSize == 4)
+        		this.maxSenderIdValue = (1 << 31) - 1;
+        	else
+        		this.maxSenderIdValue = (1 << (senderIdSize * 8)) - 1;
+    	}
     	
     	byte[] senderIdByteArray = null;
-    	for (int i = 0; i < this.maxSenderIdValue; i++) {
-    		if (!this.usedSenderIds.contains(i)) {
-    			this.usedSenderIds.add(i);
+    	for (int i = 0; i <= this.maxSenderIdValue; i++) {
+    		if (!this.usedSenderIds.get(senderIdSize - 1).contains(i)) {
+    			this.usedSenderIds.get(senderIdSize - 1).add(i);
+    			
     			senderIdByteArray = new byte[this.senderIdSize];
-    			System.arraycopy(intToBytes(i), 0, senderIdByteArray, 0, this.senderIdSize);
+    			for (int j = 0; j < senderIdByteArray.length; j++)
+    				senderIdByteArray[j] = (byte) 0x00;
+    			
+    			// The returned array has the minimal size to represent the integer value, hence the possible padding with zeros
+    			byte[] myArray = Util.intToBytes(i);
+    			int diff = senderIdByteArray.length - myArray.length;
+    			
+    			System.arraycopy(myArray, 0, senderIdByteArray, diff, myArray.length);
     			break;
     		}
     	}
@@ -485,21 +792,40 @@ public class GroupInfo {
     }
     
     /**
+     *  If never assigned before, assign a particular Sender ID value provided as byte array.
+     * @param id   The requested Sender ID to allocate
+     * @return   True is the Sender ID could be allocated, false otherwise.
+     */
+    synchronized public boolean allocateSenderId(byte[] id) {
+    	
+    	if (id.length != this.senderIdSize)
+    		return false;
+    	
+    	// All the possible values for the Sender IDs with this size have been assigned already
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).size() == (this.maxSenderIdValue + 1))
+    		return false;
+    	
+    	// The specified Sender ID has been already assigned - And no recycling is admitted
+    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
+    		return false;
+    	
+    	// In case the input array is 4 bytes in size and encoding a negative integer, this will return false
+    	return allocateSenderId(Util.bytesToInt(id));
+    	
+    }
+    
+    /**
      *  Check if a particular Sender ID value provided as an integer is available.
      * @param id
      * @return  if available allocate it and return true. Otherwise, return false.
      */
-    synchronized public boolean allocateSenderId(final int id) {
-    	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
-    		return false;
+    synchronized private boolean allocateSenderId(final int id) {
     	
     	if (id < 0 || id > this.maxSenderIdValue)
     		return false;
     	
-    	if (!this.usedSenderIds.contains(id)) {
-    		this.usedSenderIds.add(id);
+    	if (!this.usedSenderIds.get(senderIdSize - 1).contains(id)) {
+    		this.usedSenderIds.get(senderIdSize - 1).add(id);
     		return true;
     	}
     	
@@ -508,45 +834,51 @@ public class GroupInfo {
     }
     
     /**
-     *  Check if a particular Sender ID value provided as a byte array is available.
-     * @param id
-     * @return   If available, allocate it and return true. Otherwise, return false.
+     * Release a particular Sender ID value provided as a byte array.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     * 
+     * @param idByteArray   The Sender ID as byte array
+     * @return  false in case of failure, true otherwise.
      */
-    synchronized public boolean allocateSenderId(byte[] id) {
+    synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
     	
-    	// All the possible values for the Sender IDs are used
-    	if (this.usedSenderIds.size() == (this.maxSenderIdValue + 1))
+    	if (idByteArray.length != this.senderIdSize)
     		return false;
     	
-    	if (id.length != this.senderIdSize)
-    		return false;
+    	int id = Util.bytesToInt(idByteArray);
     	
     	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
-    	return allocateSenderId(bytesToInt(id));
+    	return deallocateSenderId(id, idByteArray.length);
     	
     }
     
     /**
-     * @return  the set of allocated Sender Ids in the OSCORE group
-     */
-    synchronized public final Set<Integer> getUsedSenderIds() {
-    	
-    	return new HashSet<>(this.usedSenderIds);
-    	
-    }
-    
-    /**
-     *  Release a particular Sender ID value provided as an integer.
-     * @param id
+     * Release a particular Sender ID value provided as an integer.
+     * 
+     * This method is intended only to rollback from errors during the joining process.
+     *  
+     * @param id   the Sender ID converted to integer
+     * @param size   the size in bytes of the original Sender ID as byte array
      * @return  false in case of failure, or true otherwise.
      */
-    synchronized public boolean deallocateSenderId(final int id) {
-    	
-    	if (id < 0 || id > this.maxSenderIdValue)
+    synchronized private boolean deallocateSenderId(final int id, final int size) {
+
+    	if (size < 0 || size > 4)
     		return false;
     	
-    	if (this.usedSenderIds.contains(id)) {
-    		this.usedSenderIds.remove(id);
+    	int maxValue;
+    	
+    	if (size == 4)
+    		maxValue = (1 << 31) - 1;
+    	else
+    		maxValue = (1 << (senderIdSize * 8)) - 1;
+    	
+    	if (id < 0 || id > maxValue)
+    		return false;
+    	
+    	if (this.usedSenderIds.get(size - 1).contains(id)) {
+    		this.usedSenderIds.get(size - 1).remove(id);
 			return true;
     	}
     	
@@ -555,67 +887,370 @@ public class GroupInfo {
     }
     
     /**
-     *  Release a particular Sender ID value provided as an byte array.
-     * @param idByteArray
-     * @return  false in case of failure, or true otherwise.
+     * Assign a node name to group member. If applicable, the group member must have already received a Sender ID.
+     * 
+     * @param id   The Sender ID already assigned to the node. It is Null if the node is a monitor.
+     * @return   The name assigned to the group member, or Null if there was a problem.
      */
-    synchronized public boolean deallocateSenderId(final byte[] idByteArray) {
+    synchronized public String allocateNodeName(byte[] id) {
     	
-    	if (idByteArray.length != this.senderIdSize)
-    		return false;
+    	String nodeName = null;
     	
-    	int id = bytesToInt(idByteArray);
+    	// The group member is a monitor and gets a node name following a monitor-name schema
+    	if (id == null) {
+        	int maxSuffixValue = (1 << 31) - 1;
+    		for (int i = 0; i <= maxSuffixValue; i++) {
+    			// This suffix value has been already assigned - No recycling is admitted
+    			if (suffixMonitorNames.contains(Integer.valueOf(i))) {
+    				continue;
+    			}
+    			else {
+    				// Mark the suffix value as assigned
+    				suffixMonitorNames.add(Integer.valueOf(i));
+    				nodeName = new String(prefixMonitorNames + String.valueOf(i));
+    				break;
+    			}
+    		}
+    	}
+    	// The group member is not a monitor and has already been assigned a Sender ID
+    	else {
+	    	// Double-check that the specified Sender ID has been in fact allocated
+	    	if (this.usedSenderIds.get(this.senderIdSize - 1).contains(Util.bytesToInt(id)))
+	    		nodeName = new String(Utils.bytesToHex(this.groupIdPrefix) +
+	    				              Utils.bytesToHex(Util.intToBytes(this.groupIdEpoch)) +
+	    				              this.nodeNameSeparator +
+	    				              Utils.bytesToHex(id));
+    	}
     	
-    	// In case the input array is 4 byte in size and encoding a negative integer, this will return false
-    	return deallocateSenderId(id);
+    	return nodeName;
     	
     }
     
     /**
-     *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
-     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-     * @param sid
-     * @param key
-     * @return  true if it worked, false if it failed
+     * Release a particular node name previously assigned to a node joining the group as monitor.
+     * 
+     * This method is intended only to rollback from errors during the joining process,
+     * and only for candidate members attempting to join the group as monitor.
+     * 
+     * @param nodeName   The node name as a string
      */
-    synchronized public boolean storePublicKey(final Integer sid, final CBORObject key) {
+    synchronized public void deallocateNodeName(final String nodeName) {
     	
-    	if (!this.usedSenderIds.contains(sid))
-    		return false;
+    	// Double-check that the node name is consistent with the naming schema for monitor group members
+    
+    	int prefixSize = prefixMonitorNames.length();
+    	if (nodeName.length() < (prefixMonitorNames.length() + 1))
+    		return;
+    	if(!nodeName.substring(0, prefixSize).equals(prefixMonitorNames))
+    		return;
+    	for (int i = prefixSize; i < nodeName.length(); i++) {
+    		if (!Character.isDigit(nodeName.charAt(i)))
+    			return;
+    	}
     	
-    	if (key.getType() != CBORType.Map)
-    		return false;
+    	String valueStr = nodeName.substring(prefixSize, nodeName.length());
+    	int value = Integer.parseInt(valueStr);
     	
-    	this.publicKeyRepo.put(sid, key);
+    	suffixMonitorNames.remove(Integer.valueOf(value));
+    	
+    }
+    
+    /**
+     * Check if a certain node is a current group member
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * @return   True if the node is a current member of the group, false otherwise
+     */
+    synchronized public boolean isGroupMember(final String subject) {
+
+    	return this.identities2nodeNames.containsKey(subject);
+    		
+    }
+    
+    /**
+     * Add a new group member - Note that the public key has to be added separately
+     * 
+     * @param sid   The Sender ID of the new node. It is Null if the node is a monitor.
+     * @param name   The node name of the new node.
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     * @param subject   The node's identity based on the secure association with the GM
+     * @return   True if the node is successfully added to the group, false otherwise
+     */
+    synchronized public boolean addGroupMember(final byte[] sid, final String name, final int roles, final String subject) {
+
+    	// The node is a monitor
+    	if (sid == null) {
+    		if (roles != (1 << Constants.GROUP_OSCORE_MONITOR))
+    			return false;
+    	}
+    	// The node is not a monitor
+    	else {
+    		if (roles == (1 << Constants.GROUP_OSCORE_MONITOR))
+    			return false;
+    		setGroupMemberRoles(sid, roles);
+	    	setSenderIdToIdentity(subject, sid);
+	    	
+    	}
+    	
+    	this.identities2nodeNames.put(subject, name);
+    	
+    	CBORObject gidCbor = CBORObject.FromObject(getGroupId());
+    	this.birthGIDs.put(name, gidCbor);
     	
     	return true;
     	
     }
     
     /**
-     * @param sid
-     * @return  the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
+     * Return the node name of the group member identified by the specified identity
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The node name of the group member, of null if no member is found with the specified identity
      */
-    // The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-    synchronized public CBORObject getPublicKey(final Integer sid) {
+    synchronized public String getGroupMemberName(final String subject) {
     	
-    	return this.publicKeyRepo.get(sid);
+    	if (!this.identities2nodeNames.containsKey(subject))
+    		return null;
+    	
+    	return this.identities2nodeNames.get(subject);
     	
     }
-
+    
     /**
-     *  Remove the public key 'key' of the group member with Sender ID 'sid' from the public key repo.
-     *  The format of the public key is the raw CBOR Map enconding it as COSE Key. 
-     *  
-     * @param sid
-     * @return  true if it was there, false if it wasn't
+     * Return the identity of the group member identified by the specified identity
+     * 
+     * @param subject   The identity of the node, as per its secure association with the Group Manager
+     * 
+     * @return The current Sender ID of the group member as a CBOR byte string, of null if no member is found with the specified identity
      */
-    synchronized public boolean deletePublicKey(final Integer sid) {
+    synchronized public CBORObject getGroupMemberSenderId(final String subject) {
     	
-    	if (!this.publicKeyRepo.containsKey(sid))
+    	if (!this.identities2senderIDs.containsKey(subject))
+    		return null;
+    	
+    	return this.identities2senderIDs.get(subject);
+    	
+    }
+    
+    /**
+     * 
+     * @param subject   Associate a Sender Id to the specified identity of a group member
+     *                  It has to be a valid and previously, consistently assigned Sender ID
+     * 
+     */
+    synchronized public void setSenderIdToIdentity(final String subject, final byte[] sid) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+    	this.identities2senderIDs.put(subject, CBORObject.FromObject(sid));
+    	
+    }    
+    
+    /**
+     * Return the Birth GID of the group member identified by the specified node name
+     * 
+     * @param senderId   The node name of the group member
+     * 
+     * @return The Birth GID of the Group Member, or null in case of error
+     */
+    synchronized public byte[] getBirthGid(final String nodeName) {
+    
+    	byte[] birthGid = null;
+    	CBORObject birthGidCbor;
+    	
+    	birthGidCbor = birthGIDs.get(nodeName);
+    	
+    	if (birthGidCbor != null)
+    		birthGid = birthGidCbor.GetByteString();
+    	
+    	return birthGid;
+    	
+    }
+    
+    /**
+     * Remove the Birth GID of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     */
+    synchronized public void deleteBirthGid(final String nodeName) {
+    	
+    	birthGIDs.remove(nodeName);
+    	
+    }
+    
+    
+    
+    /**
+     * Return the roles of the group member identified by the specified node name
+     * 
+     * @param nodeName   The node name of the group member
+     * 
+     * @return The roles of the group member encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final String nodeName) {
+    	
+    	// First, check if the node is a monitor, based on the naming-schema
+    	int prefixSize = prefixMonitorNames.length();
+    	if (nodeName.length() > (prefixMonitorNames.length()) &&
+    		nodeName.substring(0, prefixSize).equals(prefixMonitorNames)) {
+    		
+    		return 1 << Constants.GROUP_OSCORE_MONITOR;
+    		
+    	}
+
+    	// The node is not a monitor and has a Sender ID
+    	byte[] sid = Utils.hexToBytes(nodeName.substring(nodeName.indexOf(this.nodeNameSeparator) + 1));
+    	
+    	return getGroupMemberRoles(sid);
+    	
+    }
+    
+    /**
+     * 
+     * @param sid   The Sender Id of a group member. It has to be a valid and previously, consistently assigned Sender ID                       
+     * @param roles   The role(s) of the new node, encoded in the AIF data model
+     */
+    synchronized public void setGroupMemberRoles(final byte[] sid, final int roles) {
+    	    	
+    	// This overwrites a possible existing entry, if the group member has received a new Sender ID value
+    	// Consider the inner map related to the size in bytes of the Sender ID
+    	this.nodeRoles.get(sid.length - 1).put(Util.bytesToInt(sid), roles);
+    	
+    }   
+    
+    /**
+     * Return the roles of the group member identified by the specified Sender ID
+     * 
+     * @param sid   The Sender ID of the group member
+     * 
+     * @return The roles of the group member, encoded in the AIF data model
+     */
+    synchronized public short getGroupMemberRoles(final byte[] sid) {
+    	
+    	return this.nodeRoles.get(sid.length - 1).get(Util.bytesToInt(sid)).shortValue();
+    	
+    }
+        
+    /**
+     * Remove the group member identified by the specified identity
+     * 
+     * Note that the Sender ID is not deallocated, to ensure non-reassignment to future group members under
+     * the same Group ID value. The relinquished Sender ID can be separately stored to be made available again
+     * when changing the Group ID value following a group rekeying.
+     * 
+     * Note that this method does not delete the sub-resource associated to the removed group member.
+     * The Group Manager has to separately do that _before_ invoking this method. 
+     * 
+     * @param subject   The node's identity based on the secure association with the GM 
+     * @return True if an entry for the group member was found and removed, false otherwise
+     */
+    synchronized public boolean removeGroupMemberBySubject(final String subject) {
+    	
+    	if (!this.identities2nodeNames.containsKey(subject))
+        		return false;
+    	
+    	if (getGroupMemberRoles((getGroupMemberName(subject))) != (1 << Constants.GROUP_OSCORE_MONITOR)) {
+    	
+	    	byte[] sid = getGroupMemberSenderId(subject).GetByteString();
+	    	
+	    	if (!this.nodeRoles.get(sid.length - 1).containsKey(Util.bytesToInt(sid)))
+	    		return false;
+	    	
+	    	this.nodeRoles.get(sid.length - 1).remove(Util.bytesToInt(sid));
+	    	
+	    	deletePublicKey(sid);
+	    	
+    	}
+    	
+    	String nodeName = getGroupMemberName(subject);
+    	this.birthGIDs.remove(nodeName);
+    	
+    	this.identities2nodeNames.remove(subject);
+    	this.identities2senderIDs.remove(subject);
+    	
+    	return true;
+    	
+    }
+    
+    /**
+     * Return the public keys of the current group members
+     * 
+     * @return  The set of public keys of the current group members. The public keys are provided as
+     *          CBOR byte strings, with value the serialization of the public keys, according to the
+     *          format used in the group
+     */
+    synchronized public Map<CBORObject, CBORObject> getPublicKeys() {
+    	
+    	Map<CBORObject, CBORObject> publicKeys = new HashMap<CBORObject, CBORObject>();
+    	
+    	// Go through each size of Sender ID, i.e. from 1 (i=0) to 4 (i=3) bytes
+    	for (int i = 0; i < this.publicKeyRepo.size(); i++) {
+    		
+    		// Retrieve each public key
+    		for (Map.Entry<CBORObject, CBORObject> pair : publicKeyRepo.get(i).entrySet()) {
+    			publicKeys.put(pair.getKey(), pair.getValue());
+    		}
+    		
+    	}
+    	
+    	return publicKeys;
+    	
+    }
+    
+    /**
+     * Return the public key of the group member indicated by the provided Sender ID
+     * 
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @return  a CBOR byte string, with value the serialization of the public key of the group member,
+     *          according to the format used in the group
+     */
+    synchronized public CBORObject getPublicKey(final byte[] sid) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
+    		return null;
+    	
+    	return this.publicKeyRepo.get(sid.length - 1).get(CBORObject.FromObject(sid));
+    	
+    }
+    
+    /**
+     *  Add the public key 'key' of the group member with Sender ID 'sid' to the public key repo.
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @param key   A CBOR byte string, with value the serialization of the public key of the group member,
+     *              according to the format used in the group
+     * @return  true if it worked, false if it failed
+     */
+    synchronized public boolean storePublicKey(final byte[] sid, final CBORObject key) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
     		return false;
     	
-    	this.publicKeyRepo.remove(sid);
+    	if (key.getType() != CBORType.ByteString)
+    		return false;
+    	
+    	this.publicKeyRepo.get(sid.length - 1).put(CBORObject.FromObject(sid), key);
+    	
+    	return true;
+    	
+    }
+    
+
+    /**
+     *  Remove the public key of the group member indicated by the provided Sender ID
+     *  
+     * @param sid   Sender ID of the group member associated to the public key.
+     * @return  True if the public key was found and removed, false otherwise
+     */
+    synchronized public boolean deletePublicKey(final byte[] sid) {
+    	
+    	if (sid.length < 1 || sid.length > 4)
+    		return false;
+    	
+    	if (!this.publicKeyRepo.get(sid.length - 1).containsKey(CBORObject.FromObject(sid)))
+    		return false;
+    	
+    	this.publicKeyRepo.get(sid.length - 1).remove(CBORObject.FromObject(sid));
     	
     	return true;
     	
@@ -623,95 +1258,69 @@ public class GroupInfo {
     
     /**
      *  Return the current version of the symmetric keying material
-     *
-     *  @return  an integer indicating the current version of the symmetric keying material
+	 *
+	 *  @return  an integer indicating the current version of the symmetric keying material
      */
     synchronized public int getVersion() {
-        
-        return this.version;
-        
+    	
+    	return this.version;
+    	
     }
     
     /**
      *  Increment the version of the symmetric keying material 
-     *
+	 *
      */
     synchronized public void incrementVersion() {
-        
-        this.version++;
-        
+    	
+    	this.version++;
+    	
     }
     
     /**
-     *  Convert a positive integer into a byte array of minimal size.
-     *  The positive integer can be up to 2,147,483,647 
-     * @param num
-     * @return  the byte array
+     *  Return the group policies
+	 *
+	 *  @return  a CBOR map including the group policies
      */
-    public static byte[] intToBytes(final int num) {
-
-    	// Big-endian
-    	if (num < 0)
-    		return null;
-    	else if (num == 0) {
-            return new byte[] {};
-        } else if (num < 256) {
-            return new byte[] { (byte) (num) };
-        } else if (num < 65536) {
-            return new byte[] { (byte) (num >>> 8), (byte) num };
-        } else if (num < 16777216) {
-            return new byte[] { (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
-        } else { // up to 2,147,483,647
-            return new byte[]{ (byte) (num >>> 24), (byte) (num >>> 16), (byte) (num >>> 8), (byte) num };
-        }
+    synchronized public CBORObject getGroupPolicies() {
     	
-    	// Little-endian
-    	/*
-    	if (num < 0)
-    		return null;
-    	else if (num == 0) {
-            return new byte[] {};
-        } else if (num < 256) {
-            return new byte[] { (byte) (num) };
-        } else if (num < 65536) {
-            return new byte[] { (byte) num, (byte) (num >>> 8) };
-        } else if (num < 16777216){
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16) };
-        } else{ // up to 2,147,483,647
-            return new byte[] { (byte) num, (byte) (num >>> 8), (byte) (num >>> 16), (byte) (num >>> 24) };
-        }
-    	*/
+    	return this.groupPolicies;
+    	
+    }
+    
+    /**
+     *  Return the current size of new Sender IDs to assign
+	 *
+	 *  @return  an integer with the current size of new Sender IDs to assign 
+     */
+    synchronized public int getSenderIdSize() {
+    	
+    	return this.senderIdSize;
     	
     }
 
     /**
-     * Convert a byte array into an equivalent unsigned integer.
-     * The input byte array can be up to 4 bytes in size.
-     *
-     * N.B. If the input array is 4 bytes in size, the returned integer may be negative! The calling method has to check, if relevant!
-     * 
-     * @param bytes 
-     * @return   the converted integer
+     *  Get the key length (in bytes) for the Signature Encryption Algorithm used in the group
+     * @return  the key length (in bytes) for the Signature Encryption Algorithm
      */
-    public static int bytesToInt(final byte[] bytes) {
-    	
-    	if (bytes.length > 4)
-    		return -1;
-    	
-    	int ret = 0;
+	private int getKeyLengthSignatureEncryptionAlgorithm() {
 
-    	// Big-endian
-    	for (int i = 0; i < bytes.length; i++)
-    		ret = ret + (bytes[bytes.length - 1 - i] & 0xFF) * (int) (Math.pow(256, i));
-
-    	/*
-    	// Little-endian
-    	for (int i = 0; i < bytes.length; i++)
-    		ret = ret + (bytes[i] & 0xFF) * (int) (Math.pow(256, i));
-    	*/
-    	
-    	return ret;
-    	
-    }
+		int keyLength = 0;
+	    
+		if (this.signEncAlg != null && this.mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		
+			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_128 ||
+				this.signEncAlg == AlgorithmID.AES_CCM_64_64_128 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_128 )
+				keyLength = 16;
+			
+			if (this.signEncAlg == AlgorithmID.AES_CCM_16_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_16_128_256 ||
+				this.signEncAlg == AlgorithmID.AES_CCM_64_64_256 || this.signEncAlg == AlgorithmID.AES_CCM_64_128_256 )
+					keyLength = 32;
+		
+		}
+	    
+	    return keyLength;
+		
+	}
     
 }

@@ -113,25 +113,23 @@ public class TestCnonce {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
+        
+        String rsId = "rs1";
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         //Delete lingering old token file
         new File(tokenFile).delete();
         
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
-        ctx = CwtCryptoCtx.encrypt0(key128, 
-                coseP.getAlg().AsCBOR());
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
        
-        ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, tokenFile, valid, true);
+        ai = new AuthzInfo(Collections.singletonList("TestAS"), new KissTime(),
+        				   null, rsId, valid, ctx, null, 0, tokenFile, valid, true);
         
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "ourKey".getBytes(Constants.charset));
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
         symmetricKey = new OneKey(keyData);  
         pskCnf = CBORObject.NewMap();
@@ -174,16 +172,14 @@ public class TestCnonce {
        
        Map<Short, CBORObject> params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token1".getBytes(Constants.charset)));
+       params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+       params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
        params.put(Constants.CNF, pskCnf);
        params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
 
        CWT token = new CWT(params);
-       LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-               token.encode(ctx));
+       LocalMessage request = new LocalMessage(0, null, "rs1", token.encode(ctx));
        Message response = ai.processMessage(request);
        assert(response.getMessageCode() == Message.CREATED);
  
@@ -202,17 +198,16 @@ public class TestCnonce {
             IllegalStateException, InvalidCipherTextException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         CWT token = new CWT(params);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
 
         Message response = ai.processMessage(request);   
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce expected but not found");
@@ -234,18 +229,17 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
         CWT token = new CWT(params);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
 
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Invalid cnonce length");
@@ -268,18 +262,17 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token3".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token3".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
         CWT token = new CWT(params);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
         
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce invalid");
@@ -300,17 +293,16 @@ public class TestCnonce {
         String otherNonce = "nonce";
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token4".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token4".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CNONCE, CBORObject.FromObject(otherNonce));
         CWT token = new CWT(params);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "Invalid cnonce type");
@@ -344,32 +336,27 @@ public class TestCnonce {
 
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token5".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token5".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
 
-
         for (int i=0; i<36; i++) {//"expire" cnonce
             CBORObject dummyH = hints.getHints(req, null);
-            CBORObject dummyC = dummyH.get(
-                    CBORObject.FromObject(Constants.CNONCE));
-            params.put(Constants.CTI, CBORObject.FromObject(
-                    new String("" + i).getBytes(Constants.charset)));
+            CBORObject dummyC = dummyH.get(CBORObject.FromObject(Constants.CNONCE));
+            params.put(Constants.CTI, CBORObject.FromObject(new String("" + i).getBytes(Constants.charset)));
             params.put(Constants.CNONCE, CBORObject.FromObject(dummyC));
             CWT token = new CWT(params);
-            LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                    token.encode(ctx));
+            LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
             ai.processMessage(request);      
         }
         params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
         CWT token = new CWT(params);
-        LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-                token.encode(ctx));
+        LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
 
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+        
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
         map.Add(Constants.ERROR_DESCRIPTION, "cnonce expired");
@@ -402,26 +389,23 @@ public class TestCnonce {
        
        Map<Short, CBORObject> params = new HashMap<>(); 
        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-       params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token6".getBytes(Constants.charset)));
+       params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+       params.put(Constants.CTI, CBORObject.FromObject("token6".getBytes(Constants.charset)));
        params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
        params.put(Constants.CNF, pskCnf);
        params.put(Constants.CNONCE, CBORObject.FromObject(cnonce));
        CWT token = new CWT(params);
-       LocalMessage request = new LocalMessage(0, "clientA", "rs1",
-               token.encode(ctx));
+       LocalMessage request = new LocalMessage(0, "clientA", "rs1", token.encode(ctx));
        ai.processMessage(request);
        
-       params.put(Constants.CTI, CBORObject.FromObject(
-               "token7".getBytes(Constants.charset)));
+       params.put(Constants.CTI, CBORObject.FromObject("token7".getBytes(Constants.charset)));
        CWT token2 = new CWT(params);
-       LocalMessage request2 = new LocalMessage(0, "clientA", "rs1",
-               token2.encode(ctx));
+       LocalMessage request2 = new LocalMessage(0, "clientA", "rs1", token2.encode(ctx));
 
        ai.processMessage(request2);
        Message response = ai.processMessage(request2);
        assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST);
+       
        CBORObject map = CBORObject.NewMap();
        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
        map.Add(Constants.ERROR_DESCRIPTION, "cnonce replayed");

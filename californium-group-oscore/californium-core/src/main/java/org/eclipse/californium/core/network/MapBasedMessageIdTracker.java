@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.util.ClockUtil;
 
@@ -83,32 +82,26 @@ public class MapBasedMessageIdTracker implements MessageIdTracker {
 		messageIds = new HashMap<>(range);
 	}
 
-	/**
-	 * Gets the next usable message ID.
-	 * 
-	 * @return a message ID or {@code Message.NONE} if all message IDs are in
-	 *         use currently.
-	 */
+	@Override
 	public int getNextMessageId() {
-		int result = Message.NONE;
-		boolean wrapped = false;
 		final long now = ClockUtil.nanoRealtime();
 		synchronized (messageIds) {
 			// mask mid to the range
 			counter = (counter & 0xffff) % range;
-			int startIdx = counter;
-			while (result < 0 && !wrapped) {
+			final int end = counter + range;
+			while (counter < end) {
 				// mask mid to the range
 				int idx = counter++ % range;
 				Long earliestUsage = messageIds.get(idx);
 				if (earliestUsage == null || (earliestUsage - now) <= 0) {
 					// message Id can be safely re-used
-					result = idx + min;
 					messageIds.put(idx, now + exchangeLifetimeNanos);
+					return idx + min;
 				}
-				wrapped = (counter % range) == startIdx;
-			}
+			};
 		}
-		return result;
+		String time = TimeUnit.NANOSECONDS.toSeconds(exchangeLifetimeNanos) + "s";
+		throw new IllegalStateException(
+				"No MID available, all [" + min + "-" + (min + range) + ") MIDs in use! (MID lifetime " + time + "!)");
 	}
 }

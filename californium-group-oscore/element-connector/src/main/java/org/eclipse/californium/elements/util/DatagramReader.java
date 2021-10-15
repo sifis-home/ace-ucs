@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -20,39 +20,56 @@
 package org.eclipse.californium.elements.util;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Arrays;
 
 /**
  * This class describes the functionality to read raw network-ordered datagrams
  * on bit-level.
+ * 
+ * For a {@link InputStream} the specification of the returned value of
+ * {@link InputStream#available()} is weak. Therefore the methods in the
+ * base-class {@link DataStreamReader} are not based on that. If the data is
+ * already read into a byte-array, this class may be used in order to used
+ * methods, which are based on {@link ByteArrayInputStream#available()}.
  */
-public final class DatagramReader {
-
-	// Attributes //////////////////////////////////////////////////////////////
-
-	private final ByteArrayInputStream byteStream;
-
-	private byte currentByte;
-	private int currentBitIndex;
+public final class DatagramReader extends DataStreamReader {
 
 	/**
-	 * Copy of {@link #currentByte}, when {@link #mark()} is called.
+	 * Creates a new reader for an copied array of bytes.
+	 * 
+	 * @param byteArray The byte array to read from.
 	 */
-	private byte markByte;
-	/**
-	 * Copy of {@link #currentBitIndex}, when {@link #mark()} is called.
-	 */
-	private int markBitIndex;
-
-	// Constructors ////////////////////////////////////////////////////////////
+	public DatagramReader(final byte[] byteArray) {
+		this(byteArray, true);
+	}
 
 	/**
 	 * Creates a new reader for an array of bytes.
 	 * 
 	 * @param byteArray The byte array to read from.
+	 * @param copy {@code true} to copy the array, {@code false} to us it
+	 *            directly.
 	 */
-	public DatagramReader(final byte[] byteArray) {
-		this(new ByteArrayInputStream(Arrays.copyOf(byteArray, byteArray.length)));
+	public DatagramReader(final byte[] byteArray, boolean copy) {
+		this(copy ? Arrays.copyOf(byteArray, byteArray.length) : byteArray, 0, byteArray.length);
+	}
+
+	/**
+	 * Creates a new reader for a range within an array of bytes.
+	 * 
+	 * The array is used directly and is not copied. If a copy is required, copy
+	 * the range and provide that to {@link #DatagramReader(byte[])}.
+	 * 
+	 * @param byteArray The byte array to read from.
+	 * @param offset starting offset of the range.
+	 * @param length length of the range.
+	 * 
+	 * @since 2.4
+	 */
+	public DatagramReader(final byte[] byteArray, int offset, int length) {
+		this(new RangeInputStream(byteArray, offset, length));
 	}
 
 	/**
@@ -62,156 +79,44 @@ public final class DatagramReader {
 	 * @throws NullPointerException if byte stream is {@code null}
 	 */
 	public DatagramReader(final ByteArrayInputStream byteStream) {
-		if (byteStream == null) {
-			throw new NullPointerException("byte stream must not be null!");
-		}
-		// initialize underlying byte stream
-		this.byteStream = byteStream;
-
-		// initialize bit buffer
-		currentByte = 0;
-		currentBitIndex = -1; // indicates that no byte read yet
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
+		super(byteStream);
 	}
 
 	// Methods /////////////////////////////////////////////////////////////////
 
 	/**
-	 * Mark current position to be reseted afterwards.
-	 * 
-	 * @see #reset()
+	 * Close reader. Free resource and clear left bytes.
 	 */
-	public void mark() {
-		markByte = currentByte;
-		markBitIndex = currentBitIndex;
-		byteStream.mark(0);
-	}
-
-	/**
-	 * Reset reader to last mark.
-	 * 
-	 * @see #mark()
-	 */
-	public void reset() {
-		byteStream.reset();
-		currentByte = markByte;
-		currentBitIndex = markBitIndex;
-	}
-
-	/**
-	 * 
-	 * Reads a sequence of bits from the stream.
-	 * 
-	 * @param numBits
-	 *            The number of bits to read.
-	 * 
-	 * @return A Long containing the bits read.
-	 */
-	public long readLong(final int numBits) {
-
-		long bits = 0; // initialize all bits to zero
-
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// check whether new byte needs to be read
-			if (currentBitIndex < 0) {
-				readCurrentByte();
-			}
-
-			// test current bit
-			boolean bit = (currentByte >> currentBitIndex & 1) != 0;
-			if (bit) {
-				// set bit at i-th position
-				bits |= (1L << i);
-			}
-
-			// decrease current bit index
-			--currentBitIndex;
-
+	@Override
+	public void close() {
+		try {
+			byteStream.skip(byteStream.available());
+		} catch (IOException e) {
 		}
-
-		return bits;
+		super.close();
 	}
 
 	/**
-	 * Reads a sequence of bits from the stream.
+	 * {@inheritDoc}
 	 * 
-	 * @param numBits
-	 *            The number of bits to read.
-	 * 
-	 * @return An integer containing the bits read.
+	 * @param count The number of bytes to read. If value is negative, read left
+	 *            bytes.
 	 */
-	public int read(final int numBits) {
-
-		int bits = 0; // initialize all bits to zero
-
-		for (int i = numBits - 1; i >= 0; i--) {
-
-			// check whether new byte needs to be read
-			if (currentBitIndex < 0) {
-				readCurrentByte();
-			}
-
-			// test current bit
-			boolean bit = (currentByte >> currentBitIndex & 1) != 0;
-			if (bit) {
-				// set bit at i-th position
-				bits |= (1 << i);
-			}
-
-			// decrease current bit index
-			--currentBitIndex;
-
-		}
-
-		return bits;
-	}
-
-	/**
-	 * Reads a sequence of bytes from the stream.
-	 * 
-	 * @param count
-	 *            The number of bytes to read.
-	 * 
-	 * @return The sequence of bytes read from the stream.
-	 */
+	@Override
 	public byte[] readBytes(final int count) {
 
+		int available = available();
 		int bytesToRead = count;
+
 		// for negative count values, read all bytes left
-		if (bytesToRead < 0)
-			bytesToRead = byteStream.available();
-
-		// allocate byte array
-		byte[] bytes = new byte[bytesToRead];
-
-		// are there bits left to read in buffer?
-		if (currentBitIndex >= 0) {
-
-			for (int i = 0; i < bytesToRead; i++) {
-				bytes[i] = (byte) read(Byte.SIZE);
-			}
-
-		} else {
-
-			// if bit buffer is empty, call can be delegated
-			// to byte stream to increase performance
-			byteStream.read(bytes, 0, bytes.length);
+		if (bytesToRead < 0) {
+			bytesToRead = available;
+		} else if (bytesToRead > available) {
+			throw new IllegalArgumentException(
+					"requested " + count + " bytes exceeds available " + available + " bytes.");
 		}
 
-		return bytes;
-	}
-
-	/**
-	 * Reads the next byte from the stream.
-	 * 
-	 * @return The next byte.
-	 */
-	public byte readNextByte() {
-		byte[] bytes = readBytes(1);
-
-		return bytes[0];
+		return super.readBytes(bytesToRead);
 	}
 
 	/**
@@ -224,24 +129,39 @@ public final class DatagramReader {
 	}
 
 	/**
+	 * Assert, that all data is read.
+	 * 
+	 * @param message message to include in {@link IllegalArgumentException}
+	 *            message.
+	 * @throws IllegalArgumentException if bits are left unread
+	 * @since 3.0
+	 */
+	public void assertFinished(String message) {
+		int left = bitsLeft();
+		if (left > 0) {
+			throw new IllegalArgumentException(message + " not finished! " + left + " bits left.");
+		}
+	}
+
+	/**
 	 * Checks if there are any more bytes available on the stream.
 	 * 
-	 * @return <code>true</code> if there are bytes left to read,
-	 *         <code>false</code> otherwise.
+	 * @return {@code true}, if there are bytes left to read, {@code false},
+	 *         otherwise.
 	 */
 	public boolean bytesAvailable() {
-		return byteStream.available() > 0;
+		return available() > 0;
 	}
 
 	/**
 	 * Checks whether a given number of bytes can be read.
 	 * 
-	 * @param expectedBytes the number of bytes. 
-	 * @return {@code true} if the remaining number of bytes in the buffer is at least
-	 *         <em>expectedBytes</em>.
+	 * @param expectedBytes the number of bytes.
+	 * @return {@code true} if the remaining number of bytes in the buffer is at
+	 *         least <em>expectedBytes</em>. {@code false}, otherwise.
 	 */
 	public boolean bytesAvailable(final int expectedBytes) {
-		int bytesLeft = byteStream.available();
+		int bytesLeft = available();
 		return bytesLeft >= expectedBytes;
 	}
 
@@ -251,29 +171,22 @@ public final class DatagramReader {
 	 * @return the number of bits
 	 */
 	public int bitsLeft() {
-		return (byteStream.available() * Byte.SIZE) + (currentBitIndex + 1);
+		return (available() * Byte.SIZE) + (currentBitIndex + 1);
 	}
 
 	// Utilities ///////////////////////////////////////////////////////////////
 
 	/**
-	 * Reads new bits from the stream
+	 * Get available bytes from {@link #byteStream}.
+	 * 
+	 * @return available bytes, or {@code -1}, if an error occurred.
+	 * @since 3.0
 	 */
-	private void readCurrentByte() {
-
-		// try to read from byte stream
-		int val = byteStream.read();
-
-		if (val >= 0) {
-			// byte successfully read
-			currentByte = (byte) val;
-		} else {
-			// end of stream reached
-			// return implicit zero bytes
-			currentByte = 0;
+	private int available() {
+		try {
+			return byteStream.available();
+		} catch (IOException e) {
+			return -1;
 		}
-
-		// reset current bit index
-		currentBitIndex = Byte.SIZE - 1;
 	}
 }

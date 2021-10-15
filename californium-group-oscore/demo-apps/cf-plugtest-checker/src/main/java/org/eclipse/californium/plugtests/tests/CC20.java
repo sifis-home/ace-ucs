@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,6 +18,9 @@ package org.eclipse.californium.plugtests.tests;
 import java.net.URI;
 import java.net.URISyntaxException;
 
+import org.eclipse.californium.cli.decoder.CborDecoder;
+import org.eclipse.californium.cli.decoder.Decoder;
+import org.eclipse.californium.cli.decoder.JsonDecoder;
 import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
@@ -25,8 +28,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_20: Perform GET transaction containing the Accept option
@@ -68,6 +70,7 @@ public class CC20 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
+		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -78,74 +81,29 @@ public class CC20 extends TestClientAbstract {
 
 		// execute the request
 		try {
-			Response response = null;
-			boolean success = true;
-
 			System.out.println();
 			System.out.println("**** TEST: " + testName + " ****");
 			System.out.println("**** BEGIN CHECK ****");
 
-			// Part A
-			request.send();
-			response = request.waitForResponse(6000);
+			boolean success = executeRequest(request, MediaTypeRegistry.TEXT_PLAIN, null);
 
-			// checking the response
-			if (response != null) {
-
-				// print response info
-				if (verbose) {
-					System.out.println("Response received");
-					System.out.println("Time elapsed (ms): "
-							+ response.getRTT());
-					Utils.prettyPrint(response);
-				}
-
-				success &= checkType(Type.ACK, response.getType());
-				success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-				success &= checkOption(MediaTypeRegistry.TEXT_PLAIN,
-						response.getOptions().getContentFormat(),
-						"Content-Format");
-				success &= hasNonEmptyPalyoad(response);
-
+			if (success) {
 				// Part B
 				request = new Request(Code.GET, Type.CON);
-				// request.setOption(new
-				// Option(MediaTypeRegistry.APPLICATION_XML,
-				// OptionNumberRegistry.ACCEPT));
-				request.getOptions().setAccept(
-						MediaTypeRegistry.APPLICATION_XML);
-
 				request.setURI(uri);
-				// if (request.requiresToken()) {
-				// request.setToken(TokenManager.getInstance().acquireToken());
-				// }
-
-				// enable response queue for synchronous I/O
-				// request.enableResponseQueue(true);
-
-				request.send();
-				response = request.waitForResponse(6000);
-
-				// checking the response
-				if (response != null) {
-
-					// print response info
-					if (verbose) {
-						System.out.println("Response received");
-						System.out.println("Time elapsed (ms): "
-								+ response.getRTT());
-						Utils.prettyPrint(response);
-					}
-
-					success &= checkType(Type.ACK, response.getType());
-					success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
-					success &= checkOption(
-							MediaTypeRegistry.APPLICATION_XML, response
-									.getOptions().getContentFormat(),
-							"Content-Format");
-					success &= hasNonEmptyPalyoad(response);
-
-				}
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_XML, null);
+			}
+			if (success) {
+				// Part C
+				request = new Request(Code.GET, Type.CON);
+				request.setURI(uri);
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_JSON, new JsonDecoder());
+			}
+			if (success) {
+				// Part B
+				request = new Request(Code.GET, Type.CON);
+				request.setURI(uri);
+				success = executeRequest(request, MediaTypeRegistry.APPLICATION_CBOR, new CborDecoder());
 			}
 
 			if (success) {
@@ -169,8 +127,43 @@ public class CC20 extends TestClientAbstract {
 		}
 	}
 
+	private boolean executeRequest(Request request, int contentType, Decoder decoder) throws InterruptedException {
+
+		// execute the request
+		Response response = null;
+		boolean success = true;
+
+		// Part A
+		request.getOptions().setAccept(contentType);
+		request.send();
+		response = request.waitForResponse(6000);
+
+		// checking the response
+		if (response != null) {
+
+			// print response info
+			if (verbose) {
+				System.out.println("Response received");
+				System.out.println("Time elapsed (ms): "
+						+ response.getRTT());
+				Utils.prettyPrint(response);
+			}
+
+			success &= checkType(Type.ACK, response.getType());
+			success &= checkCode(EXPECTED_RESPONSE_CODE, response.getCode());
+			success &= checkOption(contentType,
+					response.getOptions().getContentFormat(),
+					"Content-Format");
+			success &= hasNonEmptyPayload(response);
+			if (decoder != null) {
+				String decoded = decoder.decode(response.getPayload());
+				System.out.println("Response decoded: " + decoded);
+			}
+		}
+		return success;
+	}
+
 	protected boolean checkResponse(Request request, Response response) {
 		return false;
 	}
-
 }

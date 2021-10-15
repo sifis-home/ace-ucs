@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,23 +18,36 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
+import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.Random;
 
-import org.eclipse.californium.elements.util.ExecutorsUtil;
-import org.eclipse.californium.elements.util.SerialExecutor;
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.rule.ThreadsRule;
+import org.eclipse.californium.elements.util.TestScope;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
+import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class InMemoryConnectionStoreTest {
+	@Rule
+	public ThreadsRule cleanup = new ThreadsRule();
 
 	private static final int INITIAL_CAPACITY = 10;
 	InMemoryConnectionStore store;
@@ -108,9 +121,9 @@ public class InMemoryConnectionStoreTest {
 
 		// THEN assert that the retrieved connection contains a session ticket
 		assertThat(connectionWithPeer, is(notNullValue()));
-		SessionTicket ticket = connectionWithPeer.getSessionTicket();
-		assertThat(ticket, is(notNullValue()));
-		assertThat(ticket.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
+		DTLSSession resumeSession = connectionWithPeer.getResumeSession();
+		assertThat(resumeSession, is(notNullValue()));
+		assertThat(resumeSession.getMasterSecret(), is(con.getEstablishedSession().getMasterSecret()));
 	}
 
 	@Test
@@ -133,6 +146,18 @@ public class InMemoryConnectionStoreTest {
 		Connection connectionToResume = store.find(sessionId);
 		assertThat(connectionToResume, is(nullValue()));
 		assertThat(store.get(peerAddress), is(nullValue()));
+	}
+
+	@Test
+	public void testRemoveShutsdownExecutor() throws Exception {
+		// given a non-empty connection store
+		store.put(con);
+
+		// when clearing the store
+		store.remove(con);
+
+		// assert that the executor is shutdown
+		assertThat(con.getExecutor().isShutdown(), is(true));
 	}
 
 	@Test
@@ -222,7 +247,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
 		Connection con2 =  newConnection(52L);
-		con2.resetSession();
+		con2.resetContext();
 		assertTrue(store.put(con2));
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
@@ -254,7 +279,7 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.find(session.getSessionIdentifier()), is(con1));
 
 		Connection con2 =  newConnection(51L);
-		con2.resetSession();
+		con2.resetContext();
 		assertTrue(store.put(con2));
 
 		// assert that the store has two entries
@@ -274,16 +299,94 @@ public class InMemoryConnectionStoreTest {
 		assertThat(store.find(session.getSessionIdentifier()), is(con2));
 	}
 
+	@Test
+	public void testSaveAndLoadConnections() throws Exception {
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
+		assertTrue(store.put(con));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 1));
+		Connection con2 = newConnection(50);
+		assertTrue(store.put(con2));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 2));
+		// don't save closed connections
+		Connection con3 = newConnection(50);
+		con3.setRootCause(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+		assertTrue(store.put(con3));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 3));
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		int saveCount = store.saveConnections(out, 1000);
+		assertThat(saveCount, is(2));
+		store.clear();
+		ByteArrayInputStream in = new ByteArrayInputStream(out.toByteArray());
+		int loadCount = store.loadConnections(in, 0L);
+		assertThat(loadCount, is(2));
+		Connection conLoaded = store.get(con.getConnectionId());
+		assertThat(conLoaded.getEstablishedSession(), is(con.getEstablishedSession()));
+		assertThat(conLoaded.getEstablishedDtlsContext(), is(con.getEstablishedDtlsContext()));
+		assertThat(conLoaded, is(con));
+		Connection conLoaded2 = store.get(con2.getConnectionId());
+		assertThat(conLoaded2.getEstablishedSession(), is(con2.getEstablishedSession()));
+		assertThat(conLoaded2.getEstablishedDtlsContext(), is(con2.getEstablishedDtlsContext()));
+		assertThat(conLoaded2, is(con2));
+	}
+
+	@Test
+	public void testSaveAndLoadMaliciousConnections() throws Exception {
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY));
+		assertTrue(store.put(con));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 1));
+		Connection con2 = newConnection(50);
+		assertTrue(store.put(con2));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 2));
+		// don't save closed connections
+		Connection con3 = newConnection(50);
+		con3.setRootCause(new AlertMessage(AlertLevel.WARNING, AlertDescription.CLOSE_NOTIFY));
+		assertTrue(store.put(con3));
+		assertThat(store.remainingCapacity(), is(INITIAL_CAPACITY - 3));
+
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		int saveCount = store.saveConnections(out, 1000);
+		assertThat(saveCount, is(2));
+		byte[] data = out.toByteArray();
+		byte[] malicious = Arrays.copyOf(data, data.length - 10);
+		try {
+			store.clear();
+			store.loadConnections(new ByteArrayInputStream(malicious), 0L);
+		} catch (IllegalArgumentException ex) {
+		}
+		malicious = Arrays.copyOfRange(data, 10, data.length);
+		try {
+			store.clear();
+			store.loadConnections(new ByteArrayInputStream(malicious), 0L);
+		} catch (IllegalArgumentException ex) {
+		}
+		malicious = Arrays.copyOfRange(data, 10, data.length - 10);
+		try {
+			store.clear();
+			store.loadConnections(new ByteArrayInputStream(malicious), 0L);
+		} catch (IllegalArgumentException ex) {
+		}
+		int loops = TestScope.enableIntensiveTests() ? 20 : 2;
+		Random random = new Random();
+		for (int loop = 0; loop < loops; ++loop) {
+			for (int index = 0; index < data.length; ++index) {
+				malicious = Arrays.copyOf(data, data.length);
+				try {
+					malicious[index] += (random.nextInt(255) + 1);
+					store.clear();
+					store.loadConnections(new ByteArrayInputStream(malicious), 0L);
+				} catch (IllegalArgumentException ex) {
+				}
+			}
+		}
+	}
+
 	private Connection newConnection(long ip) throws HandshakeException, UnknownHostException {
 		InetAddress addr = InetAddress.getByAddress(longToIp(ip));
 		InetSocketAddress peerAddress = new InetSocketAddress(addr, 0);
-		Connection con = new Connection(peerAddress, new TestSerialExecutor());
-		con.getSessionListener().sessionEstablished(null, newSession(peerAddress));
+		Connection con = new Connection(peerAddress, new SyncSerialExecutor());
+		DTLSContext dtlsContext = DTLSContextTest.newEstablishedServerDtlsContext(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CertificateType.RAW_PUBLIC_KEY);
+		con.getSessionListener().contextEstablished(null, dtlsContext);
 		return con;
-	}
-
-	private DTLSSession newSession(InetSocketAddress address) {
-		return DTLSSessionTest.newEstablishedServerSession(address, CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, true);
 	}
 
 	private static byte[] longToIp(long ip) {
@@ -294,20 +397,5 @@ public class InMemoryConnectionStoreTest {
 			ip >>= 8;
 		}
 		return result;
-	}
-
-	private static class TestSerialExecutor extends SerialExecutor {
-
-		private TestSerialExecutor() {
-			super(ExecutorsUtil.getScheduledExecutor());
-		}
-
-		/**
-		 * Ensure, the jobs are executed synchronous with the test.
-		 */
-		@Override
-		public void execute(final Runnable command) {
-			command.run();
-		}
 	}
 }

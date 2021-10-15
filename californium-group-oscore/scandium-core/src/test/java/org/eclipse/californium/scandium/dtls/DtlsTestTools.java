@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -19,70 +19,44 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.security.GeneralSecurityException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
-import java.util.Arrays;
+import static org.junit.Assert.assertFalse;
 
-import javax.crypto.Mac;
-import javax.crypto.spec.SecretKeySpec;
+import java.util.List;
 
+
+import org.eclipse.californium.elements.util.ClockUtil;
+import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
-import org.eclipse.californium.elements.util.SslContextUtil;
-import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.TestCertificatesTools;
 import org.eclipse.californium.scandium.util.ServerName;
 
-public final class DtlsTestTools {
+public final class DtlsTestTools extends TestCertificatesTools {
 
-	public static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
-	public static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
-	public static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
-	public static final String TRUST_STORE_LOCATION = "certs/trustStore.jks";
-	public static final String SERVER_NAME = "server";
-	public static final String CLIENT_NAME = "client";
-	public static final String ROOT_CA_ALIAS = "root";
-	public static final String NO_SIGNING_ALIAS = "nosigning";
-	public static final long MAX_SEQUENCE_NO = 281474976710655L; // 2^48 - 1
-	private static SslContextUtil.Credentials clientCredentials;
-	private static SslContextUtil.Credentials serverCredentials;
-	private static X509Certificate[] trustedCertificates;
-	private static X509Certificate rootCaCertificate;
-	private static X509Certificate nosigningCertificate; // a certificate without digitalSignature value in keyusage
+	public static final int DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS;
 
 	static {
-		try {
-			// load key stores once only
-			clientCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "client", KEY_STORE_PASSWORD,
-					KEY_STORE_PASSWORD);
-			serverCredentials = SslContextUtil.loadCredentials(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, "server", KEY_STORE_PASSWORD,
-					KEY_STORE_PASSWORD);
-			Certificate[] certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, null, TRUST_STORE_PASSWORD);
-
-			trustedCertificates = SslContextUtil.asX509Certificates(certificates);
-			certificates = SslContextUtil.loadTrustedCertificates(
-					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, ROOT_CA_ALIAS, TRUST_STORE_PASSWORD);
-			rootCaCertificate = (X509Certificate) certificates[0];
-			X509Certificate[] chain = SslContextUtil.loadCertificateChain(
-					SslContextUtil.CLASSPATH_SCHEME + KEY_STORE_LOCATION, NO_SIGNING_ALIAS, KEY_STORE_PASSWORD);
-			nosigningCertificate = chain[0];
-		} catch (IOException | GeneralSecurityException e) {
-			// nothing we can do
-		}
+		Long delay = StringUtil.getConfigurationLong("DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS");
+		DEFAULT_HANDSHAKE_RESULT_DELAY_MILLIS = delay == null ? 0 : delay.intValue();
 	}
 
 	private DtlsTestTools() {
 	}
 
-	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
+	public static Record getRecordForMessage(int epoch, int seqNo, DTLSMessage msg) {
+		byte[] dtlsRecord = newDTLSRecord(msg.getContentType().getCode(), epoch, seqNo, msg.toByteArray());
+		List<Record> list = DtlsTestTools.fromByteArray(dtlsRecord, null, ClockUtil.nanoRealtime());
+		assertFalse("Should be able to deserialize DTLS Record from byte array", list.isEmpty());
+		return list.get(0);
+	}
 
-		ProtocolVersion protocolVer = new ProtocolVersion();
+	public static final byte[] newDTLSRecord(int typeCode, int epoch, long sequenceNo, byte[] fragment) {
+		return newDTLSRecord(typeCode, ProtocolVersion.VERSION_DTLS_1_2, epoch, sequenceNo, fragment);
+	}
+
+	public static final byte[] newDTLSRecord(int typeCode, ProtocolVersion protocolVer, int epoch, long sequenceNo,
+			byte[] fragment) {
+
 		// the record header contains a type code, version, epoch, sequenceNo, length
 		DatagramWriter writer = new DatagramWriter();
 		writer.write(typeCode, 8);
@@ -93,25 +67,6 @@ public final class DtlsTestTools {
 		writer.write(fragment.length, 16);
 		writer.writeBytes(fragment);
 		return writer.toByteArray();
-	}
-
-	public static final byte[] generateCookie(InetSocketAddress endpointAddress, ClientHello clientHello)
-			throws GeneralSecurityException {
-		
-		// Cookie = HMAC(Secret, Client-IP, Client-Parameters)
-		Mac hmac = Mac.getInstance("HmacSHA256");
-		hmac.init(new SecretKeySpec("generate cookie".getBytes(), "Mac"));
-		// Client-IP
-		hmac.update(endpointAddress.toString().getBytes());
-
-		// Client-Parameters
-		hmac.update((byte) clientHello.getClientVersion().getMajor());
-		hmac.update((byte) clientHello.getClientVersion().getMinor());
-		hmac.update(clientHello.getRandom().getBytes());
-		hmac.update(clientHello.getSessionId().getBytes());
-		hmac.update(CipherSuite.listToByteArray(clientHello.getCipherSuites()));
-		hmac.update(CompressionMethod.listToByteArray(clientHello.getCompressionMethods()));
-		return hmac.doFinal();
 	}
 
 	public static byte[] newClientCertificateTypesExtension(int... types) {
@@ -142,14 +97,14 @@ public final class DtlsTestTools {
 	}
 
 	public static byte[] newMaxFragmentLengthExtension(int lengthCode) {
-		return newHelloExtension(1, new byte[]{(byte) lengthCode});
+		return newHelloExtension(1, new byte[] { (byte) lengthCode });
 	}
 
 	public static byte[] newServerNameExtension(final String hostName) {
 
 		byte[] name = hostName.getBytes(ServerName.CHARSET);
 		DatagramWriter writer = new DatagramWriter();
-		writer.write(name.length + 3, 16); //server_name_list_length
+		writer.write(name.length + 3, 16); // server_name_list_length
 		writer.writeByte((byte) 0x00);
 		writer.write(name.length, 16);
 		writer.writeBytes(name);
@@ -164,84 +119,39 @@ public final class DtlsTestTools {
 		return writer.toByteArray();
 	}
 
-	public static X509Certificate[] getServerCertificateChain()	throws IOException, GeneralSecurityException {
-		X509Certificate[] certificateChain = serverCredentials.getCertificateChain();
-		return Arrays.copyOf(certificateChain, certificateChain.length);
+	public static <T extends HandshakeMessage> T fromByteArray(byte[] byteArray, HandshakeParameter parameter) throws HandshakeException {
+		HandshakeMessage hmsg = HandshakeMessage.fromByteArray(byteArray);
+		return fromHandshakeMessage(hmsg, parameter);
 	}
 
-	public static X509Certificate[] getClientCertificateChain()	throws IOException, GeneralSecurityException {
-		X509Certificate[] certificateChain = clientCredentials.getCertificateChain();
-		return Arrays.copyOf(certificateChain, certificateChain.length);
+	@SuppressWarnings("unchecked")
+	public static <T extends HandshakeMessage> T fromHandshakeMessage(HandshakeMessage message,
+			HandshakeParameter parameter) throws HandshakeException {
+		if (message instanceof GenericHandshakeMessage) {
+			return (T) HandshakeMessage.fromGenericHandshakeMessage((GenericHandshakeMessage) message, parameter);
+		} else {
+			return (T) message;
+		}
 	}
 
 	/**
-	 * Gets the server's private key from the example key store.
+	 * Parses a sequence of <em>DTLSCiphertext</em> structures into {@code Record} instances.
 	 * 
-	 * @return the key
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
-	 */
-	public static PrivateKey getPrivateKey() throws IOException, GeneralSecurityException {
-		return serverCredentials.getPrivateKey();
-	}
-
-	/**
-	 * Gets the client's private key from the example key store.
+	 * The binary representation is expected to comply with the <em>DTLSCiphertext</em> structure
+	 * defined in <a href="http://tools.ietf.org/html/rfc6347#section-4.3.1">RFC6347, Section 4.3.1</a>.
 	 * 
-	 * @return the key
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
+	 * @param byteArray the raw binary representation containing one or more DTLSCiphertext structures
+	 * @param cidGenerator the connection id generator. May be {@code null}.
+	 * @param receiveNanos uptime nanoseconds of receiving this record
+	 * @return the {@code Record} instances
+	 * @throws NullPointerException if either one of the byte array or peer address is {@code null}
 	 */
-	public static PrivateKey getClientPrivateKey() throws IOException, GeneralSecurityException {
-		return clientCredentials.getPrivateKey();
-	}
-
-	/**
-	 * Gets the server's public key from the example key store.
-	 * 
-	 * @return The key.
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
-	 * @throws IllegalStateException if the key store does not contain a server certificate chain.
-	 */
-	public static PublicKey getPublicKey() throws IOException, GeneralSecurityException {
-		return serverCredentials.getCertificateChain()[0].getPublicKey();
-	}
-
-	/**
-	 * Gets the client's public key from the example key store.
-	 * 
-	 * @return The key.
-	 * @throws IOException if the key store cannot be read
-	 * @throws GeneralSecurityException if the key cannot be found
-	 * @throws IllegalStateException if the key store does not contain a client certificate chain.
-	 */
-	public static PublicKey getClientPublicKey() throws IOException, GeneralSecurityException {
-		return clientCredentials.getCertificateChain()[0].getPublicKey();
-	}
-
-	/**
-	 * Gets the trusted anchor certificates from the example trust store.
-	 * 
-	 * @return The trusted certificates.
-	 */
-	public static X509Certificate[] getTrustedCertificates() {
-		return trustedCertificates;
-	}
-
-	/**
-	 * Gets the trusted root CA certificate.
-	 * 
-	 * @return The certificate.
-	 */
-	public static X509Certificate getTrustedRootCA() {
-		return rootCaCertificate;
-	}
-
-	/**
-	 * @return a certificate without digitalSignature in keyusage extension
-	 */
-	public static X509Certificate getNoSigningCertificate() {
-		return nosigningCertificate;
+	public static List<Record> fromByteArray(byte[] byteArray, ConnectionIdGenerator cidGenerator, long receiveNanos) {
+		if (byteArray == null) {
+			throw new NullPointerException("Byte array must not be null");
+		}
+	
+		DatagramReader reader = new DatagramReader(byteArray, false);
+		return Record.fromReader(reader, cidGenerator, receiveNanos);
 	}
 }

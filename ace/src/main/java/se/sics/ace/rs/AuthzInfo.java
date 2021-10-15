@@ -33,31 +33,33 @@ package se.sics.ace.rs;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
-import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.oscore.CoapOSException;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import org.eclipse.californium.cose.CoseException;
-import org.eclipse.californium.cose.KeyKeys;
-import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
+import se.sics.ace.Util;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
-
 
 /**
  * This class implements the /authz_info endpoint at the RS that receives
@@ -100,12 +102,18 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	/**
 	 * The crypto context to use with the AS
 	 */
-	private CwtCryptoCtx ctx;	
-	
+	private CwtCryptoCtx ctx;
+		
 	/**
 	 * Flag to indicate if we need to check cnonces
 	 */
 	private boolean checkCnonce;
+	
+	/**
+	 * Each set of the list refers to a different size of Recipient IDs.
+	 * The element with index 0 includes as elements Recipient IDs with size 1 byte.
+	 */
+	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
 	
 	/**
 	 * Constructor. Needs an initialized TokenRepository.
@@ -113,8 +121,11 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
+	 * @param keyDerivationKey  the key derivation key to use with the As, it can be null
+	 * @param derivedKeySize  the size in bytes of symmetric keys derived with the key derivation key
 	 * @param tokenFile  the file where to save tokens when persisting
 	 * @param scopeValidator  the application specific scope validator 
 	 * @param checkCnonce  true if this RS uses cnonces for freshness validation
@@ -122,12 +133,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws IOException 
 	 */
 	public AuthzInfo(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
-			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
-			ScopeValidator scopeValidator, boolean checkCnonce) 
+			TimeProvider time, IntrospectionHandler intro, String rsId, 
+			AudienceValidator audience, CwtCryptoCtx ctx, byte[] keyDerivationKey, int derivedKeySize,
+			String tokenFile, ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
         if (TokenRepository.getInstance()==null) {     
-            TokenRepository.create(scopeValidator, tokenFile, ctx, time);
+            TokenRepository.create(scopeValidator, tokenFile, ctx, keyDerivationKey, derivedKeySize, time, rsId);
         }
 		this.issuers = new ArrayList<>();
 		this.issuers.addAll(issuers);
@@ -136,6 +147,13 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 		this.audience = audience;
 		this.ctx = ctx;
 		this.checkCnonce = checkCnonce;
+		
+    	for (int i = 0; i < 4; i++) {
+        	// Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+        	// The set with index 0 refers to Sender IDs with size 1 byte
+    		usedRecipientIds.add(new HashSet<Integer>());
+    	}
+    	
 	}
 
 	@Override
@@ -155,11 +173,14 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	
 	protected synchronized Message processToken(CBORObject token,  Message msg) {
 	    Map<Short, CBORObject> claims = null;
+	    
+        byte[] recipientId = null;
+        boolean recipientIdFound = false;
 
 		//1. Check whether it is a CWT or REF type
 	    if (token.getType().equals(CBORType.ByteString)) {
 	        try {
-                claims = processRefrenceToken(token);
+                claims = processReferenceToken(token);
             } catch (AceException e) {
                 LOGGER.severe("Message processing aborted: " + e.getMessage());
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
@@ -243,8 +264,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    //5. Check if we are the audience (aud)
-	    CBORObject aud = claims.get(Constants.AUD);
-	    if (aud == null) {
+	    CBORObject audCbor = claims.get(Constants.AUD);
+	    if (audCbor == null) {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
 	        map.Add(Constants.ERROR_DESCRIPTION, "Token has no audience");
@@ -252,15 +273,10 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	                + "Token has no audience");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
-	    ArrayList<String> auds = new ArrayList<>();
-	    if (aud.getType().equals(CBORType.Array)) {
-	        for (int i=0; i<aud.size(); i++) {
-	            if (aud.get(i).getType().equals(CBORType.TextString)) {
-	                auds.add(aud.get(i).AsString());
-	            } //XXX: silently skip aud entries that are not text strings
-	        }
-	    } else if (aud.getType().equals(CBORType.TextString)) {
-	        auds.add(aud.AsString());
+
+	    String aud;
+	    if (audCbor.getType().equals(CBORType.TextString)) {
+	        aud = audCbor.AsString();   
 	    } else {//Error
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
@@ -271,11 +287,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    boolean audMatch = false;
-	    for (String audStr : auds) {
-	        if (this.audience.match(audStr)) {
-	            audMatch = true;
-	        }
-	    }
+	    if (this.audience.match(aud)) {
+            audMatch = true;
+        }
 	    if (!audMatch) { 
 	        CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.UNAUTHORIZED_CLIENT);
@@ -303,9 +317,9 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    		meaningful = TokenRepository.getInstance().checkScope(scope);
 	    	}
 	    	else {
-	    		// M.T. The version of checkScope() with two arguments is invoked
+	    		// The version of checkScope() with two arguments is invoked
 	    		// This is currently expecting a structured scope for joining OSCORE groups
-	    		meaningful = TokenRepository.getInstance().checkScope(scope, auds);
+	    		meaningful = TokenRepository.getInstance().checkScope(scope, aud);
 	    	}
 	    } catch (AceException e) {
 	        LOGGER.info("Invalid scope, "
@@ -325,7 +339,26 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    }
 	    
 	    //8. Handle EXI if present
-	    handleExi(claims);
+	    int exiSeqNum = handleExi(claims);
+	    if (exiSeqNum < -1) {
+	    	// The 'exi' claim is present, but an error occurs during its processing
+	        CBORObject map = CBORObject.NewMap();
+	        String errStr = null;
+	        switch (exiSeqNum) {
+	        	case -2: // the 'cti' claim is not present in the Access Token as a CBOR byte string
+	        		errStr = "The Access Token includes the 'exi' claim, but the 'cti' claim is not present as a CBOR byte string";
+	        		break;
+	        	case -3: // the 'cti' claim is present but it is not formatted as expected
+	        		errStr = "The Access Token includes the 'exi' claim, but the 'cti' claim is not formatted as expected";
+	        		break;	
+	        	case -4: // the Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
+	        		errStr = "The Access Token includes the 'exi' claim, but the Sequence Number value is too little";
+	        }
+	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, errStr);
+            LOGGER.log(Level.INFO, "Message processing aborted: " + errStr);
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	    }
 	    
 	    //9. Handle cnonce if required
 	    try {
@@ -339,16 +372,159 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    
+		CBORObject cnf = claims.get(Constants.CNF);
+		try {
+	        if (cnf == null) {
+	            LOGGER.severe("Token has not cnf");
+	            throw new AceException("Token has no cnf");
+	        }
+		}
+	    catch (Exception e) {
+	        LOGGER.info("No Recipient ID available to use");
+	        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	        
+	    }
+        
+		boolean firstOscoreAccessToken = false;
+		
+	    // The OSCORE profile is being used. The Resource Server has to determine
+	    // an available Recipient ID to offer to the Client.
+    	if (cnf.getKeys().contains(Constants.OSCORE_Input_Material)) {
+	    
+    		if (msg.getSenderId() != null) {
+    	        LOGGER.info("OSCORE Input Material provided over a protected POST request");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "OSCORE_Input_Material provided over a protected POST request");
+    	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+    		}
+    		
+        	CBORObject osc = cnf.get(Constants.OSCORE_Input_Material);
+        	try {
+	            if (osc == null || !osc.getType().equals(CBORType.Map)) {
+	                LOGGER.info("Missing or invalid parameter type for "
+	                        + "'OSCORE_Input_Material', must be CBOR-map");
+	                throw new AceException("invalid/missing OSCORE_Input_Material");
+	            }
+    		}
+    	    catch (Exception e) {
+    	        LOGGER.info("No Recipient ID available to use");
+                CBORObject map = CBORObject.NewMap();
+                map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+                map.Add(Constants.ERROR_DESCRIPTION, 
+                        "invalid/missing OSCORE_Input_Material");
+    	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+    	        
+    	    }
+    		
+	    	CBORObject cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
+	    	byte[] senderId = cbor.get(Constants.ID1).GetByteString();
+	    	
+	        OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+	        
+	        // Determine an available Recipient ID to offer to the Client as ID2 (i.e., as Client's Sender ID)
+	        synchronized(usedRecipientIds) {
+	        	synchronized(db) {
+	        	
+		        	int maxIdValue;
+		        	
+	    			byte[] contextId = new byte[0];
+	    			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
+	    				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
+	    			}
+		        	
+			        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
+			        for (int idSize = 1; idSize <= 4; idSize++) {
+			        	
+			        	if (idSize == 4)
+			        		maxIdValue = (1 << 31) - 1;
+			        	else
+			        		maxIdValue = (1 << (idSize * 8)) - 1;
+			        	
+				        for (int j = 0; j <= maxIdValue; j++) {
+				        	
+		        			recipientId = Util.intToBytes(j);
+		        			
+		        			// The Recipient ID must be different than what offered by the Client in the 'id1' parameter
+		        			if(Arrays.equals(senderId, recipientId))
+		        				continue;
+		        			
+		        			// This Recipient ID is marked as not available to use
+		        			if (usedRecipientIds.get(idSize - 1).contains(j))
+		        				continue;
+		        			
+		        			try {
+					        	// This Recipient ID seems to be available to use 
+				        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
+				        			
+				        			// Double check in the database of OSCORE Security Contexts
+				        			if (db.getContext(recipientId,  contextId) != null) {
+				        				
+				        				// A Security Context with this Recipient ID exists and was not tracked!
+				        				// Update the local list of used Recipient IDs, then move on to the next candidate
+				        				usedRecipientIds.get(idSize - 1).add(j);
+				        				continue;
+				        				
+				        			}
+				        			else {
+				        				
+				        				// This Recipient ID is actually available at the moment. Add it to the local list
+				        				usedRecipientIds.get(idSize - 1).add(j);
+				        				recipientIdFound = true;
+				        				break;
+				        			}
+				        			
+				        		}
+		        			}
+			        		catch(RuntimeException e) {
+		        				// Multiple Security Contexts with this Recipient ID exist and it was not tracked!
+		        				// Update the local list of used Recipient IDs, then move on to the next candidate
+		        				usedRecipientIds.get(idSize - 1).add(j);
+		        				continue;
+			        		} catch (CoapOSException e) {
+			    		        LOGGER.severe("Error while accessing the database of OSCORE Security Contexts");
+			    	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+							}
+			        			
+				        }
+				        
+				        if (recipientIdFound)
+				        	break;
+				        	
+			        }
+	        	}
+	        }
+	        
+		    try {
+		    	if (!recipientIdFound) {
+		            throw new AceException("No Recipient ID available to use");
+		        }
+		    } catch (Exception e) {
+		        LOGGER.info("No Recipient ID available to use");
+	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	            
+		    }
+	
+	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_CLIENTID, CBORObject.FromObject(recipientId));
+	    	claims.get(Constants.CNF).get(Constants.OSCORE_Input_Material).Add(Constants.OS_SERVERID, CBORObject.FromObject(senderId));
+		    
+	    	// This is not a Token for updating access rights,
+	    	// but rather to establish a new OSCORE Security Context
+	    	firstOscoreAccessToken = true;
+	    	
+	    }
+	    
 	    //9. Extension point for handling other special claims in the future
 	    processOther(claims);
 	    
 	    //10. Store the claims of this token
 	    CBORObject cti = null;
+	    
 	    //Check if we have a sid
 	    String sid = msg.getSenderId();
 	    try {
-            cti = TokenRepository.getInstance()
-                    .addToken(claims, this.ctx, sid);
+            cti = TokenRepository.getInstance().addToken(token, claims, this.ctx, sid, exiSeqNum);
         } catch (AceException e) {
             LOGGER.severe("Message processing aborted: " + e.getMessage());
             CBORObject map = CBORObject.NewMap();
@@ -356,13 +532,12 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
             map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
-
+	    
 	    //11. Create success message
 	    //Return the cti or the local identifier assigned to the token
 	    CBORObject rep = CBORObject.NewMap();
 	    rep.Add(Constants.CTI, cti);
 	    
-	    // M.T.
 	    // The following enables this class to return to the specific AuthzInfo instance also the
 	    // Sender Identifier associated to this Access Token, as 'SUB' parameter of the response.
 	    String assignedKid = null;
@@ -370,8 +545,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    try {
 	    	String ctiStr = Base64.getEncoder().encodeToString(cti.GetByteString());
 	    	
-	    	CBORObject cnf = claims.get(Constants.CNF);
-	    	
+	    	cnf = claims.get(Constants.CNF);
+	    		    	
 	    	// This should really not happen for a previously validated and stored Access Token
 	    	if (cnf == null) {
 	            LOGGER.severe("Token has not cnf");
@@ -383,23 +558,8 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	            throw new AceException("cnf claim malformed in token");
 	        }
 	    	
-	    	if (cnf.getKeys().contains(Constants.OSCORE_Security_Context)) {
-	    		OscoreSecurityContext osc = new OscoreSecurityContext(cnf);
-	    		assignedKid = new String(osc.getClientId(), Constants.charset);
-	    	}
-	    	else {
-		    	OneKey popKey = TokenRepository.getInstance().getPoP(ctiStr);
-		    	
-		    	if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_Octet)) {
-		    		assignedKid = new String(popKey.get(KeyKeys.KeyId).GetByteString(), Constants.charset);
-		    	}
-		    	else if (popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-		    			popKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_OKP)) {
-		    		RawPublicKeyIdentity rpk = new RawPublicKeyIdentity(popKey.AsPublicKey());
-		    		assignedKid = new String(rpk.getName());
-		    	}
-		    	
-	    	}
+	    	// Rebuild the 'kid' leveraging what already happened in the Token Repository
+	    	assignedKid = TokenRepository.getInstance().getKidByCti(ctiStr);
 	    	
 	    	// This should really not happen for a previously validated and stored Access Token
 	    	if (assignedKid == null) {
@@ -408,10 +568,6 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        }
 	    	
 	    	assignedSid = TokenRepository.getInstance().getSid(assignedKid);
-	    	
-	    	// TODO: REMOVE DEBUG PRINT
-	    	// System.out.println("AuthzInfo assignedKid " + assignedKid);
-	    	// System.out.println("AuthzInfo assignedSid " + assignedSid);
 	    }
 	    catch (Exception e) {
 	    	LOGGER.info("Unable to retrieve kid after token addition: " + e.getMessage());
@@ -424,6 +580,18 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	    if (assignedSid != null)
 	    	rep.Add(Constants.SUB, assignedSid);
 
+	    // If the OSCORE profile is being used, and especially a new OSCORE Security Context is
+	    // being established, return also the selected Recipient ID to the specific AuthzInfo instance.
+	    //
+	    // This is not the case when a Token is posted to update access rights, by superseding an
+	    // existing Token from which the original 'cnf' claim is inherited and retained in the new Token
+    	if (firstOscoreAccessToken == true) {
+    		
+    		String recipientIdString = Base64.getEncoder().encodeToString(recipientId);
+	    	rep.Add(Constants.CLIENT_ID, recipientIdString);
+	    	
+    	}
+    	
 	    LOGGER.info("Successfully processed token");
         return msg.successReply(Message.CREATED, rep);
 	}
@@ -485,7 +653,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	 * @throws AceException
 	 * @throws IntrospectionException 
 	 */
-    protected synchronized Map<Short, CBORObject> processRefrenceToken(CBORObject token)
+    protected synchronized Map<Short, CBORObject> processReferenceToken(CBORObject token)
                 throws AceException, IntrospectionException {
 		// This should be a CBOR String
         if (token.getType() != CBORType.ByteString) {
@@ -510,16 +678,52 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
      * Handle exi claim, if present.
      * This is done by internally translating it to a exp claim in sync with the local time.
      * 
+     * Additional checks are also performed, to ensure that the Sequence Number
+     * encoded in the 'cti' claim is strictly greater than the highest Sequence Number
+     * received by this Resource Server in Access Tokens that include the 'exi' claim.
+     * 
      * @param claims
+     * 
+     * @return  It returns a positive integer if the Sequence Number is successfully extracted from the 'cti' claim
+     * 		    It returns a negative integer in the following cases:
+     * 			-1 : the 'exi' claim is not present
+     * 		    -2 : the 'cti' claim is not present in the Access Token as a CBOR byte string
+     *          -3 : the 'cti' claim is present but it is not formatted as expected
+     *          -4 : the Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
      */
-    private synchronized void handleExi(Map<Short, CBORObject> claims) {
+    private synchronized int handleExi(Map<Short, CBORObject> claims) {
+    	
         CBORObject exi = claims.get(Constants.EXI);
-        if (exi != null) {
-            Long now = this.time.getCurrentTime();
-            Long exp = now + exi.AsInt64();
-            claims.remove(Constants.EXI);
-            claims.put(Constants.EXP, CBORObject.FromObject(exp));
+        if (exi == null) {
+        	return -1;
         }
+        
+        // Determine the expiration time and add it to the Access Token as value of an 'exp' claim
+        Long now = this.time.getCurrentTime();
+        Long exp = now + exi.AsInt64();
+        claims.put(Constants.EXP, CBORObject.FromObject(exp));
+        
+        // Check that the 'cti' claim is also present
+        CBORObject cticb = claims.get(Constants.CTI);
+        if (cticb == null || cticb.getType() != CBORType.ByteString) {
+        	// The 'cti' claim is not included in the Access Token as a CBOR byte string.
+    		return -2;
+        }
+        
+        // Retrieve the Sequence Number from the 'cti' claim
+        int seqNum = TokenRepository.getInstance().getExiSeqNumFromCti(cticb.GetByteString());
+        
+        if (seqNum < 0) {
+        	// The 'cti' claim is malformed
+        	return -3;
+        }        
+        if (seqNum <= TokenRepository.getInstance().getTopExiSequenceNumber()) {
+        	// The Sequence Number encoded in the 'cti' claim is not greater than the stored highest Sequence Number
+        	return -4;
+        }
+        
+        return seqNum;
+        
     }
     
     /**

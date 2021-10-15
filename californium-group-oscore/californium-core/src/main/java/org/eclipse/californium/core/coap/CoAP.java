@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -31,6 +31,8 @@ import static org.eclipse.californium.core.coap.CoAP.MessageFormat.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.Map;
 
 import org.eclipse.californium.elements.util.StandardCharsets;
 
@@ -38,7 +40,7 @@ import org.eclipse.californium.elements.util.StandardCharsets;
  * CoAP defines several constants.
  * <ul>
  * <li>Message types: CON, NON, ACK, RST</li>
- * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH</li>
+ * <li>Request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, (CUSTOM_30)</li>
  * <li>Response codes</li>
  * <li>Option numbers</li>
  * <li>Message format</li>
@@ -56,7 +58,7 @@ public final class CoAP {
 
 	/** The DTLS protocol */
 	public static final String PROTOCOL_DTLS = "DTLS";
-	
+
 	/** The TCP protocol */
 	public static final String PROTOCOL_TCP = "TCP";
 
@@ -75,6 +77,13 @@ public final class CoAP {
 	/** The CoAPS URI scheme */
 	public static final String COAP_SECURE_URI_SCHEME = "coaps";
 
+	/**
+	 * The URI scheme separator
+	 * 
+	 * @since 2.4
+	 */
+	public static final String URI_SCHEME_SEPARATOR = "://";
+
 	/** The default CoAP port for normal CoAP communication (coap) */
 	public static final int DEFAULT_COAP_PORT = 5683;
 
@@ -86,6 +95,19 @@ public final class CoAP {
 
 	/** IPv4 multicast address for CoAP, RFC 7252, 12.8. */
 	public static final InetAddress MULTICAST_IPV4 = new InetSocketAddress("224.0.1.187", 0).getAddress();
+	/**
+	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, link-local.
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 */
+	public static final InetAddress MULTICAST_IPV6_LINKLOCAL = new InetSocketAddress("[FF02::FD]", 0).getAddress();
+	/**
+	 * IPv6 multicast address for CoAP, RFC 7252, 12.8., FF0X::FD, site-local.
+	 * See <a href="https://tools.ietf.org/html/rfc7346#section-2">RFC7346, IPv6 Multicast Address Scopes</a> 
+	 */
+	public static final InetAddress MULTICAST_IPV6_SITELOCAL = new InetSocketAddress("[FF05::FD]", 0).getAddress();
+
+	private static final Map<String, Code> codeMap = new HashMap<>();
+	private static final Map<String, ResponseCode> responseCodeMap = new HashMap<>();
 
 	private CoAP() {
 		// prevent instantiation
@@ -126,17 +148,6 @@ public final class CoAP {
 	}
 
 	/**
-	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
-	 * 
-	 * @param protocol protocol to be checked
-	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
-	 */
-	public static boolean isTcpProtocol(final String protocol) {
-		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
-				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
-	}
-
-	/**
 	 * Get scheme for protocol.
 	 * 
 	 * @param protocol protocol
@@ -154,6 +165,38 @@ public final class CoAP {
 			return COAP_SECURE_TCP_URI_SCHEME;
 		}
 		throw new IllegalArgumentException("Protocol " + protocol + " not supported!");
+	}
+
+	/**
+	 * Get protocol for scheme.
+	 * 
+	 * @param scheme scheme
+	 * @return protocol
+	 * @throws IllegalArgumentException if scheme is not supported
+	 * @since 2.4
+	 */
+	public static String getProtocolForScheme(final String scheme) {
+		if (COAP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_UDP;
+		} else if (COAP_SECURE_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_DTLS;
+		} else if (COAP_TCP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_TCP;
+		} else if (COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(scheme)) {
+			return PROTOCOL_TLS;
+		}
+		throw new IllegalArgumentException("Scheme " + scheme + " not supported!");
+	}
+
+	/**
+	 * Checks, if provided protocol is {@link #PROTOCOL_TCP} or {@link #PROTOCOL_TLS}.
+	 * 
+	 * @param protocol protocol to be checked
+	 * @return true, if the provided protocol matchs one of the list above, false, otherwise.
+	 */
+	public static boolean isTcpProtocol(final String protocol) {
+		return PROTOCOL_TCP.equalsIgnoreCase(protocol)
+				|| PROTOCOL_TLS.equalsIgnoreCase(protocol);
 	}
 
 	/**
@@ -201,7 +244,7 @@ public final class CoAP {
 				CoAP.COAP_SECURE_URI_SCHEME.equalsIgnoreCase(uriScheme) ||
 				CoAP.COAP_SECURE_TCP_URI_SCHEME.equalsIgnoreCase(uriScheme);
 	}
-	
+
 	/**
 	 * Get default port for provided uri scheme.
 	 * 
@@ -227,6 +270,24 @@ public final class CoAP {
 			return DEFAULT_COAP_SECURE_PORT;
 		}
 		throw new IllegalArgumentException("URI scheme '" + uriScheme + "' is not supported!");
+	}
+
+	/**
+	 * Get scheme from URI.
+	 * 
+	 * Simple implementation searching for {@link #URI_SCHEME_SEPARATOR} and
+	 * returns the URI up to that, when found.
+	 * 
+	 * @param uri uri
+	 * @return scheme, or {@code null}, if not contained.
+	 * @since 2.4
+	 */
+	public static String getSchemeFromUri(final String uri) {
+		int index = uri.indexOf(URI_SCHEME_SEPARATOR);
+		if (index > 0) {
+			return uri.substring(0, index);
+		}
+		return null;
 	}
 
 	/**
@@ -269,6 +330,30 @@ public final class CoAP {
 	 */
 	public static boolean isObservable(final Code code) {
 		return code == Code.GET || code == Code.FETCH;
+	}
+
+	/**
+	 * Converts raw message code into display string.
+	 * 
+	 * @param rawCode message code
+	 * @return display string
+	 * @since 3.0
+	 */
+	public static String toCodeString(int rawCode) {
+		String result = formatCode(rawCode);
+		try {
+			if (isRequest(rawCode)) {
+				Code code = Code.valueOf(rawCode);
+				result += "/" + code.text;
+			} else if (isResponse(rawCode)) {
+				ResponseCode code = ResponseCode.valueOf(rawCode);
+				result += "/" + code.text;
+			} else if (isEmptyMessage(rawCode)) {
+				result += "/EMPTY";
+			}
+		} catch (MessageFormatException ex) {
+		}
+		return result;
 	}
 
 	/**
@@ -335,7 +420,7 @@ public final class CoAP {
 
 		/** The server error response class code. */
 		SERVER_ERROR_RESPONSE(5),
-		
+
 		/** The signaling  class code. */
 		SIGNAL(7);
 
@@ -371,7 +456,7 @@ public final class CoAP {
 	}
 
 	/**
-	 * The enumeration of request codes: GET, POST, PUT and DELETE.
+	 * The enumeration of request codes: GET, POST, PUT, DELETE, FETCH, PATCH, IPATCH, and CUSTOM_30.
 	 */
 	public enum Code {
 
@@ -386,18 +471,35 @@ public final class CoAP {
 
 		/** The DELETE code. */
 		DELETE(4),
-		
+
 		/** The FETCH code. */
 		FETCH(5),
-		
+
 		/** The PATCH code. */
 		PATCH(6),
 
 		/** The IPATCH code. */
-		IPATCH(7);
+		IPATCH(7),
+
+		/** 
+		 * The custom code 30.
+		 * 
+		 * Support for openHAB custom CoAP extension, CoIoT, used for shelly binding.
+		 * <a href="https://shelly-api-docs.shelly.cloud/images/CoIoT%20for%20Shelly%20devices%20(rev%201.0)%20.pdf">CoIot Shelly</a>.
+		 * 
+		 * Note: though this code is not assigned byt IANA, it may cause future incompatibilities.
+		 * If the IANA assigns this value, this will get replaced!
+		 * <a href="https://www.iana.org/assignments/core-parameters/core-parameters.xhtml#method-codes">IANA CoAP Codes</a>.
+		 */
+		CUSTOM_30(30);
 
 		/** The code value. */
 		public final int value;
+		/** 
+		 * The code value in textual format. "0.dd"
+		 * @since 2.1
+		 */
+		public final String text;
 
 		/**
 		 * Instantiates a new code with the specified code value.
@@ -406,6 +508,8 @@ public final class CoAP {
 		 */
 		private Code(final int value) {
 			this.value = value;
+			this.text = formatCode(getCodeClass(value), getCodeDetail(value));
+			codeMap.put(text, this);
 		}
 
 		/**
@@ -416,12 +520,12 @@ public final class CoAP {
 		 * @throws MessageFormatException if the integer value does not represent a valid request code.
 		 */
 		public static Code valueOf(final int value) {
-			int classCode = getCodeClass(value);
-			int detailCode = getCodeDetail(value);
-			if (classCode > 0) {
-				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(classCode, detailCode)));
+			int codeClass = getCodeClass(value);
+			int codeDetail = getCodeDetail(value);
+			if (codeClass > 0) {
+				throw new MessageFormatException(String.format("Not a CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
-			switch (detailCode) {
+			switch (codeDetail) {
 				case 1: return GET;
 				case 2: return POST;
 				case 3: return PUT;
@@ -429,16 +533,30 @@ public final class CoAP {
 				case 5: return FETCH;
 				case 6: return PATCH;
 				case 7: return IPATCH;
-				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(classCode, detailCode)));
+				case 30: return CUSTOM_30;
+				default: throw new MessageFormatException(String.format("Unknown CoAP request code: %s", formatCode(codeClass, codeDetail)));
 			}
 		}
+
+		/**
+		 * Converts the specified textual value to a request code.
+		 *
+		 * @param value textual value of format "0.dd".
+		 * @return the request code. {@code null}, if textual value doesn't
+		 *         match a request code.
+		 * @since 2.1
+		 */
+		public static Code valueOfText(String value) {
+			return codeMap.get(value);
+		}
+
 	}
 
 	/**
 	 * The enumeration of response codes
 	 */
 	public enum ResponseCode {
-		
+
 		// Success: 2.01 - 2.31
 		_UNKNOWN_SUCCESS_CODE(CodeClass.SUCCESS_RESPONSE, 0), // undefined -- only used to identify class
 		CREATED(CodeClass.SUCCESS_RESPONSE, 1),
@@ -476,6 +594,11 @@ public final class CoAP {
 		public final int value;
 		public final int codeClass;
 		public final int codeDetail;
+		/** 
+		 * The code value in textual format. "c.dd"
+		 * @since 2.1
+		 */
+		public final String text;
 
 		/**
 		 * Instantiates a new response code with the specified integer value.
@@ -486,6 +609,8 @@ public final class CoAP {
 			this.codeClass = codeClass.value;
 			this.codeDetail = codeDetail;
 			this.value = codeClass.value << 5 | codeDetail;
+			this.text = formatCode(codeClass.value, codeDetail);
+			responseCodeMap.put(text, this);
 		}
 
 		/**
@@ -508,6 +633,18 @@ public final class CoAP {
 			default:
 				throw new MessageFormatException(String.format("Not a CoAP response code: %s", formatCode(codeClass, codeDetail)));
 			}
+		}
+
+		/**
+		 * Converts the specified textual value to a response code.
+		 *
+		 * @param value textual value of format "c.dd".
+		 * @return the response code. {@code null}, if textual value doesn't
+		 *         match a response code.
+		 * @since 2.1
+		 */
+		public static ResponseCode valueOfText(String value) {
+			return responseCodeMap.get(value);
 		}
 
 		private static ResponseCode valueOfSuccessCode(final int codeDetail) {
@@ -559,7 +696,7 @@ public final class CoAP {
 
 		@Override
 		public String toString() {
-			return formatCode(codeClass, codeDetail);
+			return text;
 		}
 
 		/**

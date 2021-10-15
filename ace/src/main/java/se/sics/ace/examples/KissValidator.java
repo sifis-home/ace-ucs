@@ -31,7 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.examples;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -125,7 +124,7 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
             throw new AceException("Scope must be a String in KissValidator");
         }
         String[] scopes = scope.AsString().split(" ");
-        for (String subscope : scopes) {           
+        for (String subscope : scopes) {
             Map<String, Set<Short>> resources = this.myScopes.get(subscope);
             if (resources.containsKey(resourceId)) {
                 return true;
@@ -161,13 +160,9 @@ public class KissValidator implements AudienceValidator, ScopeValidator {
         return null; //No scope found
     }
     
-    // M.T.
     // This method performs as isScopeMeaningful(CBORObject scope) for this Validator
     @Override
-    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
-        if (!scope.getType().equals(CBORType.TextString)) {
-            throw new AceException("Scope must be a String in KissValidator");
-        }
-        return this.myScopes.containsKey(scope.AsString());
+    public boolean isScopeMeaningful(CBORObject scope, String aud) throws AceException {
+        return isScopeMeaningful(scope);
     }
 }

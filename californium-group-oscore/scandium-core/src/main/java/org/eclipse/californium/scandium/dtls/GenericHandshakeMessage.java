@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -15,8 +15,9 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
 import java.util.Arrays;
+
+import org.eclipse.californium.elements.util.NoPublicAPI;
 
 /**
  * Generic handshake message.
@@ -26,27 +27,20 @@ import java.util.Arrays;
  * later creation of specific handshake messages, if the handshake parameters
  * are available.
  */
+@NoPublicAPI
 public class GenericHandshakeMessage extends HandshakeMessage {
 
 	/**
 	 * Handshake type of message
 	 */
 	private final HandshakeType type;
-	/**
-	 * Fragment bytes.
-	 */
-	private final byte[] byteArray;
 
 	/**
 	 * Create generic handshake message.
 	 * 
 	 * @param type handshake type
-	 * @param byteArray fragment bytes
-	 * @param peerAddress address of peer
 	 */
-	private GenericHandshakeMessage(HandshakeType type, byte[] byteArray, InetSocketAddress peerAddress) {
-		super(peerAddress);
-		this.byteArray = Arrays.copyOf(byteArray, byteArray.length);
+	protected GenericHandshakeMessage(HandshakeType type) {
 		this.type = type;
 	}
 
@@ -57,41 +51,22 @@ public class GenericHandshakeMessage extends HandshakeMessage {
 
 	@Override
 	public int getMessageLength() {
-		return byteArray.length;
+		return getRawMessage().length - MESSAGE_HEADER_LENGTH_BYTES;
 	}
 
 	@Override
 	public byte[] fragmentToByteArray() {
-		return byteArray;
-	}
-
-	/**
-	 * Get specific handshake message.
-	 * 
-	 * @param parameter handshake parameter
-	 * @return specific handshake message
-	 * @throws NullPointerException if handshake parameter is {@code null}
-	 * @throws HandshakeException if specific handshake message could not be
-	 *             created
-	 */
-	public HandshakeMessage getSpecificHandshakeMessage(HandshakeParameter parameter) throws HandshakeException {
-		if (parameter == null) {
-			throw new NullPointerException("HandshakeParameter must not be null!");
-		}
-		return HandshakeMessage.fromByteArray(getRawMessage(), parameter, getPeer());
+		byte[] rawMessage = getRawMessage();
+		return Arrays.copyOfRange(rawMessage, MESSAGE_HEADER_LENGTH_BYTES, rawMessage.length);
 	}
 
 	/**
 	 * Read generic generic handshake message from bytes.
 	 * 
 	 * @param type handshake type
-	 * @param byteArray fragment bytes
-	 * @param peerAddress address of peer
 	 * @return generic handshake message
 	 */
-	public static GenericHandshakeMessage fromByteArray(HandshakeType type, byte[] byteArray,
-			InetSocketAddress peerAddress) {
-		return new GenericHandshakeMessage(type, byteArray, peerAddress);
+	public static GenericHandshakeMessage fromByteArray(HandshakeType type) {
+		return new GenericHandshakeMessage(type);
 	}
-
 }

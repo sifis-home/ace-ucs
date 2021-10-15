@@ -33,12 +33,14 @@ package se.sics.ace.coap.rs.oscoreProfile;
 
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
@@ -53,6 +55,7 @@ import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionHandler;
 import se.sics.ace.rs.ScopeValidator;
+import se.sics.ace.rs.TokenRepository;
 
 
 /**
@@ -62,7 +65,7 @@ import se.sics.ace.rs.ScopeValidator;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreAuthzInfo extends AuthzInfo {
@@ -85,6 +88,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param tokenFile  the file where to save tokens when persisting
@@ -94,11 +98,12 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	 * @throws AceException 
 	 */
 	public OscoreAuthzInfo(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
+			TimeProvider time, IntrospectionHandler intro, String rsId, 
 			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		super(issuers, time, intro, audience, ctx, tokenFile, 
+		
+		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, 
 		        scopeValidator, checkCnonce);
 	}
 
@@ -106,6 +111,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
 	public synchronized Message processMessage(Message msg) {
 	    LOGGER.log(Level.INFO, "received message: " + msg);
 	    CBORObject cbor = null;
+	    
         try {
             cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());
         } catch (Exception e) {
@@ -115,6 +121,7 @@ public class OscoreAuthzInfo extends AuthzInfo {
             map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        
         if (!cbor.getType().equals(CBORType.Map)) {
             LOGGER.info("Invalid payload at authz-info: not a cbor map");
             CBORObject map = CBORObject.NewMap();
@@ -123,11 +130,44 @@ public class OscoreAuthzInfo extends AuthzInfo {
                     "Payload to authz-info must be a CBOR map");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+                
+        CBORObject nonce = null;
+        CBORObject senderIdCBOR = null;
+        
+        String subject = msg.getSenderId();
+        
+        // This Token POST is not protected; then the parameters Nonce1 and Id1 have to be present.
+        // Otherwise, if the Token POST is protected, these parameters are not expected, and are silently ignored if present
+        if (subject == null) {
+        	
+	        nonce = cbor.get(CBORObject.FromObject(Constants.NONCE1));
+	        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
+	            LOGGER.info("Missing or invalid parameter type for:"
+	                    + "'nonce1', must be present and byte-string");
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Malformed or missing parameter 'nonce1'");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+	        
+	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
+	        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
+	            LOGGER.info("Missing or invalid parameter type for:"
+	                    + "'id1', must be present and byte-string");
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Malformed or missing parameter 'id1'");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+        
+        }
         
         CBORObject token = cbor.get(
                 CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing manadory paramter 'access_token'");
+            LOGGER.info("Missing mandatory parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
@@ -146,48 +186,101 @@ public class OscoreAuthzInfo extends AuthzInfo {
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
-
-        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.CNONCE));
-        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter type for:"
-                    + "'cnonce', must be present and byte-string");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Malformed or missing parameter cnonce");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-        }
-        byte[] n1 = nonce.GetByteString();
-        byte[] n2 = new byte[8];
-        new SecureRandom().nextBytes(n2);
-   
-        OscoreSecurityContext osc;
-        try {
-            osc = new OscoreSecurityContext(this.cnf);
-        } catch (AceException e) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-        }
-            
-        OSCoreCtx ctx;
-        try {
-            ctx = osc.getContext(false, n1, n2);
-            OscoreCtxDbSingleton.getInstance().addContext(ctx);
-        } catch (OSException e) {
-            LOGGER.info("Error while creating OSCORE context: " 
-                    + e.getMessage());
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Error while creating OSCORE security context: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-        }
         
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.CNONCE, n2);
+        CBORObject payload = null;
+        
+        // If the Token POST was a non protected request, then Nonces and IDs have
+        // to be exchanged, and a new OSCORE Security Context has to be established
+        if (subject == null) {
+        	
+	        payload = CBORObject.NewMap();
+	        
+	        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(reply.getRawPayload());
+	        
+	        String recipientIdString = authzInfoResponse.get(
+	                CBORObject.FromObject(Constants.CLIENT_ID)).AsString();
+	        if (recipientIdString == null) {
+	            LOGGER.info("Missing mandatory parameter 'client_id'");
+	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	        }
+	        byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
+	        
+	        
+	        byte[] n1 = nonce.GetByteString();
+	        byte[] n2 = new byte[8];
+	        new SecureRandom().nextBytes(n2);
+	   
+	        OscoreSecurityContext osc;
+	        try {
+	            osc = new OscoreSecurityContext(this.cnf);
+	            
+	        } catch (AceException e) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+	            
+	        OSCoreCtx ctx;
+	        try {
+	        	byte[] senderId = senderIdCBOR.GetByteString();        	
+	            ctx = osc.getContext(false, n1, n2);
+	            
+	            OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+	            
+	            synchronized(db) {
+	            	
+	            	boolean install = true;
+	            	
+	    			try {
+	            			
+	    				// Double check in the database that the OSCORE Security Context
+	    				// with the selected Recipient ID is actually still not present
+	        			if (db.getContext(recipientId) != null) {
+	        				// A Security Context with this Recipient ID exists!
+	        				install = false;
+	        			}        			
+	    			}
+	        		catch(RuntimeException e) {
+	    				// Multiple Security Contexts with this Recipient ID exist!
+	    				install = false;
+	        		}
+	            	
+	    			if (install)
+	    				db.addContext(ctx);
+	    			else {
+	    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
+					               + " has been installed while running the OSCORE profile");
+	    	            
+	    	            // Delete the stored Access Token to prevent a deadlock
+	    	    	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+	    	    	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
+	    	    	    try {
+	    	    	    	TokenRepository.getInstance().removeToken(cti.AsString());
+	    	    	    }
+	    	    	    catch (AceException e) {
+	    	                LOGGER.info("Error while deleting an Access Token: " + e.getMessage());
+	    	    	    }
+	    	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	    			}
+	            }
+	            
+	        } catch (OSException e) {
+	            LOGGER.info("Error while creating OSCORE context: " 
+	                    + e.getMessage());
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Error while creating OSCORE security context: "
+	                    + e.getMessage());
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	        }
+	        
+	        payload.Add(Constants.NONCE2, n2);
+	        payload.Add(Constants.ID2, recipientId);
+        
+		}
+        
         LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);
 	}

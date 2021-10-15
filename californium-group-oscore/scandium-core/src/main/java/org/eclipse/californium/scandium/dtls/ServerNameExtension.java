@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -15,14 +15,10 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.net.InetSocketAddress;
-
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.eclipse.californium.scandium.util.ServerName;
-import org.eclipse.californium.scandium.util.ServerName.NameType;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -32,12 +28,10 @@ import org.eclipse.californium.scandium.util.ServerNames;
  *
  */
 public final class ServerNameExtension extends HelloExtension {
+	
+	private static ServerNameExtension EMPTY_SERVER_NAMES = new ServerNameExtension(null);
 
-	private ServerNames serverNames;
-
-	private ServerNameExtension() {
-		super(ExtensionType.SERVER_NAME);
-	}
+	private final ServerNames serverNames;
 
 	/**
 	 * Creates a new instance for a server name list.
@@ -45,14 +39,10 @@ public final class ServerNameExtension extends HelloExtension {
 	 * This constructor should be used by a client who wants to include the <em>Server Name Indication</em>
 	 * extension in its <em>CLIENT_HELLO</em> handshake message.
 	 * 
-	 * @param serverNames The server names.
-	 * @throws NullPointerException if the server name list is {@code null}.
+	 * @param serverNames The server names. May be {@code null}.
 	 */
 	private ServerNameExtension(final ServerNames serverNames) {
-		this();
-		if (serverNames == null) {
-			throw new NullPointerException("server names must not be null");
-		}
+		super(ExtensionType.SERVER_NAME);
 		this.serverNames = serverNames;
 	}
 
@@ -62,26 +52,10 @@ public final class ServerNameExtension extends HelloExtension {
 	 * This method should be used by a server that wants to include an empty <em>Server Name Indication</em>
 	 * extension in its <em>SERVER_HELLO</em> handshake message.
 	 * 
-	 * @return The new instance.
+	 * @return The empty instance.
 	 */
 	public static ServerNameExtension emptyServerNameIndication() {
-		return new ServerNameExtension();
-	}
-
-	/**
-	 * Creates a new instance for a single server's host name.
-	 * <p>
-	 * This method should be used by a client that wants to include the <em>Server Name Indication</em>
-	 * extension in its <em>CLIENT_HELLO</em> handshake message.
-	 * 
-	 * @param hostName The host name of the server. NB: The host name MUST only contain ASCII characters,
-	 *                 non-ASCII characters will be replaced by {@code StandardCharsets.US_ASCII}'s default
-	 *                 replacement byte.
-	 * @return The new instance.
-	 * @throws NullPointerException if the host name is {@code null}.
-	 */
-	public static ServerNameExtension forHostName(final String hostName) {
-		return new ServerNameExtension(ServerNames.newInstance(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET))));
+		return EMPTY_SERVER_NAMES;
 	}
 
 	/**
@@ -95,6 +69,9 @@ public final class ServerNameExtension extends HelloExtension {
 	 * @throws NullPointerException if the server name list is {@code null}.
 	 */
 	public static ServerNameExtension forServerNames(final ServerNames serverNames) {
+		if (serverNames == null) {
+			throw new NullPointerException("server names must not be null");
+		}
 		return new ServerNameExtension(serverNames);
 	}
 
@@ -112,27 +89,25 @@ public final class ServerNameExtension extends HelloExtension {
 	/**
 	 * Creates a new instance from its byte representation.
 	 * 
-	 * @param extensionData The byte representation.
-	 * @param peerAddress The IP address and port that the extension has been received from.
+	 * @param extensionDataReader The byte representation.
 	 * @return The instance.
 	 * @throws HandshakeException if the byte representation could not be parsed.
 	 */
-	public static ServerNameExtension fromExtensionData(final byte[] extensionData, final InetSocketAddress peerAddress) throws HandshakeException {
-		if (extensionData == null || extensionData.length == 0) {
+	public static ServerNameExtension fromExtensionDataReader(DatagramReader extensionDataReader) throws HandshakeException {
+		if (!extensionDataReader.bytesAvailable()) {
 			// this is an "empty" Server Name Indication received in a SERVER_HELLO
-			return ServerNameExtension.emptyServerNameIndication();
+			return emptyServerNameIndication();
 		} else {
-			DatagramReader reader = new DatagramReader(extensionData);
 			ServerNames serverNames = ServerNames.newInstance();
 			try {
-				serverNames.decode(reader);
+				serverNames.decode(extensionDataReader);
 			} catch (IllegalArgumentException e) {
 				if (e.getCause() instanceof IllegalArgumentException) {
 					throw new HandshakeException("Server Name Indication extension contains unknown name_type",
-							new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER, peerAddress));
+							new AlertMessage(AlertLevel.FATAL, AlertDescription.ILLEGAL_PARAMETER));
 				}
 				throw new HandshakeException("malformed Server Name Indication extension",
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR, peerAddress));
+						new AlertMessage(AlertLevel.FATAL, AlertDescription.DECODE_ERROR));
 			}
 			return new ServerNameExtension(serverNames);
 		}
@@ -141,7 +116,7 @@ public final class ServerNameExtension extends HelloExtension {
 	/**
 	 * Gets the server name list conveyed in this extension.
 	 * 
-	 * @return The server names.
+	 * @return The server names. May be {@code null}.
 	 */
 	public ServerNames getServerNames() {
 		return serverNames;

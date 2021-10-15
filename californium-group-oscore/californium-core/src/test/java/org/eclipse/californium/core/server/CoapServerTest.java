@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -17,12 +17,12 @@ package org.eclipse.californium.core.server;
 
 import static org.junit.Assert.assertEquals;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapServer;
-import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.category.Small;
 import org.eclipse.californium.rule.CoapNetworkRule;
-import org.junit.BeforeClass;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -36,10 +36,8 @@ public class CoapServerTest {
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
 			CoapNetworkRule.Mode.NATIVE);
 
-	@BeforeClass
-	public static void init() {
-		ExecutorsUtil.getScheduledExecutor();
-	}
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	@Test
 	public void testDestroyWithoutStart() {

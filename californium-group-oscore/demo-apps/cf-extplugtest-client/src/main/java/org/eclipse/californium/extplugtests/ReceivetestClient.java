@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,30 +18,41 @@
 
 package org.eclipse.californium.extplugtests;
 
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_JSON;
+import static org.eclipse.californium.core.coap.MediaTypeRegistry.APPLICATION_CBOR;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.BindException;
+import java.net.InetAddress;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import org.eclipse.californium.cli.ClientConfig;
+import org.eclipse.californium.cli.ClientInitializer;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.Utils;
+import org.eclipse.californium.core.coap.CoAP;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.EndpointContextTracer;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.plugtests.ClientInitializer;
-import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
+import org.eclipse.californium.elements.util.StringUtil;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -49,6 +60,12 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.google.gson.JsonSyntaxException;
+import com.upokecenter.cbor.CBORException;
+import com.upokecenter.cbor.CBORObject;
+import com.upokecenter.cbor.CBORType;
+
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * The RecevietestClient uses the developer API of Californium to test the
@@ -62,6 +79,8 @@ public class ReceivetestClient {
 	private static final String CONFIG_HEADER = "Californium CoAP Properties file for Receivetest Client";
 	private static final int DEFAULT_MAX_RESOURCE_SIZE = 8192;
 	private static final int DEFAULT_BLOCK_SIZE = 1024;
+
+	private static final int RESPONSE_HEADER_SIZE = 16;
 
 	/**
 	 * Properties filename for device UUID.
@@ -81,6 +100,14 @@ public class ReceivetestClient {
 	 */
 	private static final int MAX_DIFF_TIME_IN_MILLIS = 30000;
 
+	@Command(name = "ReceivetestClient", version = "(c) 2018-2020, Bosch.IO GmbH and others.")
+	private static class Config extends ClientConfig {
+
+		@Option(names = "--reset-uuid", description = "reset UUID.")
+		public boolean resetUuid;
+
+	}
+
 	private static NetworkConfigDefaultHandler DEFAULTS = new NetworkConfigDefaultHandler() {
 
 		@Override
@@ -99,50 +126,118 @@ public class ReceivetestClient {
 	 */
 	public static void main(String[] args) throws ConnectorException, IOException {
 
-		if (args.length == 0) {
+		final Config clientConfig = new Config();
+		clientConfig.networkConfigHeader = CONFIG_HEADER;
+		clientConfig.networkConfigDefaultHandler = DEFAULTS;
+		clientConfig.networkConfigFile = CONFIG_FILE;
 
-			System.out.println("\nCalifornium (Cf) Receivetest Client");
-			System.out.println("(c) 2017, Bosch Software Innovations GmbH and others");
-			System.out.println();
-			System.out.println("Usage: " + ReceivetestClient.class.getSimpleName() + " [-v] [-j] [-r|-x|-i id pw] URI");
-			System.out.println("  -v        : verbose. Enable message tracing.");
-			System.out.println("  -j        : use JSON format.");
-			System.out.println("  -r        : use raw public certificate. Default PSK.");
-			System.out.println("  -x        : use x.509 certificate");
-			System.out.println("  -i id pw  : use PSK with id and password");
-			System.out.println("  URI       : The CoAP URI of the extended Plugtest server to test (coap://<host>[:<port>])");
-			System.out.println();
-			System.out.println("Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipse.org:5783");
+		try {
+			ClientInitializer.init(args, clientConfig);
+		} catch (BindException ex) {
+			if (clientConfig.localPort != null) {
+				int port = clientConfig.localPort;
+				clientConfig.localPort = null;
+				ClientInitializer.init(args, clientConfig);
+				System.out.println("Port " + port + " not available, use ephemeral port!");
+			} else {
+				throw ex;
+			}
+		}
+		if (clientConfig.helpRequested) {
+			System.out.println(
+					"Example: " + ReceivetestClient.class.getSimpleName() + " coap://californium.eclipseprojects.io:5783");
+			System.exit(0);
+		}
+
+		String uuid = getUUID(clientConfig.resetUuid);
+		String uri = null;
+		String query = null;
+		try {
+			URI aUri = new URI(clientConfig.uri);
+			String host = aUri.getHost();
+			String scheme = aUri.getScheme();
+			int port = aUri.getPort();
+			if (port < 0 && host.equals(Config.DEFAULT_URI)) {
+				// receive test is hosted on extend-plugtest-server
+				port = CoAP.isSecureScheme(scheme) ? 5784 : 5783;
+			}
+			query = aUri.getQuery();
+			aUri = new URI(scheme, null, host, port, null, null, null);
+			uri = aUri.toASCIIString();
+		} catch (URISyntaxException e) {
+			System.err.println("URI error: " + e.getMessage());
 			System.exit(-1);
 		}
-
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-
-		Arguments arguments = ClientInitializer.init(config, args);
-
-		String uuid = getUUID();
-		CoapClient client = new CoapClient(arguments.uri);
-		Request request = Request.newPost();
-		if (arguments.json) {
-			request.getOptions().setAccept(APPLICATION_JSON);
+		CoapClient client = new CoapClient(uri);
+		final AtomicInteger receivedData = new AtomicInteger();
+		final Request request = Request.newPost();
+		if (clientConfig.contentType != null) {
+			request.getOptions().setAccept(clientConfig.contentType.contentType);
 		}
-		request.setURI(
-				arguments.uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis());
+		if (clientConfig.recordSizeLimit != null) {
+			if (query == null || query.isEmpty()) {
+				query = "rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
+			} else if (!query.contains("rlen=")) {
+				query += "&rlen=" + (clientConfig.recordSizeLimit - RESPONSE_HEADER_SIZE);
+			}
+		}
+		if (query == null || query.isEmpty()) {
+			query = "";
+		} else {
+			System.out.println("extra: " + query);
+			query = "&" + query;
+		}
+		request.setURI(uri + "/requests?dev=" + uuid + "&rid=" + REQUEST_ID_PREFIX + System.currentTimeMillis() + "&ep"
+				+ query);
+		if (clientConfig.verbose) {
+			request.addMessageObserver(new EndpointContextTracer() {
+
+				@Override
+				public void onResponse(final Response response) {
+					byte[] raw = response.getBytes();
+					if (raw != null) {
+						receivedData.addAndGet(raw.length);
+					}
+				}
+
+				@Override
+				public void onReadyToSend() {
+					System.out.println(Utils.prettyPrint(request));
+					System.out.println();
+				}
+
+				@Override
+				public void onAcknowledgement() {
+					System.out.println(">>> ACK <<<");
+				}
+
+				@Override
+				public void onDtlsRetransmission(int flight) {
+					System.out.println(">>> DTLS retransmission, flight " + flight);
+				}
+
+				@Override
+				protected void onContextChanged(EndpointContext endpointContext) {
+					System.out.println(Utils.prettyPrint(endpointContext));
+				}
+			});
+		}
 		CoapResponse coapResponse = client.advanced(request);
 
 		if (coapResponse != null) {
-			if (CONTENT == coapResponse.getCode() && coapResponse.getOptions().getContentFormat() == APPLICATION_JSON) {
+			ResponseCode code = coapResponse.getCode();
+			int format = coapResponse.getOptions().getContentFormat();
+			if ((CONTENT == code || CHANGED == code) && format == APPLICATION_JSON) {
 				// JSON success
-				System.out.println();
 				Response response = coapResponse.advanced();
-				String payload = response.getPayloadString();
-				System.out.println("Payload: " + payload.length() + " bytes");
-				Long rtt = response.getRTT();
-				if (rtt != null) {
-					System.out.println("RTT: " + rtt + "ms");
-				}
-				System.out.println();
-				String statistic = processJSON(response.getPayloadString(), "", arguments.verbose);
+				printHead(response);
+				String statistic = processJSON(response.getPayloadString(), "", clientConfig.verbose);
+				System.out.println(statistic);
+			} else if ((CONTENT == code || CHANGED == code) && format == APPLICATION_CBOR) {
+				// CBOR success
+				Response response = coapResponse.advanced();
+				printHead(response);
+				String statistic = processCBOR(response.getPayload(), "", clientConfig.verbose);
 				System.out.println(statistic);
 			} else {
 				System.out.println(coapResponse.getCode());
@@ -153,8 +248,23 @@ public class ReceivetestClient {
 		} else {
 			System.out.println("No response received.");
 		}
-
+		client.shutdown();
 		System.exit(0);
+	}
+
+	private static void printHead(Response response) {
+		System.out.println();
+		byte[] raw = response.getBytes();
+		if (raw == null) {
+			System.out.println("Response: Payload: " + response.getPayloadSize() + " bytes");
+		} else {
+			System.out.println("Response: " + raw.length + " bytes, Payload: " + response.getPayloadSize() + " bytes");
+		}
+		Long rtt = response.getRTT();
+		if (rtt != null) {
+			System.out.println("RTT: " + rtt + "ms");
+		}
+		System.out.println();
 	}
 
 	/**
@@ -172,8 +282,7 @@ public class ReceivetestClient {
 		StringBuilder statistic = new StringBuilder();
 		JsonElement element = null;
 		try {
-			JsonParser parser = new JsonParser();
-			element = parser.parse(payload);
+			element = JsonParser.parseString(payload);
 
 			if (verbose && element.isJsonArray()) {
 				// expected JSON data
@@ -194,25 +303,33 @@ public class ReceivetestClient {
 								boolean hit = errors.contains(rid);
 								rid = rid.substring(REQUEST_ID_PREFIX.length());
 								long requestTime = Long.parseLong(rid);
-								statistic.append("Request: ").append(format.format(new Date(requestTime)));
+								statistic.append("Request: ").append(format.format(requestTime));
 								long diff = time - requestTime;
 								if (-MAX_DIFF_TIME_IN_MILLIS < diff && diff < MAX_DIFF_TIME_IN_MILLIS) {
 									statistic.append(", received: ").append(diff).append(" ms");
 								} else {
-									statistic.append(", received: ").append(format.format(new Date(time)));
+									statistic.append(", received: ").append(format.format(time));
 								}
 								if (hit) {
 									statistic.append(" * lost response!");
 								}
-								statistic.append(System.lineSeparator());
 							} else {
 								statistic.append("Request: ").append(rid);
-								statistic.append(", received: ").append(format.format(new Date(time)));
-								statistic.append(System.lineSeparator());
+								statistic.append(", received: ").append(format.format(time));
 							}
+							if (object.has("ep")) {
+								String endpoint = object.get("ep").getAsString();
+								if (endpoint.contains(":")) {
+									endpoint = "[" + endpoint + "]";
+								}
+								int port = object.get("port").getAsInt();
+								statistic.append(System.lineSeparator());
+								statistic.append("    (").append(endpoint).append(":").append(port).append(")");
+							}
+							statistic.append(System.lineSeparator());
 						} else {
 							long time = object.get("systemstart").getAsLong();
-							statistic.append("Server's system start: ").append(format.format(new Date(time)));
+							statistic.append("Server's system start: ").append(format.format(time));
 							statistic.append(System.lineSeparator());
 						}
 					}
@@ -237,6 +354,78 @@ public class ReceivetestClient {
 		return statistic.toString();
 	}
 
+	public static String processCBOR(byte[] payload, String errors, boolean verbose) {
+		try {
+			StringBuilder statistic = new StringBuilder();
+			CBORObject element = CBORObject.DecodeFromBytes(payload);
+			if (verbose && element.getType() == CBORType.Array) {
+				// expected JSON data
+				SimpleDateFormat format = new SimpleDateFormat("HH:mm:ss dd.MM.yyyy");
+				try {
+					for (CBORObject item : element.getValues()) {
+						if (item.getType() != CBORType.Map) {
+							// unexpected =>
+							// stop application pretty printing
+							statistic.setLength(0);
+							break;
+						}
+						CBORObject value;
+						if ((value = item.get("rid")) != null) {
+							String rid = value.AsString();
+							long time = item.get("time").AsNumber().ToInt64Checked();
+							if (rid.startsWith(REQUEST_ID_PREFIX)) {
+								boolean hit = errors.contains(rid);
+								rid = rid.substring(REQUEST_ID_PREFIX.length());
+								long requestTime = Long.parseLong(rid);
+								statistic.append("Request: ").append(format.format(requestTime));
+								long diff = time - requestTime;
+								if (-MAX_DIFF_TIME_IN_MILLIS < diff && diff < MAX_DIFF_TIME_IN_MILLIS) {
+									statistic.append(", received: ").append(diff).append(" ms");
+								} else {
+									statistic.append(", received: ").append(format.format(time));
+								}
+								if (hit) {
+									statistic.append(" * lost response!");
+								}
+							} else {
+								statistic.append("Request: ").append(rid);
+								statistic.append(", received: ").append(format.format(time));
+							}
+							if ((value = item.get("ep")) != null) {
+								byte[] endpoint = value.GetByteString();
+								int port = item.get("port").AsNumber().ToInt16Checked() & 0xffff;
+								statistic.append(System.lineSeparator());
+								String address = InetAddress.getByAddress(endpoint).getHostAddress();
+								if (address.contains(":")) {
+									address = "[" + address + "]";
+								}
+								statistic.append("    (").append(address).append(":").append(port).append(")");
+							}
+							statistic.append(System.lineSeparator());
+						} else {
+							long time = item.get("systemstart").AsNumber().ToInt64Checked();
+							statistic.append("Server's system start: ").append(format.format(time));
+							statistic.append(System.lineSeparator());
+						}
+					}
+				} catch (Throwable e) {
+					// unexpected => stop application pretty printing
+					statistic.setLength(0);
+				}
+			}
+			if (statistic.length() > 0) {
+				return statistic.toString();
+			} else {
+				// CBOR plain pretty printing
+				return element.toString();
+			}
+		} catch (CBORException e) {
+			// plain payload
+			e.printStackTrace();
+			return StringUtil.byteArray2Hex(payload);
+		}
+	}
+
 	/**
 	 * Get UUID as device ID.
 	 * 
@@ -247,17 +436,19 @@ public class ReceivetestClient {
 	 * 
 	 * @return UUID
 	 */
-	public static String getUUID() {
+	public static String getUUID(boolean reset) {
 		Properties props = new Properties();
-		try (FileReader reader = new FileReader(UUID_FILE)) {
-			props.load(reader);
-			String uid = props.getProperty(UUID_KEY);
-			if (uid == null) {
-				uid = "anonymous";
+		if (!reset) {
+			try (FileReader reader = new FileReader(UUID_FILE)) {
+				props.load(reader);
+				String uid = props.getProperty(UUID_KEY);
+				if (uid == null) {
+					uid = "anonymous";
+				}
+				return uid;
+			} catch (FileNotFoundException e) {
+			} catch (IOException e) {
 			}
-			return uid;
-		} catch (FileNotFoundException e) {
-		} catch (IOException e) {
 		}
 		try (FileWriter writer = new FileWriter(UUID_FILE)) {
 			String uid = UUID.randomUUID().toString();

@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -17,7 +17,6 @@ package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.INTERNAL_SERVER_ERROR;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.SERVICE_UNAVAILABLE;
@@ -43,11 +42,14 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MessageObserverAdapter;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.core.coap.ResponseTimeout;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.resources.CoapExchange;
+import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.DatagramWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,8 +63,8 @@ import org.slf4j.LoggerFactory;
  * 
  * <dl>
  * <dt>obs=number</dt>
- * <dd>number of notifies before the observation is reregistered.
- * 0 to cancel a established observation</dd>
+ * <dd>number of notifies before the observation is reregistered. 0 to cancel a
+ * established observation</dd>
  * <dt>res=path</dt>
  * <dd>path of resource to observe.</dd>
  * </dl>
@@ -81,12 +83,13 @@ import org.slf4j.LoggerFactory;
  * coap://localhost:???/feed-CON?rlen=400
  * </pre>
  * 
- * (Please refer to the documentation of the Feed resource in the extplugtest client.
- *  "feed-CON" resource will send notifies using CON, "feed-NON" using NON)
+ * (Please refer to the documentation of the Feed resource in the extplugtest
+ * client. "feed-CON" resource will send notifies using CON, "feed-NON" using
+ * NON)
  */
 public class ReverseObserve extends CoapResource implements NotificationListener {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class.getCanonicalName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ReverseObserve.class);
 	private static final Logger HEALTH_LOGGER = LoggerFactory.getLogger(LOGGER.getName() + ".health");
 
 	private static final String RESOURCE_NAME = "reverse-observe";
@@ -99,9 +102,17 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	 */
 	private static final String URI_QUERY_OPTION_RESOURCE = "res";
 	/**
+	 * URI query parameter to specify reverse observation.
+	 */
+	private static final String URI_QUERY_OPTION_TIMEOUT = "timeout";
+	/**
 	 * Maximum number of notifies before reregister is triggered.
 	 */
 	private static final int MAX_NOTIFIES = 10000000;
+	/**
+	 * Timeout for response in milliseconds.
+	 */
+	private static final int RESPONSE_TIMEOUT_MILLIS = 120000;
 
 	/**
 	 * Observation tokens by peer address.
@@ -162,47 +173,21 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		Request request = exchange.advanced().getRequest();
 
 		int accept = request.getOptions().getAccept();
-		if (accept != UNDEFINED && accept != APPLICATION_OCTET_STREAM) {
+		if (accept != UNDEFINED && accept != TEXT_PLAIN && accept != APPLICATION_OCTET_STREAM) {
 			exchange.respond(NOT_ACCEPTABLE);
 			return;
 		}
-
-		processPOST(new IncomingExchange(exchange));
+		IncomingExchange incomingExchange = new IncomingExchange(exchange);
+		if (!incomingExchange.isProcessed()) {
+			processPOST(incomingExchange);
+		}
 	}
 
 	private void processPOST(IncomingExchange exchange) {
 		Request request = exchange.getRequest();
-
-		List<String> observeUriQuery = new ArrayList<>();
-		List<String> uriQuery = request.getOptions().getUriQuery();
-		Integer observe = null;
-		String resource = null;
-		for (String query : uriQuery) {
-			if (query.startsWith(URI_QUERY_OPTION_OBSERVE + "=")) {
-				String message = null;
-				String obs = query.substring(URI_QUERY_OPTION_OBSERVE.length() + 1);
-				try {
-					observe = Integer.parseInt(obs);
-					if (observe < 0) {
-						message = "URI-query-option " + query + " is negative number!";
-					} else if (observe > MAX_NOTIFIES) {
-						message = "URI-query-option " + query + " is too large (max. " + MAX_NOTIFIES + ")!";
-					}
-				} catch (NumberFormatException ex) {
-					message = "URI-query-option " + query + " is no number!";
-				}
-				if (message != null) {
-					Response response = Response.createResponse(request, BAD_OPTION);
-					response.setPayload(message);
-					exchange.respond(response);
-					return;
-				}
-			} else if (query.startsWith(URI_QUERY_OPTION_RESOURCE + "=")) {
-				resource = query.substring(URI_QUERY_OPTION_RESOURCE.length() + 1);
-			} else {
-				observeUriQuery.add(query);
-			}
-		}
+		String resource = exchange.getUriPath();
+		Integer observe = exchange.getObserves();
+		List<String> observeUriQuery = exchange.getUriQuery();
 
 		if (observe != null && resource != null) {
 			Endpoint endpoint = exchange.getEndpoint();
@@ -210,12 +195,9 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			ObservationRequest pendingObservation = observesByPeer.putIfAbsent(key,
 					new ObservationRequest(exchange, Token.EMPTY));
 			if (pendingObservation != null && pendingObservation.getObservationToken().equals(Token.EMPTY)) {
-				if (request.hasMID() && pendingObservation.getIncomingExchange().getRequest().getMID() == request.getMID()) {
-					LOGGER.info("Too many duplicate requests from {}, ignore!", key);
-				} else {
-					LOGGER.info("Too many requests from {}", key);
-					exchange.respond(SERVICE_UNAVAILABLE);
-				}
+				LOGGER.warn("Too many requests from {} (pending {}, current {})", key,
+						pendingObservation.getIncomingExchange().getRequest().getMID(), request.getMID());
+				exchange.respond(SERVICE_UNAVAILABLE);
 			} else {
 				if (observe > 0) {
 					exchange.accept();
@@ -230,6 +212,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					observeRequest.setDestinationContext(request.getSourceContext());
 					observeRequest.addMessageObserver(new RequestObserver(exchange, observeRequest, observe));
+					observeRequest.addMessageObserver(new ResponseTimeout(observeRequest, RESPONSE_TIMEOUT_MILLIS, executor));
 					observeRequest.send(endpoint);
 					overallObserves.incrementAndGet();
 				} else {
@@ -243,9 +226,15 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 				}
 			}
-		} else {
-			exchange.respond(CONTENT,
+		} else if (request.getOptions().getAccept() != APPLICATION_OCTET_STREAM) {
+			exchange.respond(CHANGED,
 					observesByPeer.size() + " active observes, " + overallNotifies.get() + " notifies.", TEXT_PLAIN);
+		} else {
+			DatagramWriter writer = new DatagramWriter(12);
+			writer.writeLong(observesByPeer.size(), 32);
+			writer.writeLong(overallNotifies.get(), 64);
+			exchange.respond(CHANGED, writer.toByteArray(), APPLICATION_OCTET_STREAM);
+			writer.close();
 		}
 	}
 
@@ -269,10 +258,67 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 	private class IncomingExchange {
 
 		private final CoapExchange incomingExchange;
+		private final int accept;
+		private final String resource;
+		private final Integer observe;
+		private final Integer timeout;
+		private final List<String> observeUriQuery = new ArrayList<>();
 		private final AtomicBoolean processed = new AtomicBoolean();
 
 		private IncomingExchange(CoapExchange incomingExchange) {
 			this.incomingExchange = incomingExchange;
+			Request request = incomingExchange.advanced().getRequest();
+			this.accept = request.getOptions().getAccept();
+			List<String> uriQuery = request.getOptions().getUriQuery();
+			Integer timeout = 30;
+			Integer observe = null;
+			String resource = null;
+			for (String query : uriQuery) {
+				if (query.startsWith(URI_QUERY_OPTION_OBSERVE + "=")) {
+					String message = null;
+					String obs = query.substring(URI_QUERY_OPTION_OBSERVE.length() + 1);
+					try {
+						observe = Integer.parseInt(obs);
+						if (observe < 0) {
+							message = "URI-query-option " + query + " is negative number!";
+						} else if (observe > MAX_NOTIFIES) {
+							message = "URI-query-option " + query + " is too large (max. " + MAX_NOTIFIES + ")!";
+						}
+					} catch (NumberFormatException ex) {
+						message = "URI-query-option " + query + " is no number!";
+					}
+					if (message != null) {
+						Response response = Response.createResponse(request, BAD_OPTION);
+						response.setPayload(message);
+						respond(response);
+						break;
+					}
+				} else if (query.startsWith(URI_QUERY_OPTION_TIMEOUT + "=")) {
+					String message = null;
+					String obs = query.substring(URI_QUERY_OPTION_TIMEOUT.length() + 1);
+					try {
+						timeout = Integer.parseInt(obs);
+						if (timeout < 0) {
+							message = "URI-query-option " + query + " is negative number!";
+						}
+					} catch (NumberFormatException ex) {
+						message = "URI-query-option " + query + " is no number!";
+					}
+					if (message != null) {
+						Response response = Response.createResponse(request, BAD_OPTION);
+						response.setPayload(message);
+						respond(response);
+						break;
+					}
+				} else if (query.startsWith(URI_QUERY_OPTION_RESOURCE + "=")) {
+					resource = query.substring(URI_QUERY_OPTION_RESOURCE.length() + 1);
+				} else {
+					observeUriQuery.add(query);
+				}
+			}
+			this.resource = resource;
+			this.observe = observe;
+			this.timeout = timeout;
 		}
 
 		private void accept() {
@@ -303,13 +349,37 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 			}
 		}
 
+		private boolean isProcessed() {
+			return processed.get();
+		}
+
+		private int getAccept() {
+			return accept;
+		}
+
+		private String getUriPath() {
+			return resource;
+		}
+
+		private Integer getObserves() {
+			return observe;
+		}
+
+		private Integer getTimeout() {
+			return timeout;
+		}
+
+		private List<String> getUriQuery() {
+			return observeUriQuery;
+		}
+
 		private Request getRequest() {
 			return incomingExchange.advanced().getRequest();
 		}
 
 		private String getPeerKey() {
-			Request request = incomingExchange.advanced().getRequest();
-			return request.getScheme() + "://" + request.getSourceContext().getPeerAddress();
+			Request request = getRequest();
+			return request.getScheme() + "://" + request.getSourceContext().getPeerAddress() + "?" + resource;
 		}
 
 		private Endpoint getEndpoint() {
@@ -323,6 +393,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 		private final Request outgoingObserveRequest;
 		private final AtomicBoolean registered = new AtomicBoolean();
 		private final int count;
+		private boolean failureLogged;
 
 		private RequestObserver(IncomingExchange incomingExchange, Request outgoingObserveRequest, int count) {
 			this.incomingExchange = incomingExchange;
@@ -332,14 +403,15 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 
 		@Override
 		public void onResponse(final Response response) {
+			Token token = response.getToken();
 			if (response.isError()) {
-				LOGGER.info("Observation response error: {}", response.getCode());
+				LOGGER.info("Observation response error: {} {}", outgoingObserveRequest.getScheme(),
+						response.getCode());
 				remove(response.getCode());
 			} else if (response.isNotification()) {
 				if (registered.compareAndSet(false, true)) {
 					String key = incomingExchange.getPeerKey();
 					Endpoint endpoint = incomingExchange.getEndpoint();
-					Token token = outgoingObserveRequest.getToken();
 					ObservationRequest previous = observesByPeer.put(key,
 							new ObservationRequest(incomingExchange, token));
 					if (previous != null && !previous.getObservationToken().equals(Token.EMPTY)
@@ -349,17 +421,37 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 					}
 					peersByToken.put(token, key);
 					observesByToken.put(token, new Observation(incomingExchange, token, count));
-					incomingExchange.respond(CONTENT, token.getBytes(), APPLICATION_OCTET_STREAM);
+					if (!incomingExchange.isProcessed()) {
+						if (incomingExchange.getAccept() != APPLICATION_OCTET_STREAM) {
+							incomingExchange.respond(CHANGED, token.getAsString(), TEXT_PLAIN);
+						} else {
+							incomingExchange.respond(CHANGED, token.getBytes(), APPLICATION_OCTET_STREAM);
+						}
+					}
 				}
 			} else {
-				LOGGER.info("Observation {} not established!", outgoingObserveRequest.getToken());
+				LOGGER.info("Observation {} {} not established!", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken());
 				remove(NOT_ACCEPTABLE);
 			}
 		}
 
 		@Override
+		public void onSendError(Throwable error) {
+			if (error instanceof ConnectorException) {
+				LOGGER.warn("Observe request failed! {} {} {}", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken(), error.getMessage());
+				failureLogged = true;
+			}
+			super.onSendError(error);
+		}
+
+		@Override
 		protected void failed() {
-			LOGGER.info("Observe request failed! {}", outgoingObserveRequest.getToken());
+			if (!failureLogged) {
+				LOGGER.debug("Observe request failed! {} {}", outgoingObserveRequest.getScheme(),
+						outgoingObserveRequest.getToken());
+			}
 			remove(INTERNAL_SERVER_ERROR);
 		}
 
@@ -418,7 +510,7 @@ public class ReverseObserve extends CoapResource implements NotificationListener
 				public void run() {
 					reregister();
 				}
-			}, 30, TimeUnit.SECONDS);
+			}, incomingExchange.getTimeout(), TimeUnit.SECONDS);
 			setTimeout(future);
 		}
 

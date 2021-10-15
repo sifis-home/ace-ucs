@@ -213,7 +213,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement selectAudiences;
 	
-	// M.T.
 	/**
      * A prepared INSERT statement to add an audience a 
      * Resource Server acting as OSCORE Group Manager identifies with
@@ -222,7 +221,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement insertOSCOREGroupManager;
 	
-	// M.T.
     /**
      * A prepared DELETE statement to remove the audiences
      * a Resource Server acting as OSCORE Group Manager identifies with
@@ -231,7 +229,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement deleteOSCOREGroupManagers;
 	
-	// M.T.
     /**
      * A prepared SELECT statement to get a set of audiences
      * an RS acting as OSCORE Group Manager identifies with
@@ -410,7 +407,18 @@ public class SQLConnector implements DBConnector, AutoCloseable {
      */
 	protected PreparedStatement updateCtiCtr;
     
+    /**
+     * A prepared SELECT statement to select the exi Sequence Number value
+     * of a specific Resource Server from the RSs table.
+     */
+	protected PreparedStatement selectExiSn;
     
+    /**
+     * A prepared UPDATE statement to update the exi Sequence Number value
+     * of a specific Resource Server in the RSs table.
+     */
+	protected PreparedStatement updateExiSn;
+	
     /**
      * A prepared INSERT statement to insert a new token to client mapping.
      */
@@ -517,7 +525,7 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 	        
 		this.insertRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
-		                + DBConnector.rsTable + " VALUES (?,?,?,?,?);"));
+		                + DBConnector.rsTable + " VALUES (?,?,?,?,?,?);"));
 		
 		this.deleteRS = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
@@ -628,19 +636,16 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + " WHERE " + DBConnector.rsIdColumn + "=? ORDER BY "
 		                + DBConnector.audColumn + ";"));
 
-		// M.T.
 		this.insertOSCOREGroupManager = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.oscoreGroupManagersTable
 		                + " VALUES (?,?);"));
 
-		// M.T.
 		this.deleteOSCOREGroupManagers = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("DELETE FROM "
 		                + DBConnector.oscoreGroupManagersTable
 		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
 		
-		// M.T.
 		this.selectOSCOREGroupManagers = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("SELECT "
 		                + DBConnector.audColumn + " FROM "
@@ -794,6 +799,19 @@ public class SQLConnector implements DBConnector, AutoCloseable {
 		                + DBConnector.ctiCounterTable
 		                + " SET " + DBConnector.ctiCounterColumn + "=?;"));
 
+		this.selectExiSn = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("SELECT "
+		                + DBConnector.exiSeqNumColumn + " FROM " 
+		                + DBConnector.rsTable
+		                + " WHERE " + DBConnector.rsIdColumn + "=?;"));
+
+		this.updateExiSn = this.conn.prepareStatement(
+		        dbAdapter.updateEngineSpecificSQL("UPDATE "
+		                + DBConnector.rsTable
+		                + " SET " + DBConnector.exiSeqNumColumn + "=?"
+		                	    + " WHERE " + DBConnector.rsIdColumn
+		                	    + "=?;"));
+		
 		this.insertCti2Client = this.conn.prepareStatement(
 		        dbAdapter.updateEngineSpecificSQL("INSERT INTO "
 		                + DBConnector.cti2clientTable
@@ -1325,22 +1343,28 @@ public class SQLConnector implements DBConnector, AutoCloseable {
                     "getExpTime() requires non-null audience");
         }
         long smallest = Long.MAX_VALUE;
+        
         for (String audE : aud) {
-            try {
-                this.selectExpiration.setString(1, audE);
-                ResultSet result = this.selectExpiration.executeQuery();
-                this.selectExpiration.clearParameters();
-                while (result.next()) {
-                    long val = result.getLong(DBConnector.expColumn);
-                    if (val < smallest) {
-                        smallest = val;
-                    }
-                }
-                result.close();
-            } catch (SQLException e) {
-                throw new AceException(e.getMessage());
-            }
+        	
+        	Set<String> rsIds = getRSS(audE);
+        	for (String myRS : rsIds) {
+		            try {
+		            	this.selectExpiration.setString(1, myRS);
+		                ResultSet result = this.selectExpiration.executeQuery();
+		                this.selectExpiration.clearParameters();
+		                while (result.next()) {
+		                    long val = result.getLong(DBConnector.expColumn);
+		                    if (val < smallest) {
+		                        smallest = val;
+		                    }
+		                }
+		                result.close();
+		            } catch (SQLException e) {
+		                throw new AceException(e.getMessage());
+		            }
+        	}       
         }
+        
         return smallest;
     }
     
@@ -1367,7 +1391,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         return auds;
     }
 
-    // M.T.
     @Override
     public synchronized Set<String> getOSCOREGroupManagers(String rsId) 
             throws AceException {
@@ -1602,6 +1625,11 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             } else {
                 this.insertRS.setBytes(5, null);
             }
+            
+            // Initialize to 0 the sequence number to use when
+            // issuing to this RS tokens with the 'exi' claim
+            this.insertRS.setInt(6, 0);
+            
             this.insertRS.execute();
             this.insertRS.clearParameters();
             
@@ -1658,7 +1686,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
         }
     }
     
-    // M.T.
     @Override
     public void addOSCOREGroupManagers(String rsId, Set<String> auds) throws AceException {
     	if (rsId == null || rsId.isEmpty()) {
@@ -1719,7 +1746,6 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             this.deleteAudiences.execute();
             this.deleteAudiences.clearParameters();
 
-            // M.T.
             this.deleteOSCOREGroupManagers.setString(1,  rsId);
             this.deleteOSCOREGroupManagers.execute();
             this.deleteOSCOREGroupManagers.clearParameters();
@@ -1930,7 +1956,35 @@ public class SQLConnector implements DBConnector, AutoCloseable {
             throw new AceException(e.getMessage());
         }    
     }
-
+    
+    @Override
+    public synchronized int getExiSequenceNumber(String rsId) throws AceException {
+        int sn = -1;
+        try {
+        	this.selectExiSn.setString(1, rsId);
+            ResultSet result = this.selectExiSn.executeQuery();
+            if (result.next()) {
+                sn = result.getInt(DBConnector.exiSeqNumColumn);
+            }
+            result.close();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }
+        return sn;
+    }
+    
+    @Override
+    public synchronized void saveExiSequenceNumber(int sn, String rsId) throws AceException {
+        try {
+            this.updateExiSn.setInt(1, sn);
+            this.updateExiSn.setString(2, rsId);
+            this.updateExiSn.execute();
+            this.updateExiSn.clearParameters();
+        } catch (SQLException e) {
+            throw new AceException(e.getMessage());
+        }    
+    }
+    
     /**
      * Creates the user that manages this database.
      *

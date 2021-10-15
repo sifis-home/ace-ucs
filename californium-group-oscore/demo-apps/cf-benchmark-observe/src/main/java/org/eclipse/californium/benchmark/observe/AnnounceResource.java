@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -43,18 +43,18 @@ public class AnnounceResource extends CoapResource {
 			private AtomicBoolean testdump = new AtomicBoolean(false);
 			@Override public void onLoad(CoapResponse response) {
 				if (response.getCode() == ResponseCode.NOT_FOUND) {
-					CoapObserveRelation cor;
 					synchronized (relationStorage) {
 						if (!testdump.get()) {
 							testdump.set(true);
 							System.out.println("Used Memory: " + (Runtime.getRuntime().totalMemory() - Runtime.getRuntime().freeMemory()) / 1024 + "kb (" + relationStorage.size() + " clients).");
 						}
-						if ((cor = relationStorage.get(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()))) != null) {
+						InetSocketAddress peerAddress = response.advanced().getSourceContext().getPeerAddress();
+						CoapObserveRelation cor = relationStorage.remove(peerAddress);
+						if (cor != null) {
 							cor.reactiveCancel();
-							relationStorage.remove(new InetSocketAddress(response.advanced().getSource(), response.advanced().getSourcePort()));
 							cor = null;
 						}
-						if (relationStorage.size() == 0)
+						if (relationStorage.isEmpty())
 							testdump.set(false);
 					}
 					return;
@@ -74,10 +74,9 @@ public class AnnounceResource extends CoapResource {
 	@Override
 	public void handlePOST(CoapExchange exchange) {
 		CoapClient client = this.createClient(exchange.getRequestText());
-		CoapObserveRelation relation;
-		relation = client.observe(handler);
+		CoapObserveRelation relation = client.observe(handler);
 		synchronized(relationStorage) {
-			relationStorage.put(new InetSocketAddress(exchange.getSourceAddress(), exchange.getSourcePort()), relation);
+			relationStorage.put(exchange.getSourceSocketAddress(), relation);
 		}
 		
 		Response response = new Response(ResponseCode.VALID);

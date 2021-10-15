@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,36 +22,40 @@
  ******************************************************************************/
 package org.eclipse.californium.core.test;
 
-import static org.eclipse.californium.TestTools.*;
-import static org.junit.Assert.*;
+import static org.eclipse.californium.TestTools.LOCALHOST_EPHEMERAL;
+import static org.eclipse.californium.TestTools.generateRandomPayload;
+import static org.eclipse.californium.TestTools.getUri;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.eclipse.californium.CheckCondition;
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.BlockOption;
-import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
+import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor;
+import org.eclipse.californium.core.test.lockstep.ServerBlockwiseInterceptor.ReceiveRequestHandler;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.eclipse.californium.rule.CoapNetworkRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -67,6 +71,12 @@ import org.junit.experimental.categories.Category;
 public class BlockwiseTransferTest {
 	@ClassRule
 	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT, CoapNetworkRule.Mode.NATIVE);
+
+	@ClassRule
+	public static CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private static final String PARAM_SHORT_RESP = "srr";
 	private static final String PARAM_EMPTY_RESP = "empty";
@@ -91,7 +101,6 @@ public class BlockwiseTransferTest {
 
 	private static ServerBlockwiseInterceptor interceptor = new ServerBlockwiseInterceptor();
 
-
 	private static NetworkConfig configEndpointWithoutTransparentBlockwise;
 	
 	private Endpoint clientEndpoint;
@@ -102,39 +111,37 @@ public class BlockwiseTransferTest {
 
 	@BeforeClass
 	public static void prepare() {
-		System.out.println(System.lineSeparator() + "Start " + BlockwiseTransferTest.class.getSimpleName());
-	
 		config = network.getStandardTestConfig()
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500)
-				.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, false);
+				.setInt(Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(Keys.MAX_MESSAGE_SIZE, 32)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 500)
+				.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, false);
 		
 		configEndpointStrictBlock2Option = network.createTestConfig()
-				.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
-				.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-				.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 500)
-				.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
+				.setInt(Keys.PREFERRED_BLOCK_SIZE, 32)
+				.setInt(Keys.MAX_MESSAGE_SIZE, 32)
+				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 500)
+				.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
 		
 		
 		configEndpointWithoutTransparentBlockwise = network.createTestConfig()
-			.setInt(NetworkConfig.Keys.PREFERRED_BLOCK_SIZE, 32)
-			.setInt(NetworkConfig.Keys.MAX_MESSAGE_SIZE, 32)
-			.setInt(NetworkConfig.Keys.MAX_RESOURCE_BODY_SIZE, 0)
-			.setBoolean(NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
+			.setInt(Keys.PREFERRED_BLOCK_SIZE, 32)
+			.setInt(Keys.MAX_MESSAGE_SIZE, 32)
+			.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 0)
+			.setBoolean(Keys.BLOCKWISE_STRICT_BLOCK2_OPTION, true);
 		
 		server = createSimpleServer();
+		cleanup.add(server);
 	}
 
 	@Before
 	public void createClients() throws IOException {
 
-		
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
 		builder.setNetworkConfig(config);
 		clientEndpoint = builder.build();
 		clientEndpoint.start();
-		
+
 		CoapEndpoint.Builder builderBis = new CoapEndpoint.Builder();
 		builderBis.setNetworkConfig(configEndpointWithoutTransparentBlockwise);
 		clientEndpointWithoutTransparentBlockwise = builderBis.build();
@@ -146,12 +153,6 @@ public class BlockwiseTransferTest {
 		clientEndpoint.destroy();
 		clientEndpointWithoutTransparentBlockwise.destroy();
 		applicationLayerGetRequestCount.set(0);
-	}
-
-	@AfterClass
-	public static void shutdownServer() throws Exception {
-		server.destroy();
-		System.out.println("End " + BlockwiseTransferTest.class.getSimpleName());
 	}
 
 	@Test
@@ -208,19 +209,11 @@ public class BlockwiseTransferTest {
 
 	@Test
 	public void testRequestForOversizedBodyGetsCanceled() throws InterruptedException {
-
-		final CountDownLatch latch = new CountDownLatch(1);
-
+		CountingMessageObserver observer = new CountingMessageObserver();
 		Request req = Request.newGet().setURI(getUri(serverEndpoint, RESOURCE_BIG));
-		req.addMessageObserver(new MessageObserverAdapter() {
-
-			@Override
-			public void onCancel() {
-				latch.countDown();
-			}
-		});
+		req.addMessageObserver(observer);
 		clientEndpoint.sendRequest(req);
-		assertTrue(latch.await(1000, TimeUnit.MILLISECONDS));
+		assertTrue(observer.waitForCancelCalls(1, 1000, TimeUnit.MILLISECONDS));
 	}
 	
 	/**
@@ -274,20 +267,13 @@ public class BlockwiseTransferTest {
 	
 	private void testGetRequestWithEarlyNegotiation(final boolean strictBlock2, String uriQueryResponseType) throws InterruptedException {
 
-		final AtomicInteger counter = new AtomicInteger(0);
-
 		final Endpoint targetEndpoint = strictBlock2 ? serverEndpointStrictBlock2Option : serverEndpoint;
+		CountingMessageObserver observer = new CountingMessageObserver();
 		Request req = Request.newGet().setURI(getUri(targetEndpoint, RESOURCE_TEST));
 		req.getOptions().addUriQuery(uriQueryResponseType);
 		req.getOptions().setBlock2(BlockOption.size2Szx(256), false, 0);
 
-		req.addMessageObserver(new MessageObserverAdapter() {
-
-			@Override
-			public void onResponse(Response resp) {
-				counter.getAndIncrement();
-			}
-		});
+		req.addMessageObserver(observer);
 		clientEndpointWithoutTransparentBlockwise.sendRequest(req);
 
 		// receive response and check
@@ -304,13 +290,9 @@ public class BlockwiseTransferTest {
 		} else {
 			assertNull(block2);
 		}
-		waitForCondition(500, 100, TimeUnit.MILLISECONDS, new CheckCondition() {
-			@Override
-			public boolean isFulFilled() throws IllegalStateException {
-				return counter.get() > 1;
-			}
-		});
-		assertEquals("Not exactly one block received", 1, counter.get());
+		// 2 calls should not be reached!
+		observer.waitForLoadCalls(2, 1000, TimeUnit.MILLISECONDS);
+		assertEquals("Not exactly one block received", 1, observer.loadCalls.get());
 	}
 
 	private void executeGETRequest(final boolean respondShort) throws Exception {
@@ -323,7 +305,9 @@ public class BlockwiseTransferTest {
 			interceptor.clear();
 			final AtomicInteger counter = new AtomicInteger(0);
 			final Request request = Request.newGet();
-			request.setURI(getUri(serverEndpoint, RESOURCE_TEST));
+			String uri = getUri(serverEndpoint, RESOURCE_TEST);
+			System.out.println(uri);
+			request.setURI(uri);
 			if (m) {
 				// set BLOCK 2 with wrong m
 				request.getOptions().setBlock2(2, m, 0);
@@ -401,10 +385,10 @@ public class BlockwiseTransferTest {
 
 	private static CoapServer createSimpleServer() {
 
-		CoapServer result = new CoapServer();
+		CoapServer result = new CoapServer(config);
 
 		CoapEndpoint.Builder builder = new CoapEndpoint.Builder();
-		builder.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builder.setInetSocketAddress(LOCALHOST_EPHEMERAL);
 		builder.setNetworkConfig(config);
 
 		serverEndpoint = builder.build();
@@ -414,7 +398,7 @@ public class BlockwiseTransferTest {
 		//add another endpoint which purpose is to test the NetworkConfig.Keys.BLOCKWISE_STRICT_BLOCK2_OPTION
 		CoapEndpoint.Builder builderStrictBlock2 = new CoapEndpoint.Builder();
 
-		builderStrictBlock2.setInetSocketAddress(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+		builderStrictBlock2.setInetSocketAddress(LOCALHOST_EPHEMERAL);
 		builderStrictBlock2.setNetworkConfig(configEndpointStrictBlock2Option);
 		serverEndpointStrictBlock2Option = builderStrictBlock2.build();
 		result.addEndpoint(serverEndpointStrictBlock2Option);
@@ -442,7 +426,7 @@ public class BlockwiseTransferTest {
 					exchange.respond(SHORT_GET_RESPONSE);
 				} else if (isEmptyResponseRequested(exchange)){
 					
-					exchange.respond(ResponseCode._UNKNOWN_SUCCESS_CODE);
+					exchange.respond(ResponseCode.CONTENT);
 				}else {
 					
 					exchange.respond(LONG_GET_RESPONSE);
@@ -479,7 +463,4 @@ public class BlockwiseTransferTest {
 		return result;
 	}
 
-	public interface ReceiveRequestHandler {
-		void receiveRequest(Request received);
-	}
 }

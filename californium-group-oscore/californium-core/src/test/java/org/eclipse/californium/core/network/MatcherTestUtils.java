@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,12 +21,13 @@ package org.eclipse.californium.core.network;
 
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledExecutorService;
 
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Message;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.InMemoryObservationStore;
@@ -35,6 +36,9 @@ import org.eclipse.californium.core.observe.ObservationStore;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.EndpointContextMatcher;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.elements.util.ExecutorsUtil;
+import org.eclipse.californium.elements.util.TestThreadFactory;
 
 /**
  * Helper methods for testing {@code Matcher}s.
@@ -54,21 +58,31 @@ public final class MatcherTestUtils {
 	};
 
 	public static final Executor TEST_EXCHANGE_EXECUTOR = null;
-	
-	static TcpMatcher newTcpMatcher(EndpointContextMatcher correlationContextMatcher) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
+
+	static ScheduledExecutorService newScheduler() {
+		return ExecutorsUtil.newSingleThreadScheduledExecutor(new TestThreadFactory("MatcherTest-"));
+	}
+
+	static TcpMatcher newTcpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+		InMemoryMessageExchangeStore exchangeStore = new InMemoryMessageExchangeStore(config);
 		TcpMatcher matcher = new TcpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				new InMemoryObservationStore(config), new InMemoryMessageExchangeStore(config), TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+				new InMemoryObservationStore(config), exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
 	}
 
-	static UdpMatcher newUdpMatcher(MessageExchangeStore exchangeStore, ObservationStore observationStore,
-			EndpointContextMatcher correlationContextMatcher) {
-		NetworkConfig config = NetworkConfig.createStandardWithoutFile();
-		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
-				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR, correlationContextMatcher);
+	static UdpMatcher newUdpMatcher(NetworkConfig config, EndpointContextMatcher correlationContextMatcher, ScheduledExecutorService scheduler) {
+		return newUdpMatcher(config, new InMemoryMessageExchangeStore(config), new InMemoryObservationStore(config), correlationContextMatcher, scheduler);
+	}
 
+	static UdpMatcher newUdpMatcher(NetworkConfig config, MessageExchangeStore exchangeStore,
+			ObservationStore observationStore, EndpointContextMatcher correlationContextMatcher,
+			ScheduledExecutorService scheduler) {
+		UdpMatcher matcher = new UdpMatcher(config, notificationListener, new RandomTokenGenerator(config),
+				observationStore, exchangeStore, TEST_EXCHANGE_EXECUTOR,
+				correlationContextMatcher);
+		exchangeStore.setExecutor(scheduler);
 		matcher.start();
 		return matcher;
 	}
@@ -92,6 +106,16 @@ public final class MatcherTestUtils {
 		return exchange;
 	}
 
+	static Exchange sendRequest(InetSocketAddress dest, Matcher matcher, Exchange.EndpointContextOperator preoperator, EndpointContext exchangeContext) {
+		Request request = Request.newGet();
+		request.setDestinationContext(new AddressEndpointContext(dest));
+		Exchange exchange = new Exchange(request, Origin.LOCAL, TEST_EXCHANGE_EXECUTOR);
+		exchange.setEndpointContextPreOperator(preoperator);
+		matcher.sendRequest(exchange);
+		exchange.setEndpointContext(exchangeContext);
+		return exchange;
+	}
+
 	public static Response receiveResponseFor(final Request request) {
 		return receiveResponseFor(request, request.getDestinationContext());
 	}
@@ -100,7 +124,7 @@ public final class MatcherTestUtils {
 		Response response = new Response(ResponseCode.CONTENT);
 		response.setMID(request.getMID());
 		response.setToken(request.getToken());
-		response.setBytes(new byte[]{});
+		response.setBytes(Bytes.EMPTY);
 		response.setSourceContext(sourceContext);
 		return response;
 	}

@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -20,24 +20,31 @@
  ******************************************************************************/
 package org.eclipse.californium.core.network.serialization;
 
-import static org.hamcrest.CoreMatchers.*;
-import static org.junit.Assert.*;
+import static org.hamcrest.CoreMatchers.either;
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 
-import org.eclipse.californium.category.Small;
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.EmptyMessage;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
-import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.RawData;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.util.Bytes;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
@@ -52,7 +59,10 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 public class DataSerializerTest {
 
-	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, "session", "1", "CIPHER", "100");
+	private static final EndpointContext ENDPOINT_CONTEXT = new DtlsEndpointContext(new InetSocketAddress(0), null, null, new Bytes("session".getBytes()), 1, "CIPHER", 100);
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	/**
 	 * The concrete serializer to run the test cases with.
@@ -80,6 +90,7 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
+		req.setMID(1);
 
 		// WHEN serializing the request to a byte array
 		serializer.getByteArray(req);
@@ -98,6 +109,7 @@ public class DataSerializerTest {
 		Request req = Request.newGet();
 		req.setToken(new byte[] { 0x00 });
 		req.getOptions().setObserve(0);
+		req.setMID(1);
 		req.setDestinationContext(new AddressEndpointContext(InetAddress.getLoopbackAddress(), CoAP.DEFAULT_COAP_PORT));
 
 		// WHEN serializing the request to a RawData object

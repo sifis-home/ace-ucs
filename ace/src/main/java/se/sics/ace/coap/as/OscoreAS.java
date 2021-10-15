@@ -31,6 +31,9 @@
  *******************************************************************************/
 package se.sics.ace.coap.as;
 
+import java.util.Arrays;
+import java.util.Base64;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -65,7 +68,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
  * sender_id = asId
  * recipient_id = rs/client id
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreAS extends CoapServer implements AutoCloseable {
@@ -106,10 +109,14 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      */
     public OscoreAS(String asId, CoapDBConnector db, 
             PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey, int port) 
+            OneKey asymmetricKey, int port,
+            Map<String, String> peerNamesToIdentities,
+            Map<String, String> peerIdentitiesToNames,
+            Map<String, String> myIdentities) 
                     throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect", port,
-                null, false);
+                null, false, (short)0, false, peerNamesToIdentities,
+                peerIdentitiesToNames, myIdentities);
     }
     
     
@@ -127,9 +134,12 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * 
      */
     public OscoreAS(String asId, CoapDBConnector db, PDP pdp, TimeProvider time, 
-            OneKey asymmetricKey) throws AceException, OSException {
+            OneKey asymmetricKey, Map<String, String> peerNamesToIdentities,
+            Map<String, String> peerIdentitiesToNames,
+            Map<String, String> myIdentities) throws AceException, OSException {
         this(asId, db, pdp, time, asymmetricKey, "token", "introspect",
-                CoAP.DEFAULT_COAP_PORT, null, false);
+                CoAP.DEFAULT_COAP_PORT, null, false, (short)0, false,
+                peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
     }
     
     
@@ -150,7 +160,11 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * @param port  the port number to run the server on
      * @param claims  the claim types to include in tokens issued by this 
      *                AS, can be null to use default set
-     * @param setAudHeader  insert the AUD as header in the CWT.  
+     * @param setAudHeader  insert the AUD as header in the CWT.
+     * @param masterSaltSize  the size in bytes of the Master Salt to provide. It can be 0 to not provide a Master Salt
+     * @param provideIdContext  true if the Id Context has to provided, or false otherwise
+     * @param peerNamesToIdentities  mapping between the names of the peers and their OSCORE identities
+     * @param myIdentities  mapping between the names of the peers and the OSCORE identities that the AS uses with them
      * 
      * @throws AceException 
      * @throws OSException 
@@ -159,17 +173,20 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     public OscoreAS(String asId, CoapDBConnector db,
             PDP pdp, TimeProvider time, OneKey asymmetricKey, String tokenName,
             String introspectName, int port, Set<Short> claims, 
-            boolean setAudHeader) throws AceException, OSException {
-    	
-        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader);
+            boolean setAudHeader, short masterSaltSize, boolean provideIdContext,
+            Map<String, String> peerNamesToIdentities,
+            Map<String, String> peerIdentitiesToNames,
+            Map<String, String> myIdentities) throws AceException, OSException {
+        this.t = new Token(asId, pdp, db, time, asymmetricKey, claims, setAudHeader,
+        				   masterSaltSize, provideIdContext, peerIdentitiesToNames);
         this.token = new OscoreAceEndpoint(tokenName, this.t);
         add(this.token);
-        
+                
         if (introspectName != null) {
             if (asymmetricKey == null) {
-                this.i = new Introspect(pdp, db, time, null);
+                this.i = new Introspect(pdp, db, time, null, peerIdentitiesToNames);
             } else {
-                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey());
+                this.i = new Introspect(pdp, db, time, asymmetricKey.PublicKey(), peerIdentitiesToNames);
             }
             this.introspect = new OscoreAceEndpoint(introspectName, this.i);
             add(this.introspect);    
@@ -177,8 +194,9 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         this.addEndpoint(new CoapEndpoint.Builder()
                 .setCoapStackFactory(new OSCoreCoapStackFactory())
                 .setPort(CoAP.DEFAULT_COAP_PORT)
+                .setCustomCoapStackArgument(OscoreCtxDbSingleton.getInstance())
                 .build());  
-        loadOscoreCtx(db, asId);        
+        loadOscoreCtx(db, peerNamesToIdentities, myIdentities);
 
     }
 
@@ -187,19 +205,48 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
      * 
      * @param db  the database connector
      * @param asId  the AS identifier
+     * @param peerNamesToIdentities  mapping between the names of the peers and their OSCORE identities
+     * @param myIdentities  mapping between the names of the peers and the OSCORE identities that the AS uses with them
      * 
      * @throws AceException
      * @throws OSException
      */
-    private static void loadOscoreCtx(CoapDBConnector db, String asId) throws AceException, OSException {
+    private static void loadOscoreCtx(CoapDBConnector db,
+    								  Map<String, String> peerNamesToIdentities,
+    								  Map<String, String> myIdentities) throws AceException, OSException {
         Set<String> ids = db.getRSS();
         ids.addAll(db.getClients());
         
         for (String id : ids) {
-            byte[] key = db.getKey(new PskPublicInformation(id));
-            OSCoreCtx ctx = new OSCoreCtx(key, false, null, asId.getBytes(Constants.charset), 
-                    id.getBytes(Constants.charset), null, null, null, null);
+            byte[] key = db.getKey(new PskPublicInformation(id)).getEncoded();
+                        
+            // The identity that this AS uses with this peer
+            String identity = myIdentities.get(id);
+            IdPair idPair = new IdPair(identity);
+            if (idPair.getSenderId() == null) {
+            	// This identity is malformed; proceed to the next one
+            }
+            byte[] senderId = idPair.getSenderId();
+            byte[] contextId = idPair.getContextId();
+            
+            // The identity that this peer uses with this AS
+            identity = peerNamesToIdentities.get(id);
+            idPair = new IdPair(identity);
+            if (idPair.getSenderId() == null) {
+            	// This identity is malformed; proceed to the next one
+            }
+            byte[] recipientId = idPair.getSenderId();
+            byte[] contextIdBis = idPair.getContextId();
+            
+            // This are all error conditions; skipped this peer and proceed to the next one
+            if (!Arrays.equals(contextId, contextIdBis)) {
+            	continue;
+            }
+            
+            OSCoreCtx ctx = new OSCoreCtx(key, false, null, senderId, 
+            		recipientId, null, null, null, contextId);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);
+            
         }
         LOGGER.finest("Loaded OSCORE contexts");
     }
@@ -209,6 +256,37 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
         LOGGER.info("Closing down OscoreAS ...");
         this.token.close();
         this.introspect.close();       
+    }
+    
+    public static class IdPair {
+    	
+    	private byte[] senderId;
+    	private byte[] contextId;
+    	
+    	public IdPair(String identity) {
+    		
+    		senderId = null;
+    		contextId = null;
+    		
+    		int index = identity.indexOf(":");
+    		
+    		if (index != -1) {
+    			// The Context ID is present
+    			contextId = Base64.getDecoder().decode(identity.substring(0, index));
+    		}
+    		index++; // This becomes 0 if the Context ID was not present
+    		senderId = Base64.getDecoder().decode(identity.substring(index, identity.length()));
+    		
+    	}
+    	
+    	public byte[] getSenderId() {
+    		return senderId;
+    	}
+    	
+    	public byte[] getContextId() {
+    		return contextId;
+    	}
+    	
     }
 
 }

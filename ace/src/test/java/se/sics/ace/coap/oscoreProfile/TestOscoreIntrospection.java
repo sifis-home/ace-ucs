@@ -34,6 +34,7 @@ package se.sics.ace.coap.oscoreProfile;
 import java.util.Map;
 
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -48,7 +49,7 @@ import se.sics.ace.coap.rs.oscoreProfile.OscoreIntrospection;
  * 
  *  NOTE: This will automatically start a server in another thread
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestOscoreIntrospection {
@@ -56,6 +57,8 @@ public class TestOscoreIntrospection {
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
     static RunTestServer srv = null;
+    
+    private static OSCoreCtxDB ctxDB;
 
     private static class RunTestServer implements Runnable {
 
@@ -93,6 +96,8 @@ public class TestOscoreIntrospection {
      */
     @BeforeClass
     public static void setUp() {
+        ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
+    	
         srv = new RunTestServer();
         srv.run();
     }
@@ -113,11 +118,12 @@ public class TestOscoreIntrospection {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        byte[] senderId = "rs1".getBytes(Constants.charset);
-        byte[] recipientId = "AS".getBytes(Constants.charset);
-        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
-                senderId, recipientId, null, null, null, null);
-        OscoreIntrospection i = new OscoreIntrospection(ctx, "coap://localhost/introspect");
+    	
+        byte[] senderId = new byte[] {0x11};
+        byte[] recipientId = new byte[] {0x00};
+        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, senderId, recipientId, null, null, null, null);
+                
+        OscoreIntrospection i = new OscoreIntrospection(ctx, "coap://localhost/introspect", ctxDB);
         Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
         assert(map.containsKey(Constants.AUD));
         assert(map.get(Constants.AUD).AsString().equals("actuators"));

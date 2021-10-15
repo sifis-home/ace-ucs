@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -28,7 +28,8 @@
 package org.eclipse.californium.scandium;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.net.InetAddress;
@@ -37,7 +38,8 @@ import java.security.GeneralSecurityException;
 
 import org.eclipse.californium.elements.AddressEndpointContext;
 import org.eclipse.californium.elements.RawData;
-import org.eclipse.californium.scandium.category.Medium;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.ThreadsRule;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.InMemoryConnectionStore;
 import org.eclipse.californium.scandium.rule.DtlsNetworkRule;
@@ -58,6 +60,9 @@ public class HelloExtensionNegotiationTest {
 	@ClassRule
 	public static DtlsNetworkRule network = new DtlsNetworkRule(DtlsNetworkRule.Mode.DIRECT, DtlsNetworkRule.Mode.NATIVE);
 
+	@ClassRule
+	public static ThreadsRule cleanup = new ThreadsRule();
+
 	private static final int CLIENT_CONNECTION_STORE_CAPACITY = 5;
 
 	static ConnectorHelper serverHelper;
@@ -75,7 +80,7 @@ public class HelloExtensionNegotiationTest {
 	 */
 	@BeforeClass
 	public static void startServer() throws IOException, GeneralSecurityException {
-		DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder()
+		DtlsConnectorConfig.Builder builder = DtlsConnectorConfig.builder()
 				.setSniEnabled(true);
 		serverHelper = new ConnectorHelper();
 		serverHelper.startServer(builder);
@@ -124,7 +129,7 @@ public class HelloExtensionNegotiationTest {
 	@Test
 	public void testConnectorNegotiatesMaxFragmentLength() throws Exception {
 		// given a constrained client that can only handle fragments of max. 512 bytes
-		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setMaxFragmentLengthCode(1)
 				.setMaxTransmissionUnit(1024)
 				.build();
@@ -150,7 +155,7 @@ public class HelloExtensionNegotiationTest {
 	public void testConnectorIncludesServerNameIndication() throws Exception {
 
 		// given a client that indicates a virtual host to connect to using SNI
-		clientConfig = ConnectorHelper.newStandardClientConfigBuilder(clientEndpoint)
+		clientConfig = serverHelper.newStandardClientConfigBuilder(clientEndpoint)
 				.setSniEnabled(true)
 				.build();
 		client = new DTLSConnector(clientConfig, clientConnectionStore);

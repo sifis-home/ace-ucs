@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,11 +22,10 @@ import org.eclipse.californium.core.Utils;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
+import org.eclipse.californium.plugtests.TestClientAbstract;
 import org.eclipse.californium.core.coap.CoAP.Code;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.CoAP.Type;
-
-import org.eclipse.californium.plugtests.PlugtestChecker.TestClientAbstract;
 
 /**
  * TD_COAP_CORE_21: Perform GET transaction containing the ETag option (CON
@@ -67,6 +66,7 @@ public class CC21 extends TestClientAbstract {
 		}
 
 		request.setURI(uri);
+		addContextObserver(request);
 
 		// print request info
 		if (verbose) {
@@ -102,7 +102,7 @@ public class CC21 extends TestClientAbstract {
 				success &= checkType(Type.ACK, response.getType());
 				success &= checkCode(EXPECTED_RESPONSE_CODE_A, response.getCode());
 				success &= hasEtag(response);
-				success &= hasNonEmptyPalyoad(response);
+				success &= hasNonEmptyPayload(response);
 				etagStep3 = response.getOptions().getETags().get(0);
 
 				// Part B

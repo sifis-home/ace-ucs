@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,12 +18,12 @@ package org.eclipse.californium.core.network.stack;
 import static org.eclipse.californium.TestTools.generateRandomPayload;
 import static org.eclipse.californium.core.network.MatcherTestUtils.receiveResponseFor;
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 
 import java.net.InetAddress;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
@@ -31,11 +31,14 @@ import org.eclipse.californium.core.coap.MessageObserver;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.rule.CoapThreadsRule;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.mockito.ArgumentCaptor;
@@ -48,6 +51,8 @@ import org.mockito.Mockito;
  */
 @Category(Small.class)
 public class BlockwiseLayerTest {
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
 
 	/**
 	 * Verifies that an inbound blockwise request is forwarded to application layer
@@ -61,7 +66,7 @@ public class BlockwiseLayerTest {
 				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 0);
 		Layer appLayer = mock(Layer.class);
 
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 		blockwiseLayer.setUpperLayer(appLayer);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
@@ -84,7 +89,7 @@ public class BlockwiseLayerTest {
 		Layer outbox = mock(Layer.class);
 		ArgumentCaptor<Response> errorResponse = ArgumentCaptor.forClass(Response.class);
 
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 		blockwiseLayer.setLowerLayer(outbox);
 
 		Request request = newReceivedBlockwiseRequest(256, 64);
@@ -107,7 +112,7 @@ public class BlockwiseLayerTest {
 				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
 		MessageObserver requestObserver = mock(MessageObserver.class);
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 
 		Request req = Request.newGet();
 		req.setURI("coap://127.0.0.1/bigResource");
@@ -133,7 +138,7 @@ public class BlockwiseLayerTest {
 				.setInt(Keys.MAX_MESSAGE_SIZE, 128)
 				.setInt(Keys.MAX_RESOURCE_BODY_SIZE, 200);
 		Layer upperLayer = mock(Layer.class);
-		BlockwiseLayer blockwiseLayer = new BlockwiseLayer(config);
+		BlockwiseLayer blockwiseLayer = new BlockwiseLayer("test ", false, config);
 		blockwiseLayer.setUpperLayer(upperLayer);
 
 		// GIVEN an established observation of a resource with a body requiring blockwise transfer

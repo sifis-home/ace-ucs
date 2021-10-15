@@ -73,7 +73,7 @@ import se.sics.ace.examples.KissValidator;
 /**
  * Tests for the TokenRepository class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestTokenRepository {
@@ -108,8 +108,7 @@ public class TestTokenRepository {
      * @throws IOException 
      */
     @BeforeClass
-    public static void setUp() 
-            throws AceException, CoseException, IOException {
+    public static void setUp() throws AceException, CoseException, IOException {
 
         asymmetricKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         
@@ -117,15 +116,13 @@ public class TestTokenRepository {
                
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "ourKey".getBytes(Constants.charset));
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), "ourKey".getBytes(Constants.charset));
         keyData.Add(KeyKeys.Octet_K.AsCBOR(), key128);
         symmetricKey = new OneKey(keyData);
         
         CBORObject otherKeyData = CBORObject.NewMap();
         otherKeyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        otherKeyData.Add(KeyKeys.KeyId.AsCBOR(), 
-                "otherKey".getBytes(Constants.charset));
+        otherKeyData.Add(KeyKeys.KeyId.AsCBOR(), "otherKey".getBytes(Constants.charset));
         otherKeyData.Add(KeyKeys.Octet_K.AsCBOR(), key128a);
         otherKey = new OneKey(otherKeyData);
         
@@ -140,21 +137,18 @@ public class TestTokenRepository {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
         
         createTR(valid);
         tr = TokenRepository.getInstance();
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         pskCnf = CBORObject.NewMap();
         pskCnf.Add(Constants.COSE_KEY_CBOR, symmetricKey.AsCBOR());
         
         rpkCnf = CBORObject.NewMap();
-        rpkCnf.Add(Constants.COSE_KEY_CBOR, 
-                asymmetricKey.PublicKey().AsCBOR()); 
+        rpkCnf.Add(Constants.COSE_KEY_CBOR, asymmetricKey.PublicKey().AsCBOR()); 
        
     }
     
@@ -167,22 +161,22 @@ public class TestTokenRepository {
      * 
      */
     private static void createTR(KissValidator valid) throws IOException {
+    	String rsId = "rs1";
+    	
         try {
-            TokenRepository.create(valid, TestConfig.testFilePath 
-                    + "tokens.json", null, new KissTime());
+            TokenRepository.create(valid, TestConfig.testFilePath + "tokens.json",
+            					   null, null, 0, new KissTime(), rsId);
         } catch (AceException e) {
             System.err.println(e.getMessage());
             try {
                 TokenRepository tr = TokenRepository.getInstance();
                 tr.close();
                 new File(TestConfig.testFilePath + "tokens.json").delete();
-                TokenRepository.create(valid, TestConfig.testFilePath 
-                        + "tokens.json", null, new KissTime());
+                TokenRepository.create(valid, TestConfig.testFilePath + "tokens.json",
+                					   null, null, 0, new KissTime(), rsId);
             } catch (AceException e2) {
                throw new RuntimeException(e2);
-            }
-           
-            
+            } 
         }
     }
     
@@ -203,15 +197,14 @@ public class TestTokenRepository {
      */
     @Test
     public void testTokenNoScope() throws AceException {
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        Map<Short, CBORObject> params = new HashMap<>();
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Token has no scope");
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -223,13 +216,12 @@ public class TestTokenRepository {
     public void testTokenNoCti() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         params.remove(Constants.CTI); //Gets added by tr.addToken()
-        CBORObject cticb = CBORObject.FromObject(
-                buffer.putInt(0, params.hashCode()).array());
+        CBORObject cticb = CBORObject.FromObject(buffer.putInt(0, params.hashCode()).array());
         String cti = Base64.getEncoder().encodeToString(cticb.GetByteString());
         Assert.assertNotNull(tr.getPoP(cti));
     }
@@ -243,13 +235,13 @@ public class TestTokenRepository {
     public void testTokenInvalidCti() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.CTI, CBORObject.FromObject("token1"));
         this.thrown.expect(AceException.class);
         this.thrown.expectMessage("Cti has invalid format");
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -263,21 +255,19 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Duplicate cti");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
-        tr.addToken(params, ctx, null);
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -291,11 +281,10 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Token has no cnf");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
-        tr.addToken(params, ctx, null);
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -309,15 +298,13 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Token refers to unknown kid");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
-                "blah".getBytes(Constants.charset)));
+        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -331,17 +318,14 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Malformed cnf claim in token");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add("blah",
-                "blah".getBytes(Constants.charset));
-        cnf.Add("blubb", CBORObject.FromObject(
-                "blah".getBytes(Constants.charset)));
+        cnf.Add("blah", "blah".getBytes(Constants.charset));
+        cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     /**
@@ -359,20 +343,18 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Error while decrypting a cnf claim");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
-        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-                Attribute.PROTECTED);
+        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), Attribute.PROTECTED);
         enc.SetContent(symmetricKey.EncodeToBytes());
         enc.encrypt(key128a);
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     
@@ -387,15 +369,13 @@ public class TestTokenRepository {
         this.thrown.expectMessage("Malformed cnf claim in token");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add("blubb", CBORObject.FromObject(
-                "blah".getBytes(Constants.charset)));
+        cnf.Add("blubb", CBORObject.FromObject("blah".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
     
     
@@ -410,16 +390,14 @@ public class TestTokenRepository {
         this.thrown.expectMessage("cnf contains invalid kid");
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
         cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("blah"));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
     }
-    
     
     
     /**
@@ -430,37 +408,33 @@ public class TestTokenRepository {
      * @throws CoseException 
      */
     @Test
-    public void testTokenCnfCoseKey() 
-            throws AceException, IntrospectionException, CoseException {
+    public void testTokenCnfCoseKey() throws AceException, IntrospectionException, CoseException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         rpk = new RawPublicKeyIdentity(asymmetricKey.AsPublicKey()).getName();
         
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(rpk, null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.METHODNA, 
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(rpk, null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.METHODNA, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.FORBID, tr.canAccess(kidStr, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     
@@ -474,36 +448,31 @@ public class TestTokenRepository {
     public void testTokenCnfKid() throws AceException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));        
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
-                "ourKey".getBytes(Constants.charset)));
+        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
-        Assert.assertEquals(TokenRepository.OK, 
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     /**
@@ -517,34 +486,30 @@ public class TestTokenRepository {
      */
     @Test
     public void testTokenCnfEncrypt0() throws AceException, CoseException,
-            IllegalStateException, InvalidCipherTextException, 
-            IntrospectionException {
+            IllegalStateException, InvalidCipherTextException, IntrospectionException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         CBORObject cnf = CBORObject.NewMap();
         Encrypt0Message enc = new Encrypt0Message();
-        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), 
-                Attribute.PROTECTED);
+        enc.addAttribute(HeaderKeys.Algorithm, ctx.getAlg(), Attribute.PROTECTED);
         enc.SetContent(symmetricKey.EncodeToBytes());
         enc.encrypt(symmetricKey.get(KeyKeys.Octet_K).GetByteString());
         cnf.Add(Constants.COSE_ENCRYPTED_CBOR, enc.EncodeToCBORObject());
         params.put(Constants.CNF, cnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
 
-        Assert.assertEquals(TokenRepository.FORBID,
-                tr.canAccess(ourKey, null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess(rpk, null, "co2", Constants.POST, null));
-        Assert.assertEquals(TokenRepository.OK,
-                tr.canAccess(ourKey, null, "temp", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr.canAccess("otherKey", null, "temp", Constants.GET, null));
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
+        
+        Assert.assertEquals(TokenRepository.FORBID, tr.canAccess(kidStr, null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess(rpk, null, "co2", Constants.POST, null));
+        Assert.assertEquals(TokenRepository.OK, tr.canAccess(kidStr, null, "temp", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr.canAccess("otherKey", null, "temp", Constants.GET, null));
     }
     
     
@@ -558,26 +523,23 @@ public class TestTokenRepository {
         KissTime time = new KissTime();
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()-1000));
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject(
-                "ourKey".getBytes(Constants.charset)));
+        cnf.Add(Constants.COSE_KID_CBOR, CBORObject.FromObject("ourKey".getBytes(Constants.charset)));
         params.put(Constants.CNF, cnf);
         params.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000));
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");
@@ -597,8 +559,7 @@ public class TestTokenRepository {
      * @throws IntrospectionException 
      */
     @Test
-    public void testLoad() 
-            throws AceException, IOException, IntrospectionException {
+    public void testLoad() throws AceException, IOException, IntrospectionException {
         Set<String> resources = new HashSet<>();
         resources.add("temp");
         resources.add("co2");
@@ -614,24 +575,21 @@ public class TestTokenRepository {
         otherResource.put("co2", actions);
         myScopes.put("r_co2", otherResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);
+
+        String rsId = "rs1";
         
-        TokenRepository tr2 = new TokenRepository(valid,
-                TestConfig.testFilePath + "testTokens.json" , ctx, 
-                new KissTime());
+        TokenRepository tr2 = new TokenRepository(valid, TestConfig.testFilePath + "testTokens.json",
+        										  ctx, null, 0, new KissTime(), rsId);
+
+        // The Token Repository stores as 'kid' the base64 encoding of
+        // the binary content from the 'kid' field of the 'cnf' claim.
+        String kidStr = Base64.getEncoder().encodeToString(ourKey.getBytes(Constants.charset));
         
-        //Assert.assertEquals(TokenRepository.OK,
-        //        tr2.canAccess(rpk, null, "co2", Constants.GET, 
-        //                new KissTime(), null));
-        Assert.assertEquals(TokenRepository.OK,
-                tr2.canAccess(ourKey, null, "temp", Constants.GET, null));  
-        Assert.assertEquals(TokenRepository.UNAUTHZ,
-                tr2.canAccess("otherKey", null, "co2", Constants.GET, null));
-        Assert.assertEquals(TokenRepository.METHODNA,
-                tr2.canAccess(ourKey, null, "temp", Constants.POST, null)); 
-        Assert.assertEquals(TokenRepository.FORBID,
-                tr2.canAccess(ourKey, null, "co2", Constants.GET, null)); 
+        Assert.assertEquals(TokenRepository.OK, tr2.canAccess(kidStr, null, "temp", Constants.GET, null));  
+        Assert.assertEquals(TokenRepository.UNAUTHZ, tr2.canAccess("otherKey", null, "co2", Constants.GET, null));
+        Assert.assertEquals(TokenRepository.METHODNA, tr2.canAccess(kidStr, null, "temp", Constants.POST, null)); 
+        Assert.assertEquals(TokenRepository.FORBID, tr2.canAccess(kidStr, null, "co2", Constants.GET, null)); 
         tr2.close();
 
         //re-create the original TR
@@ -648,30 +606,25 @@ public class TestTokenRepository {
     public void testGetPoP() throws AceException {
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token1".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, pskCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         params.clear();
         params.put(Constants.SCOPE, CBORObject.FromObject("r_co2"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject(
-                "token2".getBytes(Constants.charset)));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params.put(Constants.CTI, CBORObject.FromObject("token2".getBytes(Constants.charset)));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         params.put(Constants.CNF, rpkCnf);
-        tr.addToken(params, ctx, null);
+        tr.addToken(null, params, ctx, null, -1);
         
         OneKey key1 = tr.getPoP("dG9rZW4x");
         OneKey key2 = tr.getPoP("dG9rZW4y");
         
-        Assert.assertArrayEquals(symmetricKey.EncodeToBytes(), 
-                key1.EncodeToBytes());
-        Assert.assertArrayEquals(
-                asymmetricKey.PublicKey().EncodeToBytes(),
-                key2.EncodeToBytes());
+        Assert.assertArrayEquals(symmetricKey.EncodeToBytes(), key1.EncodeToBytes());
+        Assert.assertArrayEquals(asymmetricKey.PublicKey().EncodeToBytes(), key2.EncodeToBytes());
     }
     
     

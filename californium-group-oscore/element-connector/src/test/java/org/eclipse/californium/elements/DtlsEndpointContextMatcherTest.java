@@ -2,11 +2,11 @@
  * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,11 +16,12 @@
 package org.eclipse.californium.elements;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.eclipse.californium.elements.DtlsEndpointContext.*;
 
 import java.net.InetSocketAddress;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -32,7 +33,7 @@ import org.junit.Test;
 public class DtlsEndpointContextMatcherTest {
 
 	private static final InetSocketAddress ADDRESS = new InetSocketAddress(0);
-	private static final String SCOPE = "californium.eclipse.org";
+	private static final String SCOPE = "californium.eclipseprojects.io";
 
 	private EndpointContext connectorContext;
 	private EndpointContext scopedConnectorContext;
@@ -52,29 +53,36 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
+		Bytes session = new Bytes("session".getBytes());
+		Bytes newSession = new Bytes("new-session".getBytes());
 
 		relaxedMatcher = new RelaxedDtlsEndpointContextMatcher();
 		strictMatcher = new StrictDtlsEndpointContextMatcher();
 
-		connectorContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
-		scopedConnectorContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER", "100");
+		connectorContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
+		scopedConnectorContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, session, 1, "CIPHER", 100);
 
-		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "2", "CIPHER", "200");
-		scopedRelaxedMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "2", "CIPHER", "200");
+		relaxedMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 2, "CIPHER", 200);
+		scopedRelaxedMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, session, 2, "CIPHER", 200);
 
-		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, "session", "1", "CIPHER", "100");
-		scopedStrictMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, "session", "1", "CIPHER", "100");
+		strictMessageContext = new DtlsEndpointContext(ADDRESS, null, null, session, 1, "CIPHER", 100);
+		scopedStrictMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, session, 1, "CIPHER", 100);
 
-		differentMessageContext = new DtlsEndpointContext(ADDRESS, null,"new session", "1", "CIPHER", "100");
-		scopedDifferentMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null,"new session", "1", "CIPHER", "100");
+		differentMessageContext = new DtlsEndpointContext(ADDRESS, null, null, newSession, 1, "CIPHER", 100);
+		scopedDifferentMessageContext = new DtlsEndpointContext(ADDRESS, SCOPE, null, newSession, 1, "CIPHER", 100);
 
 		unsecureMessageContext = new UdpEndpointContext(ADDRESS);
-		
-		noneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null, KEY_RESUMPTION_TIMEOUT, "30000");
-		scopedNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null, KEY_RESUMPTION_TIMEOUT, "30000");
 
-		strictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null, KEY_SESSION_ID, "session", KEY_EPOCH, "1", KEY_CIPHER, "CIPHER", KEY_RESUMPTION_TIMEOUT, "30000");
-		scopedStrictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null, KEY_SESSION_ID, "session", KEY_EPOCH, "1", KEY_CIPHER, "CIPHER", KEY_RESUMPTION_TIMEOUT, "30000");
+		noneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null, KEY_RESUMPTION_TIMEOUT, "30000");
+		scopedNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null, KEY_RESUMPTION_TIMEOUT,
+				"30000");
+
+		strictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, null,
+				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
+						.add(KEY_RESUMPTION_TIMEOUT, "30000"));
+		scopedStrictNoneCriticalMessageContext = new MapBasedEndpointContext(ADDRESS, SCOPE, null,
+				new Attributes().add(KEY_SESSION_ID, session).add(KEY_EPOCH, 1).add(KEY_CIPHER, "CIPHER")
+						.add(KEY_RESUMPTION_TIMEOUT, "30000"));
 	}
 
 	@Test
@@ -166,26 +174,28 @@ public class DtlsEndpointContextMatcherTest {
 
 	@Test
 	public void testAddNewEntries() {
-		EndpointContext context = MapBasedEndpointContext.addEntries(strictMessageContext, KEY_RESUMPTION_TIMEOUT, "30000");
+		EndpointContext context = MapBasedEndpointContext.addEntries(strictMessageContext, KEY_RESUMPTION_TIMEOUT,
+				"30000");
 		assertThat(context.getPeerAddress(), is(strictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(strictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(strictMessageContext.getPeerIdentity()));
-		assertThat(context.get(KEY_RESUMPTION_TIMEOUT), is("30000"));
+		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("30000"));
 
 		context = MapBasedEndpointContext.addEntries(scopedStrictMessageContext, KEY_RESUMPTION_TIMEOUT, "30000");
 		assertThat(context.getPeerAddress(), is(scopedStrictMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(scopedStrictMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(scopedStrictMessageContext.getPeerIdentity()));
-		assertThat(context.get(KEY_RESUMPTION_TIMEOUT), is("30000"));
+		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("30000"));
 	}
 
 	@Test
 	public void testAddContainedEntries() {
-		EndpointContext	context = MapBasedEndpointContext.addEntries(noneCriticalMessageContext, KEY_RESUMPTION_TIMEOUT, "60000");
+		EndpointContext context = MapBasedEndpointContext.addEntries(noneCriticalMessageContext, KEY_RESUMPTION_TIMEOUT,
+				"60000");
 		assertThat(context.getPeerAddress(), is(noneCriticalMessageContext.getPeerAddress()));
 		assertThat(context.getVirtualHost(), is(noneCriticalMessageContext.getVirtualHost()));
 		assertThat(context.getPeerIdentity(), is(noneCriticalMessageContext.getPeerIdentity()));
-		assertThat(context.get(KEY_RESUMPTION_TIMEOUT), is("60000"));
+		assertThat(context.getString(KEY_RESUMPTION_TIMEOUT), is("60000"));
 	}
 
 }

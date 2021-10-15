@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * <p>
  * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
@@ -28,7 +28,7 @@ import org.eclipse.californium.elements.util.DatagramWriter;
 
 /**
  * The DataSerialized serializes outgoing messages to byte arrays based on CoAP TCP/TLS spec:
- * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls"/>
+ * <a href="https://tools.ietf.org/html/draft-ietf-core-coap-tcp-tls-02">draft-ietf-core-coap-tcp-tls-02</a> 
  */
 public final class TcpDataSerializer extends DataSerializer {
 

@@ -47,6 +47,8 @@ import com.upokecenter.cbor.CBORType;
 import se.sics.ace.AceException;
 import se.sics.ace.as.DBConnector;
 import se.sics.ace.as.PDP;
+import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.examples.SQLConnector;
 
 /**
@@ -56,7 +58,7 @@ import se.sics.ace.examples.SQLConnector;
  * 
  * NOTE: This PDP needs a SQL connector it won't work with other DBConnectors.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
@@ -78,7 +80,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
      */    
     public static String accessTable = "PdpAccess";
  
-    // M.T.
     /**
      * The name of the OSCORE Group Managers table
      */    
@@ -105,14 +106,13 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 
     private PreparedStatement getAllAccess;
     
-    // M.T.
     private PreparedStatement addOSCOREGroupManager;
     
-    // M.T.
     private PreparedStatement deleteOSCOREGroupManagers;
     
-    // M.T.
     private PreparedStatement selectOSCOREGroupManagers;
+    
+    private Map<String, Short> rolesToInt = new HashMap<>();
 
 	/**
 	 * Constructor, can supply an initial configuration.
@@ -143,7 +143,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL,"
                 + DBConnector.scopeColumn + " varchar(255) NOT NULL);");
 
-        // M.T.
         String createOSCOREGroupManagers = this.db.getAdapter().updateEngineSpecificSQL(
         		"CREATE TABLE IF NOT EXISTS "
         		+ oscoreGroupManagersTable + "("
@@ -155,7 +154,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
 	        stmt.execute(createToken);
 	        stmt.execute(createIntrospect);
 	        stmt.execute(createAccess);
-	        stmt.execute(createOSCOREGroupManagers); // M.T.
+	        stmt.execute(createOSCOREGroupManagers);
 	    } catch (SQLException e) {
 	        e.printStackTrace();
 	        throw new AceException(e.getMessage());
@@ -172,8 +171,7 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + introspectTable
                         + " WHERE " + DBConnector.idColumn + "=?;"));
         
-        //Gets only the access of the client, the PDP sorts out the audiences
-        //and scopes
+        //Gets only the access of the client, the PDP sorts out the audiences and scopes
         this.canAccess = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("SELECT * FROM "
                         + accessTable
@@ -193,7 +191,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + accessTable + " VALUES (?,?,?);"));
         
-        // M.T.
         this.addOSCOREGroupManager = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("INSERT INTO "
                         + oscoreGroupManagersTable + " VALUES (?,?);"));
@@ -226,7 +223,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + DBConnector.idColumn + "=?"
                         + " AND " + DBConnector.rsIdColumn + "=?;"));
 
-        // M.T.
         this.deleteOSCOREGroupManagers = this.db.prepareStatement(
         		this.db.getAdapter().updateEngineSpecificSQL("DELETE FROM "
         				+ oscoreGroupManagersTable + " WHERE "
@@ -237,13 +233,17 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
                         + accessTable + " WHERE "
                         + DBConnector.idColumn + "=?;"));
         
-        // M.T.
         this.selectOSCOREGroupManagers = this.db.prepareStatement(
                 this.db.getAdapter().updateEngineSpecificSQL("SELECT "
                 		+ DBConnector.audColumn + " FROM "
                 		+ oscoreGroupManagersTable + " WHERE "
                         + DBConnector.rsIdColumn + "=? ORDER BY " 
 		                + DBConnector.audColumn +";"));
+        
+        rolesToInt.put("requester", Constants.GROUP_OSCORE_REQUESTER);
+        rolesToInt.put("responder", Constants.GROUP_OSCORE_RESPONDER);
+        rolesToInt.put("monitor", Constants.GROUP_OSCORE_MONITOR);
+        rolesToInt.put("verifier", Constants.GROUP_OSCORE_VERIFIER);
 	}
 	
 	@Override
@@ -408,7 +408,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         String grantedScopesString = "";
         Object grantedScopes = null;
         
-        // M.T.
         // If the RS and the audience point at an OSCORE Group Manager,
         // the scope must be encoded as a CBOR Byte String
         boolean scopeMustBeBinary = false;
@@ -419,7 +418,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	if (scopeMustBeBinary) break;
         }
         
-        // M.T.
         // Handling of a Text String scope, just as in KissPDP
         if (scope instanceof String) {
         	if (scopeMustBeBinary)
@@ -441,92 +439,106 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
             	grantedScopes = grantedScopesString;
         }
         
-        // M.T.
         // Handling of a Byte String scope, formatted as per draft-ietf-ace-key-groupcomm , Section 3.1
         // This type of scope is expected to have this structure for each RS acting as OSCORE Group Manager
         else if (scope instanceof byte[] && rsOSCOREGroupManager) {
+        	
+        	// Allowed scope to be returned to the /token endpoint
+        	CBORObject cborArrayScope = CBORObject.NewArray();
         	
         	// Retrieve the scope as CBOR Array
         	CBORObject scopeCBOR = CBORObject.DecodeFromBytes((byte[])scope);
         	
         	if (scopeCBOR.getType().equals(CBORType.Array)) {
         	
-        	  String groupID = "";
-        	  Set<String> roles = new HashSet<>();
+        	  // Inspect each scope entry, i.e. group name followed by role(s)
+        	  for (int entryIndex = 0; entryIndex < scopeCBOR.size(); entryIndex++) {
         		
-        	  if (scopeCBOR.size() != 2)
-        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
-        	  
-        	  // Retrieve the Group ID of the OSCORE group
-        	  CBORObject scopeElement = scopeCBOR.get(0);
-        	  if (scopeElement.getType().equals(CBORType.TextString)) {
-        		  groupID = scopeElement.AsString();
-        	  }
-        	  else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	  
-        	  // Retrieve the role or list of roles
-        	  scopeElement = scopeCBOR.get(1);
-        	  if (scopeElement.getType().equals(CBORType.TextString)) {
-        		  // Only one role is specified
-        		  roles.add(scopeElement.AsString());
-        	  }
-        	  else if (scopeElement.getType().equals(CBORType.Array)) {
-        		  // Multiple roles are specified
-        		  if (scopeElement.size() < 2) {
-        			  throw new AceException("The CBOR Array of roles must include at least two roles");
-        		  }
-        		  for (int i=0; i<scopeElement.size(); i++) {
-        			  if (scopeElement.get(i).getType().equals(CBORType.TextString)) {
-            			  String role = scopeElement.get(i).AsString();
-            			  roles.add(role);        				  
-        			  }
-        			  else {throw new AceException("The roles must be CBOR Text Strings");}
-        		  }
-        	  }
-        	  else {throw new AceException("Invalid format of roles");}
-        	  
-        	  // Check if the client can access the specified Group ID on the RS with the specified roles
-        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
-        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
-        	  boolean canJoin = false;
-        	  Set<String> allowedRoles = new HashSet<>();
-        	  for (String foo : scopes) {
-        		  String[] scopeParts = foo.split("_");
-        		  if(groupID.equals(scopeParts[0])) {
-        			  canJoin = true;
-        			  for (int i=1; i<scopeParts.length; i++) {
-        				  if (roles.contains(scopeParts[i]))
-        					  allowedRoles.add(scopeParts[i]);
-        			  }
-        		  }
-        	  }
-        	  
-        	  if (canJoin == true && !allowedRoles.isEmpty()) {
+        		  CBORObject scopeEntry = scopeCBOR.get(entryIndex);
         		  
-        		  CBORObject cborArrayScope = CBORObject.NewArray();
-        	      
-        		  cborArrayScope.Add(groupID);
-        	      
-        	      if (allowedRoles.size() == 1) {
-        	    	  for (String foo : allowedRoles) {
-        	    		  cborArrayScope.Add(foo);
-                	  }
-        	      }
-        	      
-        	      if (allowedRoles.size() == 2) {
-        	    	  CBORObject cborArrayRoles = CBORObject.NewArray();
-        	    	  
-        	    	  for (String foo : allowedRoles) {
-        	    		  cborArrayRoles.Add(foo);
-                	  }
-        	    	  
-        	    	  cborArrayScope.Add(cborArrayRoles);
-        	      }
-        	      
-        	      grantedScopes = cborArrayScope.EncodeToBytes();
-        	     
-        	  }
+        		  if (scopeEntry.getType().equals(CBORType.Array)) {
+		        		
+		        	  if (scopeEntry.size() != 2)
+		        		  throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+		        	  
+		        	  String groupName = "";
+		        	  Set<String> roles = new HashSet<>();
+		        	  
+		        	  // Retrieve the group name of the OSCORE group
+		        	  CBORObject scopeElement = scopeEntry.get(0);
+		        	  if (scopeElement.getType().equals(CBORType.TextString)) {
+		        		  groupName = scopeElement.AsString();
+		        	  }
+		        	  else {throw new AceException("The group name must be a CBOR Text String");}
+		        	  
+		        	  // Retrieve the role or list of roles
+		        	  scopeElement = scopeEntry.get(1);
+		        	  
+		          	  // NEW VERSION USING the AIF-BASED ENCODING AS SINGLE INTEGER
+		        	  if (scopeElement.getType().equals(CBORType.Integer)) {
+		        		  int roleSet = scopeElement.AsInt32();
+		        		  
+		        		  if (roleSet <= 0)
+		        			  throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
+		        		  
+		        		  Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
+		        		  short[] roleIdArray = new short[roleIdSet.size()];
+		        		  int index = 0;
+		        		  for (Integer elem : roleIdSet)
+		        			  roleIdArray[index++] = elem.shortValue(); 
+		        		  for (int i=0; i<roleIdArray.length; i++) {
+		        			  short roleIdentifier = roleIdArray[i];
+		        			  // Silently ignore unrecognized roles
+		        			  if (roleIdentifier < Constants.GROUP_OSCORE_ROLES.length)
+			        			  roles.add(Constants.GROUP_OSCORE_ROLES[roleIdentifier]);
+		        		  }
+		        		  
+		        	  }
+		        	  
+		        	  else {throw new AceException("Invalid format of roles");}
+		        	  
+		        	  // Check if the client can access the specified group on the RS with the specified roles
+		        	  // Note: this assumes that there is only one RS acting as Group Manager specified as audience
+		        	  // Then, each element of 'scopes' refers to one OSCORE group under that Group Manager
+		        	  boolean canJoin = false;
+		        	  Set<String> allowedRoles = new HashSet<>();
+		        	  for (String foo : scopes) {
+		        		  String[] scopeParts = foo.split("_");
+		        		  if(groupName.equals(scopeParts[0])) {
+		        			  canJoin = true;
+		        			  for (int i=1; i<scopeParts.length; i++) {
+		        				  if (roles.contains(scopeParts[i]))
+		        					  allowedRoles.add(scopeParts[i]);
+		        			  }
+		        		  }
+		        	  }
+		        	  
+		        	  if (canJoin == true && !allowedRoles.isEmpty()) {
+		        		  
+		        		  CBORObject cborArrayScopeEntry = CBORObject.NewArray();
+		        	      
+		        		  cborArrayScopeEntry.Add(groupName);
+		        	      
+		        		  int grantedRoles = 0;
+	        	    	  for (String foo : allowedRoles)
+	        	    		  grantedRoles = Util.addGroupOSCORERole(grantedRoles, rolesToInt.get(foo));
+	        	    	  cborArrayScopeEntry.Add(grantedRoles);
+		        	      
+		        	      cborArrayScope.Add(cborArrayScopeEntry);
+		        	     
+		        	  }
   		      
+        		  } else {
+        	            throw new AceException(
+          	                    "Invalid scope entry format for joining OSCORE groups");
+          	      }
+        		  
+        	  
+        	  } // End of scope entries inspection
+        	  
+        	  if (cborArrayScope.size() != 0)
+        		  grantedScopes = cborArrayScope.EncodeToBytes();
+        	  
   		    } else {
   	            throw new AceException(
   	                    "Invalid scope format for joining OSCORE groups");
@@ -534,21 +546,19 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         	
         }
         
-        // M.T.
     	// This includes the case where the scope is encoded as a CBOR Byte String,
     	// but the audience is not registered as related to an OSCORE Group Manager.
     	// In fact, no processing for byte string scopes are defined, other than
     	// the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
         else if (scope instanceof byte[]) {
         	throw new AceException(
-  	                "Unknown processing for this byte string scope!");
+  	                "Unknown processing for this byte string scope");
         }
         
         else {
         	throw new AceException(
                    "Scopes must be Text Strings or Byte Strings");
         }
-        // end M.T.
         
         return grantedScopes;
 	}
@@ -817,7 +827,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
     }
     
-    // M.T.
     /**
      * Add a pre-registered audience as an OSCORE Group Manager
      * 
@@ -862,7 +871,6 @@ public class GroupOSCOREJoinPDP implements PDP, AutoCloseable {
         }
     }
 
- // M.T.
     /**
      * Remove all audiences an RS identifies with as an OSCORE Group Manager
      * 

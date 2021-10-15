@@ -281,13 +281,15 @@ public class PlugtestRS {
         KissValidator valid = new KissValidator(Collections.singleton("RS2"),
                 myScopes);
         
+        String rsId = "RS2";
+        
         String tokenFile = "tokens.json";
         //Delete lingering old token file
         new File(tokenFile).delete();
       
         //Set up the inner Authz-Info library
         ai = new AuthzInfo( Collections.singletonList("AS"), 
-                new KissTime(), null, valid, ctx, tokenFile, valid, false);
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
         Resource authzInfo = new CoapAuthzInfo(ai);
         rs = new CoapServer();
         Resource ace = new CoapResource("ace");
@@ -358,6 +360,7 @@ public class PlugtestRS {
      KissValidator valid = new KissValidator(Collections.singleton("RS1"),
              myScopes);
     
+     String rsId = "RS1";
      
      String tokenFile = "tokens.json";
      //Delete lingering old token file
@@ -365,7 +368,7 @@ public class PlugtestRS {
    
      //Set up the inner Authz-Info library
      ai = new AuthzInfo(Collections.singletonList("AS"), 
-             new KissTime(), null, valid, ctx, tokenFile, valid, false);
+             new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid, false);
      Resource authzInfo = new CoapAuthzInfo(ai);
      rs = new CoapServer();
      Resource ace = new CoapResource("ace");

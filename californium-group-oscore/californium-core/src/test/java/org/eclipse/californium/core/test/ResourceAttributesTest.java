@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,41 +27,41 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.category.Small;
 import org.eclipse.californium.core.CoapResource;
-import org.eclipse.californium.core.coap.Request;
-import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.EmptyMessage;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.Endpoint;
-import org.eclipse.californium.core.network.EndpointManager;
 import org.eclipse.californium.core.network.EndpointObserver;
 import org.eclipse.californium.core.network.Exchange;
-import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.Exchange.Origin;
+import org.eclipse.californium.core.network.MatcherTestUtils;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.interceptors.MessageInterceptor;
 import org.eclipse.californium.core.observe.NotificationListener;
 import org.eclipse.californium.core.server.MessageDeliverer;
 import org.eclipse.californium.core.server.resources.DiscoveryResource;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.category.Small;
+import org.eclipse.californium.elements.rule.TestNameLoggerRule;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
 @Category(Small.class)
 public class ResourceAttributesTest {
+	@Rule
+	public TestNameLoggerRule name = new TestNameLoggerRule();
 
 	private Resource root;
 
 	@Before
 	public void setup() {
 		try {
-			System.out.println(System.lineSeparator() + "Start " + getClass().getSimpleName());
-			EndpointManager.clear();
-
 			root = new CoapResource("");
 			Resource sensors = new CoapResource("sensors");
 			Resource temp = new CoapResource("temp");
@@ -150,7 +150,7 @@ public class ResourceAttributesTest {
 		}
 
 		@Override
-		public void setExecutor(ScheduledExecutorService executor) {
+		public void setExecutors(ScheduledExecutorService executor, ScheduledExecutorService secondaryExecutor) {
 		}
 
 		@Override
@@ -217,6 +217,19 @@ public class ResourceAttributesTest {
 		@Override
 		public void cancelObservation(Token token) {
 		}
-		
+
+		@Override
+		public void addPostProcessInterceptor(MessageInterceptor interceptor) {
+		}
+
+		@Override
+		public void removePostProcessInterceptor(MessageInterceptor interceptor) {
+		}
+
+		@Override
+		public List<MessageInterceptor> getPostProcessInterceptors() {
+			return null;
+		}
+
 	}
 }

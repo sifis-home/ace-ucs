@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -30,15 +30,14 @@
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
 
-import java.security.GeneralSecurityException;
 import java.security.MessageDigest;
+import java.util.concurrent.ScheduledExecutorService;
 
-import org.eclipse.californium.elements.util.StringUtil;
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 
 /**
  * The resuming server handshaker executes an abbreviated handshake when
@@ -49,9 +48,8 @@ import org.slf4j.LoggerFactory;
  * The message flow is depicted in <a
  * href="http://tools.ietf.org/html/rfc5246#section-7.3">Figure 2</a>.
  */
+@NoPublicAPI
 public class ResumingServerHandshaker extends ServerHandshaker {
-
-	private static final Logger LOGGER = LoggerFactory.getLogger(ResumingServerHandshaker.class.getName());
 
 	// Members ////////////////////////////////////////////////////////
 
@@ -63,86 +61,55 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	/**
 	 * Creates a new handshaker for resuming an existing session with a client.
 	 * 
-	 * @param sequenceNumber
-	 *            the initial message sequence number to expect from the peer
-	 *            (this parameter can be used to initialize the <em>receive_next_seq</em>
-	 *            counter to another value than 0, e.g. if one or more cookie exchange round-trips
-	 *            have been performed with the peer before the handshake starts).
-	 * @param session
-	 *            the session to negotiate with the client.
-	 * @param recordLayer
-	 *            the object to use for sending flights to the peer.
-	 * @param connection
-	 *            the connection related with the session.
-	 * @param config
-	 *            the DTLS configuration parameters to use for the handshake.
-	 * @param maxTransmissionUnit
-	 *            the MTU value reported by the network interface the record layer is bound to.
-	 * @throws IllegalArgumentException
-	 *            if the given session does not contain an identifier.
-	 * @throws IllegalStateException
-	 *            if the message digest required for computing the FINISHED message hash cannot be instantiated.
-	 * @throws NullPointerException
-	 *            if session, recordLayer or config is <code>null</code>
+	 * @param initialRecordSequenceNo the initial record sequence number (since
+	 *            3.0).
+	 * @param sequenceNumber the initial message sequence number to expect from
+	 *            the peer (this parameter can be used to initialize the
+	 *            <em>receive_next_seq</em> counter to another value than 0,
+	 *            e.g. if one or more cookie exchange round-trips have been
+	 *            performed with the peer before the handshake starts).
+	 * @param session the session to negotiate with the client.
+	 * @param recordLayer the object to use for sending flights to the peer.
+	 * @param timer scheduled executor for flight retransmission (since 2.4).
+	 * @param connection the connection related with the session.
+	 * @param config the DTLS configuration parameters to use for the handshake.
+	 * @throws IllegalArgumentException if the given session does not contain an
+	 *             identifier, or the initial record or message sequence number
+	 *             is negative
+	 * @throws NullPointerException if any of the provided parameter is
+	 *             {@code null}
 	 */
-	public ResumingServerHandshaker(int sequenceNumber, DTLSSession session, RecordLayer recordLayer, Connection connection, DtlsConnectorConfig config, int maxTransmissionUnit) {
-		super(sequenceNumber, session, recordLayer, connection, config, maxTransmissionUnit);
+	public ResumingServerHandshaker(long initialRecordSequenceNo, int sequenceNumber, DTLSSession session,
+			RecordLayer recordLayer, ScheduledExecutorService timer, Connection connection,
+			DtlsConnectorConfig config) {
+		super(initialRecordSequenceNo, sequenceNumber, session, recordLayer, timer, connection, config);
+		SessionId sessionId = session.getSessionIdentifier();
+		if (sessionId == null || sessionId.isEmpty()) {
+			throw new IllegalArgumentException("Session must contain the ID of the session to resume");
+		}
 	}
 
 	// Methods ////////////////////////////////////////////////////////
 
 	@Override
-	protected void doProcessMessage(DTLSMessage message) throws HandshakeException, GeneralSecurityException {
+	protected void doProcessMessage(HandshakeMessage message) throws HandshakeException {
 
-		// log record now (even if message is still encrypted) in case an Exception
-		// is thrown during processing
-		if (LOGGER.isDebugEnabled()) {
-			StringBuilder msg = new StringBuilder();
-			msg.append("Processing {} message from peer [{}]");
-			if (LOGGER.isTraceEnabled()) {
-				msg.append(":").append(StringUtil.lineSeparator()).append(message);
-			}
-			LOGGER.debug(msg.toString(), message.getContentType(), message.getPeer());
-		}
-
-		switch (message.getContentType()) {
-		case ALERT:
+		switch (message.getMessageType()) {
+		case CLIENT_HELLO:
+			receivedClientHello((ClientHello) message);
+			expectChangeCipherSpecMessage();
 			break;
 
-		case CHANGE_CIPHER_SPEC:
-			setCurrentReadState();
-			LOGGER.debug("Processed {} message from peer [{}]", message.getContentType(),
-					message.getPeer());
-			break;
-
-		case HANDSHAKE:
-			HandshakeMessage handshakeMsg = (HandshakeMessage) message;
-			switch (handshakeMsg.getMessageType()) {
-			case CLIENT_HELLO:
-				receivedClientHello((ClientHello) handshakeMsg);
-				expectChangeCipherSpecMessage();
-				break;
-
-			case FINISHED:
-				receivedClientFinished((Finished) handshakeMsg);
-				break;
-
-			default:
-				throw new HandshakeException(
-						String.format("Received unexpected handshake message [%s] from peer %s", handshakeMsg.getMessageType(), handshakeMsg.getPeer()),
-						new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE, handshakeMsg.getPeer()));
-			}
-
-			incrementNextReceiveSeq();
-			LOGGER.debug("Processed {} message with sequence no [{}] from peer [{}]",
-					handshakeMsg.getMessageType(), handshakeMsg.getMessageSeq(), handshakeMsg.getPeer());
+		case FINISHED:
+			receivedClientFinished((Finished) message);
 			break;
 
 		default:
 			throw new HandshakeException(
-					String.format("Received unexpected message [%s] from peer %s", message.getContentType(), message.getPeer()),
-					new AlertMessage(AlertLevel.FATAL, AlertDescription.HANDSHAKE_FAILURE, message.getPeer()));
+					String.format("Received unexpected handshake message [%s] from peer %s", message.getMessageType(), peerToLog),
+					new AlertMessage(AlertLevel.FATAL, AlertDescription.UNEXPECTED_MESSAGE));
 		}
+
 	}
 
 	/**
@@ -157,45 +124,76 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	private void receivedClientHello(ClientHello clientHello) throws HandshakeException {
 
 		handshakeStarted();
-		if (!clientHello.getCipherSuites().contains(session.getCipherSuite())) {
+		DTLSSession session = getSession();
+		CipherSuite cipherSuite = session.getCipherSuite();
+		CompressionMethod compressionMethod = session.getCompressionMethod();
+		if (!clientHello.getCipherSuites().contains(cipherSuite)) {
 			throw new HandshakeException(
 					"Client wants to change cipher suite in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							clientHello.getPeer()));
-		} else if (!clientHello.getCompressionMethods().contains(session.getCompressionMethod())) {
+							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (!clientHello.getCompressionMethods().contains(compressionMethod)) {
 			throw new HandshakeException(
 					"Client wants to change compression method in resumed session",
 					new AlertMessage(
 							AlertLevel.FATAL,
-							AlertDescription.ILLEGAL_PARAMETER,
-							clientHello.getPeer()));
+							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (extendedMasterSecretMode.is(ExtendedMasterSecretMode.ENABLED)
+				&& !clientHello.hasExtendedMasterSecret()) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			//
+			// If neither the original session nor the new
+			// ClientHello uses the extension, the server SHOULD
+			// abort the handshake. If it continues with an
+			// abbreviated handshake in order to support legacy
+			// insecure resumption, the connection is no longer
+			// protected by the mechanisms in this document, and the
+			// server should follow the guidelines in Section 5.4.
+			throw new HandshakeException(
+					"Client wants to resume without extended master secret",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
+		} else if (extendedMasterSecretMode == ExtendedMasterSecretMode.OPTIONAL
+				&& session.useExtendedMasterSecret() && !clientHello.hasExtendedMasterSecret()) {
+			// https://tools.ietf.org/html/rfc7627#section-5.3
+			//
+			// If the original session used the
+			// "extended_master_secret" extension but the new
+			// ClientHello does not contain it, the server
+			// MUST abort the abbreviated handshake
+			throw new HandshakeException(
+					"Client wants to resume without extended master secret",
+					new AlertMessage(
+							AlertLevel.FATAL,
+							AlertDescription.ILLEGAL_PARAMETER));
 		} else {
 			clientRandom = clientHello.getRandom();
 			serverRandom = new Random();
 
 			HelloExtensions serverHelloExtensions = new HelloExtensions();
+			negotiateCipherSuite(clientHello, serverHelloExtensions);
 			processHelloExtensions(clientHello, serverHelloExtensions);
 
-			initMessageDigest();
-
 			flightNumber += 2;
-			DTLSFlight flight = new DTLSFlight(getSession(), flightNumber);
-			md.update(clientHello.getRawMessage());
+			DTLSFlight flight = createFlight();
 
 			ServerHello serverHello = new ServerHello(clientHello.getClientVersion(), serverRandom, session.getSessionIdentifier(),
-					session.getCipherSuite(), session.getCompressionMethod(), serverHelloExtensions, clientHello.getPeer());
+					cipherSuite, compressionMethod, serverHelloExtensions);
 			wrapMessage(flight, serverHello);
-			md.update(serverHello.toByteArray());
 
-			calculateKeys(session.getMasterSecret());
-
-			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage(clientHello.getPeer());
+			ChangeCipherSpecMessage changeCipherSpecMessage = new ChangeCipherSpecMessage();
 			wrapMessage(flight, changeCipherSpecMessage);
-			setCurrentWriteState();
 
-			MessageDigest mdWithServerFinished = null;
+			MessageDigest md = getHandshakeMessageDigest();
+
+			MessageDigest mdWithServerFinished;
 			try {
 				mdWithServerFinished = (MessageDigest) md.clone();
 			} catch (CloneNotSupportedException e) {
@@ -203,18 +201,22 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 						"Cannot create FINISHED message hash",
 						new AlertMessage(
 								AlertLevel.FATAL,
-								AlertDescription.INTERNAL_ERROR,
-								clientHello.getPeer()));
+								AlertDescription.INTERNAL_ERROR));
 			}
 
-			handshakeHash = md.digest();
-			String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-			Finished finished = new Finished(prfMacName, session.getMasterSecret(), false, handshakeHash, clientHello.getPeer());
+			masterSecret = session.getMasterSecret();
+			calculateKeys(masterSecret);
+
+			setCurrentWriteState();
+
+			Finished finished = new Finished(cipherSuite.getThreadLocalPseudoRandomFunctionMac(), masterSecret, false, md.digest());
 			wrapMessage(flight, finished);
 
 			mdWithServerFinished.update(finished.toByteArray());
 			handshakeHash = mdWithServerFinished.digest();
 			sendFlight(flight);
+			states = NO_CLIENT_CERTIFICATE;
+			statesIndex = 0;
 		}
 	}
 
@@ -228,9 +230,8 @@ public class ResumingServerHandshaker extends ServerHandshaker {
 	 *             if the client's Finished message can not be verified.
 	 */
 	private void receivedClientFinished(Finished message) throws HandshakeException {
-		String prfMacName = session.getCipherSuite().getPseudoRandomFunctionMacName();
-		message.verifyData(prfMacName, session.getMasterSecret(), true, handshakeHash);
-		sessionEstablished();
+		message.verifyData(getSession().getCipherSuite().getThreadLocalPseudoRandomFunctionMac(), masterSecret, true, handshakeHash);
+		contextEstablished();
 		handshakeCompleted();
 	}
 }

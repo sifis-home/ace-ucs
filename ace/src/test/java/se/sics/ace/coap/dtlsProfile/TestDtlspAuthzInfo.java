@@ -35,6 +35,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -68,20 +69,23 @@ import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Message;
 import se.sics.ace.TestConfig;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.KissValidator;
+import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.rs.AuthzInfo;
 import se.sics.ace.rs.IntrospectionException;
 import se.sics.ace.rs.TokenRepository;
+import se.sics.ace.Util;
 
 /**
  * Test the DTLSProfileAuthzInfo class.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class TestDtlspAuthzInfo {
@@ -92,6 +96,7 @@ public class TestDtlspAuthzInfo {
     private static AuthzInfo ai;
     private static CoapAuthzInfo dai;
     private static CBORObject payload;
+    private static CBORObject payload2;
     
     /**
      * Set up the necessary objects.
@@ -115,27 +120,27 @@ public class TestDtlspAuthzInfo {
         Map<String, Map<String, Set<Short>>> myScopes = new HashMap<>();
         myScopes.put("r_temp", myResource);
         
-        Set<Short> actions2 = new HashSet<>();
+        actions = new HashSet<>();
         actions.add(Constants.GET);
         actions.add(Constants.POST);
-        Map<String, Set<Short>> myResource2 = new HashMap<>();
-        myResource.put("co2", actions2);
-        myScopes.put("rw_co2", myResource2);
+        myResource = new HashMap<>();
+        myResource.put("co2", actions);
+        myScopes.put("rw_co2", myResource);
         
-        KissValidator valid = new KissValidator(Collections.singleton("rs1"),
-                myScopes);  
+        String rsId = "rs1";
+        
+        KissValidator valid = new KissValidator(Collections.singleton("aud1"), myScopes);  
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
         new File(tokenFile).delete(); 
         
         //Set up COSE parameters
-        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
-                AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_128, AlgorithmID.Direct);
         ctx = CwtCryptoCtx.encrypt0(key128a, coseP.getAlg().AsCBOR());
         
         //Set up the inner Authz-Info library
         ai = new AuthzInfo(Collections.singletonList("TestAS"), 
-                new KissTime(), null, valid, ctx, tokenFile, valid,
+                new KissTime(), null, rsId, valid, ctx, null, 0, tokenFile, valid,
                 false);
         
         //Set up the DTLS authz-info resource
@@ -144,12 +149,12 @@ public class TestDtlspAuthzInfo {
         //Set up a token to use
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
+        params.put(Constants.AUD, CBORObject.FromObject("aud1"));
         params.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         params.put(Constants.ISS, CBORObject.FromObject("TestAS"));
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-        CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02}); 
+        CBORObject kid = CBORObject.FromObject(new byte[] {0x01, 0x02});
         key.add(KeyKeys.KeyId, kid);
         key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
         CBORObject cnf = CBORObject.NewMap();
@@ -158,6 +163,21 @@ public class TestDtlspAuthzInfo {
         CWT token = new CWT(params);
         payload = token.encode(ctx);
         
+        
+        // Set up one more token to use, for testing the update of access rights
+        Map<Short, CBORObject> params2 = new HashMap<>(); 
+        params2.put(Constants.SCOPE, CBORObject.FromObject("rw_co2"));
+        params2.put(Constants.AUD, CBORObject.FromObject("aud1"));
+        params2.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x01}));
+        params2.put(Constants.ISS, CBORObject.FromObject("TestAS"));
+        CBORObject keyData  = CBORObject.NewMap();
+        keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
+        keyData.Add(KeyKeys.KeyId.AsCBOR(), kid);
+        CBORObject cnf2 = CBORObject.NewMap();
+        cnf2.Add(Constants.COSE_KEY_CBOR, keyData); // The specified 'COSE_Key' includes only key type and kid
+        params2.put(Constants.CNF, cnf2);
+        CWT token2 = new CWT(params2);
+        payload2 = token2.encode(ctx);
         
     }
     
@@ -195,17 +215,112 @@ public class TestDtlspAuthzInfo {
         CoapExchange ex = new CoapExchange(iex, dai);      
         dai.handlePOST(ex);
       
-        String kid = new String(new byte[]{0x01, 0x02}, Constants.charset);
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
         //Test that the PoP key was stored
         Assert.assertArrayEquals(key128,
                 TokenRepository.getInstance().getKey(kid).get(
                         KeyKeys.Octet_K).GetByteString());
                
-      
        //Test that the token is there
         Assert.assertEquals(TokenRepository.OK, 
                 TokenRepository.getInstance().canAccess(
                         kid, kid, "temp", Constants.GET, null));
+    }
+    
+    /**
+     * Test a POST to /authz-info, followed by an attempt to update
+     * access rights by posting a new Access Token over DTLS
+     * 
+     * @throws AceException 
+     * @throws IntrospectionException 
+     * @throws IOException 
+     */
+    @Test
+    public void testPOSTtokenUpdateAccessRights() 
+            throws AceException, IntrospectionException, IOException {
+    	
+        Request req = new Request(Code.POST);
+        req.setPayload(payload.EncodeToBytes());
+        AddressEndpointContext destCtx = new AddressEndpointContext(
+                new InetSocketAddress(
+                InetAddress.getLocalHost(), CoAP.DEFAULT_COAP_PORT),
+                new PreSharedKeyIdentity("psk"));
+        req.setDestinationContext(destCtx);
+        
+        req.setType(Type.NON);
+        req.setAcknowledged(false);
+        AddressEndpointContext srcCtx = new AddressEndpointContext(
+                new InetSocketAddress(InetAddress.getLocalHost(),
+                        CoAP.DEFAULT_COAP_PORT));
+        req.setSourceContext(srcCtx);
+        
+        req.setToken(new byte[]{0x02});
+        CoapEndpoint cep = new CoapEndpoint.Builder().build();
+        cep.start();
+        Exchange iex = new Exchange(req, Origin.REMOTE, null);
+        iex.setRequest(req);   
+        iex.setEndpoint(cep);
+        CoapExchange ex = new CoapExchange(iex, dai);      
+        dai.handlePOST(ex);
+      
+        byte[] kidBytes = new byte[]{0x01, 0x02};
+        String kid = Base64.getEncoder().encodeToString(kidBytes);
+        
+        //Test that the PoP key was stored
+        Assert.assertArrayEquals(key128,
+                TokenRepository.getInstance().getKey(kid).get(
+                        KeyKeys.Octet_K).GetByteString());
+               
+       //Test that the token is there and that responses are as expected
+       Assert.assertEquals(TokenRepository.OK,
+                TokenRepository.getInstance().canAccess(
+                        kid, null, "temp", Constants.GET, null));
+       
+       Assert.assertEquals(TokenRepository.METHODNA,
+               TokenRepository.getInstance().canAccess(
+                       kid, null, "temp", Constants.POST, null));
+       
+       Assert.assertEquals(TokenRepository.FORBID,
+               TokenRepository.getInstance().canAccess(
+                       kid, null, "co2", Constants.POST, null));
+        
+        
+       // Build a new Token for updating access rights, with a different 'scope'
+        
+      // Posting the Token through an unprotected request.
+      // This fails since such a Token needs to include
+      // a 'cnf' claim transporting also the actual key 'k'
+      LocalMessage req2 = new LocalMessage(0, null, null, payload2);
+      req2 = new LocalMessage(0, null, null, payload2);
+      LocalMessage resp2 = (LocalMessage)ai.processMessage(req2);
+      assert(resp2.getMessageCode() == Message.FAIL_BAD_REQUEST);
+      
+	  req2 = new LocalMessage(0, kid, null, payload2);
+	  resp2 = (LocalMessage)ai.processMessage(req2);
+	  assert(resp2.getMessageCode() == Message.CREATED);
+	  
+      // Test that the new token is there, and both GET and POST
+      // are consistently authorized on the "co2" resource
+      //
+      // The 'kid' has not changed, since the same PoP key
+      // with the same 'kid' is bound also to the new token
+      Assert.assertEquals(TokenRepository.OK, 
+              TokenRepository.getInstance().canAccess(
+                      kid, kid, "co2", Constants.GET, null));
+      Assert.assertEquals(TokenRepository.OK, 
+              TokenRepository.getInstance().canAccess(
+                      kid, kid, "co2", Constants.POST, null));
+      Assert.assertEquals(TokenRepository.METHODNA, 
+              TokenRepository.getInstance().canAccess(
+                      kid, kid, "co2", Constants.DELETE, null));
+      
+      // ... and that access to the "temp" resource is not allowed anymore
+      Assert.assertEquals(TokenRepository.FORBID, 
+              TokenRepository.getInstance().canAccess(
+                      kid, kid, "temp", Constants.GET, null));
+        
     }
          
     /**

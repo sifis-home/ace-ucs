@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -18,6 +18,7 @@ package org.eclipse.californium.scandium.dtls;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.eclipse.californium.elements.util.NoPublicAPI;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
@@ -30,7 +31,8 @@ import org.eclipse.californium.elements.util.StringUtil;
  * optimized by early testing, if it contains a new data-range and merging of
  * adjacent ranges afterwards.
  */
-public final class ReassemblingHandshakeMessage extends HandshakeMessage {
+@NoPublicAPI
+public final class ReassemblingHandshakeMessage extends GenericHandshakeMessage {
 
 	/** The reassembled fragments handshake body. */
 	private final byte[] reassembledBytes;
@@ -118,7 +120,7 @@ public final class ReassemblingHandshakeMessage extends HandshakeMessage {
 	 * @param message starting fragmented message
 	 */
 	public ReassemblingHandshakeMessage(FragmentedHandshakeMessage message) {
-		super(message.getPeer());
+		super(message.getMessageType());
 		setMessageSeq(message.getMessageSeq());
 		this.type = message.getMessageType();
 		this.reassembledBytes = new byte[message.getMessageLength()];
@@ -144,9 +146,9 @@ public final class ReassemblingHandshakeMessage extends HandshakeMessage {
 	 * returning.
 	 * 
 	 * @param message fragmented handshake message
-	 * @throws IllegalArgumentException if type, sequence number, total message
-	 *             length, or peer's address doesn't match the previous
-	 *             fragments. Or the fragment exceeds the handshake message.
+	 * @throws IllegalArgumentException if type, sequence number, or total
+	 *             message length, doesn't match the previous fragments. Or the
+	 *             fragment exceeds the handshake message.
 	 */
 	public void add(FragmentedHandshakeMessage message) {
 		if (type != message.getMessageType()) {
@@ -158,9 +160,6 @@ public final class ReassemblingHandshakeMessage extends HandshakeMessage {
 		} else if (getMessageLength() != message.getMessageLength()) {
 			throw new IllegalArgumentException("Fragment message length " + message.getMessageLength()
 					+ " differs from " + getMessageLength() + "!");
-		} else if (!getPeer().equals(message.getPeer())) {
-			throw new IllegalArgumentException(
-					"Fragment message peer " + message.getPeer() + " differs from " + getPeer() + "!");
 		}
 		if (isComplete()) {
 			return;
@@ -250,7 +249,6 @@ public final class ReassemblingHandshakeMessage extends HandshakeMessage {
 		StringBuilder sb = new StringBuilder();
 		sb.append("\tReassembled Handshake Protocol");
 		sb.append(StringUtil.lineSeparator()).append("\tType: ").append(getMessageType());
-		sb.append(StringUtil.lineSeparator()).append("\tPeer: ").append(getPeer());
 		sb.append(StringUtil.lineSeparator()).append("\tMessage Sequence No: ").append(getMessageSeq());
 		sb.append(StringUtil.lineSeparator()).append("\tFragment Offset: ").append(getFragmentOffset());
 		sb.append(StringUtil.lineSeparator()).append("\tFragment Length: ").append(getFragmentLength());

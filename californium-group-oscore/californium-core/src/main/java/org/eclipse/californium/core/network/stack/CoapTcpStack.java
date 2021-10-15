@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2016 Institute for Pervasive Computing, ETH Zurich and others.
  * <p>
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * <p>
  * The Eclipse Public License is available at
- * http://www.eclipse.org/legal/epl-v10.html
+ * http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  * http://www.eclipse.org/org/documents/edl-v10.html.
  * <p>
@@ -77,16 +77,18 @@ public class CoapTcpStack extends BaseCoapStack {
 	/**
 	 * Creates a new stack using TCP as the transport.
 	 * 
+	 * @param tag logging tag
 	 * @param config The configuration values to use.
 	 * @param outbox The adapter for submitting outbound messages to the transport.
+	 * @since 3.0 logging tag added
 	 */
-	public CoapTcpStack(final NetworkConfig config, final Outbox outbox) {
+	public CoapTcpStack(String tag, NetworkConfig config, Outbox outbox) {
 		super(outbox);
 
 		Layer layers[] = new Layer[] {
 				new TcpExchangeCleanupLayer(),
 				new TcpObserveLayer(config),
-				new BlockwiseLayer(config),
+				new BlockwiseLayer(tag, true, config),
 				new TcpAdaptionLayer() };
 
 		setLayers(layers);

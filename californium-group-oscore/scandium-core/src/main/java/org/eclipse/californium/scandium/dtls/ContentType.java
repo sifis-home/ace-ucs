@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -26,7 +26,7 @@ public enum ContentType {
 
 	CHANGE_CIPHER_SPEC(20), ALERT(21), HANDSHAKE(22), APPLICATION_DATA(23), TLS12_CID(25);
 
-	private int code;
+	private final int code;
 
 	public int getCode() {
 		return code;
@@ -42,7 +42,7 @@ public enum ContentType {
 	 * 
 	 * @param code
 	 *            the code representation of the content type (i.e. 20, 21, 22,
-	 *            23).
+	 *            23, 25).
 	 * @return the corresponding content type.
 	 */
 	public static ContentType getTypeByValue(int code) {
@@ -57,7 +57,7 @@ public enum ContentType {
 			return ContentType.APPLICATION_DATA;
 		case 25:
 			/** See <a href="https://datatracker.ietf.org/doc/draft-ietf-tls-dtls-connection-id/">Draft dtls-connection-id</a> **/
-			/** 2019-feb-18: the iana value is not yet assigned. This value may change in the future! **/
+			/** See <a href="https://mailarchive.ietf.org/arch/msg/tls/3wCyihI6Y7ZlciwcSDaQ322myYY">IANA code point assignment</a> **/
 			return ContentType.TLS12_CID;
 
 		default:

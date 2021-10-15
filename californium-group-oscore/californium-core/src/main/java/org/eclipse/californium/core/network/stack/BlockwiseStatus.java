@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -27,82 +27,130 @@ package org.eclipse.californium.core.network.stack;
 
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
-import java.util.concurrent.ScheduledFuture;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import org.eclipse.californium.core.coap.BlockOption;
 import org.eclipse.californium.core.coap.Message;
-import org.eclipse.californium.core.coap.OptionSet;
+import org.eclipse.californium.core.coap.MessageObserverAdapter;
+import org.eclipse.californium.core.coap.Request;
+import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.Exchange;
+import org.eclipse.californium.elements.DtlsEndpointContext;
+import org.eclipse.californium.elements.EndpointContext;
+import org.eclipse.californium.elements.EndpointContextUtil;
 
 /**
- * A tracker for the status of a blockwise transfer of a request or response body.
+ * A tracker for the status of a blockwise transfer of a request or response
+ * body.
  * <p>
- * Instances of this class are accessed/modified by the {@code BlockwiseLayer} only.
+ * Instances of this class are accessed/modified by the {@code BlockwiseLayer}
+ * only.
  */
 public abstract class BlockwiseStatus {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(BlockwiseStatus.class.getName());
+	protected final Message firstMessage;
 
+	private final RemoveHandler removeHandler;
+	private final KeyUri keyUri;
+	private final ByteBuffer buf;
 	private final int contentFormat;
+	private final int maxTcpBertBulkBlocks;
+	private Exchange exchange;
+	private EndpointContext followUpEndpointContext;
 
-	protected boolean randomAccess;
-	protected final ByteBuffer buf;
-	protected Exchange exchange;
-
-	private ScheduledFuture<?> cleanUpTask;
-	private Message first;
 	private int currentNum;
 	private int currentSzx;
 	private boolean complete;
-	private int blockCount;
 
 	/**
 	 * Creates a new blockwise status.
 	 * 
+	 * @param keyUri key uri of the blockwise transfer
+	 * @param removeHandler remove handler for blockwise status
+	 * @param exchange exchange of the blockwise transfer
+	 * @param first first message of the blockwise transfer
 	 * @param maxSize The maximum size of the body to be buffered.
-	 * @param contentFormat The Content-Format of the body.
+	 * @param maxTcpBertBulkBlocks The maximum number of bulk blocks for
+	 *            TCP/BERT. {@code 1} or less, disable BERT.
+	 * @since 3.0
 	 */
-	protected BlockwiseStatus(final int maxSize, final int contentFormat) {
+	protected BlockwiseStatus(KeyUri keyUri, RemoveHandler removeHandler, Exchange exchange, Message first,
+			int maxSize, int maxTcpBertBulkBlocks) {
+		if (keyUri == null) {
+			throw new NullPointerException("Key URI must not be null!");
+		}
+		if (removeHandler == null) {
+			throw new NullPointerException("Remove handler must not be null!");
+		}
+		if (first == null) {
+			throw new NullPointerException("First message must not be null!");
+		}
+		if (maxSize == 0) {
+			throw new IllegalArgumentException("max. size must not be 0!");
+		}
+		this.keyUri = keyUri;
+		this.removeHandler = removeHandler;
+		this.firstMessage = first;
+		this.firstMessage.setProtectFromOffload();
+		this.exchange = exchange;
+		this.contentFormat = first.getOptions().getContentFormat();
 		this.buf = ByteBuffer.allocate(maxSize);
-		this.contentFormat = contentFormat;
+		this.maxTcpBertBulkBlocks = maxTcpBertBulkBlocks;
+		if (maxTcpBertBulkBlocks > 1) {
+			currentSzx = BlockOption.BERT_SZX;
+		}
 	}
 
 	/**
-	 * Creates a new blockwise status.
-	 * <p>
-	 * This constructor also sets the maximum size of the body to be buffered to 0.
+	 * The key uri of this blockwise transfer
 	 * 
-	 * @param contentFormat The Content-Format of the body.
-	 * @param num The initial block number.
-	 * @param szx The initial block size code.
+	 * @return key uri
+	 * @since 3.0
 	 */
-	protected BlockwiseStatus(final int contentFormat, final int num, final int szx) {
-		this(0, contentFormat);
-		this.currentNum = num;
-		this.currentSzx = szx;
+	public KeyUri getKeyUri() {
+		return keyUri;
+	}
+
+	public synchronized boolean isStarting() {
+		return currentNum == 0;
 	}
 
 	/**
-	 * Sets the message containing the first block of a blockwise transfer.
-	 * <p>
-	 * The options of this message are later used when creating the message
-	 * containing the re-assembled body.
+	 * Gets the exchange.
 	 * 
-	 * @param first The message.
-	 * @see #assembleReceivedMessage(Message)
+	 * @param reset {@code true}, to reset the exchange to {@code null},
+	 *            {@code false}, otherwise.
+	 * @return the exchange of this blockwise transfer
+	 * @since 3.0
 	 */
-	final synchronized void setFirst(final Message first) {
-		this.first = first;
+	protected synchronized Exchange getExchange(boolean reset) {
+		Exchange result = exchange;
+		if (reset) {
+			exchange = null;
+			followUpEndpointContext = null;
+		}
+		return result;
 	}
-	
+
+	/**
+	 * Gets the current block offset. For block2 transfers, this is equal to
+	 * {@link #getCurrentPosition()}. For block1 transfers, this is the offset
+	 * of the last sent block. In that case, the {@link #getCurrentPosition()}
+	 * is the offset of the next block to send.
+	 * 
+	 * @return The current offset.
+	 * @see #getCurrentPosition()
+	 * @since 3.0
+	 */
+	protected final int getCurrentOffset() {
+		return currentNum * BlockOption.szx2Size(currentSzx);
+	}
+
 	/**
 	 * Gets the current block number.
 	 *
 	 * @return The current number.
 	 */
-	public final synchronized int getCurrentNum() {
+	protected final int getCurrentNum() {
 		return currentNum;
 	}
 
@@ -111,7 +159,7 @@ public abstract class BlockwiseStatus {
 	 *
 	 * @param currentNum The new current number.
 	 */
-	public final synchronized void setCurrentNum(final int currentNum) {
+	protected final void setCurrentNum(final int currentNum) {
 		this.currentNum = currentNum;
 	}
 
@@ -120,7 +168,7 @@ public abstract class BlockwiseStatus {
 	 *
 	 * @return the current szx
 	 */
-	public final synchronized int getCurrentSzx() {
+	protected final int getCurrentSzx() {
 		return currentSzx;
 	}
 
@@ -129,8 +177,21 @@ public abstract class BlockwiseStatus {
 	 * 
 	 * @return The number of bytes corresponding to the current szx code.
 	 */
-	public final synchronized int getCurrentSize() {
+	protected final int getCurrentSize() {
 		return BlockOption.szx2Size(currentSzx);
+	}
+
+	/**
+	 * Gets the current payload size in bytes.
+	 * 
+	 * @return The number of bytes corresponding to the current szx code and BERT.
+	 */
+	protected final int getCurrentPayloadSize() {
+		int size = getCurrentSize();
+		if (currentSzx == BlockOption.BERT_SZX) {
+			size *= maxTcpBertBulkBlocks;
+		}
+		return size;
 	}
 
 	/**
@@ -138,7 +199,7 @@ public abstract class BlockwiseStatus {
 	 *
 	 * @param currentSzx the new current szx
 	 */
-	final synchronized void setCurrentSzx(final int currentSzx) {
+	protected final void setCurrentSzx(final int currentSzx) {
 		this.currentSzx = currentSzx;
 	}
 
@@ -147,7 +208,8 @@ public abstract class BlockwiseStatus {
 	 * blockwise transfer.
 	 * 
 	 * @param format The format to check.
-	 * @return {@code true} if this transfer's content format matches the given format.
+	 * @return {@code true} if this transfer's content format matches the given
+	 *         format.
 	 */
 	public final boolean hasContentFormat(final int format) {
 		return this.contentFormat == format;
@@ -165,37 +227,88 @@ public abstract class BlockwiseStatus {
 	/**
 	 * Marks the transfer as complete.
 	 * <p>
-	 * Also cancels the <em>cleanUpTask</em> if the transfer is complete.
 	 * 
 	 * @param complete {@code true} if all blocks have been transferred.
 	 */
-	public final synchronized void setComplete(final boolean complete) {
+	protected final void setComplete(final boolean complete) {
 		this.complete = complete;
-		if (complete && cleanUpTask != null) {
-			cleanUpTask.cancel(false);
-			cleanUpTask = null;
+	}
+
+	/**
+	 * Marks the transfer as complete, if not already completed.
+	 * <p>
+	 * 
+	 * @return {@code true}, if the transfer is completed, {@code false}, if the
+	 *         transfer was already completed.
+	 * @since 3.0
+	 */
+	public final synchronized boolean complete() {
+		boolean complete = !this.complete;
+		if (complete) {
+			this.complete = true;
 		}
+		return complete;
+	}
+
+	/**
+	 * Restart this transfer.
+	 * 
+	 * @since 3.0
+	 */
+	public synchronized void restart() {
+		((Buffer) buf).position(0);
+	}
+
+	/**
+	 * Get current buffer position of this transfer.
+	 * 
+	 * @return get current buffer position of this transfer.
+	 * @since 3.0
+	 */
+	protected int getCurrentPosition() {
+		return buf.position();
+	}
+
+	/**
+	 * Flip blocks buffer.
+	 * 
+	 * @since 3.0
+	 */
+	protected final void flipBlocksBuffer() {
+		((Buffer) buf).flip();
+	}
+
+	/**
+	 * Get block from buffer.
+	 * 
+	 * @param position position of block
+	 * @param length length of block
+	 * @return byte array, or {@code null}, if no buffer is available. The
+	 *         length is truncated to the remaining bytes in buffer.
+	 * @since 3.0
+	 */
+	protected final byte[] getBlock(int position, int length) {
+		((Buffer) buf).position(position);
+		int len = Math.min(length, buf.remaining());
+		byte[] payload = new byte[len];
+		buf.get(payload, 0, len);
+		return payload;
 	}
 
 	/**
 	 * Adds a block to the buffer.
 	 *
 	 * @param block The block to add.
-	 * @return {@code true} if the block could be added to the buffer.
+	 * @throws BlockwiseTransferException if buffer overflows.
 	 */
-	public final synchronized boolean addBlock(final byte[] block) {
-
-		boolean result = false;
-		if (block == null) {
-			result = true;
-		} else if (block != null && buf.remaining() >= block.length) {
-			result = true;
+	protected final void addBlock(final byte[] block) throws BlockwiseTransferException {
+		if (block != null && block.length > 0) {
+			if (buf.remaining() < block.length) {
+				String msg = String.format("response %d exceeds the left buffer %d", block.length, buf.remaining());
+				throw new BlockwiseTransferException(msg, ResponseCode.REQUEST_ENTITY_TOO_LARGE);
+			}
 			buf.put(block);
-		} else {
-			LOGGER.debug("resource body exceeds buffer size [{}]", getBufferSize());
 		}
-		blockCount++;
-		return result;
 	}
 
 	/**
@@ -208,42 +321,53 @@ public abstract class BlockwiseStatus {
 	}
 
 	/**
-	 * Gets the number of blocks that have been added to the buffer.
-	 *
-	 * @return The block count.
-	 */
-	final synchronized int getBlockCount() {
-		return blockCount;
-	}
-
-	/**
 	 * Gets the buffer's content.
 	 * <p>
-	 * The buffer will be cleared as part of this method, thus this method should
-	 * only be invoked once there are no more blocks to add.
+	 * The buffer will be cleared as part of this method, thus this method
+	 * should only be invoked once there are no more blocks to add.
 	 * 
 	 * @return The bytes contained in the buffer.
 	 */
-	final synchronized byte[] getBody() {
-		((Buffer)buf).flip();
+	private final byte[] getBody() {
+		((Buffer) buf).flip();
 		byte[] body = new byte[buf.remaining()];
-		((Buffer)buf.get(body)).clear();
+		((Buffer) buf.get(body)).clear();
 		return body;
+	}
+
+	/**
+	 * Get the endpoint-context to be used for followup block requests.
+	 * 
+	 * Use the endpoint-context of the response to support notifies from
+	 * different addresses. Restores the
+	 * {@link DtlsEndpointContext#KEY_HANDSHAKE_MODE}, if the value is
+	 * {@link DtlsEndpointContext#HANDSHAKE_MODE_NONE}.
+	 * 
+	 * @param blockContext endpoint-context to be used/adapted for follow-up
+	 *            requests.
+	 * @return endpoint-context for follow-up-requests
+	 * @since 2.1
+	 */
+	public synchronized EndpointContext getFollowUpEndpointContext(EndpointContext blockContext) {
+		if (followUpEndpointContext == null
+				|| !followUpEndpointContext.getPeerAddress().equals(blockContext.getPeerAddress())) {
+			// considering notifies with address changes,
+			// use the response's endpoint-context to compensate that
+			if (exchange != null) {
+				Request request = exchange.getRequest();
+				EndpointContext messageContext = request.getDestinationContext();
+				followUpEndpointContext = EndpointContextUtil.getFollowUpEndpointContext(messageContext, blockContext);
+			} else {
+				followUpEndpointContext = blockContext;
+			}
+		}
+		return followUpEndpointContext;
 	}
 
 	@Override
 	public synchronized String toString() {
-		return String.format("[currentNum=%d, currentSzx=%d, bufferSize=%d, complete=%b, random access=%b]",
-				currentNum, currentSzx, getBufferSize(), complete, randomAccess);
-	}
-
-	/**
-	 * Checks whether this status object is used for tracking random block access only.
-	 * 
-	 * @return {@code true} if this tracker is used for random block access only.
-	 */
-	public final synchronized boolean isRandomAccess() {
-		return randomAccess;
+		return String.format("[%s: currentNum=%d, currentSzx=%d, bufferSize=%d, complete=%b]", keyUri, currentNum,
+				currentSzx, getBufferSize(), complete);
 	}
 
 	/**
@@ -253,57 +377,100 @@ public abstract class BlockwiseStatus {
 	 * @param message The message.
 	 * @throws NullPointerException if the message is {@code null}.
 	 * @throws IllegalStateException if the first message is {@code null} or the
-	 *             source is not defined.
+	 *             source context is not defined.
 	 */
 	public final synchronized void assembleReceivedMessage(final Message message) {
 
 		if (message == null) {
 			throw new NullPointerException("message must not be null");
-		} else if (first == null) {
+		} else if (firstMessage == null) {
 			throw new IllegalStateException("first message is not set");
-		} else if (first.getSourceContext() == null) {
+		} else if (firstMessage.getSourceContext() == null) {
 			throw new IllegalStateException("first message has no peer context");
-		} else if (first.getSourceContext().getPeerAddress() == null) {
-			throw new IllegalStateException("first message has no peer address");
 		}
 		// The assembled request will contain the options of the first block
-		message.setSourceContext(first.getSourceContext());
-		message.setType(first.getType());
-		message.setMID(first.getMID());
-		message.setToken(first.getToken());
-		message.setOptions(new OptionSet(first.getOptions()));
+		message.setSourceContext(firstMessage.getSourceContext());
+		message.setType(firstMessage.getType());
+		message.setMID(firstMessage.getMID());
+		message.setToken(firstMessage.getToken());
+		message.setOptions(firstMessage.getOptions());
 		message.getOptions().removeBlock1();
 		message.getOptions().removeBlock2();
-		if (!message.isIntendedPayload()) {
-			message.setUnintendedPayload();
+		if (buf.position() > 0) {
+			if (!message.isIntendedPayload()) {
+				message.setUnintendedPayload();
+			}
+			message.setPayload(getBody());
 		}
-		message.setPayload(getBody());
 	}
 
 	/**
-	 * Sets or replaces the handle for this tracker's corresponding clean-up task.
-	 * <p>
-	 * An already existing handle is used to cancel the existing task before the new handle is
-	 * set.
+	 * Prepare outgoing message.
 	 * 
-	 * @param blockCleanupHandle The handle (may be {@code null}).
+	 * @param initialMessage initial message
+	 * @param message outgoing message
+	 * @param first first outgoing message of transfer.
+	 * @throws NullPointerException if one of the messages is {@code null}
+	 * @throws IllegalArgumentException if the initial message doesn't have a
+	 *             destination context
+	 * @since 3.0
 	 */
-	public final synchronized void setBlockCleanupHandle(final ScheduledFuture<?> blockCleanupHandle) {
+	protected void prepareOutgoingMessage(final Message initialMessage, final Message message, boolean first) {
 
-		if (this.cleanUpTask != null) {
-			this.cleanUpTask.cancel(false);
+		if (message == null) {
+			throw new NullPointerException("message must not be null!");
+		} else if (initialMessage == null) {
+			throw new NullPointerException("initial message must not be null!");
+		} else if (initialMessage.getDestinationContext() == null) {
+			throw new IllegalArgumentException("initial message has no destinationcontext!");
 		}
-		this.cleanUpTask = blockCleanupHandle;
+		// The assembled request will contain the options of the first block
+		message.setDestinationContext(initialMessage.getDestinationContext());
+		message.setType(initialMessage.getType());
+		message.setOptions(initialMessage.getOptions());
+		message.setMaxResourceBodySize(initialMessage.getMaxResourceBodySize());
+		message.addMessageObservers(initialMessage.getMessageObservers());
+		if (initialMessage.isUnintendedPayload()) {
+			message.setUnintendedPayload();
+		}
+		if (first && (initialMessage.getToken() == null || !initialMessage.hasMID())) {
+			message.addMessageObserver(0, new MessageObserverAdapter() {
+
+				@Override
+				public void onReadyToSend() {
+					// when the request for transferring the first block
+					// has been sent out, we copy the token to the
+					// original request so that at the end of the
+					// blockwise transfer the Matcher can correctly
+					// close the overall exchange
+					if (initialMessage.getToken() == null) {
+						initialMessage.setToken(message.getToken());
+					}
+					if (!initialMessage.hasMID()) {
+						initialMessage.setMID(message.getMID());
+					}
+				}
+			});
+		}
+		message.addMessageObserver(new MessageObserverAdapter() {
+
+			@Override
+			public void onCancel() {
+				removeHandler.remove(BlockwiseStatus.this);
+			}
+
+			@Override
+			protected void failed() {
+				removeHandler.remove(BlockwiseStatus.this);
+			}
+		});
 	}
 
 	/**
 	 * Complete current transfer.
 	 */
 	public void timeoutCurrentTranfer() {
-		final Exchange exchange;
-		synchronized (this) {
-			exchange = this.exchange;
-		}
+		final Exchange exchange = getExchange(true);
 		if (exchange != null && !exchange.isComplete()) {
 			exchange.execute(new Runnable() {
 
@@ -313,5 +480,20 @@ public abstract class BlockwiseStatus {
 				}
 			});
 		}
+	}
+
+	/**
+	 * Remove handler for blockwise status.
+	 * 
+	 * @since 3.0
+	 */
+	public static interface RemoveHandler {
+
+		/**
+		 * Remove blockwise status.
+		 * 
+		 * @param status blockwise status to remove
+		 */
+		void remove(BlockwiseStatus status);
 	}
 }

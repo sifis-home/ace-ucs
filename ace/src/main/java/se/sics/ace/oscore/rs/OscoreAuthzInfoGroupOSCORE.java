@@ -33,8 +33,8 @@ package se.sics.ace.oscore.rs;
 
 import java.io.IOException;
 import java.security.SecureRandom;
-import java.util.ArrayList;
 import java.util.Base64;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,6 +42,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.oscore.OSCoreCtx;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.eclipse.californium.oscore.OSException;
 
 import com.upokecenter.cbor.CBORObject;
@@ -69,7 +70,7 @@ import se.sics.ace.rs.TokenRepository;
  * Note this implementation requires the following claims in a CWT:
  * iss, sub, scope, aud.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
@@ -90,13 +91,13 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 */
 	private GroupOSCOREJoinValidator audience;
     
-	private int groupIdPrefixSize; // Same for all the OSCORE Group of the Group Manager
-
     /**
      * OSCORE groups active under the Group Manager
      */
-	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	private Map<Integer, GroupInfo> activeGroups;
+
+	private Map<String, GroupInfo> activeGroups;
+	
+	private final String rootGroupMembershipResource = "ace-group";
 	
 	/**
 	 * Constructor.
@@ -105,6 +106,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @param issuers  the list of acceptable issuer of access tokens
 	 * @param time  the time provider
 	 * @param intro  the introspection handler (can be null)
+	 * @param rsId  the identifier of the Resource Server
 	 * @param audience  the audience validator
 	 * @param ctx  the crypto context to use with the As
 	 * @param tokenFile  the file where to save tokens when persisting
@@ -114,11 +116,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	 * @throws AceException 
 	 */
 	public OscoreAuthzInfoGroupOSCORE(List<String> issuers, 
-			TimeProvider time, IntrospectionHandler intro, 
+			TimeProvider time, IntrospectionHandler intro, String rsId, 
 			AudienceValidator audience, CwtCryptoCtx ctx, String tokenFile,
 			ScopeValidator scopeValidator, boolean checkCnonce) 
 			        throws AceException, IOException {
-		super(issuers, time, intro, audience, ctx, tokenFile, 
+
+		super(issuers, time, intro, rsId, audience, ctx, null, 0, tokenFile, 
 		        scopeValidator, checkCnonce);
 		
 		this.audience = (GroupOSCOREJoinValidator) audience;
@@ -131,7 +134,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    CBORObject token = null;
 	    CBORObject cbor = null;
 	    boolean provideSignInfo = false;
-	    boolean providePubKeyEnc = false;
+	    boolean provideEcdhInfo = false;
 	    boolean invalid = false;
 	    
         try {
@@ -143,6 +146,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             map.Add(Constants.ERROR_DESCRIPTION, "Invalid payload");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        
         if (!cbor.getType().equals(CBORType.Map)) {
             LOGGER.info("Invalid payload at authz-info: not a cbor map");
             CBORObject map = CBORObject.NewMap();
@@ -152,9 +156,41 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
+        CBORObject nonce = null;
+        CBORObject senderIdCBOR = null;
+        
+        String subject = msg.getSenderId();
+        
+        // This Token POST is not protected; then the parameters Nonce1 and Id1 have to be present.
+        // Otherwise, if the Token POST is protected, these parameters are not expected, and are silently ignored if present
+        if (subject == null) {
+	        nonce = cbor.get(CBORObject.FromObject(Constants.NONCE1));
+	        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
+	            LOGGER.info("Missing or invalid parameter type for:"
+	                    + "'nonce1', must be present and byte-string");
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Malformed or missing parameter 'nonce1'");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+	        
+	        senderIdCBOR = cbor.get(CBORObject.FromObject(Constants.ID1));
+	        if (senderIdCBOR == null || !senderIdCBOR.getType().equals(CBORType.ByteString)) {
+	            LOGGER.info("Missing or invalid parameter type for:"
+	                    + "'id1', must be present and byte-string");
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Malformed or missing parameter 'id1'");
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+        }
+        
+        
         token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing manadory paramter 'access_token'");
+            LOGGER.info("Missing mandatory paramter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
@@ -169,19 +205,19 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     		else invalid = true;
     	}
     	
-    	if (cbor.ContainsKey(CBORObject.FromObject(Constants.PUB_KEY_ENC))) {
-    		if (cbor.get(CBORObject.FromObject(Constants.PUB_KEY_ENC)).equals(CBORObject.Null)) {
-    			providePubKeyEnc = true;
+        if (cbor.ContainsKey(CBORObject.FromObject(Constants.ECDH_INFO))) {
+    		if (cbor.get(CBORObject.FromObject(Constants.ECDH_INFO)).equals(CBORObject.Null)) {
+    			provideEcdhInfo = true;
     		}
     		else invalid = true;
     	}
-    	
+        
         if (invalid) {
-            LOGGER.info("Invalid format for 'sign_info' and 'pub_key_enc'");
+            LOGGER.info("Invalid format for 'sign_info'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Invalid format for 'sign_info' and 'pub_key_enc'");
+                    "Invalid format for 'sign_info'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
@@ -190,56 +226,101 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return reply;
         }
         
-        if (this.cnf == null) {//Should never happen, caught in TokenRepository
+        if (this.cnf == null) { //Should never happen, caught in TokenRepository
             LOGGER.info("Missing required parameter 'cnf'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
         }
-
-        CBORObject nonce = cbor.get(CBORObject.FromObject(Constants.CNONCE));
-        if (nonce == null || !nonce.getType().equals(CBORType.ByteString)) {
-            LOGGER.info("Missing or invalid parameter type for:"
-                    + "'cnonce', must be present and byte-string");
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Malformed or missing parameter cnonce");
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-        }
-        byte[] n1 = nonce.GetByteString();
-        byte[] n2 = new byte[8];
-        new SecureRandom().nextBytes(n2);
-   
-        OscoreSecurityContext osc;
-        try {
-            osc = new OscoreSecurityContext(this.cnf);
-        } catch (AceException e) {
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
-        }
-            
-        OSCoreCtx ctx;
-        try {
-            ctx = osc.getContext(false, n1, n2);
-            OscoreCtxDbSingleton.getInstance().addContext(ctx);
-        } catch (OSException e) {
-            LOGGER.info("Error while creating OSCORE context: " 
-                    + e.getMessage());
-            CBORObject map = CBORObject.NewMap();
-            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Error while creating OSCORE security context: "
-                    + e.getMessage());
-            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
-        }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.CNONCE, n2);
+        
+        CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(reply.getRawPayload());
         
         
+        // If the Token POST was a non protected request, then Nonces and IDs have
+        // to be exchanged, and a new OSCORE Security Context has to be established
+        if (subject == null) {
+	        String recipientIdString = authzInfoResponse.get(
+	                CBORObject.FromObject(Constants.CLIENT_ID)).AsString();
+	        if (recipientIdString == null) {
+	            LOGGER.info("Missing mandatory parameter 'client_id'");
+	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	        }
+	        byte[] recipientId = Base64.getDecoder().decode(recipientIdString);
+	        
+	        byte[] n1 = nonce.GetByteString();
+	        byte[] n2 = new byte[8];
+	        new SecureRandom().nextBytes(n2);
+	                
+	        OscoreSecurityContext osc;
+	        try {
+	            osc = new OscoreSecurityContext(this.cnf);
+	        } catch (AceException e) {
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, e.getMessage());
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
+	        }
+	            
+	        OSCoreCtx ctx;
+	        try {
+	            ctx = osc.getContext(false, n1, n2);
+	
+	            OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+	            
+	            synchronized(db) {
+	            	
+	            	boolean install = true;
+	            	
+	    			try {
+	            			
+	    				// Double check in the database that the OSCORE Security Context
+	    				// with the selected Recipient ID is actually still not present
+	        			if (db.getContext(recipientId) != null) {
+	        				// A Security Context with this Recipient ID exists!
+	        				install = false;
+	        			}        			
+	    			}
+	        		catch(RuntimeException e) {
+	    				// Multiple Security Contexts with this Recipient ID exist!
+	    				install = false;
+	        		}
+	            	
+	    			if (install)
+	    				db.addContext(ctx);
+	    			else {
+	    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
+					               + " has been installed while running the OSCORE profile");
+	    	            
+	    	            // Delete the stored Access Token to prevent a deadlock
+	    	    	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
+	    	    	    CBORObject cti = responseMap.get(CBORObject.FromObject(Constants.CTI));
+	    	    	    try {
+	    	    	    	TokenRepository.getInstance().removeToken(cti.AsString());
+	    	    	    }
+	    	    	    catch (AceException e) {
+	    	                LOGGER.info("Error while deleting an Access Token: " + e.getMessage());
+	    	    	    }
+	    	            return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
+	    			}
+	            }
+	
+	        } catch (OSException e) {
+	            LOGGER.info("Error while creating OSCORE context: " 
+	                    + e.getMessage());
+	            CBORObject map = CBORObject.NewMap();
+	            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+	            map.Add(Constants.ERROR_DESCRIPTION, 
+	                    "Error while creating OSCORE security context: "
+	                    + e.getMessage());
+	            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+	        }
+	        
+	        payload.Add(Constants.NONCE2, n2);
+	        payload.Add(Constants.ID2, recipientId);
+        
+        }
         
         //Return the cti or the local identifier assigned to the token
 	    CBORObject responseMap = CBORObject.DecodeFromBytes(reply.getRawPayload());
@@ -257,58 +338,47 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
     	CBORObject scope = claims.get(Constants.SCOPE);
     	
     	if (scope.getType().equals(CBORType.ByteString)) {
-    	
-    		CBORObject aud = claims.get(Constants.AUD);
     		
     		Set<String> myGMAudiences = this.audience.getAllGMAudiences();
     		Set<String> myJoinResources = this.audience.getAllJoinResources();
     		
-    		ArrayList<String> auds = new ArrayList<>();
-    	    if (aud.getType().equals(CBORType.Array)) {
-    	        for (int i=0; i<aud.size(); i++) {
-    	            if (aud.get(i).getType().equals(CBORType.TextString)) {
-    	                auds.add(aud.get(i).AsString());
-    	            } //XXX: silently skip aud entries that are not text strings
-    	        }
-    	    } else if (aud.getType().equals(CBORType.TextString)) {
-    	        auds.add(aud.AsString());
-    	    }
+    		CBORObject audCbor = claims.get(Constants.AUD);
+    		String aud = audCbor.AsString();
+    		
     		
     		byte[] rawScope = scope.GetByteString();
     		CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
-    		String scopeStr = cborScope.get(0).AsString();
-
-    		// Check that the audience is in fact a Group Manager
-    		for (String foo : auds) {
-    			if (myGMAudiences.contains(foo)) {
-    				error = false;
-    	    		break;
-    	    	}
-    	    }
+    		Set<String> groupNames = new HashSet<>();
     		
-    		// Check that the scope refers to a join resource
+    		// Check that the audience is in fact a Group Manager
+			if (myGMAudiences.contains(aud)) {
+				error = false;
+	    	}
+    		
+      	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++)
+      	  		groupNames.add(cborScope.get(entryIndex).get(0).AsString());
+    		
+    		// Check that all the group names in scope refer to group-membership resources
     		if (error == false) {
-    			if (myJoinResources.contains(scopeStr) == false)
-    				error = true;
+    			for (String groupName : groupNames) {
+    				if (myJoinResources.contains(rootGroupMembershipResource + "/" + groupName) == false) {
+    					error = true;
+    					break;
+    				}
+    			}
     		}
     		
     		if (error == true) {
-                LOGGER.info("'sign_info' and 'pub_key_enc' are relevant only for join resources at a Group Manager");
+                LOGGER.info("The audience must be a Group Manager; group name must point at group-membership resources of that Group Manager");
                 CBORObject map = CBORObject.NewMap();
                 map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
     		
-    		String prefixStr = scopeStr.substring(0, 2 * groupIdPrefixSize);
-        	byte[] prefixByteStr = Util.hexStringToByteArray(prefixStr);
-        	
-        	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
-    		
         	// Add the nonce for PoP of the Client's private key in the Join Request
             byte[] rsnonce = new byte[8];
             new SecureRandom().nextBytes(rsnonce);
-            payload.Add(Constants.RSNONCE, rsnonce);
+            payload.Add(Constants.KDCCHALLENGE, rsnonce);
             
     	    CBORObject sid = responseMap.get(CBORObject.FromObject(Constants.SUB));
     	    
@@ -319,56 +389,102 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
                 return msg.failReply(Message.FAIL_BAD_REQUEST, map); 
             }
     	    
-    	    // TODO: REMOVE DEBUG PRINT
-    	    // System.out.println("AuthzInfoGroupOSCORE " + sid);
-    	    
-    	    // TODO: REMOVE DEBUG PRINT
-    	    // System.out.println("AuthzInfoGroupOSCORE " + sid.AsString());
-    	    // System.out.println("AuthzInfoGroupOSCORE " + Base64.getEncoder().encodeToString(rsnonce));
-    	    
     	    // Add to the Token Repository an entry (sid, rsnonce)
     	    TokenRepository.getInstance().setRsnonce(sid.AsString(), Base64.getEncoder().encodeToString(rsnonce));
     	    
-		    if (provideSignInfo) {
-		    	
-		    	CBORObject signInfo = CBORObject.NewArray();
-		    	
-		    	signInfo.Add(myGroup.getCsAlg().AsCBOR());
-		    	
-		    	CBORObject arrayElem = myGroup.getCsParams();
-		    	if (arrayElem == null)
-		    		signInfo.Add(CBORObject.Null);
-		    	else
-		    		signInfo.Add(arrayElem);
-		    	
-		    	arrayElem = myGroup.getCsKeyParams();
-		    	if (arrayElem == null)
-		    		signInfo.Add(CBORObject.Null);
-		    	else
-		    		signInfo.Add(arrayElem);
-		    	
-		    	payload.Add(Constants.SIGN_INFO, signInfo);
-		    	
-		    }
-	    
-		    if (providePubKeyEnc) {
-		    	
-		    	payload.Add(Constants.PUB_KEY_ENC, myGroup.getCsKeyEnc());
-		    	
-		    }
+	    	if (provideSignInfo || provideEcdhInfo) {
+	    	    
+	    		CBORObject signInfo = CBORObject.NewArray();
+	    		CBORObject ecdhInfo = CBORObject.NewArray();
+	    	
+				for (String groupName : groupNames) {
+					
+		        	// Retrieve the entry for the target group, using the name of the OSCORE group
+		        	GroupInfo myGroup = this.activeGroups.get(groupName);
+					
+		        	// The group uses the group mode
+		        	if (provideSignInfo && myGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+		        	
+						CBORObject signInfoEntry = CBORObject.NewArray();
+						
+						// 'id' element
+						signInfoEntry.Add(CBORObject.FromObject(groupName));
+						
+						// 'sign_alg' element
+						signInfoEntry.Add(myGroup.getSignAlg().AsCBOR());
+				    	
+						// 'sign_parameters' element (The algorithm capabilities)
+				    	CBORObject arrayElem = myGroup.getSignParams().get(0);
+				    	if (arrayElem == null)
+				    		signInfoEntry.Add(CBORObject.Null);
+				    	else
+				    		signInfoEntry.Add(arrayElem);
+				    	
+				    	// 'sign_key_parameters' element (The key type capabilities)
+				    	arrayElem = myGroup.getSignParams().get(1);
+				    	if (arrayElem == null)
+				    		signInfoEntry.Add(CBORObject.Null);
+				    	else
+				    		signInfoEntry.Add(arrayElem);
+				    	
+				    	// 'pub_key_enc' element
+				    	signInfoEntry.Add(myGroup.getPubKeyEnc());
+	
+					    signInfo.Add(signInfoEntry);
+		        	}
+		        	
+		        	// The group uses the pairwise mode
+		        	if (provideEcdhInfo && myGroup.getMode() != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+		        	
+						CBORObject ecdhEntry = CBORObject.NewArray();
+						
+						// 'id' element
+						ecdhEntry.Add(CBORObject.FromObject(groupName));
+						
+						// 'ecdh_alg' element
+						ecdhEntry.Add(myGroup.getEcdhAlg().AsCBOR());
+				    	
+						// 'ecdh_parameters' element (The algorithm capabilities)
+				    	CBORObject arrayElem = myGroup.getEcdhParams().get(0);
+				    	if (arrayElem == null)
+				    		ecdhEntry.Add(CBORObject.Null);
+				    	else
+				    		ecdhEntry.Add(arrayElem);
+				    	
+				    	// 'ecdh_key_parameters' element (The key type capabilities)
+				    	arrayElem = myGroup.getEcdhParams().get(1);
+				    	if (arrayElem == null)
+				    		ecdhEntry.Add(CBORObject.Null);
+				    	else
+				    		ecdhEntry.Add(arrayElem);
+				    	
+				    	// 'pub_key_enc' element
+				    	ecdhEntry.Add(myGroup.getPubKeyEnc());
+	
+					    ecdhInfo.Add(ecdhEntry);
+		        	}
+				    
+				}
+
+				if (provideSignInfo && signInfo.size() != 0)
+					payload.Add(Constants.SIGN_INFO, signInfo);
+				
+				if (provideEcdhInfo && ecdhInfo.size() != 0)
+					payload.Add(Constants.ECDH_INFO, ecdhInfo);
+		    
+	    	}
     		
     	}
-        
+    	
         LOGGER.info("Successfully processed OSCORE token");
         return msg.successReply(reply.getMessageCode(), payload);
 	}
 
-	public synchronized void setActiveGroups(Map<Integer, GroupInfo> activeGroups) {
+	/**
+	 * @param activeGroups
+	 */
+	public synchronized void setActiveGroups(Map<String, GroupInfo> activeGroups) {
 		this.activeGroups = activeGroups;
-	}
-	
-	public synchronized void setGroupIdPrefixSize (int groupIdPrefixSize) {
-		this.groupIdPrefixSize = groupIdPrefixSize;
 	}
 	
 	@Override

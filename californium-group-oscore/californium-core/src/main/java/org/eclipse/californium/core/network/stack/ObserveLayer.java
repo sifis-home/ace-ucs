@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -48,13 +48,14 @@ import org.eclipse.californium.core.network.Exchange;
 import org.eclipse.californium.core.network.Exchange.Origin;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.observe.ObserveRelation;
+import org.eclipse.californium.elements.util.StringUtil;
 
 /**
  * UDP observe layer.
  */
 public class ObserveLayer extends AbstractLayer {
 
-	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveLayer.class.getName());
+	private static final Logger LOGGER = LoggerFactory.getLogger(ObserveLayer.class);
 
 	/**
 	 * Creates a new observe layer for a configuration.
@@ -117,14 +118,6 @@ public class ObserveLayer extends AbstractLayer {
 			} else {
 				relation.setCurrentControlNotification(response);
 				relation.setNextControlNotification(null);
-			}
-
-			/*
-			 * The matcher must be able to find the NON notifications to remove
-			 * them from the exchangesByMID hashmap
-			 */
-			if (response.getType() == Type.NON) {
-				relation.addNotification(response);
 			}
 
 		} // else no observe was requested or the resource does not allow it
@@ -198,13 +191,6 @@ public class ObserveLayer extends AbstractLayer {
 			relation.setNextControlNotification(null);
 			if (next != null) {
 				LOGGER.debug("notification has been acknowledged, send the next one");
-				/*
-				 * The matcher must be able to find the NON notifications to
-				 * remove them from the exchangesByMID hashmap
-				 */
-				if (next.getType() == Type.NON) {
-					relation.addNotification(next);
-				}
 				// Create a new task for sending next response so that we
 				// can leave the sync-block
 				exchange.execute(new Runnable() {
@@ -244,7 +230,7 @@ public class ObserveLayer extends AbstractLayer {
 		public void onTimeout() {
 			ObserveRelation relation = exchange.getRelation();
 			LOGGER.info("notification for token [{}] timed out. Canceling all relations with source [{}]",
-					relation.getExchange().getRequest().getToken(), relation.getSource());
+					relation.getExchange().getRequest().getToken(), StringUtil.toLog(relation.getSource()));
 			relation.cancelAll();
 		}
 

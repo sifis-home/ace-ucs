@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -48,6 +48,33 @@ import org.eclipse.californium.elements.EndpointContext;
  * message using the message's <code>addMessageObserver</code> method.
  */
 public abstract class MessageObserverAdapter implements MessageObserver {
+
+	/**
+	 * Indicates, that the observer is used for internal purpose.
+	 * @since 3.0
+	 */
+	private final boolean isInternal;
+
+	/**
+	 * Create none-internal instance.
+	 */
+	protected MessageObserverAdapter() {
+		this(false);
+	}
+
+	/**
+	 * Create instance.
+	 * 
+	 * @param isInternal {@code true}, for internal instances, {@code false}, otherwise.
+	 */
+	protected MessageObserverAdapter(boolean isInternal) {
+		this.isInternal = isInternal;
+	}
+
+	@Override
+	public boolean isInternal() {
+		return isInternal;
+	}
 
 	@Override
 	public void onRetransmission() {
@@ -95,7 +122,7 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	@Override
-	public void onSent() {
+	public void onSent(boolean retransmission) {
 		// empty default implementation
 	}
 
@@ -105,12 +132,17 @@ public abstract class MessageObserverAdapter implements MessageObserver {
 	}
 
 	@Override
+	public void onResponseHandlingError(Throwable error) {
+		failed();
+	}
+
+	@Override
 	public void onContextEstablished(EndpointContext endpointContext) {
 		// empty default implementation
 	}
 
 	@Override
-	public void onComplete() {
+	public void onTransferComplete() {
 		// empty default implementation
 	}
 

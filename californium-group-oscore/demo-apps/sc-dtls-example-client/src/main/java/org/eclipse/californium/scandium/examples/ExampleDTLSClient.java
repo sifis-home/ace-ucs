@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -43,7 +43,8 @@ import org.eclipse.californium.elements.util.SslContextUtil;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.StaticNewAdvancedCertificateVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -51,7 +52,7 @@ public class ExampleDTLSClient {
 
 	private static final int DEFAULT_PORT = 5684;
 	private static final long DEFAULT_TIMEOUT_NANOS = TimeUnit.MILLISECONDS.toNanos(10000);
-	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSClient.class.getName());
+	private static final Logger LOG = LoggerFactory.getLogger(ExampleDTLSClient.class);
 	private static final char[] KEY_STORE_PASSWORD = "endPass".toCharArray();
 	private static final String KEY_STORE_LOCATION = "certs/keyStore.jks";
 	private static final char[] TRUST_STORE_PASSWORD = "rootPass".toCharArray();
@@ -74,11 +75,11 @@ public class ExampleDTLSClient {
 					SslContextUtil.CLASSPATH_SCHEME + TRUST_STORE_LOCATION, "root", TRUST_STORE_PASSWORD);
 
 			DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-			builder.setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
+			builder.setAdvancedPskStore(new AdvancedSinglePskStore("Client_identity", "secretPSK".getBytes()));
 			builder.setIdentity(clientCredentials.getPrivateKey(), clientCredentials.getCertificateChain(),
 					CertificateType.RAW_PUBLIC_KEY, CertificateType.X_509);
-			builder.setTrustStore(trustedCertificates);
-			builder.setRpkTrustAll();
+			builder.setAdvancedCertificateVerifier(StaticNewAdvancedCertificateVerifier.builder()
+					.setTrustedCertificates(trustedCertificates).setTrustAllRPKs().build());
 			builder.setConnectionThreadCount(1);
 			dtlsConnector = new DTLSConnector(builder.build());
 			dtlsConnector.setRawDataReceiver(new RawDataChannel() {

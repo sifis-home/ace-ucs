@@ -37,6 +37,8 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
+import org.eclipse.californium.core.coap.CoAP;
+
 import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
@@ -59,7 +61,7 @@ import se.sics.ace.examples.KissTime;
  * The Junit tests are in TestCoAPClient, 
  * which will automatically start this server.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class OscoreASTestServer
@@ -70,7 +72,33 @@ public class OscoreASTestServer
     private static CoapDBConnector db = null;
     private static OscoreAS as = null;
     private static KissPDP pdp = null;
+    
+    // The map has as key the name of a Client or Resource Server,
+    // and as value the OSCORE identity of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerNamesToIdentities = new HashMap<>();
+    
+    
+    // The map has as key the OSCORE identity of the Client or Resource Server,
+    // and as value the name of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerIdentitiesToNames = new HashMap<>();
+    
+    
+    // The inner map has as key the name of a Client or Resource Server, and
+    // as value the OSCORE identity that this specific AS has with that peer.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> myIdentities = new HashMap<>();
   
+    // OSCORE Context ID used to communicate with Clients and Resource Server (it can be null)
+    private static byte[] idContext = null;
+    
     /**
      * The OSCORE AS for testing, autostarted by tests needing this.
      *  
@@ -83,53 +111,84 @@ public class OscoreASTestServer
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key256));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key256));
         OneKey tokenPsk = new OneKey(keyData);
         
         keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
-        keyData.Add(KeyKeys.Octet_K.AsCBOR(), 
-                CBORObject.FromObject(key128));
+        keyData.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(key128));
         OneKey authPsk = new OneKey(keyData);
+        
+        String myName = "AS";
+        String myIdentity = buildOscoreIdentity(new byte[] {0x00}, idContext);
+        String peerIdentity;
         
         //Setup RS entries
         Set<String> profiles = new HashSet<>();
         profiles.add("coap_oscore");
-        Set<String> scopes = new HashSet<>();
-        scopes.add("rw_valve");
-        scopes.add("r_pressure");
-        scopes.add("foobar");
         Set<String> auds = new HashSet<>();
+        auds.add("aud1");
+        auds.add("actuators");
         Set<String> keyTypes = new HashSet<>();
         keyTypes.add("PSK");
         Set<Short> tokenTypes = new HashSet<>();
         tokenTypes.add(AccessTokenFactory.CWT_TYPE);
         Set<COSEparams> cose = new HashSet<>();
-        COSEparams coseP = new COSEparams(MessageTag.MAC0, 
-                AlgorithmID.HMAC_SHA_256, AlgorithmID.Direct);
+        COSEparams coseP = new COSEparams(MessageTag.Encrypt0, AlgorithmID.AES_CCM_16_128_256, AlgorithmID.Direct);
         cose.add(coseP);
         long expiration = 30000L;
-        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose,
-                expiration, authPsk, tokenPsk, null);
+        
+        Set<String> scopes = new HashSet<>();
+        scopes.add("r_temp");
+        scopes.add("rw_config");
+        scopes.add("co2");
+        db.addRS("rs1", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x11}, idContext);
+        peerNamesToIdentities.put("rs1", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "rs1");
+        myIdentities.put("rs1", myIdentity);
+        
+        scopes = new HashSet<>();
+        scopes.add("r_temp");
+        scopes.add("rw_config");
+        scopes.add("rw_light");
+        scopes.add("failTokenType");
+        auds.clear();
+        auds.add("aud2");
+        db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose, expiration, authPsk, tokenPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x12}, idContext);
+        peerNamesToIdentities.put("rs2", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "rs2");
+        myIdentities.put("rs2", myIdentity);
+        
         
         profiles.clear();
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+        db.addClient("clientA", profiles, null, null, keyTypes, authPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] {0x01}, idContext);
+        peerNamesToIdentities.put("clientA", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "clientA");
+        myIdentities.put("clientA", myIdentity);
+        
         
         KissTime time = new KissTime();
+        
+        // Add a Token to successfully test introspection
+        //
+        // Note that this Token is not including everything expected in a Token
+        // for the OSCORE profile, especially the 'cnf' claim requiring specific
+        // preparation in the /token endpoint
         String cti = Base64.getEncoder().encodeToString(new byte[]{0x00});
         Map<Short, CBORObject> claims = new HashMap<>();
         claims.put(Constants.SCOPE, CBORObject.FromObject("co2"));
-        claims.put(Constants.AUD,  CBORObject.FromObject("sensors"));
         claims.put(Constants.EXP, CBORObject.FromObject(time.getCurrentTime()+1000000L));   
         claims.put(Constants.AUD,  CBORObject.FromObject("actuators"));
         claims.put(Constants.CTI, CBORObject.FromObject(new byte[]{0x00}));
         db.addToken(cti, claims);       
-        db.addCti2Client(cti, "clientA");
+        db.addCti2Client(cti, "clientA");  
+        
         
         OneKey asymmKey = OneKey.generateKey(AlgorithmID.ECDSA_256);
         pdp = new KissPDP(db);
@@ -151,13 +210,15 @@ public class OscoreASTestServer
 
         pdp.addAccess("clientA", "rs1", "r_temp");
         pdp.addAccess("clientA", "rs1", "rw_config");
-        pdp.addAccess("clientA", "rs2", "r_light");
+        pdp.addAccess("clientA", "rs2", "r_temp");
+        pdp.addAccess("clientA", "rs2", "rw_config");
+        pdp.addAccess("clientA", "rs2", "rw_light");
         pdp.addAccess("clientA", "rs5", "failTokenNotImplemented");
         
         pdp.addAccess("clientB", "rs1", "r_temp");
         pdp.addAccess("clientB", "rs1", "co2");
-        pdp.addAccess("clientB", "rs2", "r_light");
-        pdp.addAccess("clientB", "rs2", "r_config");
+        pdp.addAccess("clientB", "rs2", "rw_light");
+        pdp.addAccess("clientB", "rs2", "rw_config");
         pdp.addAccess("clientB", "rs2", "failTokenType");
         pdp.addAccess("clientB", "rs3", "rw_valve");
         pdp.addAccess("clientB", "rs3", "r_pressure");
@@ -173,17 +234,18 @@ public class OscoreASTestServer
 
         pdp.addAccess("clientD", "rs1", "r_temp");
         pdp.addAccess("clientD", "rs1", "rw_config");
-        pdp.addAccess("clientD", "rs2", "r_light");
-        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");
-        pdp.addAccess("clientD", "rs1", "r_temp");
-        
+        pdp.addAccess("clientD", "rs2", "rw_light");
+        pdp.addAccess("clientD", "rs5", "failTokenNotImplemented");        
 
         pdp.addAccess("clientE", "rs3", "rw_valve");
         pdp.addAccess("clientE", "rs3", "r_pressure");
         pdp.addAccess("clientE", "rs3", "failTokenType");
         pdp.addAccess("clientE", "rs3", "failProfile");
         
-        as = new OscoreAS("AS", db, pdp, time, asymmKey);
+        as = new OscoreAS(myName, db, pdp, time, asymmKey,"token", "introspect",
+                          CoAP.DEFAULT_COAP_PORT, null, false, (short)1, true,
+                          peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
+        
         as.start();
         System.out.println("Server starting");
     }
@@ -197,6 +259,24 @@ public class OscoreASTestServer
         as.stop();
         pdp.close();
       
+    }
+    
+    private static String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
+    	
+    	if (senderId == null)
+    		return null;
+    	
+    	String identity = "";
+    	
+    	if (contextId != null) {
+    		identity += Base64.getEncoder().encodeToString(contextId);
+    		identity += ":";
+    	}
+    	
+    	identity += Base64.getEncoder().encodeToString(senderId);
+    	
+    	return identity;
+    	
     }
     
 }

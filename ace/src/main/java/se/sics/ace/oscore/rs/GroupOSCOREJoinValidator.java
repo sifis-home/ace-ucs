@@ -31,7 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.oscore.rs;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -43,6 +42,7 @@ import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.rs.AudienceValidator;
 import se.sics.ace.rs.ScopeValidator;
 
@@ -54,7 +54,7 @@ import se.sics.ace.rs.ScopeValidator;
  * The actions are expected to be integers corresponding to the 
  * values for RESTful actions in <code>Constants</code>.
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidator {
@@ -64,38 +64,41 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
      */
 	private Set<String> myAudiences;
 	
-	// M.T.
 	/**
      * The audiences acting as OSCORE Group Managers
      * Each of these audiences is also included in the main set "myAudiences"
      */
 	private Set<String> myGMAudiences;
 	
-	// M.T.
 	/**
-     * The join resources exported by the OSCORE Group Manager to access an OSCORE group.
-     * The name of the join resource is the zeroed-epoch Group ID of the OSCORE group.
+     * The group-membership resources exported by the OSCORE Group Manager to access an OSCORE group.
+     * 
+     * Each entry of the list contains the full path to a group-membership resource and the last
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
      */
 	private Set<String> myJoinResources;
+	
+	private String rootGroupMembershipResource;
 	
 	/**
 	 * Maps the scopes to a map that maps the scope's resources to the actions 
 	 * allowed on that resource
 	 */
-	private Map<String, Map<String, Set<Short>>> myScopes;  
+	private Map<String, Map<String, Set<Short>>> myScopes;
 	
-	// M.T.
 	/**
 	 * Constructor.
 	 * 
 	 * @param myAudiences  the audiences that this validator should accept
 	 * @param myScopes  the scopes that this validator should accept
+	 * @param rootGroupMemberResource  the path of the root Group Membership Resource, i.e., "ace-group"
 	 */
-	public GroupOSCOREJoinValidator(Set<String> myAudiences, 
-	        Map<String, Map<String, Set<Short>>> myScopes) {
+	public GroupOSCOREJoinValidator(Set<String> myAudiences,
+	        Map<String, Map<String, Set<Short>>> myScopes,
+	        String rootGroupMemberResource) {
 		this.myAudiences = new HashSet<>();
-		this.myGMAudiences = new HashSet<>(); // M.T:
-		this.myJoinResources = new HashSet<>(); // M.T:
+		this.myGMAudiences = new HashSet<>();
+		this.myJoinResources = new HashSet<>();
 		this.myScopes = new HashMap<>();
 		if (myAudiences != null) {
 		    this.myAudiences.addAll(myAudiences);
@@ -107,22 +110,31 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		} else {
 		    this.myScopes = Collections.emptyMap();
 		}
+    	this.rootGroupMembershipResource = rootGroupMemberResource;
 	}
 	
-	// M.T.
+	/**
+	 * Get a string including the common URI path to all group-membership
+	 * resources, i.e. the full URI path minus the group name
+	 * 
+	 * @return the common URI path to all group-membership resources
+	 */
+	public String getRootGroupMembershipResource() {
+        return this.rootGroupMembershipResource;
+	}
+	
 	/**
 	 * Get the list of audiences acting as OSCORE Group Managers.
 	 * 
 	 * @return the audiences that this validator considers as OSCORE Group Managers
 	 */
 	public synchronized Set<String> getAllGMAudiences() {
-		if (this.myGMAudiences != null)
+		if (this.myGMAudiences != null) {
 			return this.myGMAudiences;
-		else
-			return Collections.emptySet();
+		}
+        return Collections.emptySet();
 	}
 	
-	// M.T.
 	/**
 	 * Set the list of audiences acting as OSCORE Group Managers.
 	 * Check that each of those audiences are in the main set "myAudiences".
@@ -143,8 +155,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		    this.myGMAudiences = Collections.emptySet();
 		}
 	}
-	
-	// M.T.
+
 	/**
 	 * Remove an audience acting as OSCORE Group Manager from "myGMAudiences".
 	 * This method does not remove the audience from the main set "myAudiences".
@@ -159,7 +170,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return false;
 	}
 	
-	// M.T.
 	/**
 	 * Remove all the audiences acting as OSCORE Group Manager from "myGMAudiences".
 	 * This method does not remove the audiences from the main set "myAudiences".
@@ -169,26 +179,28 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		this.myGMAudiences.clear();
 	}
 	
-	// M.T.
 	/**
-	 * Get the list of join resources to access an OSCORE group.
-	 * The name of the join resource is the zeroed-epoch Group ID of the OSCORE group.
+	 * Get the list of group-membership resources to access an OSCORE group.
 	 * 
-	 * @return the resources that this validator considers as join resources to access an OSCORE group
+	 * Each entry of the list contains the full path to a group-membership resource, and the last
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
+	 * 
+	 * @return the resources that this validator considers as group-membership resources to access an OSCORE group
 	 */
 	public synchronized Set<String> getAllJoinResources() {
-		if (this.myJoinResources != null)
+		if (this.myJoinResources != null) {
 			return this.myJoinResources;
-		else
-		    return Collections.emptySet();
+		}
+        return Collections.emptySet();
 	}
 	
-	// M.T.
 	/**
-	 * Set the list of join resources to access an OSCORE group.
-	 * The name of the join resource is the zeroed-epoch Group ID of the OSCORE group.
+	 * Set the list of group-membership resources to access an OSCORE group.
 	 * 
-	 * @param myJoinResources  the resources that this validator considers as join resources to access an OSCORE group
+	 * Each entry of the list contains the full path to a group-membership resource, and the last
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
+     * 
+	 * @param myJoinResources  the resources that this validator considers as group-membership resources to access an OSCORE group
 	 * .
 	 * @throws AceException FIXME: when thrown?
 	 */
@@ -201,11 +213,13 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		}
 	}
 	
-	// M.T.
 	/**
-	 * Remove a join resource to access an OSCORE group from "myJoinResources".
+	 * Remove a group-membership resource to access an OSCORE group from "myJoinResources".
 	 * 
-	 * @param joinResource  the join resource to remove.
+	 * The group-membership resource to remove is specified by its full path, where the last
+     * path segment is the name of the associated OSCORE group, e.g. ace-group/GROUP_NAME
+	 * 
+	 * @param joinResource  the group-membership resource to remove.
 	 * 
 	 * @return true if the specified resource was included and has been removed, false otherwise.
 	 */
@@ -215,9 +229,8 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return false;
 	}
 	
-	// M.T.
 	/**
-	 * Remove all the join resources to access an OSCORE group from "myJoinResources".
+	 * Remove all the group-membership resources to access an OSCORE group from "myJoinResources".
 	 * 
 	 */
 	public synchronized void removeAllJoinResources(){
@@ -229,10 +242,10 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
 		return this.myAudiences.contains(aud);
 	}
 
-	// M.T.
     @Override
     public boolean scopeMatch(CBORObject scope, String resourceId, Object actionId)
             throws AceException {
+    	
         if (!scope.getType().equals(CBORType.TextString) && !scope.getType().equals(CBORType.ByteString)) {
             throw new AceException("Scope must be a Text String or a Byte String");
         }
@@ -248,7 +261,7 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this resource must be a byte string");
+        		return false;
     	
         	String[] scopes = scope.AsString().split(" ");
             for (String subscope : scopes) {
@@ -266,9 +279,6 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	}
     	
     	else if (scope.getType().equals(CBORType.ByteString) && isJoinResource) {
-        	
-    		if ((short)actionId != Constants.POST)
-    			throw new AceException("Invalid action on a join resource to access an OSCORE group");
     		
         	byte[] rawScope = scope.GetByteString();
         	CBORObject cborScope = CBORObject.DecodeFromBytes(rawScope);
@@ -277,54 +287,59 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
-      	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
-      	  	
-      	  	// scopeStr is either "<zeroed-epoch-Group-ID>_role1>" or "<zeroed-epoch-Group-ID>_role1_role2>"
-      	  	Map<String, Set<Short>> resources = this.myScopes.get(scopeStr);
-      	  	
-      	  	if (resources == null)
-      	  		return false;
-      	  	
-      	  	// resourceId is the zeroed-epoch Group ID of the OSCORE group
-      	  	if (resources.containsKey(resourceId)) {
-      	  		if (resources.get(resourceId).contains(actionId)) {
-      	  			return true;
-      	  		}
-      	  	}
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+	        	
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The Group Name must be a CBOR Text String");}
+	        	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	
+	        	if (scopeElement.getType().equals(CBORType.Integer)) {
+	        		int roleSet = scopeElement.AsInt32();
+	        		
+	        		if (roleSet <= 0)
+	        			throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
+	        		
+	        		Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
+	        		for (Integer elem : roleIdSet) {
+	        			if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	        				continue;
+	        			else {
+	        				throw new AceException("Unrecognized role");
+	        			}
+	        		}
+	        		  
+	        	}
+	      	  	
+	      	  	else {throw new AceException("Invalid format of roles");}
+	      	  	
+	      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
+	      	  		      	  	
+	      	  	// resourceId is the name of the OSCORE group
+	      	  	if (resources != null && resources.containsKey(resourceId)) {
+	      	  		if (resources.get(resourceId).contains(actionId)) {
+	      	  			return true;
+	      	  		}
+	      	  	}
+	      	  	
+        	}
       	  	
       	  	return false;
       	  	
         }
         
     	// This includes the case where the scope is encoded as a CBOR Byte String,
-    	// but the targeted resource is not a join resource to access an OSCORE group.
+    	// but the targeted resource is not a group-membership resource to access an OSCORE group.
     	// In fact, no processing for byte string scopes are defined, other than
     	// the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
         else if (scope.getType().equals(CBORType.ByteString))
@@ -334,11 +349,10 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     	
     }
 
-    // M.T.
     @Override
     public boolean scopeMatchResource(CBORObject scope, String resourceId)
             throws AceException {
-
+    	
         if (!scope.getType().equals(CBORType.TextString) && !scope.getType().equals(CBORType.ByteString)) {
             throw new AceException("Scope must be a Text String or a Byte String");
         }
@@ -346,14 +360,15 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
         boolean isJoinResource = false;
     	boolean scopeMustBeBinary = false;
+    	
     	if (this.myJoinResources.contains(resourceId))
     		isJoinResource = true;
     	
     	scopeMustBeBinary = isJoinResource;
-        
+    	
     	if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this resource must be a byte string");
+        		return false;
         
         	String[] scopes = scope.AsString().split(" ");
             for (String subscope : scopes) {           
@@ -378,51 +393,56 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+        	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
-      	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
-      	  	
-      	  	// scopeStr is either "<zeroed-epoch-Group-ID>_role1>" or "<zeroed-epoch-Group-ID>_role1_role2>"
-      	  	Map<String, Set<Short>> resources = this.myScopes.get(scopeStr);
-      	  	
-      	  	if (resources == null)
-      	  		return false;
-      	  	
-      	  	// resourceId is the zeroed-epoch Group ID of the OSCORE group
-      	  	if (resources.containsKey(resourceId))
-      	  			return true;
+        		CBORObject scopeEntry = cborScope.get(entryIndex);
+        		
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+	        	
+	        	// Retrieve the group name of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
+	        	
+	      	  	// Retrieve the role or list of roles
+	      	  	scopeElement = scopeEntry.get(1);
+	      	  	
+	        	if (scopeElement.getType().equals(CBORType.Integer)) {
+	        		int roleSet = scopeElement.AsInt32();
+	        		
+	        		if (roleSet <= 0)
+	        			throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
+	        		
+	        		Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
+	        		for (Integer elem : roleIdSet) {
+	        			if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	        				continue;
+	        			else {
+	        				throw new AceException("Unrecognized role");
+	        			}
+	        		}
+	        			        		  
+	        	}
+	     	
+	      	  	else {throw new AceException("Invalid format of roles");}
+	      	  	
+	      	  	Map<String, Set<Short>> resources = this.myScopes.get(rootGroupMembershipResource + "/" + scopeStr);
+	      	  	
+	      	  	// resourceId is the name of the OSCORE group
+	      	  	if (resources != null && resources.containsKey(resourceId))
+	      	  			return true;
+	      	  	
+        	}
       	  	
       	  	return false;
       	  	
         }
         
     	// This includes the case where the scope is encoded as a CBOR Byte String,
-    	// but the targeted resource is not a join resource to access an OSCORE group.
+    	// but the targeted resource is not a group-membership resource to access an OSCORE group.
     	// In fact, no processing for byte string scopes are defined, other than
     	// the one implemented above according to draft-ietf-ace-key-groupcomm-oscore
         else if (scope.getType().equals(CBORType.ByteString))
@@ -440,7 +460,8 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
     }
     
     @Override
-    public boolean isScopeMeaningful(CBORObject scope, ArrayList<String> aud) throws AceException {
+    public boolean isScopeMeaningful(CBORObject scope, String aud) throws AceException {
+    	
         if (!scope.getType().equals(CBORType.TextString) && !scope.getType().equals(CBORType.ByteString)) {
             throw new AceException("Scope must be a Text String or a Byte String");
         }
@@ -448,17 +469,16 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
         String scopeStr;
     	boolean scopeMustBeBinary = false;
     	boolean rsOSCOREGroupManager = false;
-    	for (String foo : aud) {
-    		if (this.myGMAudiences.contains(foo)) {
-    			rsOSCOREGroupManager = true;
-    			break;
-    		}
+    	
+    	if (this.myGMAudiences.contains(aud)) {
+    		rsOSCOREGroupManager = true;
     	}
+    	
     	scopeMustBeBinary = rsOSCOREGroupManager;
-        
+           	
         if (scope.getType().equals(CBORType.TextString)) {
         	if (scopeMustBeBinary)
-        		throw new AceException("Scope for this audience must be a byte string");
+        		return false;
         	
         	return this.myScopes.containsKey(scope.AsString());
         	// The audiences are silently ignored
@@ -473,36 +493,52 @@ public class GroupOSCOREJoinValidator implements AudienceValidator, ScopeValidat
                 throw new AceException("Invalid scope format for joining OSCORE groups");
             }
         	
-        	if (cborScope.size() != 2)
-        		throw new AceException("Scope must have two elements, i.e. Group ID and list of roles");
+      	  	for (int entryIndex = 0; entryIndex < cborScope.size(); entryIndex++) {
         	
-        	// Retrieve the Group ID of the OSCORE group
-      	  	CBORObject scopeElement = cborScope.get(0);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		scopeStr = scopeElement.AsString();
+      	  		CBORObject scopeEntry = cborScope.get(entryIndex);
+	      	  		
+	      	  	if (!scopeEntry.getType().equals(CBORType.Array)) {
+	                throw new AceException("Invalid scope format for joining OSCORE groups");
+	            }
+      	  		
+	        	if (scopeEntry.size() != 2)
+	        		throw new AceException("A scope entry must have two elements, i.e. group name and list of roles");
+	        	
+	        	// Retrieve the Group ID of the OSCORE group
+	      	  	CBORObject scopeElement = scopeEntry.get(0);
+	      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
+	      	  		scopeStr = scopeElement.AsString();
+	      	  	}
+	      	  	else {throw new AceException("The group name must be a CBOR Text String");}
+	        	  
+	         	// Retrieve the role or list of roles
+	    	    scopeElement = scopeEntry.get(1);
+	    	  
+	    	    if (scopeElement.getType().equals(CBORType.Integer)) {
+	    		    int roleSet = scopeElement.AsInt32();
+	    		 
+	        	    if (roleSet <= 0)
+	        		    throw new AceException("The roles must be encoded as a CBOR Unsigned Integer greater than 0");
+	        		
+	        	    Set<Integer> roleIdSet = Util.getGroupOSCORERoles(roleSet);
+	    	  	    for (Integer elem : roleIdSet) {
+	    	  		    if (elem.intValue() < Constants.GROUP_OSCORE_ROLES.length)
+	    	  			    continue;
+	    	  		    else {
+	    				    throw new AceException("Unrecognized role");
+	    			    }
+	    		    }
+	    	  	    
+	    	    }
+	      	  	
+	      	  	else {throw new AceException("Invalid format of roles");}
+	    	    
+	        	if (this.myScopes.containsKey(rootGroupMembershipResource + "/" + scopeStr) == false)
+	        		return false;
       	  	}
-      	  	else {throw new AceException("The Group ID must be a CBOR Text String");}
-        	
-      	  	// Retrieve the role or list of roles
-      	  	scopeElement = cborScope.get(1);
-      	  	if (scopeElement.getType().equals(CBORType.TextString)) {
-      	  		// Only one role is specified
-      	  		scopeStr = scopeStr + "_" + scopeElement.AsString();
-      	  	}
-      	  	else if (scopeElement.getType().equals(CBORType.Array)) {
-      	  		// Multiple roles are specified
-      	  		if (scopeElement.size() < 2) {
-      	  			throw new AceException("The CBOR Array of roles must include at least two roles");
-      	  		}
-      	  		for (int i=0; i<scopeElement.size(); i++) {
-      	  			if (scopeElement.get(i).getType().equals(CBORType.TextString))
-      	  				scopeStr = scopeStr + "_" + scopeElement.get(i).AsString();
-      	  			else {throw new AceException("The roles must be CBOR Text Strings");}
-      	  		}
-      	  	}
-      	  	else {throw new AceException("Invalid format of roles");}
       	  	
-        	return this.myScopes.containsKey(scopeStr);
+      	  	return true;
+      	  	
         }
         
     	// This includes the case where the scope is encoded as a CBOR Byte String,

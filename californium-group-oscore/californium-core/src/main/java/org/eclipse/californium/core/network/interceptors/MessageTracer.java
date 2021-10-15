@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -36,35 +36,35 @@ import org.eclipse.californium.core.coap.Response;
  */
 public class MessageTracer implements MessageInterceptor {
 
-	private final static Logger LOGGER = LoggerFactory.getLogger(MessageTracer.class.getCanonicalName());
+	private final static Logger LOGGER = LoggerFactory.getLogger(MessageTracer.class);
 
 	@Override
 	public void sendRequest(Request request) {
-		LOGGER.info("{} <== req {}", new Object[]{request.getDestinationContext(), request});
+		LOGGER.info("{} <== req {}", request.getDestinationContext(), request);
 	}
 
 	@Override
 	public void sendResponse(Response response) {
-		LOGGER.info("{} <== res {}", new Object[]{response.getDestinationContext(), response});
+		LOGGER.info("{} <== res {}", response.getDestinationContext(), response);
 	}
 
 	@Override
 	public void sendEmptyMessage(EmptyMessage message) {
-		LOGGER.info("{} <== emp {}", new Object[]{message.getDestinationContext(), message});
+		LOGGER.info("{} <== emp {}", message.getDestinationContext(), message);
 	}
 
 	@Override
 	public void receiveRequest(Request request) {
-		LOGGER.info("{} ==> req {}", new Object[]{request.getSourceContext(), request});
+		LOGGER.info("{} ==> req {}", request.getSourceContext(), request);
 	}
 
 	@Override
 	public void receiveResponse(Response response) {
-		LOGGER.info("{} ==> res {}", new Object[]{response.getSourceContext(), response});
+		LOGGER.info("{} ==> res {}", response.getSourceContext(), response);
 	}
 
 	@Override
 	public void receiveEmptyMessage(EmptyMessage message) {
-		LOGGER.info("{} ==> emp {}", new Object[]{message.getSourceContext(), message});
+		LOGGER.info("{} ==> emp {}", message.getSourceContext(), message);
 	}
 }

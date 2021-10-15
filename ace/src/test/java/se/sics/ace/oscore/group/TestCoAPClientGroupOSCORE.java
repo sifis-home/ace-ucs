@@ -39,18 +39,17 @@ import java.util.Map;
 
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -59,6 +58,7 @@ import com.upokecenter.cbor.CBORType;
 import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
+import se.sics.ace.Util;
 import se.sics.ace.as.Token;
 
 /**
@@ -66,7 +66,7 @@ import se.sics.ace.as.Token;
  * 
  * NOTE: This will automatically start a server in another thread
  * 
- * @author Ludwig Seitz and Marco Tiloca
+ * @author Marco Tiloca
  *
  */
 public class TestCoAPClientGroupOSCORE {
@@ -125,12 +125,14 @@ public class TestCoAPClientGroupOSCORE {
         srv.stop();
     }
     
+    // @Ignore
     /**
      * Test connecting with RPK without authenticating the client.
      * The Server should reject that.
      * 
      * @throws Exception 
      */
+    /*
     @Test
     public void testNoClientAuthN() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
@@ -154,7 +156,7 @@ public class TestCoAPClientGroupOSCORE {
         try {
             client.post(
                 Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+                Constants.APPLICATION_ACE_CBOR);
         } catch (IOException ex) {
             Object cause = ex.getCause();
             if (cause instanceof HandshakeException) {
@@ -168,6 +170,7 @@ public class TestCoAPClientGroupOSCORE {
         Assert.fail("Server should not accept DTLS connection");
   
     }
+    */
     
     /**
      * Test CoapToken using PSK
@@ -179,8 +182,7 @@ public class TestCoAPClientGroupOSCORE {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientA", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -192,12 +194,9 @@ public class TestCoAPClientGroupOSCORE {
 
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject("r_temp rw_config foobar"));
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs1"));
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp rw_config foobar"));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud1"));
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);
@@ -209,7 +208,6 @@ public class TestCoAPClientGroupOSCORE {
 
     }
     
-    // M.T.
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with a single role, using a REF token.
@@ -221,15 +219,11 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -239,25 +233,28 @@ public class TestCoAPClientGroupOSCORE {
         client.setEndpoint(e);
         dtlsConnector.start();
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
     	// The requested role is allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	int myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(myRoles);
+    	
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -273,17 +270,20 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayEntry.Add(myRoles);
+    	        
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);    
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
         map = Constants.getParams(res);
@@ -299,45 +299,20 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+    	myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(myRoles);
+    	
+        byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+       params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-        
-        // The requested role is not allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -353,18 +328,51 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	        
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        res = CBORObject.DecodeFromBytes(response.getPayload());
+        
+        map = Constants.getParams(res);
+        
+        assert(map.size() == 1);
+        assert(map.containsKey(Constants.ERROR));
+        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
+        
+        
+        // The requested role is not allowed in the specified group
+        params = new HashMap<>();
+        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
+        
+        cborArrayScope = CBORObject.NewArray();
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, (short)10);
+    	cborArrayEntry.Add(myRoles);
+    	 
+        cborArrayScope.Add(cborArrayEntry);
+    	byteStringScope = cborArrayScope.EncodeToBytes();
+        
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
+        
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -376,174 +384,7 @@ public class TestCoAPClientGroupOSCORE {
         
     }
     
-    // M.T.
-    /**
-     * Test CoapToken using PSK, for asking access to an
-     * OSCORE group with a single role, using a CWT.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testGroupOSCORESingleRoleCWT() throws Exception { 
-        
-    	String gid = new String("feedca570000");
-        String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
-    	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        Builder ceb = new Builder();
-        ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
-        CoapEndpoint e = ceb.build();
-        CoapClient client = new CoapClient("coaps://localhost/token");
-        client.setEndpoint(e);
-        dtlsConnector.start();
-    	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-    	
-    	// The requested role is allowed in the specified group
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        
-        
-        // The requested role is allowed in the specified group
-        params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        
-        
-        // Access to the specified group is not allowed
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-        
-        // The requested role is not allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role3);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-        
-        // The requested role is not allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add("fakerole");
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-    }
-    
-    // M.T.
+
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with multiple roles, using a REF token.
@@ -555,15 +396,11 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -574,29 +411,29 @@ public class TestCoAPClientGroupOSCORE {
         dtlsConnector.start();
     	
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
         // Both requested roles are allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	int myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
     	
-    	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -612,21 +449,22 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid2);
+        
+        myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_MONITOR);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -642,21 +480,22 @@ public class TestCoAPClientGroupOSCORE {
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+    	
+        myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);
         
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
@@ -671,241 +510,25 @@ public class TestCoAPClientGroupOSCORE {
         byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
         CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
         assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
+        assert(receivedArrayScope.size() == 1);
+        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+        assert(receivedArrayScope.get(0).size() == 2);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+        int expectedRoles = 0;
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(expectedRoles);
+    	
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	
-    	
-    	// Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        receivedScope = map.get(Constants.SCOPE).GetByteString();
-        receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-
     }
-    
-    // M.T.
-    /**
-     * Test CoapToken using PSK, for asking access to an
-     * OSCORE group with multiple roles, using a CWT.
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testGroupOSCOREMultipleRolesCWT() throws Exception { 
-        
-    	String gid = new String("feedca570000");
-        String gid2 = new String("feedca570001");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
-    	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        Builder ceb = new Builder();
-        ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
-        CoapEndpoint e = ceb.build();
-        CoapClient client = new CoapClient("coaps://localhost/token");
-        client.setEndpoint(e);
-        dtlsConnector.start();
-    	
-    	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-    	
-        // Both requested roles are allowed in the specified group
-        Map<Short, CBORObject> params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-    	
-    	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(!map.containsKey(Constants.SCOPE)); // The originally requested scope is implicitly confirmed
-        
-        
-        // Access to the specified group is not allowed
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid2);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-        
-        // Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-    	
-    	
-    	// Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
-        
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        receivedScope = map.get(Constants.SCOPE).GetByteString();
-        receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role2);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
 
-    }
-    
-    // M.T.
+
     /**
      * Test CoapToken using PSK, for asking access to an
      * OSCORE group with multiple roles, using a REF token.
@@ -917,15 +540,11 @@ public class TestCoAPClientGroupOSCORE {
     public void testGroupOSCOREAltClientREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setPskStore(new StaticPskStore("clientG", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
@@ -936,28 +555,28 @@ public class TestCoAPClientGroupOSCORE {
         dtlsConnector.start();
     	
     	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
+        // The scope is a CBOR Array encoded as a CBOR byte string
     	
-        // None of the requested ones is allowed in the specified group
+        // The requested role is not allowed in the specified group
         Map<Short, CBORObject> params = new HashMap<>(); 
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+    	int myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+        
+        cborArrayScope.Add(cborArrayEntry);
     	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
         
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud3"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);    
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         
         Map<Short, CBORObject> map = Constants.getParams(res);
@@ -965,29 +584,29 @@ public class TestCoAPClientGroupOSCORE {
         assert(map.size() == 1);
         assert(map.containsKey(Constants.ERROR));
         assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
 
+        
         // Only one role out of the two requested ones is allowed in the specified group
         params = new HashMap<>();
         params.put(Constants.GRANT_TYPE, Token.clientCredentials);
         
         cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+        myRoles = 0;
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	myRoles = Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+    	cborArrayEntry.Add(myRoles);
+    	
+    	cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	
-    	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
+        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
+        params.put(Constants.AUDIENCE, CBORObject.FromObject("aud2"));
         
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs2"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
+        response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                			   Constants.APPLICATION_ACE_CBOR);    
         res = CBORObject.DecodeFromBytes(response.getPayload());
         
         map = Constants.getParams(res);
@@ -1001,121 +620,24 @@ public class TestCoAPClientGroupOSCORE {
         byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
         CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
         assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
+        assert(receivedArrayScope.size() == 1);
+        assert(receivedArrayScope.get(0).getType().equals(CBORType.Array));
+        assert(receivedArrayScope.get(0).size() == 2);
         
         cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
+        cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(gid);
+        
+        int expectedRoles = 0;
+        expectedRoles = Util.addGroupOSCORERole(expectedRoles, Constants.GROUP_OSCORE_REQUESTER);
+    	cborArrayEntry.Add(expectedRoles);
+    	
+        cborArrayScope.Add(cborArrayEntry);
     	byteStringScope = cborArrayScope.EncodeToBytes();
     	Assert.assertArrayEquals(receivedScope, byteStringScope);
-        
+            	
     }
     
-    // M.T.
-    /**
-      * Test CoapToken using PSK, for asking access to an
-     * OSCORE group with multiple roles, using a CWT.
-     * (Alternative version with different client)
-     * 
-     * @throws Exception
-     */
-    @Test
-    public void testGroupOSCOREAltClientCWT() throws Exception { 
-        
-    	String gid = new String("feedca570000");
-    	String role1 = new String("requester");
-    	String role2 = new String("monitor");
-    	String role3 = new String("responder");
-    	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientG", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-        DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
-        Builder ceb = new Builder();
-        ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
-        CoapEndpoint e = ceb.build();
-        CoapClient client = new CoapClient("coaps://localhost/token");
-        client.setEndpoint(e);
-        dtlsConnector.start();
-    	
-    	
-        // The scope is a CBOR Array encoded as a CBOR byte string, as in draft-ietf-ace-key-groupcomm
-    	
-        // None of the requested ones is allowed in the specified group
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        CBORObject cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	CBORObject cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role2);
-    	cborArrayRoles.Add(role3);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byte[] byteStringScope = cborArrayScope.EncodeToBytes();
-        
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
-        CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        Map<Short, CBORObject> map = Constants.getParams(res);
-        
-        assert(map.size() == 1);
-        assert(map.containsKey(Constants.ERROR));
-        assert(map.get(Constants.ERROR).AsInt16() == Constants.INVALID_SCOPE);
-        
-
-        // Only one role out of the two requested ones is allowed in the specified group
-        params = new HashMap<>();
-        params.put(Constants.GRANT_TYPE, Token.clientCredentials);
-        
-        cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-    	cborArrayRoles = CBORObject.NewArray();
-    	cborArrayRoles.Add(role1);
-    	cborArrayRoles.Add(role2);
-    	cborArrayScope.Add(cborArrayRoles);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	
-    	
-        params.put(Constants.SCOPE, 
-                CBORObject.FromObject(byteStringScope));
-        
-        params.put(Constants.AUDIENCE, CBORObject.FromObject("rs3"));
-        
-        response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);    
-        res = CBORObject.DecodeFromBytes(response.getPayload());
-        
-        map = Constants.getParams(res);
-        
-        assert(map.containsKey(Constants.ACCESS_TOKEN));
-        assert(!map.containsKey(Constants.PROFILE)); //Profile is implicit
-        assert(map.containsKey(Constants.CNF));
-        assert(map.containsKey(Constants.SCOPE)); // The granted scope differs from the original requested one
-        assert(map.get(Constants.SCOPE).getType().equals(CBORType.ByteString));
-        
-        byte[] receivedScope = map.get(Constants.SCOPE).GetByteString();
-        CBORObject receivedArrayScope = CBORObject.DecodeFromBytes(receivedScope);
-        assert(receivedArrayScope.getType().equals(CBORType.Array));
-        assert(receivedArrayScope.size() == 2);
-        
-        cborArrayScope = CBORObject.NewArray();
-    	cborArrayScope.Add(gid);
-    	cborArrayScope.Add(role1);
-    	byteStringScope = cborArrayScope.EncodeToBytes();
-    	Assert.assertArrayEquals(receivedScope, byteStringScope);
-        
-    }
     
     /**
      * Test CoapIntrospect using RPK
@@ -1124,16 +646,12 @@ public class TestCoAPClientGroupOSCORE {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        OneKey key = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        //builder.setPskStore(new StaticPskStore("rs1", key256));
-        builder.setIdentity(key.AsPrivateKey(), 
-                key.AsPublicKey());
+        builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
         builder.setRpkTrustAll();
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         Builder ceb = new Builder();
@@ -1147,9 +665,8 @@ public class TestCoAPClientGroupOSCORE {
         ReferenceToken at = new ReferenceToken(new byte[]{0x00});
         Map<Short, CBORObject> params = new HashMap<>();
         params.put(Constants.TOKEN, CBORObject.FromObject(at.encode().EncodeToBytes()));
-        CoapResponse response = client.post(
-                Constants.getCBOR(params).EncodeToBytes(), 
-                MediaTypeRegistry.APPLICATION_CBOR);
+        CoapResponse response = client.post(Constants.getCBOR(params).EncodeToBytes(), 
+                							Constants.APPLICATION_ACE_CBOR);
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         Map<Short, CBORObject> map = Constants.getParams(res);
         System.out.println(map);

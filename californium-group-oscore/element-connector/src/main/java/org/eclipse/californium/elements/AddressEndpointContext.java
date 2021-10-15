@@ -2,11 +2,11 @@
  * Copyright (c) 2017, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -21,15 +21,18 @@ import java.security.Principal;
 import java.util.Collections;
 import java.util.Map;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 
 /**
- * A endpoint context providing the inet socket address and a optional
- * principal.
+ * A endpoint context providing the inet socket address, a virtual host, and a
+ * optional principal.
+ * 
+ * Attributes are not supported but may get added by extending this class.
  */
 public class AddressEndpointContext implements EndpointContext {
 
-	protected static final int ID_TRUNC_LENGTH = 6;
+	protected static final int ID_TRUNC_LENGTH = 10;
 
 	private final InetSocketAddress peerAddress;
 
@@ -94,11 +97,41 @@ public class AddressEndpointContext implements EndpointContext {
 	/**
 	 * {@inheritDoc}
 	 * 
-	 * @return {@code null}
+	 * If not override in an extending class, only {@code null} will be returned.
 	 */
 	@Override
-	public String get(String key) {
+	public Object get(String key) {
 		return null;
+	}
+
+	@Override
+	public String getString(String key) {
+		Object value = get(key);
+		if (value != null) {
+			return value.toString();
+		} else {
+			return null;
+		}
+	}
+
+	@Override
+	public Number getNumber(String key) {
+		Object value = get(key);
+		if (value != null) {
+			return (Number) value;
+		} else {
+			return null;
+		}
+	}
+
+	@Override
+	public Bytes getBytes(String key) {
+		Object value = get(key);
+		if (value != null) {
+			return (Bytes) value;
+		} else {
+			return null;
+		}
 	}
 
 	/**
@@ -107,7 +140,7 @@ public class AddressEndpointContext implements EndpointContext {
 	 * @return an empty map
 	 */
 	@Override
-	public Map<String, String> entries() {
+	public Map<String, Object> entries() {
 		return Collections.emptyMap();
 	}
 
@@ -137,6 +170,6 @@ public class AddressEndpointContext implements EndpointContext {
 	}
 
 	protected final String getPeerAddressAsString() {
-		return StringUtil.toString(peerAddress);
+		return StringUtil.toDisplayString(peerAddress);
 	}
 }

@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -22,26 +22,37 @@ package org.eclipse.californium.scandium.dtls;
 
 import java.security.GeneralSecurityException;
 import java.security.Principal;
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
+
+import javax.crypto.SecretKey;
+import javax.security.auth.DestroyFailedException;
+import javax.security.auth.Destroyable;
 
 import org.eclipse.californium.elements.util.DatagramReader;
 import org.eclipse.californium.elements.util.DatagramWriter;
 import org.eclipse.californium.scandium.auth.PrincipalSerializer;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.util.SecretUtil;
+import org.eclipse.californium.scandium.util.SecretSerializationUtil;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
- * A container for a session's crypto parameters that are required for resuming the
- * session by means of an abbreviated handshake.
+ * A container for a session's crypto parameters that are required for resuming
+ * the session by means of an abbreviated handshake.
  */
-public final class SessionTicket {
+public final class SessionTicket implements Destroyable {
+
+	/**
+	 * Version number for serialization.
+	 */
+	private static final int VERSION = 2;
 
 	private final int hashCode;
 	private final ProtocolVersion protocolVersion;
-	private final byte[] masterSecret;
+	private final SecretKey masterSecret;
 	private final CipherSuite cipherSuite;
 	private final CompressionMethod compressionMethod;
+	private final boolean extendedMasterSecret;
 	private final ServerNames serverNames;
 	private final Principal clientIdentity;
 	private final long timestampMillis;
@@ -52,6 +63,8 @@ public final class SessionTicket {
 	 * @param protocolVersion protocol version. Must not be {@code null}.
 	 * @param cipherSuite cipher suite. Must not be {@code null}.
 	 * @param compressionMethod compression mode. Must not be {@code null}.
+	 * @param extendedMasterSecret {@code true}, if the extended master secret
+	 *            is used, {@code false}, otherwise.
 	 * @param masterSecret master secret. Must not be {@code null}.
 	 * @param serverNames server names. May be {@code null}, if no server name
 	 *            is provided, or SNI is not used.
@@ -61,15 +74,11 @@ public final class SessionTicket {
 	 *            since 1970.1.1 0:00 (@link System#currentTimeMillis()}.
 	 * @throws NullPointerException if one of the mandatory parameter is
 	 *             {@code null}
+	 * @since 3.0 (added parameter extendedMasterSecret)
 	 */
-	SessionTicket(
-			final ProtocolVersion protocolVersion,
-			final CipherSuite cipherSuite,
-			final CompressionMethod compressionMethod,
-			final byte[] masterSecret,
-			final ServerNames serverNames,
-			final Principal clientIdentity,
-			final long timestampMillis) {
+	SessionTicket(ProtocolVersion protocolVersion, CipherSuite cipherSuite, CompressionMethod compressionMethod,
+			boolean extendedMasterSecret, SecretKey masterSecret, ServerNames serverNames, Principal clientIdentity,
+			long timestampMillis) {
 
 		if (protocolVersion == null) {
 			throw new NullPointerException("Protcol version must not be null");
@@ -81,7 +90,8 @@ public final class SessionTicket {
 			throw new NullPointerException("Master secret must not be null");
 		} else {
 			this.protocolVersion = protocolVersion;
-			this.masterSecret = masterSecret;
+			this.extendedMasterSecret = extendedMasterSecret;
+			this.masterSecret = SecretUtil.create(masterSecret);
 			this.cipherSuite = cipherSuite;
 			this.compressionMethod = compressionMethod;
 			this.serverNames = serverNames;
@@ -89,20 +99,22 @@ public final class SessionTicket {
 			this.timestampMillis = timestampMillis;
 			// the master secret is intended to be unique
 			// therefore the hash code only consider that master secret
-			this.hashCode = Arrays.hashCode(masterSecret);
+			this.hashCode = this.masterSecret.hashCode();
 		}
 	}
 
 	/**
 	 * Serializes this session into a plain text <em>session ticket</em>
-	 * following the structure defined in
+	 * similar to the structure defined in
 	 * <a href="https://tools.ietf.org/html/rfc5077">RFC 5077</a>.
 	 * 
 	 * <pre>
 	 * struct {
+	 *   uint8 VERSION;
 	 *   ProtocolVersion protocol_version;
 	 *   CipherSuite cipher_suite;
 	 *   CompressionMethod compression_method;
+	 *   uint8 extendedMasterSecret;
 	 *   opaque master_secret[48];
 	 *   ClientIdentity client_identity;
 	 *   uint32 timestamp;
@@ -124,9 +136,9 @@ public final class SessionTicket {
 	 * @param writer The writer to serialize to.
 	 */
 	public void encode(final DatagramWriter writer) {
-
-		writer.write(protocolVersion.getMajor(), 8);
-		writer.write(protocolVersion.getMinor(), 8);
+		writer.write(VERSION, Byte.SIZE);
+		writer.write(protocolVersion.getMajor(), Byte.SIZE);
+		writer.write(protocolVersion.getMinor(), Byte.SIZE);
 
 		// cipher_suite
 		writer.write(cipherSuite.getCode(), CipherSuite.CIPHER_SUITE_BITS);
@@ -134,8 +146,11 @@ public final class SessionTicket {
 		// compression_method
 		writer.write(compressionMethod.getCode(), CompressionMethod.COMPRESSION_METHOD_BITS);
 
+		// extended master secret
+		writer.write(extendedMasterSecret ? 1 : 0, Byte.SIZE);
+
 		// master_secret
-		writer.writeBytes(masterSecret);
+		SecretSerializationUtil.write(writer, masterSecret);
 
 		// client_identity
 		PrincipalSerializer.serialize(clientIdentity, writer);
@@ -150,18 +165,23 @@ public final class SessionTicket {
 	}
 
 	/**
-	 * Creates a session from a byte array containing the binary encoding of a plain text <em>session ticket</em>
-	 * that has been created by {@link #encode(DatagramWriter)}.
+	 * Creates a session from a byte array containing the binary encoding of a
+	 * plain text <em>session ticket</em> that has been created by
+	 * {@link #encode(DatagramWriter)}.
 	 * <p>
-	 * This method is useful for e.g. sharing the write state with other nodes by means
-	 * of a cache server or database so that a client can resume a session on another
-	 * node if this node fails.
+	 * This method is useful for e.g. sharing the write state with other nodes
+	 * by means of a cache server or database so that a client can resume a
+	 * session on another node if this node fails.
 	 * 
 	 * @param source The encoded session ticket.
-	 * @return The session object created from the ticket. Note that the session contains <em>pending</em>
-	 *         state information only and thus requires an abbreviated handshake to take place in order to
-	 *         create <em>current</em> read and write state. Returns {@code null} if the  session ticket is
-	 *         not encoded according to the structure defined by {@link #encode(DatagramWriter)}.
+	 * @return The session object created from the ticket. Note that the session
+	 *         contains <em>pending</em> state information only and thus
+	 *         requires an abbreviated handshake to take place in order to
+	 *         create <em>current</em> read and write state. Returns
+	 *         {@code null} if the session ticket is not encoded according to
+	 *         the structure defined by {@link #encode(DatagramWriter)}.
+	 * @throws NullPointerException if source is {@code null}
+	 * @throws IllegalArgumentException if read data version doesn't match
 	 */
 	public static SessionTicket decode(final DatagramReader source) {
 
@@ -169,10 +189,15 @@ public final class SessionTicket {
 			throw new NullPointerException("reader must not be null");
 		}
 
+		int version = source.read(Byte.SIZE);
+		if (version != VERSION) {
+			throw new IllegalArgumentException("Version mismatch! " + VERSION + " is required, not " + version);
+		}
+
 		// protocol_version
-		int major = source.read(8);
-		int minor = source.read(8);
-		ProtocolVersion ver = new ProtocolVersion(major, minor);
+		int major = source.read(Byte.SIZE);
+		int minor = source.read(Byte.SIZE);
+		ProtocolVersion ver = ProtocolVersion.valueOf(major, minor);
 
 		// cipher_suite
 		CipherSuite cipherSuite = CipherSuite.getTypeByCode(source.read(CipherSuite.CIPHER_SUITE_BITS));
@@ -181,13 +206,16 @@ public final class SessionTicket {
 		}
 
 		// compression_method
-		CompressionMethod compressionMethod = CompressionMethod.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
+		CompressionMethod compressionMethod = CompressionMethod
+				.getMethodByCode(source.read(CompressionMethod.COMPRESSION_METHOD_BITS));
 		if (compressionMethod == null) {
 			return null;
 		}
 
+		boolean extendedMasterSecret = (source.read(Byte.SIZE) == 1);
+
 		// master_secret
-		byte[] masterSecret = source.readBytes(48);
+		SecretKey masterSecret = SecretSerializationUtil.readSecretKey(source);
 
 		// client_identity
 		Principal identity = null;
@@ -211,7 +239,10 @@ public final class SessionTicket {
 		}
 
 		// assemble session
-		return new SessionTicket(ver, cipherSuite, compressionMethod, masterSecret, serverNames, identity, timestampMillis);
+		SessionTicket ticket = new SessionTicket(ver, cipherSuite, compressionMethod, extendedMasterSecret,
+				masterSecret, serverNames, identity, timestampMillis);
+		SecretUtil.destroy(masterSecret);
+		return ticket;
 	}
 
 	@Override
@@ -231,7 +262,11 @@ public final class SessionTicket {
 		// the master secret is intended to be unique
 		// therefore check it first, the other compares
 		// are more or less for validation
-		if (!Arrays.equals(masterSecret, other.masterSecret)) {
+		if (hashCode != other.hashCode) {
+			return false;
+		}
+		// the SecretKeySpec equals seems to leak the others secret ;-(.
+		if (!SecretUtil.equals(masterSecret, other.masterSecret)) {
 			return false;
 		}
 		if (!protocolVersion.equals(other.protocolVersion)) {
@@ -249,6 +284,16 @@ public final class SessionTicket {
 		return timestampMillis == other.timestampMillis;
 	}
 
+	@Override
+	public void destroy() throws DestroyFailedException {
+		SecretUtil.destroy(masterSecret);
+	}
+
+	@Override
+	public boolean isDestroyed() {
+		return SecretUtil.isDestroyed(masterSecret);
+	}
+
 	/**
 	 * Gets the protocol version.
 	 * 
@@ -258,17 +303,15 @@ public final class SessionTicket {
 		return protocolVersion;
 	}
 
-	
 	/**
 	 * Gets the master secret.
 	 * 
 	 * @return the master secret
 	 */
-	public final byte[] getMasterSecret() {
+	public final SecretKey getMasterSecret() {
 		return masterSecret;
 	}
 
-	
 	/**
 	 * Gets the cipher suite.
 	 * 
@@ -285,6 +328,16 @@ public final class SessionTicket {
 	 */
 	public final CompressionMethod getCompressionMethod() {
 		return compressionMethod;
+	}
+
+	/**
+	 * Gets the extended master secret usage.
+	 * 
+	 * @return the extended master secret usage.
+	 * @since 3.0
+	 */
+	public final boolean useExtendedMasterSecret() {
+		return extendedMasterSecret;
 	}
 
 	/**

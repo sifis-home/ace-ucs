@@ -2,11 +2,11 @@
  * Copyright (c) 2015, 2017 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -40,7 +40,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.locks.ReentrantLock;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,10 +140,12 @@ import org.eclipse.californium.core.server.resources.ResourceObserver;
 public  class CoapResource implements Resource {
 
 	/** The logger. */
-	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class.getCanonicalName());
+	protected final static Logger LOGGER = LoggerFactory.getLogger(CoapResource.class);
 
 	/* The attributes of this resource. */
 	private final ResourceAttributes attributes;
+
+	private final ReentrantLock recursionProtection = new ReentrantLock();
 
 	/* The resource name. */
 	private String name;
@@ -225,6 +230,7 @@ public  class CoapResource implements Resource {
 			case FETCH: handleFETCH(new CoapExchange(exchange, this)); break;
 			case PATCH: handlePATCH(new CoapExchange(exchange, this)); break;
 			case IPATCH: handleIPATCH(new CoapExchange(exchange, this)); break;
+			default: exchange.sendResponse(new Response(ResponseCode.METHOD_NOT_ALLOWED)); break;
 		}
 	}
 
@@ -335,13 +341,12 @@ public  class CoapResource implements Resource {
 		 * Remember that different paths might lead to this resource.
 		 */
 		
-		ObserveRelation relation = exchange.getRelation();
+		final ObserveRelation relation = exchange.getRelation();
 		if (relation == null || relation.isCanceled()) {
 			return; // because request did not try to establish a relation
 		}
 		if (CoAP.ResponseCode.isSuccess(response.getCode())) {
-			response.getOptions().setObserve(notificationOrderer.getCurrent());
-			
+
 			if (!relation.isEstablished()) {
 				relation.setEstablished();
 				addObserveRelation(relation);
@@ -349,6 +354,7 @@ public  class CoapResource implements Resource {
 				// The resource can control the message type of the notification
 				response.setType(observeType);
 			}
+			response.getOptions().setObserve(notificationOrderer.getCurrent());
 		} // ObserveLayer takes care of the else case
 	}
 
@@ -364,7 +370,7 @@ public  class CoapResource implements Resource {
 	 */
 	public CoapClient createClient() {
 		CoapClient client = new CoapClient();
-		client.setExecutor(getExecutor());
+		client.setExecutors(getExecutor(), getSecondaryExecutor(), false);
 		final List<Endpoint> endpoints = getEndpoints();
 		if (!endpoints.isEmpty()) {
 			client.setEndpoint(endpoints.get(0));
@@ -744,9 +750,13 @@ public  class CoapResource implements Resource {
 	 */
 	@Override
 	public void addObserveRelation(ObserveRelation relation) {
-		if (observeRelations.add(relation)) {
+		ObserveRelation previous = observeRelations.addAndGetPrevious(relation);
+		if (previous != null) {
 			LOGGER.info("replacing observe relation between {} and resource {} (new {}, size {})", relation.getKey(),
 					getURI(), relation.getExchange(), observeRelations.getSize());
+			for (ResourceObserver obs:observers) {
+				obs.removedObserveRelation(previous);
+			}
 		} else {
 			LOGGER.info("successfully established observe relation between {} and resource {} ({}, size {})",
 					relation.getKey(), getURI(), relation.getExchange(), observeRelations.getSize());
@@ -788,6 +798,9 @@ public  class CoapResource implements Resource {
 	 * transitively ancestor. If no ancestor defines its own executor, the
 	 * thread that has called this method performs the notification.
 	 * 
+	 * @throws IllegalStateException if method is called recursively from
+	 *             current thread (without executor).
+	 * 
 	 * @see #changed(ObserveRelationFilter)
 	 */
 	public void changed() {
@@ -797,21 +810,33 @@ public  class CoapResource implements Resource {
 	/**
 	 * Notifies a filtered set of CoAP clients that have established an observe
 	 * relation with this resource that the state has changed by reprocessing
-	 * their original request that has established the relation. The notification
-	 * is done by the executor of this resource or on the executor of its parent or
-	 * transitively ancestor. If no ancestor defines its own executor, the
-	 * thread that has called this method performs the notification.
+	 * their original request that has established the relation. The
+	 * notification is done by the executor of this resource or on the executor
+	 * of its parent or transitively ancestor. If no ancestor defines its own
+	 * executor, the thread that has called this method performs the
+	 * notification.
 	 * 
-	 * @param filter filter to select set of relations. 
-	 *               <code>null</code>, if all clients should be notified.
-	 * 
+	 * @param filter filter to select set of relations. <code>null</code>, if
+	 *            all clients should be notified.
+	 * @throws IllegalStateException if method is called recursively from
+	 *             current thread (without executor).
 	 * @see #changed()
 	 */
 	public void changed(final ObserveRelationFilter filter) {
 		final Executor executor = getExecutor();
 		if (executor == null) {
 			// use thread from the protocol stage
-			notifyObserverRelations(filter);
+			if (recursionProtection.isHeldByCurrentThread()) {
+				// thread performs already a changed!
+				throw new IllegalStateException("Recursion detected! Please call \"changed()\" using an executor.");
+			} else {
+				recursionProtection.lock();
+				try {
+					notifyObserverRelations(filter);
+				} finally {
+					recursionProtection.unlock();
+				}
+			}
 		} else {
 			// use thread from the resource pool
 			executor.execute(new Runnable() {
@@ -854,6 +879,11 @@ public  class CoapResource implements Resource {
 	public ExecutorService getExecutor() {
 		final Resource parent = getParent();
 		return parent != null ? parent.getExecutor() : null;
+	}
+
+	public ScheduledThreadPoolExecutor getSecondaryExecutor() {
+		final Resource parent = getParent();
+		return parent != null ? parent.getSecondaryExecutor() : null;
 	}
 
 	/**

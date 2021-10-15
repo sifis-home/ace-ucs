@@ -2,11 +2,11 @@
  * Copyright (c) 2016, 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -60,9 +60,23 @@ public final class ServerNames implements Iterable<ServerName> {
 	 */
 	public static ServerNames newInstance(final ServerName serverName) {
 		if (serverName == null) {
-			throw new NullPointerException("name must not be null");
+			throw new NullPointerException("server name must not be null");
 		} else {
 			return new ServerNames(serverName);
+		}
+	}
+
+	/**
+	 * Creates a new server name list from an initial host name.
+	 * 
+	 * @param hostName The host name to add as {@link NameType#HOST_NAME}.
+	 * @return The new instance.
+	 */
+	public static ServerNames newInstance(final String hostName) {
+		if (hostName == null) {
+			throw new NullPointerException("host name must not be null");
+		} else {
+			return new ServerNames(ServerName.from(NameType.HOST_NAME, hostName.getBytes(ServerName.CHARSET)));
 		}
 	}
 
@@ -125,38 +139,24 @@ public final class ServerNames implements Iterable<ServerName> {
 
 		for (ServerName serverName : names) {
 			writer.writeByte(serverName.getType().getCode()); // name type
-			writer.write(serverName.getName().length, HelloExtensions.LENGTH_BITS); // name length
-			writer.writeBytes(serverName.getName()); // name
+			writer.writeVarBytes(serverName.getName(), HelloExtensions.LENGTH_BITS); // name length
 		}
 	}
 
 	public void decode(DatagramReader reader) {
 		int listLengthBytes = reader.read(LIST_LENGTH_BITS);
-		while (listLengthBytes > 0) {
-			if (reader.bitsLeft() >= 8) {
-				NameType nameType = NameType.fromCode(reader.readNextByte());
-				switch (nameType) {
-				case HOST_NAME:
-					byte[] hostname = readHostName(reader);
-					add(ServerName.from(nameType, hostname));
-					listLengthBytes -= (hostname.length + 3);
-					break;
-				default:
-					throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
-				}
+		DatagramReader rangeReader = reader.createRangeReader(listLengthBytes);
+		while (rangeReader.bytesAvailable()) {
+			NameType nameType = NameType.fromCode(rangeReader.readNextByte());
+			switch (nameType) {
+			case HOST_NAME:
+				byte[] hostname = rangeReader.readVarBytes(HelloExtensions.LENGTH_BITS);
+				add(ServerName.from(nameType, hostname));
+				break;
+			default:
+				throw new IllegalArgumentException("ServerNames: unknown name_type!", new IllegalArgumentException(nameType.name()));
 			}
 		}
-	}
-
-	private static byte[] readHostName(final DatagramReader reader) {
-
-		if (reader.bitsLeft() >= HelloExtensions.LENGTH_BITS) {
-			int length = reader.read(HelloExtensions.LENGTH_BITS);
-			if (reader.bytesAvailable(length)) {
-				return reader.readBytes(length);
-			}
-		}
-		throw new IllegalArgumentException("ServerNames: no hostname found!");
 	}
 
 	/**
@@ -215,9 +215,6 @@ public final class ServerNames implements Iterable<ServerName> {
 		if (names.size() != other.names.size()) {
 			return false;
 		}
-		if (!names.containsAll(other.names)) {
-			return false;
-		}
-		return true;
+		return names.containsAll(other.names);
 	}
 }

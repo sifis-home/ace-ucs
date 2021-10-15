@@ -122,14 +122,13 @@ public class TestDtlsIntrospection {
      */
     @Test
     public void testCoapIntrospect() throws Exception {
-        OneKey key = new OneKey(
-                CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
+        OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlspIntrospection i = new DtlspIntrospection(key, "coaps://localhost/introspect");
-        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
+        Map<Short, CBORObject> map = i.getParams(new byte[]{0x00});     
         assert(map.containsKey(Constants.AUD));
         assert(map.get(Constants.AUD).AsString().equals("actuators"));
         assert(map.containsKey(Constants.SCOPE));
-        assert(map.get(Constants.SCOPE).AsString().equals("co2"));
+        assert(map.get(Constants.SCOPE).AsString().equals("temp"));
         assert(map.containsKey(Constants.ACTIVE));
         assert(map.get(Constants.ACTIVE).isTrue());
         assert(map.containsKey(Constants.CTI));
@@ -160,9 +159,10 @@ public class TestDtlsIntrospection {
                 "password",
                 TestConfig.testFilePath + "IntrospectTestAddr2id.cfg",
                 "coaps://localhost/introspect");
-        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     
+        
+        Map<Short, CBORObject> map =  i.getParams(new byte[]{0x01});     
         assert(map.containsKey(Constants.AUD));
-        assert(map.get(Constants.AUD).AsString().equals("actuators"));
+        assert(map.get(Constants.AUD).AsString().equals("aud1"));
         assert(map.containsKey(Constants.SCOPE));
         assert(map.get(Constants.SCOPE).AsString().equals("co2"));
         assert(map.containsKey(Constants.ACTIVE));

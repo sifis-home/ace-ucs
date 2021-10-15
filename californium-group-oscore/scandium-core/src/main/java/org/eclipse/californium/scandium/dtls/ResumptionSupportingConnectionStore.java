@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Sierra Wireless
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -20,14 +20,26 @@
 package org.eclipse.californium.scandium.dtls;
 
 import java.net.InetSocketAddress;
+import java.util.ConcurrentModificationException;
+import java.util.Iterator;
 import java.util.List;
+
+import org.eclipse.californium.elements.PersistentConnector;
+import org.eclipse.californium.scandium.ConnectionListener;
 
 /**
  * A connection store which adds support of connection resumption.
  * 
  * @since 1.1
  */
-public interface ResumptionSupportingConnectionStore {
+public interface ResumptionSupportingConnectionStore extends PersistentConnector {
+
+	/**
+	 * Set connection listener.
+	 * 
+	 * @param listener connection listener
+	 */
+	void setConnectionListener(ConnectionListener listener);
 
 	/**
 	 * Attach connection id generator.
@@ -40,6 +52,15 @@ public interface ResumptionSupportingConnectionStore {
 	 *             was already called before.
 	 */
 	void attach(ConnectionIdGenerator connectionIdGenerator);
+
+	/**
+	 * Restore connection.
+	 * 
+	 * @param connection connection to restore.
+	 * @return {@code true}, on success, {@code false}, otherwise.
+	 * @since 3.0
+	 */
+	boolean restore(Connection connection);
 
 	/**
 	 * Puts a connection into the store.
@@ -75,6 +96,8 @@ public interface ResumptionSupportingConnectionStore {
 	 * connections from that association.
 	 * 
 	 * @param connection the connection to update.
+	 * @param newPeerAddress the (new) peer address. If {@code null}, don't
+	 *            update the connection's address.
 	 * @return {@code true}, if updated, {@code false}, otherwise.
 	 */
 	boolean update(Connection connection, InetSocketAddress newPeerAddress);
@@ -170,5 +193,18 @@ public interface ResumptionSupportingConnectionStore {
 	 * Mark all connections as resumption required.
 	 */
 	void markAllAsResumptionRequired();
+
+	/**
+	 * Get "weakly consistent" iterator over all connections.
+	 * 
+	 * The iterator is a "weakly consistent" iterator that will never throw
+	 * {@link ConcurrentModificationException}, and guarantees to traverse
+	 * elements as they existed upon construction of the iterator, and may (but
+	 * is not guaranteed to) reflect any modifications subsequent to
+	 * construction.
+	 * 
+	 * @return "weakly consistent" iterator
+	 */
+	Iterator<Connection> iterator();
 
 }

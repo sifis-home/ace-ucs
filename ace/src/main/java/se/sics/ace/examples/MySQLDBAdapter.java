@@ -92,7 +92,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         Properties connectionProps = new Properties();
         connectionProps.put("user", MySQLDBAdapter.ROOT_USER);
         connectionProps.put("password", rootPwd);
-        return DriverManager.getConnection(this.dbUrl, connectionProps);
+        return DriverManager.getConnection(this.dbUrl + "/?useSSL=FALSE&allowPublicKeyRetrieval=true", connectionProps);
     }
 
     @Override
@@ -101,7 +101,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
         connectionProps.put("user", this.user);
         connectionProps.put("password", this.password);
         return DriverManager.getConnection(this.dbUrl + "/" 
-                + this.dbName, connectionProps);
+                + this.dbName + "?useSSL=FALSE&allowPublicKeyRetrieval=true", connectionProps);
     }
 
     @Override
@@ -134,7 +134,8 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.expColumn + " bigint NOT NULL, "
                 + DBConnector.tokenPskColumn + " varbinary(64), "
                 + DBConnector.authPskColumn + " varbinary(64), "
-                + DBConnector.rpkColumn + " varbinary(255),"
+                + DBConnector.rpkColumn + " varbinary(255), "
+                + DBConnector.exiSeqNumColumn + " int NOT NULL,"
                 + " PRIMARY KEY (" + DBConnector.rsIdColumn + "));";
 
         String createC = "CREATE TABLE IF NOT EXISTS " + this.dbName
@@ -176,7 +177,6 @@ public class MySQLDBAdapter implements SQLDBAdapter {
                 + DBConnector.rsIdColumn + " varchar(255) NOT NULL, "
                 + DBConnector.audColumn + " varchar(255) NOT NULL);";
 
-        // M.T.
         String createOSCOREGroupManagers = "CREATE TABLE IF NOT EXISTS "
         		+ this.dbName + "."
         		+ DBConnector.oscoreGroupManagersTable + "("
@@ -247,7 +247,7 @@ public class MySQLDBAdapter implements SQLDBAdapter {
             stmt.execute(createScopes);
             stmt.execute(createTokenTypes);
             stmt.execute(createAudiences);
-            stmt.execute(createOSCOREGroupManagers); // M.T.
+            stmt.execute(createOSCOREGroupManagers);
             stmt.execute(createCose);
             stmt.execute(createClaims);
             stmt.execute(createOldTokens);

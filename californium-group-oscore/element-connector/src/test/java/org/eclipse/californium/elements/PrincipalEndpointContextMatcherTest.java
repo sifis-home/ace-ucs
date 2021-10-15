@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,11 +16,12 @@
 package org.eclipse.californium.elements;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.net.InetSocketAddress;
 import java.security.Principal;
 
+import org.eclipse.californium.elements.util.Bytes;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -39,11 +40,12 @@ public class PrincipalEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
+		Bytes session = new Bytes("session".getBytes());
 		principal1 = new TestPrincipal("P1");
 		principal2 = new TestPrincipal("P1"); // intended to have the same name as principal1
 		principal3 = new TestPrincipal("P3");
 		
-		connectionContext = new DtlsEndpointContext(ADDRESS, principal1, "session", "1", "CIPHER", "100");
+		connectionContext = new DtlsEndpointContext(ADDRESS, null, principal1, session, 1, "CIPHER", 100);
 		messageContext = new AddressEndpointContext(ADDRESS, principal2);
 		differentMessageContext = new AddressEndpointContext(ADDRESS, principal3);
 		unsecureMessageContext = new AddressEndpointContext(ADDRESS, null);

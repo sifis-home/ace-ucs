@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Institute for Pervasive Computing, ETH Zurich and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -29,6 +29,10 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Set;
 
+import org.eclipse.californium.cli.ClientBaseConfig;
+import org.eclipse.californium.cli.ClientInitializer;
+import org.eclipse.californium.cli.decoder.CborDecoder;
+import org.eclipse.californium.cli.decoder.JsonDecoder;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapHandler;
 import org.eclipse.californium.core.CoapObserveRelation;
@@ -42,8 +46,12 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
+import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.exception.ConnectorException;
-import org.eclipse.californium.plugtests.ClientInitializer.Arguments;
+import org.eclipse.californium.elements.util.StringUtil;
+
+import picocli.CommandLine.Command;
+import picocli.CommandLine.Option;
 
 /**
  * The PlugtestClient uses the developer API of Californium to test if the test
@@ -74,11 +82,19 @@ public class PlugtestClient {
 			config.setInt(Keys.MAX_ACTIVE_PEERS, 10);
 			config.setInt(Keys.DTLS_AUTO_RESUME_TIMEOUT, 0);
 			config.setInt(Keys.DTLS_CONNECTION_ID_LENGTH, 0); // support it, but don't use it
+			config.setInt(ClientInitializer.KEY_DTLS_RETRANSMISSION_TIMEOUT, 2000);
 		}
-		
+
 	};
 
-	
+	@Command(name = "PlugtestClient", version = "(c) 2014, Institute for Pervasive Computing, ETH Zurich.")
+	private static class Config extends ClientBaseConfig {
+
+		@Option(names = "--no-ping", negatable = true, description = "use ping.")
+		public boolean ping = true;
+
+	}
+
 	/**
 	 * Main entry point.
 	 * 
@@ -86,40 +102,32 @@ public class PlugtestClient {
 	 */
 	public static void main(String[] args) throws ConnectorException, IOException {
 
-		if (args.length == 0) {
-
-			System.out.println("\nCalifornium (Cf) Plugtest Client");
-			System.out.println("(c) 2014, Institute for Pervasive Computing, ETH Zurich");
-			System.out.println();
-			System.out.println("Usage: " + PlugtestClient.class.getSimpleName() + " [-s] [-v] [-r|-x|-i id pw] URI");
-			System.out.println("  -s        : Skip the ping in case the remote does not implement it");
-			System.out.println("  -v        : verbose. Enable message tracing.");
-			System.out.println("  -r        : use raw public certificate. Default PSK.");
-			System.out.println("  -x        : use x.509 certificate");
-			System.out.println("  -i id pw  : use PSK with id and password");
-			System.out.println("  URI       : The CoAP URI of the Plugtest server to test (coap://...)");
-			System.exit(-1);
+		Config clientConfig = new Config();
+		clientConfig.networkConfigHeader = CONFIG_HEADER;
+		clientConfig.networkConfigDefaultHandler = DEFAULTS;
+		clientConfig.networkConfigFile = CONFIG_FILE;
+		ClientInitializer.init(args, clientConfig);
+		if (clientConfig.helpRequested) {
+			System.exit(0);
 		}
 
-		NetworkConfig config = NetworkConfig.createWithFile(CONFIG_FILE, CONFIG_HEADER, DEFAULTS);
-		
-		Arguments arguments = ClientInitializer.init(config, args);
+		clientConfig.ping &= !clientConfig.tcp;
 
-		if (arguments.ping) {
-			CoapClient clientPing = new CoapClient(arguments.uri);
+		if (clientConfig.ping) {
+			CoapClient clientPing = new CoapClient(clientConfig.uri);
 			System.out.println("===============\nCC31\n---------------");
 			if (!clientPing.ping(2000)) {
-				System.out.println(arguments.uri + " does not respond to ping, exiting...");
+				System.out.println(clientConfig.uri + " does not respond to ping, exiting...");
 				System.exit(-1);
 			} else {
-				System.out.println(arguments.uri + " reponds to ping");
+				System.out.println(clientConfig.uri + " reponds to ping");
 			}
 		}
 
-		testCC(arguments.uri);
-		testCB(arguments.uri);
-		testCO(arguments.uri);
-		testCL(arguments.uri);
+		testCC(clientConfig.uri);
+		testCB(clientConfig.uri);
+		testCO(clientConfig.uri);
+		testCL(clientConfig.uri);
 
 		System.exit(0);
 	}
@@ -134,6 +142,10 @@ public class PlugtestClient {
 		System.out.println("===============\nCC01+10");
 		System.out.println("---------------\nGET /test\n---------------");
 		response = client.get();
+		EndpointContext context = client.getDestinationContext();
+		if (context != null) {
+			System.out.println(Utils.prettyPrint(context));
+		}
 		System.out.println(response.advanced().getType() + "-" + response.getCode());
 		System.out.println(response.getResponseText());
 
@@ -257,7 +269,18 @@ public class PlugtestClient {
 		System.out.println(
 				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
 		System.out.println(response.getResponseText());
-
+		System.out.println("---------------\nGET /multi-format application/json\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_JSON);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(response.getResponseText());
+		System.out.println(new JsonDecoder().decode(response.getPayload()));
+		System.out.println("---------------\nGET /multi-format application/cbor\n---------------");
+		response = client.get(MediaTypeRegistry.APPLICATION_CBOR);
+		System.out.println(
+				response.getCode() + "-" + MediaTypeRegistry.toString(response.getOptions().getContentFormat()));
+		System.out.println(StringUtil.byteArray2Hex(response.getPayload()));
+		System.out.println(new CborDecoder().decode(response.getPayload()));
 		client.setURI(uri + "/validate");
 		byte[] etag;
 
@@ -338,6 +361,8 @@ public class PlugtestClient {
 		response = client.putIfNoneMatch("CC23 at " + new SimpleDateFormat("HH:mm:ss.SSS").format(new Date()),
 				MediaTypeRegistry.TEXT_PLAIN);
 		System.out.println(response.getCode());
+
+		client.shutdown();
 	}
 
 	public static void testCB(String uri) throws ConnectorException, IOException {
@@ -400,6 +425,8 @@ public class PlugtestClient {
 		response = client.get();
 		System.out.println(response.getCode());
 		System.out.println(response.getResponseText());
+
+		client.shutdown();
 	}
 
 	public static void testCO(String uri) throws ConnectorException, IOException {
@@ -555,6 +582,8 @@ public class PlugtestClient {
 			Thread.sleep(6 * 1000);
 		} catch (InterruptedException e) {
 		}
+
+		client.shutdown();
 	}
 
 	public static void testCL(String uri) throws ConnectorException, IOException {
@@ -626,8 +655,7 @@ public class PlugtestClient {
 			client.setURI(uri + link.getURI());
 			System.out.println("---------------\nGET " + link.getURI() + " with ct=40\n---------------");
 			String linkResponse = client.get(MediaTypeRegistry.APPLICATION_LINK_FORMAT).getResponseText();
-			Set<WebLink> subLinks = LinkFormat
-					.parse(linkResponse);
+			Set<WebLink> subLinks = LinkFormat.parse(linkResponse);
 			System.out.println("Found " + subLinks.size() + " resource(s)");
 			for (WebLink subLink : subLinks) {
 				client.setURI(uri + subLink.getURI());
@@ -637,6 +665,8 @@ public class PlugtestClient {
 				System.out.println(response.getResponseText());
 			}
 		}
+
+		client.shutdown();
 	}
 
 	public static String getLargeRequestPayload() {

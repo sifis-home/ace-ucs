@@ -1,20 +1,23 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
 		<groupId>org.eclipse.californium</groupId>
-		<artifactId>parent</artifactId>
-		<version>2.0.0-M15</version>
+		<artifactId>cf-bom</artifactId>
+		<version>3.0.0-SNAPSHOT</version>
+		<relativePath>../bom</relativePath>
 	</parent>
 
 	<artifactId>element-connector</artifactId>
 	<packaging>bundle</packaging>
 
-	<name>element-connector</name>
+	<name>Californium (Cf) Element Connector</name>
 	<description>Java socket abstraction for datagram transports (UDP, DTLS, etc.)</description>
-	
+
 	<dependencies>
 		<dependency>
 			<groupId>${project.groupId}</groupId>
@@ -35,7 +38,7 @@
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-library</artifactId>
 			<scope>test</scope>
-		</dependency>		
+		</dependency>
 		<dependency>
 			<groupId>ch.qos.logback</groupId>
 			<artifactId>logback-classic</artifactId>
@@ -45,8 +48,27 @@
 			<groupId>${project.groupId}</groupId>
 			<artifactId>demo-certs</artifactId>
 			<scope>test</scope>
-		</dependency>		
+		</dependency>
 	</dependencies>
+
+	<profiles>
+		<profile>
+			<id>java11-ec25519</id>
+			<activation>
+				<jdk>[11,15)</jdk>
+				<property>
+					<name>no.net.i2p.crypto.eddsa</name>
+					<value>!true</value>
+				</property>
+			</activation>
+			<dependencies>
+				<dependency>
+					<groupId>net.i2p.crypto</groupId>
+					<artifactId>eddsa</artifactId>
+				</dependency>
+			</dependencies>
+		</profile>
+	</profiles>
 
 	<build>
 		<plugins>
@@ -57,7 +79,6 @@
 				<configuration>
 					<instructions>
 						<Export-Package>
-							eu.javaspecialists.tjsn.concurrency.stripedexecutor,
 							org.eclipse.californium.elements*
 						</Export-Package>
 						<Import-Package>
@@ -79,22 +100,11 @@
 				</executions>
 			</plugin>
 			<plugin>
-				<groupId>org.codehaus.mojo</groupId>
-				<artifactId>animal-sniffer-maven-plugin</artifactId>
-				<executions>
-					<execution>
-						<goals>
-							<goal>check</goal>
-						</goals>
-					</execution>
-				</executions>
-			</plugin>
-			<plugin>
 				<artifactId>maven-assembly-plugin</artifactId>
 				<configuration>
-					<descriptors>
-						<descriptor>enhanced-jar-with-licenses.xml</descriptor>
-					</descriptors>
+					<descriptorRefs>
+						<descriptorRef>enhanced-jar-with-licenses</descriptorRef>
+					</descriptorRefs>
 					<archive>
 						<manifestFile>${project.build.outputDirectory}/META-INF/MANIFEST.MF</manifestFile>
 					</archive>

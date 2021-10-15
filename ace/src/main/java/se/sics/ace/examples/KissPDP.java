@@ -202,6 +202,7 @@ public class KissPDP implements PDP, AutoCloseable {
             throw new AceException(
                     "canAccessToken() requires non-null clientId");
         }
+	    
         try {
             this.canToken.setString(1, clientId);
             ResultSet result = this.canToken.executeQuery();

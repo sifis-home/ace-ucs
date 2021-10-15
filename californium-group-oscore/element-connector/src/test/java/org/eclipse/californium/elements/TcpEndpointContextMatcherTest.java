@@ -2,11 +2,11 @@
  * Copyright (c) 2017 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,7 +16,7 @@
 package org.eclipse.californium.elements;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.junit.Assert.assertThat;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.net.InetSocketAddress;
 
@@ -33,9 +33,10 @@ public class TcpEndpointContextMatcherTest {
 
 	@Before
 	public void setup() {
-		connectorContext = new TcpEndpointContext(ADDRESS, "ID1");
-		messageContext = new TcpEndpointContext(ADDRESS, "ID1");
-		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2");
+		long time = System.currentTimeMillis();
+		connectorContext = new TcpEndpointContext(ADDRESS, "ID1", time);
+		messageContext = new TcpEndpointContext(ADDRESS, "ID1", time);
+		differentMessageContext = new TcpEndpointContext(ADDRESS, "ID2", System.currentTimeMillis());
 		matcher = new TcpEndpointContextMatcher();
 	}
 

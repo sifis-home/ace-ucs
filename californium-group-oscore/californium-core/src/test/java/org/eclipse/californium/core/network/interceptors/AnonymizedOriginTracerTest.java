@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -18,18 +18,21 @@ package org.eclipse.californium.core.network.interceptors;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.number.OrderingComparison.greaterThan;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.concurrent.TimeUnit;
 
-import org.eclipse.californium.category.Medium;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.elements.AddressEndpointContext;
+import org.eclipse.californium.elements.category.Medium;
+import org.eclipse.californium.elements.rule.TestTimeRule;
+import org.eclipse.californium.rule.CoapThreadsRule;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 
@@ -40,6 +43,12 @@ import org.junit.experimental.categories.Category;
 public class AnonymizedOriginTracerTest {
 
 	private static final long FILTER_TIMEOUT_IN_SECONDS = 2;
+
+	@Rule
+	public CoapThreadsRule cleanup = new CoapThreadsRule();
+
+	@Rule
+	public TestTimeRule time = new TestTimeRule();
 
 	private AnonymizedOriginTracer tracer;
 	private byte[] rawAddress;
@@ -115,7 +124,7 @@ public class AnonymizedOriginTracerTest {
 		// logging again within timeout is suppressed.
 		assertFalse(log(address1_2));
 		assertTrue(log(address3));
-		Thread.sleep(TimeUnit.SECONDS.toMillis(FILTER_TIMEOUT_IN_SECONDS) + 500);
+		time.addTestTimeShift(FILTER_TIMEOUT_IN_SECONDS + 1, TimeUnit.SECONDS);
 		// logging again after timeout
 		assertTrue(log(address1));
 	}

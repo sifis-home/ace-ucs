@@ -35,11 +35,11 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
-import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.oscore.OSCoreResource;
 
 import se.sics.ace.AceException;
+import se.sics.ace.Constants;
 import se.sics.ace.Endpoint;
 import se.sics.ace.Message;
 import se.sics.ace.as.Introspect;
@@ -106,7 +106,7 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
     public void handlePOST(CoapExchange exchange) {
         CoapReq req = null;
         try {
-            req = CoapReq.getInstance(exchange.advanced().getRequest(), exchange);
+            req = CoapReq.getInstance(exchange.advanced().getRequest());
         } catch (AceException e) {//Message didn't have CBOR payload
             LOGGER.info(e.getMessage());
             exchange.respond(ResponseCode.BAD_REQUEST);
@@ -120,7 +120,7 @@ public class OscoreAceEndpoint extends OSCoreResource implements AutoCloseable {
             LOGGER.log(Level.FINEST, "Produced response: " + res.toString());
             //XXX: Should the profile set the content format here?
             exchange.respond(res.getCode(), res.getRawPayload(), 
-                    MediaTypeRegistry.APPLICATION_CBOR);
+                    Constants.APPLICATION_ACE_CBOR);
             return;
         }
         if (m == null) {//Wasn't a CoAP message

@@ -2,11 +2,11 @@
  * Copyright (c) 2019 Bosch Software Innovations GmbH and others.
  *
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  *
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  *
@@ -19,12 +19,11 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
-import java.net.InetSocketAddress;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 
-import org.eclipse.californium.scandium.category.Small;
+import org.eclipse.californium.elements.category.Small;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -34,14 +33,13 @@ import org.slf4j.LoggerFactory;
 @Category(Small.class)
 public class ReassemblingHandshakeMessageTest {
 
-	public static final Logger LOGGER = LoggerFactory.getLogger(ReassemblingHandshakeMessageTest.class.getName());
+	public static final Logger LOGGER = LoggerFactory.getLogger(ReassemblingHandshakeMessageTest.class);
 
 	private static final int MAX_FRAGMENT_SIZE = 100;
 	private static final int MESSAGE_SIZE = 3000;
 	private static final int MESSAGE_SEQN = 1;
 	private static final int OVERLAPS = 10;
 
-	private InetSocketAddress peerAddress = new InetSocketAddress(5683);
 	private Random rand = new Random();
 	private byte[] payload;
 	private List<FragmentedHandshakeMessage> fragments;
@@ -57,7 +55,7 @@ public class ReassemblingHandshakeMessageTest {
 			byte[] fragment = new byte[fragmentLength];
 			System.arraycopy(payload, fragmentOffset, fragment, 0, fragmentLength);
 			FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE,
-					MESSAGE_SEQN, fragmentOffset, fragment, peerAddress);
+					MESSAGE_SEQN, fragmentOffset, fragment);
 			fragments.add(msg);
 			fragmentOffset += fragmentLength;
 		}
@@ -90,7 +88,7 @@ public class ReassemblingHandshakeMessageTest {
 			byte[] fragment = new byte[length];
 			System.arraycopy(payload, offset, fragment, 0, length);
 			message = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE, MESSAGE_SEQN, offset,
-					fragment, peerAddress);
+					fragment);
 			fragments.add(index, message);
 		}
 	}
@@ -198,7 +196,7 @@ public class ReassemblingHandshakeMessageTest {
 		boolean complete = false;
 		FragmentedHandshakeMessage first = fragments.get(0);
 		FragmentedHandshakeMessage additionalMsg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE,
-				MESSAGE_SIZE, MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray(), peerAddress);
+				MESSAGE_SIZE, MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray());
 		fragments.add(additionalMsg);
 		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
 		for (FragmentedHandshakeMessage msg : fragments) {
@@ -215,7 +213,7 @@ public class ReassemblingHandshakeMessageTest {
 		FragmentedHandshakeMessage first = fragments.get(0);
 		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
 		FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.SERVER_KEY_EXCHANGE, MESSAGE_SIZE,
-				MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray(), peerAddress);
+				MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray());
 		message.add(msg);
 	}
 
@@ -224,7 +222,7 @@ public class ReassemblingHandshakeMessageTest {
 		FragmentedHandshakeMessage first = fragments.get(0);
 		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
 		FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE - 1,
-				MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray(), peerAddress);
+				MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray());
 		message.add(msg);
 	}
 
@@ -233,16 +231,7 @@ public class ReassemblingHandshakeMessageTest {
 		FragmentedHandshakeMessage first = fragments.get(0);
 		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
 		FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE,
-				MESSAGE_SEQN + 1, first.getFragmentLength(), first.fragmentToByteArray(), peerAddress);
-		message.add(msg);
-	}
-
-	@Test(expected = IllegalArgumentException.class)
-	public void testDifferentAddress() {
-		FragmentedHandshakeMessage first = fragments.get(0);
-		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
-		FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE,
-				MESSAGE_SEQN, first.getFragmentLength(), first.fragmentToByteArray(), new InetSocketAddress(5684));
+				MESSAGE_SEQN + 1, first.getFragmentLength(), first.fragmentToByteArray());
 		message.add(msg);
 	}
 
@@ -251,7 +240,7 @@ public class ReassemblingHandshakeMessageTest {
 		FragmentedHandshakeMessage first = fragments.get(0);
 		ReassemblingHandshakeMessage message = new ReassemblingHandshakeMessage(first);
 		FragmentedHandshakeMessage msg = new FragmentedHandshakeMessage(HandshakeType.CERTIFICATE, MESSAGE_SIZE,
-				MESSAGE_SEQN + 1, first.getFragmentLength(), payload, peerAddress);
+				MESSAGE_SEQN + 1, first.getFragmentLength(), payload);
 		message.add(msg);
 	}
 }

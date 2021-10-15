@@ -2,11 +2,11 @@
  * Copyright (c) 2018 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -16,7 +16,7 @@
 package org.eclipse.californium.extplugtests.resources;
 
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.BAD_OPTION;
-import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CONTENT;
+import static org.eclipse.californium.core.coap.CoAP.ResponseCode.CHANGED;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_ACCEPTABLE;
 import static org.eclipse.californium.core.coap.CoAP.ResponseCode.NOT_IMPLEMENTED;
 import static org.eclipse.californium.core.coap.MediaTypeRegistry.TEXT_PLAIN;
@@ -42,6 +42,10 @@ public class Benchmark extends CoapResource {
 	 * URI query parameter to specify response length.
 	 */
 	private static final String URI_QUERY_OPTION_RESPONSE_LENGTH = "rlen";
+	/**
+	 * URI query parameter to specify ack and separate response.
+	 */
+	private static final String URI_QUERY_OPTION_ACK = "ack";
 
 	/**
 	 * Default response.
@@ -87,6 +91,7 @@ public class Benchmark extends CoapResource {
 		}
 
 		List<String> uriQuery = request.getOptions().getUriQuery();
+		boolean ack = false;
 		int length = 0;
 		for (String query : uriQuery) {
 			String message = null;
@@ -102,6 +107,8 @@ public class Benchmark extends CoapResource {
 				} catch (NumberFormatException ex) {
 					message = "URI-query-option " + query + " is no number!";
 				}
+			} else if (query.startsWith(URI_QUERY_OPTION_ACK)) {
+				ack = true;
 			} else {
 				message = "URI-query-option " + query + " is not supported!";
 			}
@@ -112,6 +119,10 @@ public class Benchmark extends CoapResource {
 				return;
 			}
 		}
+		
+		if (ack) {
+			exchange.accept();
+		}
 
 		byte[] responsePayload = payload;
 		if (length > 0) {
@@ -121,6 +132,6 @@ public class Benchmark extends CoapResource {
 			}
 		}
 
-		exchange.respond(CONTENT, responsePayload, TEXT_PLAIN);
+		exchange.respond(CHANGED, responsePayload, TEXT_PLAIN);
 	}
 }

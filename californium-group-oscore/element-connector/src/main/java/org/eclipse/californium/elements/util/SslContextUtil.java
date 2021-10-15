@@ -2,11 +2,11 @@
  * Copyright (c) 2016 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -23,23 +23,33 @@
  ******************************************************************************/
 package org.eclipse.californium.elements.util;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.Socket;
 import java.net.URL;
 import java.security.GeneralSecurityException;
 import java.security.KeyStore;
+import java.security.Principal;
 import java.security.KeyStore.Entry;
 import java.security.KeyStore.PrivateKeyEntry;
 import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.Security;
+import java.security.cert.CertPath;
 import java.security.cert.Certificate;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -47,8 +57,14 @@ import java.util.regex.Pattern;
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
+import javax.net.ssl.X509ExtendedKeyManager;
+import javax.net.ssl.X509ExtendedTrustManager;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Utility functions for {@link javax.net.ssl.SSLContext}.
@@ -74,32 +90,36 @@ import javax.net.ssl.TrustManagerFactory;
  * ".jks" to "JKS"
  * ".bks" to "BKS"
  * ".p12" to "PKCS12"
+ * ".pem" to "PEM" (simple key store, experimental!)
  * "*" to system default
  * </pre>
+ * 
+ * PEM: Read private keys (PKCS8 and PKCS12 (EC only)), public key (x509), and
+ * certificates (x509).
  * 
  * The utility provides also a configurable input stream factory of URI schemes.
  * Currently only {@link #CLASSPATH_SCHEME} is pre-configured to load key stores
  * from the classpath. If the scheme of the URI has no configured input stream
  * factory, the URI is loaded with {@link URL#URL(String)}.
  * 
- * Note: currently this class provides a class access based API. Depending on
- * the usage, this may change to instance access based API. It is not intended,
- * that the configuration is changed during usage, this may cause race
- * conditions!
+ * Note: It is not intended, that the configuration is changed during usage,
+ * this may cause race conditions! Currently this class provides a class level
+ * access based API. Therefore only one configuration at all is possible.
+ * Depending on the usage, this may change to instance level access based API to
+ * support more parallel configurations to be used.
  * 
  * @see #configure(String, String)
+ * @see #configure(String, KeyStoreConfiguration)
  * @see #configure(String, InputStreamFactory)
  */
 public class SslContextUtil {
+
+	public static final Logger LOGGER = LoggerFactory.getLogger(SslContextUtil.class);
 
 	/**
 	 * Scheme for key store URI. Used to load the key stores from classpath.
 	 */
 	public static final String CLASSPATH_SCHEME = "classpath://";
-	/**
-	 * @deprecated use CLASSPATH_SCHEME instead!
-	 */
-	public static final String CLASSPATH_PROTOCOL = CLASSPATH_SCHEME;
 	/**
 	 * Separator for parameters.
 	 * 
@@ -120,6 +140,12 @@ public class SslContextUtil {
 	 */
 	public static final String PKCS12_ENDING = ".p12";
 	/**
+	 * Ending for key stores with pseudo type {@link #PEM_TYPE}.
+	 * 
+	 * @see #KEY_STORE_TYPES
+	 */
+	public static final String PEM_ENDING = ".pem";
+	/**
 	 * Label to provide default key store type.
 	 */
 	public static final String DEFAULT_ENDING = "*";
@@ -136,7 +162,13 @@ public class SslContextUtil {
 	 */
 	public static final String PKCS12_TYPE = "PKCS12";
 	/**
-	 * Default protocol used for 
+	 * Pseudo key store type PEM.
+	 * 
+	 * @see #KEY_STORE_TYPES
+	 */
+	public static final String PEM_TYPE = "PEM";
+	/**
+	 * Default protocol used for
 	 * {@link #createSSLContext(String, PrivateKey, X509Certificate[], Certificate[])}.
 	 */
 	public static final String DEFAULT_SSL_PROTOCOL = "TLSv1.2";
@@ -145,12 +177,17 @@ public class SslContextUtil {
 	 */
 	private static final String SCHEME_DELIMITER = "://";
 	/**
+	 * Default alias.
+	 */
+	private static final String DEFAULT_ALIAS = "californium";
+	/**
 	 * Map URI endings to key store types.
 	 * 
 	 * @see #configure(String, String)
 	 * @see #getKeyStoreTypeFromUri(String)
 	 */
 	private static final Map<String, String> KEY_STORE_TYPES = new ConcurrentHashMap<>();
+	private static final Map<String, KeyStoreConfiguration> KEY_STORE_CONFIGS = new ConcurrentHashMap<>();
 	/**
 	 * Map URI scheme to input stream factories.
 	 * 
@@ -159,16 +196,32 @@ public class SslContextUtil {
 	 */
 	private static final Map<String, InputStreamFactory> INPUT_STREAM_FACTORIES = new ConcurrentHashMap<>();
 
+	/**
+	 * Anonymous key manager.
+	 * 
+	 * @since 2.4
+	 */
+	private static final KeyManager ANONYMOUS = new AnonymousX509ExtendedKeyManager();
+
+	/**
+	 * TrustManager to trust all.
+	 * 
+	 * @since 2.4
+	 */
+	@NotForAndroid
+	private static final TrustManager TRUST_ALL = new SimpleX509ExtendedTrustManager(new X509Certificate[0]);
+
 	static {
+		Asn1DerDecoder.getEdDsaProvider();
 		configureDefaults();
 	}
 
 	/**
 	 * Load trusted certificates from key store.
 	 * 
-	 * @param trust trust definition keystore#hexstorepwd#aliaspattern. If no
-	 *            aliaspattern should be used, just leave it blank
-	 *            keystore#hexstorepwd#
+	 * @param trust trust definition keystore#hexstorepwd#aliaspattern or
+	 *            keystore.pem. If no aliaspattern should be used, just leave it
+	 *            blank keystore#hexstorepwd#
 	 * @return array with trusted certificates.
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
@@ -183,6 +236,12 @@ public class SslContextUtil {
 			throw new NullPointerException("trust must be provided!");
 		}
 		String[] parameters = trust.split(PARAMETER_SEPARATOR, 3);
+		if (1 == parameters.length) {
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			if (configuration.simpleStore != null) {
+				return loadTrustedCertificates(parameters[0], null, null);
+			}
+		}
 		if (3 != parameters.length) {
 			throw new IllegalArgumentException("trust must comply the pattern <keystore" + PARAMETER_SEPARATOR
 					+ "hexstorepwd" + PARAMETER_SEPARATOR + "aliaspattern>");
@@ -194,7 +253,7 @@ public class SslContextUtil {
 	 * Load credentials from key store.
 	 * 
 	 * @param credentials credentials definition
-	 *            keystore#hexstorepwd#hexkeypwd#alias.
+	 *            keystore#hexstorepwd#hexkeypwd#alias or keystore.pem
 	 * @return credentials
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
@@ -209,6 +268,12 @@ public class SslContextUtil {
 			throw new NullPointerException("credentials must be provided!");
 		}
 		String[] parameters = credentials.split(PARAMETER_SEPARATOR, 4);
+		if (1 == parameters.length) {
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(parameters[0]);
+			if (configuration.simpleStore != null) {
+				return loadCredentials(parameters[0], null, null, null);
+			}
+		}
 		if (4 != parameters.length) {
 			throw new IllegalArgumentException("credentials must comply the pattern <keystore" + PARAMETER_SEPARATOR
 					+ "hexstorepwd" + PARAMETER_SEPARATOR + "hexkeypwd" + PARAMETER_SEPARATOR + "alias>");
@@ -230,7 +295,8 @@ public class SslContextUtil {
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws IllegalArgumentException if no matching trusts are found
-	 * @throws NullPointerException if keyStoreUri or storePassword is {@code null}.
+	 * @throws NullPointerException if keyStoreUri or storePassword is
+	 *             {@code null}.
 	 */
 	public static TrustManager[] loadTrustManager(String keyStoreUri, String aliasPattern, char[] storePassword)
 			throws IOException, GeneralSecurityException {
@@ -256,11 +322,36 @@ public class SslContextUtil {
 	 */
 	public static KeyManager[] loadKeyManager(String keyStoreUri, String alias, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
-		if (null == keyPassword) {
-			throw new NullPointerException("keyPassword must be provided!");
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		KeyStore ks;
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.privateKey == null) {
+				throw new IllegalArgumentException("credentials missing! No private key found!");
+			}
+			if (credentials.chain == null) {
+				throw new IllegalArgumentException("credentials missing! No certificate chain found!");
+			}
+			return createKeyManager(alias, credentials.privateKey, credentials.chain);
+		} else {
+			if (null == keyPassword) {
+				throw new NullPointerException("keyPassword must be provided!");
+			}
+			ks = loadKeyStore(keyStoreUri, storePassword, configuration);
+			if (alias != null && !alias.isEmpty()) {
+				KeyStore ksAlias = KeyStore.getInstance(ks.getType());
+				ksAlias.load(null);
+				Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
+				if (null != entry) {
+					ksAlias.setEntry(alias, entry, new KeyStore.PasswordProtection(keyPassword));
+				} else {
+					throw new GeneralSecurityException(
+							"key stores '" + keyStoreUri + "' doesn't contain credentials for '" + alias + "'");
+				}
+				ks = ksAlias;
+			}
+			return createKeyManager(ks, keyPassword);
 		}
-		KeyStore ks = loadKeyStore(keyStoreUri, alias, storePassword, keyPassword);
-		return createKeyManager(ks, keyPassword);
 	}
 
 	/**
@@ -275,11 +366,21 @@ public class SslContextUtil {
 	 * @throws IOException if key store could not be loaded.
 	 * @throws GeneralSecurityException if security setup failed.
 	 * @throws IllegalArgumentException if no matching certificates are found
-	 * @throws NullPointerException if keyStoreUri or storePassword is {@code null}.
+	 * @throws NullPointerException if keyStoreUri or storePassword is
+	 *             {@code null}.
 	 */
 	public static Certificate[] loadTrustedCertificates(String keyStoreUri, String aliasPattern, char[] storePassword)
 			throws IOException, GeneralSecurityException {
-		KeyStore ks = loadKeyStore(keyStoreUri, storePassword);
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.trusts == null) {
+				throw new IllegalArgumentException("no trusted x509 certificates found in '" + keyStoreUri + "'!");
+			}
+			return credentials.trusts;
+		}
+
+		KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
 
 		Pattern pattern = null;
 		if (null != aliasPattern && !aliasPattern.isEmpty()) {
@@ -295,7 +396,7 @@ public class SslContextUtil {
 				}
 			}
 			Certificate certificate = ks.getCertificate(alias);
-			if (null != certificate) {
+			if (!trustedCertificates.contains(certificate)) {
 				trustedCertificates.add(certificate);
 			}
 		}
@@ -324,6 +425,18 @@ public class SslContextUtil {
 	 */
 	public static Credentials loadCredentials(String keyStoreUri, String alias, char[] storePassword,
 			char[] keyPassword) throws IOException, GeneralSecurityException {
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.privateKey == null) {
+				throw new IllegalArgumentException("credentials missing! No private key found!");
+			}
+			if (credentials.chain == null && credentials.publicKey == null) {
+				throw new IllegalArgumentException(
+						"credentials missing! Neither certificate chain nor public key found!");
+			}
+			return credentials;
+		}
 		if (null == alias) {
 			throw new NullPointerException("alias must be provided!");
 		}
@@ -333,17 +446,100 @@ public class SslContextUtil {
 		if (null == keyPassword) {
 			throw new NullPointerException("keyPassword must be provided!");
 		}
-		KeyStore ks = loadKeyStore(keyStoreUri, storePassword);
+		KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
 		if (ks.entryInstanceOf(alias, PrivateKeyEntry.class)) {
 			Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
 			if (entry instanceof PrivateKeyEntry) {
 				PrivateKeyEntry pkEntry = (PrivateKeyEntry) entry;
 				Certificate[] chain = pkEntry.getCertificateChain();
 				X509Certificate[] x509Chain = asX509Certificates(chain);
-				return new Credentials(pkEntry.getPrivateKey(), x509Chain);
+				return new Credentials(pkEntry.getPrivateKey(), null, x509Chain);
 			}
 		}
 		throw new IllegalArgumentException("no credentials found for '" + alias + "' in '" + keyStoreUri + "'!");
+	}
+
+	/**
+	 * Load private key from key store.
+	 * 
+	 * @param keyStoreUri key store URI. Supports configurable URI scheme based
+	 *            input streams and URI ending based key store type.
+	 * @param alias alias to load specific credentials.
+	 * @param storePassword password for key store.
+	 * @param keyPassword password for private key.
+	 * @return private key for the alias.
+	 * @throws IOException if key store could not be loaded.
+	 * @throws GeneralSecurityException if security setup failed.
+	 * @throws IllegalArgumentException if alias is empty, or no matching
+	 *             credentials are found.
+	 * @throws NullPointerException if keyStoreUri, storePassword, keyPassword,
+	 *             or alias is {@code null}.
+	 */
+	public static PrivateKey loadPrivateKey(String keyStoreUri, String alias, char[] storePassword, char[] keyPassword)
+			throws IOException, GeneralSecurityException {
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.privateKey != null) {
+				return credentials.privateKey;
+			}
+		} else {
+			if (null == alias) {
+				throw new NullPointerException("alias must be provided!");
+			}
+			if (alias.isEmpty()) {
+				throw new IllegalArgumentException("alias must not be empty!");
+			}
+			if (null == keyPassword) {
+				throw new NullPointerException("keyPassword must be provided!");
+			}
+			KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
+			if (ks.entryInstanceOf(alias, PrivateKeyEntry.class)) {
+				Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
+				if (entry instanceof PrivateKeyEntry) {
+					PrivateKeyEntry pkEntry = (PrivateKeyEntry) entry;
+					return pkEntry.getPrivateKey();
+				}
+			}
+		}
+		throw new IllegalArgumentException("no private key found for '" + alias + "' in '" + keyStoreUri + "'!");
+	}
+
+	/**
+	 * Load public key from key store.
+	 * 
+	 * @param keyStoreUri key store URI. Supports configurable URI scheme based
+	 *            input streams and URI ending based key store type.
+	 * @param alias alias to load specific credentials.
+	 * @param storePassword password for key store.
+	 * @return public key for the alias.
+	 * @throws IOException if key store could not be loaded.
+	 * @throws GeneralSecurityException if security setup failed.
+	 * @throws IllegalArgumentException if alias is empty, or no matching
+	 *             credentials are found.
+	 * @throws NullPointerException if keyStoreUri, storePassword, keyPassword,
+	 *             or alias is {@code null}.
+	 */
+	public static PublicKey loadPublicKey(String keyStoreUri, String alias, char[] storePassword)
+			throws IOException, GeneralSecurityException {
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.publicKey != null) {
+				return credentials.publicKey;
+			}
+		} else {
+			if (null == alias) {
+				throw new NullPointerException("alias must be provided!");
+			}
+			if (alias.isEmpty()) {
+				throw new IllegalArgumentException("alias must not be empty!");
+			}
+			KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
+			Certificate[] chain = ks.getCertificateChain(alias);
+			return chain[0].getPublicKey();
+		}
+		throw new IllegalArgumentException("no public key found for '" + alias + "' in '" + keyStoreUri + "'!");
 	}
 
 	/**
@@ -363,13 +559,21 @@ public class SslContextUtil {
 	 */
 	public static X509Certificate[] loadCertificateChain(String keyStoreUri, String alias, char[] storePassword)
 			throws IOException, GeneralSecurityException {
+		KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(keyStoreUri);
+		if (configuration.simpleStore != null) {
+			Credentials credentials = loadSimpleKeyStore(keyStoreUri, configuration);
+			if (credentials.chain == null) {
+				throw new IllegalArgumentException("No certificate chain found!");
+			}
+			return credentials.chain;
+		}
 		if (null == alias) {
 			throw new NullPointerException("alias must be provided!");
 		}
 		if (alias.isEmpty()) {
 			throw new IllegalArgumentException("alias must not be empty!");
 		}
-		KeyStore ks = loadKeyStore(keyStoreUri, storePassword);
+		KeyStore ks = loadKeyStore(keyStoreUri, storePassword, configuration);
 		Certificate[] chain = ks.getCertificateChain(alias);
 		return asX509Certificates(chain);
 	}
@@ -383,6 +587,7 @@ public class SslContextUtil {
 	 * ".jks" to "JKS"
 	 * ".bks" to "BKS"
 	 * ".p12" to "PKCS12"
+	 * ".pem" to "PEM"
 	 * "*" to system default
 	 * </pre>
 	 * 
@@ -393,7 +598,20 @@ public class SslContextUtil {
 		KEY_STORE_TYPES.put(JKS_ENDING, JKS_TYPE);
 		KEY_STORE_TYPES.put(BKS_ENDING, BKS_TYPE);
 		KEY_STORE_TYPES.put(PKCS12_ENDING, PKCS12_TYPE);
+		KEY_STORE_TYPES.put(PEM_ENDING, PEM_TYPE);
 		KEY_STORE_TYPES.put(DEFAULT_ENDING, KeyStore.getDefaultType());
+
+		KEY_STORE_CONFIGS.put(JKS_TYPE, new KeyStoreConfiguration(JKS_TYPE, null));
+		KEY_STORE_CONFIGS.put(BKS_TYPE, new KeyStoreConfiguration(BKS_TYPE, null));
+		KEY_STORE_CONFIGS.put(PKCS12_TYPE, new KeyStoreConfiguration(PKCS12_TYPE, null));
+		KEY_STORE_CONFIGS.put(PEM_TYPE, new KeyStoreConfiguration(PEM_TYPE, new SimpleKeyStore() {
+
+			@Override
+			public Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException {
+				return loadPemCredentials(inputStream);
+			}
+		}));
+
 		INPUT_STREAM_FACTORIES.clear();
 		INPUT_STREAM_FACTORIES.put(CLASSPATH_SCHEME, new ClassLoaderInputStreamFactory());
 	}
@@ -425,6 +643,27 @@ public class SslContextUtil {
 			throw new IllegalArgumentException("key store type must not be empty!");
 		}
 		return KEY_STORE_TYPES.put(ending.toLowerCase(), keyStoreType);
+	}
+
+	/**
+	 * Configure a {@link KeyStoreConfiguration} for a key store type.
+	 * 
+	 * @param keyStoreType the key store type
+	 * @param config the key store configuration
+	 * @return previous key store configuration, or {@code null}, if no key
+	 *         store configuration was configured before
+	 */
+	public static KeyStoreConfiguration configure(String keyStoreType, KeyStoreConfiguration config) {
+		if (keyStoreType == null) {
+			throw new NullPointerException("key store type must not be null!");
+		}
+		if (keyStoreType.isEmpty()) {
+			throw new IllegalArgumentException("key store type must not be empty!");
+		}
+		if (config == null) {
+			throw new NullPointerException("key store configuration must not be null!");
+		}
+		return KEY_STORE_CONFIGS.put(keyStoreType, config);
 	}
 
 	/**
@@ -463,22 +702,31 @@ public class SslContextUtil {
 	 *            used.
 	 * @return configured key store type for ending or default, if ending is not
 	 *         configured.
+	 * @throws GeneralSecurityException if configuration is not available
 	 * @see #configure(String, String)
 	 */
-	private static String getKeyStoreTypeFromUri(String uri) {
+	private static KeyStoreConfiguration getKeyStoreConfigurationFromUri(String uri) throws GeneralSecurityException {
+		String ending = null;
 		String type = null;
 		if (!uri.equals(DEFAULT_ENDING)) {
 			int lastPartIndex = uri.lastIndexOf('/');
 			int endingIndex = uri.lastIndexOf('.');
 			if (lastPartIndex < endingIndex) {
-				String ending = uri.substring(endingIndex).toLowerCase();
+				ending = uri.substring(endingIndex).toLowerCase();
 				type = KEY_STORE_TYPES.get(ending);
 			}
 		}
 		if (type == null) {
 			type = KEY_STORE_TYPES.get(DEFAULT_ENDING);
 		}
-		return type;
+		if (type == null) {
+			throw new GeneralSecurityException("no key store type for " + uri);
+		}
+		KeyStoreConfiguration configuration = KEY_STORE_CONFIGS.get(type.toUpperCase());
+		if (configuration == null) {
+			throw new GeneralSecurityException("no key store configuration for " + type);
+		}
+		return configuration;
 	}
 
 	/**
@@ -498,74 +746,23 @@ public class SslContextUtil {
 	}
 
 	/**
-	 * Load key store.
+	 * Get input stream from URI.
 	 * 
-	 * @param keyStoreUri key store URI. Supports configurable URI scheme based
-	 *            input streams and URI ending based key store type.
-	 * @param alias alias to load only the specific entries to the key store.
-	 *            null to load the complete key store.
-	 * @param storePassword password for key store.
-	 * @param keyPassword password for private key. Not required for
-	 *            certificates.
-	 * @return key store.
-	 * @throws IOException if key store could not be loaded.
-	 * @throws GeneralSecurityException if security setup failed, or no
-	 *             credentials or certificates are available for the provided
-	 *             alias.
-	 * @throws NullPointerException if keyStoreUri or storePassword is null.
-	 */
-	private static KeyStore loadKeyStore(String keyStoreUri, String alias, char[] storePassword, char[] keyPassword)
-			throws IOException, GeneralSecurityException {
-		KeyStore ks = loadKeyStore(keyStoreUri, storePassword);
-		if (null == alias || alias.isEmpty()) {
-			return ks;
-		}
-		if (null == keyPassword) {
-			Certificate certificate = ks.getCertificate(alias);
-			if (null != certificate) {
-				KeyStore ksAlias = KeyStore.getInstance(ks.getType());
-				ksAlias.load(null);
-				ksAlias.setCertificateEntry(alias, certificate);
-				return ksAlias;
-			}
-			throw new GeneralSecurityException(
-					"key stores '" + keyStoreUri + "' doesn't contain certificates for '" + alias + "'");
-		} else {
-			Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPassword));
-			if (null != entry) {
-				KeyStore ksAlias = KeyStore.getInstance(ks.getType());
-				ksAlias.load(null);
-				ksAlias.setEntry(alias, entry, new KeyStore.PasswordProtection(keyPassword));
-				return ksAlias;
-			}
-			throw new GeneralSecurityException(
-					"key stores '" + keyStoreUri + "' doesn't contain credentials for '" + alias + "'");
-		}
-	}
-
-	/**
-	 * Load key store.
+	 * Create input stream from URI. If no scheme is provided
+	 * ({@link #SCHEME_DELIMITER} not found), open a file using the URI.
+	 * Otherwise, if a scheme is provided, use that scheme to lookup a
+	 * configured {@link #InputStreamFactory}. If no factory for that scheme was
+	 * configured with {@link #configure(String, InputStreamFactory)}, then use
+	 * {@link URL}.
 	 * 
-	 * @param keyStoreUri key store URI. Use
-	 *            {@link #getInputStreamFactoryFromUri(String)} configured by
-	 *            {@link #configure(String, InputStreamFactory)} to read the key
-	 *            store according the specified scheme. e.g. if
-	 *            {@link #CLASSPATH_SCHEME} is used, loaded from classpath. Use
-	 *            {@link #getKeyStoreTypeFromUri(String)} to determine the type
-	 *            of the key store.
-	 * @param storePassword password for key store.
-	 * @return key store
-	 * @throws IOException if key store could not be loaded.
-	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if keyStoreUri or storePassword is null.
+	 * @param keyStoreUri URI of input stream
+	 * @return input stream
+	 * @throws IOException if input stream is not available
+	 * @throws NullPointerException if the keyStoreUri is {@code null}
 	 */
-	private static KeyStore loadKeyStore(String keyStoreUri, char[] storePassword)
-			throws GeneralSecurityException, IOException {
+	private static InputStream getInputStreamFromUri(String keyStoreUri) throws IOException {
 		if (null == keyStoreUri) {
 			throw new NullPointerException("keyStoreUri must be provided!");
-		}
-		if (null == storePassword) {
-			throw new NullPointerException("storePassword must be provided!");
 		}
 		InputStream inStream = null;
 		String scheme = getSchemeFromUri(keyStoreUri);
@@ -585,8 +782,7 @@ public class SslContextUtil {
 			} else {
 				throw new IOException("URI: " + keyStoreUri + ", file: " + file.getAbsolutePath() + errorMessage);
 			}
-		}
-		if (scheme != null) {
+		} else {
 			InputStreamFactory streamFactory = INPUT_STREAM_FACTORIES.get(scheme);
 			if (streamFactory != null) {
 				inStream = streamFactory.create(keyStoreUri);
@@ -596,15 +792,116 @@ public class SslContextUtil {
 			URL url = new URL(keyStoreUri);
 			inStream = url.openStream();
 		}
-		String keyStoreType = getKeyStoreTypeFromUri(keyStoreUri);
+		return inStream;
+	}
+
+	/**
+	 * Load key store.
+	 * 
+	 * @param keyStoreUri key store URI. Use
+	 *            {@link #getInputStreamFromUri(String)} to read the key store,
+	 *            and {@link #getKeyStoreConfigurationFromUri(String)} to
+	 *            determine the type of the key store.
+	 * @param storePassword password for key store.
+	 * @return key store
+	 * @throws IOException if key store could not be loaded.
+	 * @throws GeneralSecurityException if security setup failed.
+	 * @throws NullPointerException if keyStoreUri or storePassword is null.
+	 */
+	private static KeyStore loadKeyStore(String keyStoreUri, char[] storePassword, KeyStoreConfiguration configuration)
+			throws GeneralSecurityException, IOException {
+		if (null == storePassword) {
+			throw new NullPointerException("storePassword must be provided!");
+		}
+		InputStream inStream = getInputStreamFromUri(keyStoreUri);
 		try {
-			KeyStore keyStore = KeyStore.getInstance(keyStoreType);
+			KeyStore keyStore = KeyStore.getInstance(configuration.type);
 			keyStore.load(inStream, storePassword);
 			return keyStore;
 		} catch (IOException ex) {
-			throw new IOException(ex + ", URI: " + keyStoreUri + ", type: " + keyStoreType);
+			throw new IOException(ex + ", URI: " + keyStoreUri + ", type: " + configuration.type);
 		} finally {
 			inStream.close();
+		}
+	}
+
+	/**
+	 * Load simple key store
+	 * 
+	 * @param keyStoreUri key store URI. Use
+	 *            {@link #getInputStreamFromUri(String)} to read the simple key
+	 *            store
+	 * @param configuration the key store configuration to read the simnple key
+	 *            store
+	 * @return credentials
+	 * @throws GeneralSecurityException if credentials could not be read
+	 * @throws IOException if key store could not be read
+	 */
+	private static Credentials loadSimpleKeyStore(String keyStoreUri, KeyStoreConfiguration configuration)
+			throws GeneralSecurityException, IOException {
+		InputStream inputStream = getInputStreamFromUri(keyStoreUri);
+		try {
+			return configuration.simpleStore.load(inputStream);
+		} finally {
+			inputStream.close();
+		}
+	}
+
+	/**
+	 * Load credentials in PEM format
+	 * 
+	 * @param inputStream input stream
+	 * @return credentials
+	 * @throws GeneralSecurityException if credentials could not be read
+	 * @throws IOException if key store could not be read
+	 */
+	private static Credentials loadPemCredentials(InputStream inputStream)
+			throws GeneralSecurityException, IOException {
+		PemReader reader = new PemReader(inputStream);
+		try {
+			String tag;
+			Asn1DerDecoder.Keys keys = new Asn1DerDecoder.Keys();
+			List<Certificate> certificatesList = new ArrayList<>();
+			CertificateFactory factory = CertificateFactory.getInstance("X.509");
+			while ((tag = reader.readNextBegin()) != null) {
+				byte[] decode = reader.readToEnd();
+				if (decode != null) {
+					if (tag.contains("CERTIFICATE")) {
+						certificatesList.add(factory.generateCertificate(new ByteArrayInputStream(decode)));
+					} else if (tag.contains("PRIVATE KEY")) {
+						Asn1DerDecoder.Keys read = Asn1DerDecoder.readPrivateKey(decode);
+						if (read == null) {
+							throw new GeneralSecurityException("private key type not supported!");
+						}
+						keys.add(read);
+					} else if (tag.contains("PUBLIC KEY")) {
+						PublicKey read = Asn1DerDecoder.readSubjectPublicKey(decode);
+						if (read == null) {
+							throw new GeneralSecurityException("public key type not supported!");
+						}
+						keys.setPublicKey(read);
+					} else {
+						LOGGER.warn("{} not supported!", tag);
+					}
+				}
+			}
+			if (keys.getPrivateKey() == null && keys.getPublicKey() == null) {
+				List<Certificate> unique = new ArrayList<>();
+				for (Certificate certificate : certificatesList) {
+					if (!unique.contains(certificate)) {
+						unique.add(certificate);
+					}
+				}
+				Certificate[] certificates = unique.toArray(new Certificate[unique.size()]);
+				return new Credentials(certificates);
+			} else {
+				CertPath certPath = factory.generateCertPath(certificatesList);
+				List<? extends Certificate> path = certPath.getCertificates();
+				X509Certificate[] x509Certificates = path.toArray(new X509Certificate[path.size()]);
+				return new Credentials(keys.getPrivateKey(), keys.getPublicKey(), x509Certificates);
+			}
+		} finally {
+			reader.close();
 		}
 	}
 
@@ -638,6 +935,24 @@ public class SslContextUtil {
 	}
 
 	/**
+	 * Ensure, that all certificates are unique.
+	 * 
+	 * @param certificates array of certificates.
+	 * @throws IllegalArgumentException if certificates contains duplicates
+	 * @since 2.5
+	 */
+	public static void ensureUniqueCertificates(X509Certificate[] certificates) {
+
+		// Search for duplicates
+		Set<X509Certificate> set = new HashSet<>();
+		for (X509Certificate certificate: certificates) {
+			if (!set.add(certificate)) {
+				throw new IllegalArgumentException("Truststore contains certificates duplicates with subject: " + certificate.getSubjectX500Principal());
+			}
+		}
+	}
+
+	/**
 	 * Create SSLContext with provided credentials and trusts.
 	 * 
 	 * Uses {@link #DEFAULT_SSL_PROTOCOL}.
@@ -653,8 +968,8 @@ public class SslContextUtil {
 	 * @param trusts trusted certificates.
 	 * @return created SSLContext.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key, or the chain, or the trusts is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key, or the chain, or the trusts
+	 *             is {@code null}.
 	 * @throws IllegalArgumentException if the chain or trusts is empty.
 	 */
 	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
@@ -674,17 +989,18 @@ public class SslContextUtil {
 	 * @param privateKey private key
 	 * @param chain certificate trust chain related to private key.
 	 * @param trusts trusted certificates.
-	 * @param protocol specific protocol for SSLContext. See {@link SSLContext#getInstance(String)}.
+	 * @param protocol specific protocol for SSLContext. See
+	 *            {@link SSLContext#getInstance(String)}.
 	 * @return created SSLContext.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key, or the chain, or the trusts is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key, or the chain, or the trusts
+	 *             is {@code null}.
 	 * @throws IllegalArgumentException if the chain or trusts is empty.
 	 */
 	public static SSLContext createSSLContext(String alias, PrivateKey privateKey, X509Certificate[] chain,
 			Certificate[] trusts, String protocol) throws GeneralSecurityException {
 		if (null == alias) {
-			alias = "californium";
+			alias = DEFAULT_ALIAS;
 		}
 		KeyManager[] keyManager = createKeyManager(alias, privateKey, chain);
 		TrustManager[] trustManager = createTrustManager(alias, trusts);
@@ -702,8 +1018,7 @@ public class SslContextUtil {
 	 * @param chain certificate chain.
 	 * @return key manager.
 	 * @throws GeneralSecurityException if security setup failed.
-	 * @throws NullPointerException if private key or the chain is
-	 *             {@code null}.
+	 * @throws NullPointerException if private key or the chain is {@code null}.
 	 * @throws IllegalArgumentException if the chain is empty.
 	 */
 	public static KeyManager[] createKeyManager(String alias, PrivateKey privateKey, X509Certificate[] chain)
@@ -718,13 +1033,13 @@ public class SslContextUtil {
 			throw new IllegalArgumentException("certificate chain must not be empty!");
 		}
 		if (null == alias) {
-			alias = "californium";
+			alias = DEFAULT_ALIAS;
 		}
 		try {
 			/* key used for creating a non-persistent KeyStore */
 			char[] key = "intern".toCharArray();
-			String keyStoreType = getKeyStoreTypeFromUri(DEFAULT_ENDING);
-			KeyStore ks = KeyStore.getInstance(keyStoreType);
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(DEFAULT_ENDING);
+			KeyStore ks = KeyStore.getInstance(configuration.type);
 			ks.load(null);
 			ks.setKeyEntry(alias, privateKey, key, chain);
 			return createKeyManager(ks, key);
@@ -753,12 +1068,12 @@ public class SslContextUtil {
 			throw new IllegalArgumentException("trusted certificates must not be empty!");
 		}
 		if (null == alias) {
-			alias = "californium";
+			alias = DEFAULT_ALIAS;
 		}
 		try {
 			int index = 1;
-			String keyStoreType = getKeyStoreTypeFromUri(DEFAULT_ENDING);
-			KeyStore ks = KeyStore.getInstance(keyStoreType);
+			KeyStoreConfiguration configuration = getKeyStoreConfigurationFromUri(DEFAULT_ENDING);
+			KeyStore ks = KeyStore.getInstance(configuration.type);
 			ks.load(null);
 			for (Certificate certificate : trusts) {
 				ks.setCertificateEntry(alias + index, certificate);
@@ -768,6 +1083,51 @@ public class SslContextUtil {
 		} catch (IOException e) {
 			throw new GeneralSecurityException(e.getMessage());
 		}
+	}
+
+	/**
+	 * Create anonymous key manager.
+	 * 
+	 * @return anonymous key manager
+	 * @since 2.4
+	 */
+	public static KeyManager[] createAnonymousKeyManager() {
+		return new KeyManager[] { ANONYMOUS };
+	}
+
+	/**
+	 * Create trust manager trusting all.
+	 * 
+	 * @return trust manager trusting all
+	 * @see #createSimpleTrustManager(Certificate[])
+	 * @since 2.4
+	 */
+	@NotForAndroid
+	public static TrustManager[] createTrustAllManager() {
+		return new TrustManager[] { TRUST_ALL };
+	}
+
+	/**
+	 * Create simple trust manager from trusted certificates.
+	 * 
+	 * Validate certificate chains, but does not validate the destination using
+	 * the subject. Use with care! This usually requires, that no public trust
+	 * root is used!
+	 * 
+	 * @param trusts trusted certificates. If an empty array is provided, the
+	 *            trust anchor is not checked.
+	 * @return trust manager
+	 * @throws NullPointerException if trusted certificates is {@code null}.
+	 * @see #createTrustAllManager()
+	 * @since 3.0
+	 */
+	@NotForAndroid
+	public static TrustManager[] createSimpleTrustManager(Certificate[] trusts) throws GeneralSecurityException {
+		if (null == trusts) {
+			throw new NullPointerException("trusted certificates must be provided!");
+		}
+		X509Certificate[] x509trusts = asX509Certificates(trusts);
+		return new TrustManager[] { new SimpleX509ExtendedTrustManager(x509trusts) };
 	}
 
 	/**
@@ -824,7 +1184,7 @@ public class SslContextUtil {
 		@Override
 		public InputStream create(String uri) throws IOException {
 			String resource = uri.substring(CLASSPATH_SCHEME.length());
-			InputStream inStream = SslContextUtil.class.getClassLoader().getResourceAsStream(resource);
+			InputStream inStream = Thread.currentThread().getContextClassLoader().getResourceAsStream(resource);
 			if (null == inStream) {
 				throw new IOException("'" + uri + "' not found!");
 			}
@@ -843,19 +1203,56 @@ public class SslContextUtil {
 		 */
 		private final PrivateKey privateKey;
 		/**
+		 * Public key.
+		 */
+		private final PublicKey publicKey;
+		/**
 		 * Certificate trustedChain.
 		 */
 		private final X509Certificate[] chain;
+		/**
+		 * Certificate trusts.
+		 */
+		private final Certificate[] trusts;
 
 		/**
 		 * Create credentials.
 		 * 
 		 * @param privateKey private key
-		 * @param trustedChain certificate trustedChain
+		 * @param publicKey public key
+		 * @param chain certificate chain
+		 * @throws IllegalArgumentException if public key and chain is provided,
+		 *             but the public key doesn't match the one of the
+		 *             certificates head
 		 */
-		private Credentials(PrivateKey privateKey, X509Certificate[] chain) {
+		public Credentials(PrivateKey privateKey, PublicKey publicKey, X509Certificate[] chain) {
+			if (chain != null) {
+				if (chain.length == 0) {
+					chain = null;
+				} else if (publicKey != null) {
+					if (!publicKey.equals(chain[0].getPublicKey())) {
+						throw new IllegalArgumentException("public key doesn't match certificate!");
+					}
+				} else {
+					publicKey = chain[0].getPublicKey();
+				}
+			}
 			this.privateKey = privateKey;
 			this.chain = chain;
+			this.publicKey = publicKey;
+			this.trusts = null;
+		}
+
+		/**
+		 * Create credentials.
+		 * 
+		 * @param trusts certificate trusts
+		 */
+		public Credentials(Certificate[] trusts) {
+			this.privateKey = null;
+			this.publicKey = null;
+			this.chain = null;
+			this.trusts = trusts;
 		}
 
 		/**
@@ -868,6 +1265,15 @@ public class SslContextUtil {
 		}
 
 		/**
+		 * Get public key.
+		 * 
+		 * @return public key
+		 */
+		public PublicKey getPubicKey() {
+			return publicKey;
+		}
+
+		/**
 		 * Get certificate trustedChain.
 		 * 
 		 * @return certificate trustedChain
@@ -875,6 +1281,190 @@ public class SslContextUtil {
 		public X509Certificate[] getCertificateChain() {
 			return chain;
 		}
+
+		/**
+		 * Get certificate trusts.
+		 * 
+		 * @return certificate trusts
+		 */
+		public Certificate[] getTrustedCertificates() {
+			return trusts;
+		}
 	}
 
+	public static interface SimpleKeyStore {
+
+		/**
+		 * Load credentials from input stream.
+		 * 
+		 * @param inputStream input stream
+		 * @return loaded credentials
+		 * @throws IOException if reading the input stream fails
+		 * @throws GeneralSecurityException if reading the credentials fails
+		 */
+		Credentials load(InputStream inputStream) throws GeneralSecurityException, IOException;
+	}
+
+	public static class KeyStoreConfiguration {
+
+		public final String type;
+		public final SimpleKeyStore simpleStore;
+
+		public KeyStoreConfiguration(String type, SimpleKeyStore simpleStore) {
+			this.type = type;
+			this.simpleStore = simpleStore;
+		}
+	}
+
+	/**
+	 * Anonymous key manager.
+	 * 
+	 * Never returns aliases nor credentials.
+	 * 
+	 * @since 2.4
+	 */
+	private static class AnonymousX509ExtendedKeyManager extends X509ExtendedKeyManager {
+
+		@Override
+		public String chooseEngineClientAlias(String[] keyType, Principal[] issuers, SSLEngine engine) {
+			return null;
+		}
+
+		@Override
+		public String chooseEngineServerAlias(String keyType, Principal[] issuers, SSLEngine engine) {
+			return null;
+		}
+
+		@Override
+		public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
+			return null;
+		}
+
+		@Override
+		public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
+			return null;
+		}
+
+		@Override
+		public X509Certificate[] getCertificateChain(String alias) {
+			return null;
+		}
+
+		@Override
+		public String[] getClientAliases(String keyType, Principal[] issuers) {
+			return null;
+		}
+
+		@Override
+		public PrivateKey getPrivateKey(String alias) {
+			return null;
+		}
+
+		@Override
+		public String[] getServerAliases(String keyType, Principal[] issuers) {
+			return null;
+		}
+	}
+
+	/**
+	 * Simple trust manager.
+	 * 
+	 * Validate certificate chains, but does not validate the destination by the
+	 * subject. Use with care! This usually requires, that no public trust root
+	 * is used!
+	 * 
+	 * @since 3.0 (was X509ExtendedTrustAllManager)
+	 */
+	@NotForAndroid
+	private static class SimpleX509ExtendedTrustManager extends X509ExtendedTrustManager {
+
+		private final X509Certificate[] trusts;
+
+		/**
+		 * Create simple trust manager.
+		 * 
+		 * @param trusts trusted certificates. If an empty array is provided,
+		 *            the trust anchor is not checked.
+		 * @since 3.0
+		 */
+		private SimpleX509ExtendedTrustManager(X509Certificate[] trusts) {
+			this.trusts = trusts;
+		}
+
+		/**
+		 * Validate certificate chain trusting all chain roots.
+		 * 
+		 * @param chain chain to be validate
+		 * @param client {@code true} for client's chain, {@code false}, for
+		 *            server's chain.
+		 * @throws CertificateException if the validation fails.
+		 */
+		private void validateChain(X509Certificate[] chain, boolean client) throws CertificateException {
+			if (chain != null && chain.length > 0) {
+				LOGGER.debug("check certificate {} for {}", chain[0].getSubjectDN(), client ? "client" : "server");
+				if (!CertPathUtil.canBeUsedForAuthentication(chain[0], client)) {
+					LOGGER.debug("check certificate {} for {} failed on key-usage!", chain[0].getSubjectDN(),
+							client ? "client" : "server");
+					throw new CertificateException("Key usage not proper for " + (client ? "client" : "server"));
+				} else {
+					LOGGER.trace("check certificate {} for {} succeeded on key-usage!", chain[0].getSubjectDN(),
+							client ? "client" : "server");
+				}
+				CertPath path = CertPathUtil.generateValidatableCertPath(Arrays.asList(chain), null);
+				try {
+					CertPathUtil.validateCertificatePathWithIssuer(true, path, trusts);
+					LOGGER.trace("check certificate {} [chain.length={}] for {} validated!", chain[0].getSubjectDN(),
+							chain.length,
+							client ? "client" : "server");
+				} catch (GeneralSecurityException e) {
+					LOGGER.debug("check certificate {} for {} failed on {}!", chain[0].getSubjectDN(),
+							client ? "client" : "server", e.getMessage());
+					if (e instanceof CertificateException) {
+						throw (CertificateException) e;
+					} else {
+						throw new CertificateException(e);
+					}
+				}
+			}
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType) throws CertificateException {
+			validateChain(chain, false);
+		}
+
+		@Override
+		public X509Certificate[] getAcceptedIssuers() {
+			return trusts;
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType, Socket socket)
+				throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkClientTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+				throws CertificateException {
+			validateChain(chain, true);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType, Socket socket)
+				throws CertificateException {
+			validateChain(chain, false);
+		}
+
+		@Override
+		public void checkServerTrusted(X509Certificate[] chain, String authType, SSLEngine engine)
+				throws CertificateException {
+			validateChain(chain, false);
+		}
+	}
 }

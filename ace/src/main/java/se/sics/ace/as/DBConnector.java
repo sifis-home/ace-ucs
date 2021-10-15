@@ -124,6 +124,11 @@ public interface DBConnector {
      * The column name for raw public keys
      */
     public String rpkColumn = "RPK";
+    
+    /**
+     * The column name for the Sequence Number to use when issuing tokens with the 'exi' claim
+     */
+    public String exiSeqNumColumn = "ExiSeqNum";
 
     /**
      * The column name for expiration defaults
@@ -214,8 +219,6 @@ public interface DBConnector {
      */
     public String audColumn = "Aud";
     
-    
-    // M.T.
 	//******************New table********************************
     /**
      * The table of audiences an RS acting as OSCORE Group Manager identifies with
@@ -424,7 +427,6 @@ public interface DBConnector {
     public Set<String> getAudiences(String rsId) 
                 throws AceException;
 
-    // M.T.
     /**
      * Gets the audiences that this RS acting as OSCORE Group Manager is part of.
      * Note that the rs identifier is always a singleton audience itself.
@@ -541,7 +543,6 @@ public interface DBConnector {
             Set<COSEparams> cose, long expiration, OneKey tokenPsk, 
             OneKey authPsk, OneKey publicKey) throws AceException;
 	
-	// M.T.
 	/**
 	 * Adds the audiences a previously added RS acting as OSCORE Group Manager identifies with.
 	 * 
@@ -648,6 +649,29 @@ public interface DBConnector {
      * @throws AceException 
      */
     public void saveCtiCounter(Long cti) throws AceException;
+    
+    /**
+     * Load the current exi Sequence Number for this Resource Server
+     *  
+     * @param rsId  the identifier of the Resource Server
+     * 
+     * @return   the value of the exi Sequence Number for this Resource Server
+     * 
+     * @throws AceException
+     */
+    public int getExiSequenceNumber(String rsId) throws AceException;
+    
+    /**
+     * Save the exi Sequence Number for a Resource Server, to use when issuing
+     * Access Tokens for this Resource Server including the 'exi' claim
+     * 
+     * @param sn  the current value of the exi Sequence Number for this Resource Server
+     * 
+     * @param rsId  the identifier of the Resource Server
+     * 
+     * @throws AceException 
+     */
+    public void saveExiSequenceNumber(int sn, String rsId) throws AceException;
     
     /**
      * Save a mapping from token identifier to client identifier for

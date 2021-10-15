@@ -2,11 +2,11 @@
  * Copyright (c) 2015 Bosch Software Innovations GmbH and others.
  * 
  * All rights reserved. This program and the accompanying materials
- * are made available under the terms of the Eclipse Public License v1.0
+ * are made available under the terms of the Eclipse Public License v2.0
  * and Eclipse Distribution License v1.0 which accompany this distribution.
  * 
  * The Eclipse Public License is available at
- *    http://www.eclipse.org/legal/epl-v10.html
+ *    http://www.eclipse.org/legal/epl-v20.html
  * and the Eclipse Distribution License is available at
  *    http://www.eclipse.org/org/documents/edl-v10.html.
  * 
@@ -14,8 +14,6 @@
  *    Kai Hudalla (Bosch Software Innovations GmbH) - Initial creation
  ******************************************************************************/
 package org.eclipse.californium.scandium.dtls;
-
-import java.net.InetSocketAddress;
 
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertDescription;
 import org.eclipse.californium.scandium.dtls.AlertMessage.AlertLevel;
@@ -33,11 +31,9 @@ public class DtlsHandshakeException extends DtlsException {
 	 * @param message the detail message (which is saved for later retrieval by the <code>Throwable.getMessage()</code> method).
 	 * @param description the TLS <em>alert description</em> used to characterize the exception.
 	 * @param level the TLS <em>alert level</em> indicating the severity of the exception.
-	 * @param peer the IP address and port of the DTLS connection peer (which is saved for later retrieval by the
-	 *          <code>DtlsException.getPeer()</code> method).
 	 */
-	public DtlsHandshakeException(String message, AlertDescription description, AlertLevel level, InetSocketAddress peer) {
-		super(message, peer);
+	public DtlsHandshakeException(String message, AlertDescription description, AlertLevel level) {
+		super(message);
 		if (description == null) {
 			throw new NullPointerException("Description must not be null");
 		} else if (level == null) {
@@ -58,14 +54,12 @@ public class DtlsHandshakeException extends DtlsException {
 	 * @param message the detail message (which is saved for later retrieval by the <code>Throwable.getMessage()</code> method).
 	 * @param description the TLS <em>alert description</em> used to characterize the exception.
 	 * @param level the TLS <em>alert level</em> indicating the severity of the exception.
-	 * @param peer the IP address and port of the DTLS connection peer (which is saved for later retrieval by the
-	 *          <code>DtlsException.getPeer()</code> method).
 	 * @param cause the cause for this handshake exception (which is saved for later retrieval by the
 	 *          <code>Throwable.getCause()</code> method). (A <code>null</code> value is permitted, and indicates
 	 *          that the cause is nonexistent or unknown.)
 	 */
-	public DtlsHandshakeException(String message, AlertDescription description, AlertLevel level, InetSocketAddress peer, Throwable cause) {
-		super(message, peer, cause);
+	public DtlsHandshakeException(String message, AlertDescription description, AlertLevel level, Throwable cause) {
+		super(message, cause);
 		if (description == null) {
 			throw new NullPointerException("Description must not be null");
 		} else if (level == null) {
