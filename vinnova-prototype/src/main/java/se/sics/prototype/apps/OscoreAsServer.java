@@ -51,6 +51,7 @@ import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissTime;
+import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 import se.sics.prototype.support.DBHelper;
 import se.sics.prototype.support.KeyStorage;
@@ -69,7 +70,7 @@ public class OscoreAsServer
     static byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
     static byte[] key128a = {'c', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
 
-    private static CoapDBConnector db = null;
+	private static CoapDBConnector db = null;
     private static OscoreAS as = null;
     private static GroupOSCOREJoinPDP pdp = null;
   
@@ -81,7 +82,7 @@ public class OscoreAsServer
      */
     public static void main(String[] args) throws Exception {
         DBHelper.setUpDB();
-        db = DBHelper.getCoapDBConnector();
+		db = DBHelper.getCoapDBConnector();
 
         CBORObject keyData = CBORObject.NewMap();
         keyData.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);

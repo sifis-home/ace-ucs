@@ -83,6 +83,8 @@ public class OscoreRsServer {
 	//Source of randomness
 	static SecureRandom rand = new SecureRandom();
 
+	static HashMapCtxDB db = new HashMapCtxDB();
+
     /**
      * Definition of the Hello-World Resource
      */
@@ -194,7 +196,7 @@ public class OscoreRsServer {
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
         
         //Set to use OSCORE
-		OSCoreCoapStackFactory.useAsDefault(HashMapCtxDB.getInstance());
+		OSCoreCoapStackFactory.useAsDefault(db);
         
  
         //Set up token repository

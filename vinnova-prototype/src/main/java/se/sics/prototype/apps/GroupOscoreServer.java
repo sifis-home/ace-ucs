@@ -93,7 +93,7 @@ public class GroupOscoreServer {
 	/**
 	 * OSCORE Security Context database (receiver)
 	 */
-	private final static HashMapCtxDB db = HashMapCtxDB.getInstance();
+	private final static HashMapCtxDB db = new HashMapCtxDB();
 	
 	private final static String uriLocal = "coap://localhost";
 	
@@ -125,9 +125,9 @@ public class GroupOscoreServer {
 			//Add the completed context to the context database
 			db.addContext(uriLocal, ctx);
 
-//			if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
-//				OSCoreCoapStackFactory.useAsDefault();
-//			}
+			if (CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
+				OSCoreCoapStackFactory.useAsDefault(db);
+			}
 		}
 		
 		//Initialize random number generator
