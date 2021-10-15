@@ -83,6 +83,8 @@ public class OscoreAsRsClient {
 	//Multicast IP for Group B
 	static final InetAddress groupB_multicastIP = new InetSocketAddress("224.0.1.192", 0).getAddress();
 	
+	static HashMapCtxDB db = new HashMapCtxDB();
+
 	/**
 	 * Main method for Token request followed by Group joining
 	 * 
@@ -106,7 +108,7 @@ public class OscoreAsRsClient {
 		
 		//Explicitly enable the OSCORE Stack
 		if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
-			OSCoreCoapStackFactory.useAsDefault(HashMapCtxDB.getInstance());
+			OSCoreCoapStackFactory.useAsDefault(db);
 		}
 		
 		//Set group to join based on the member name
@@ -232,7 +234,7 @@ public class OscoreAsRsClient {
                 null, null, null, null);
         
         Response response = OSCOREProfileRequests.getToken(
-                tokenURI, params, ctx);
+				tokenURI, params, ctx, db);
         
         /* Parse and print response */
         

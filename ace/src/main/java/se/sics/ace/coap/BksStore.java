@@ -71,7 +71,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * @author Ludwig Seitz
  *
  */
-public class BksStore implements PskStore {
+public class BksStore implements AdvancedSinglePskStore {
     
     /**
      * The logger

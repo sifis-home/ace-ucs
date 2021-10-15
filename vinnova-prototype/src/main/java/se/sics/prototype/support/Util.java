@@ -279,7 +279,15 @@ public class Util {
 
 		GroupCtx groupOscoreCtx = null;
 		groupOscoreCtx = new GroupCtx(master_secret, master_salt, algo, kdf, group_identifier, alg_countersign,
-				new byte[0]);
+				new byte[0]); // FIXME GM Key
+
+		try {
+			groupOscoreCtx.addSenderCtx(sid, sid_private_key);
+		} catch (OSException e1) {
+			// TODO Auto-generated catch block
+			System.err.println("FAILED TO ADD SENDER CTX!");
+			e1.printStackTrace();
+		}
 
         Assert.assertNotNull(groupOscoreCtx);
 
