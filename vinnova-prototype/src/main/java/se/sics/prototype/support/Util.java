@@ -12,17 +12,16 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
-import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
+import org.eclipse.californium.oscore.group.GroupCtx;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import se.sics.ace.Constants;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
-import se.sics.ace.oscore.OSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObject;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 
 /**
  * Class to hold various utility methods.
@@ -99,8 +98,8 @@ public class Util {
         System.out.println();
         System.out.println("Join response contents: ");
 
-        System.out.print("KTY: ");
-        System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KTY)));
+		System.out.print("KID: ");
+		System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KID)));
 
         System.out.print("KEY: ");
         System.out.println(joinResponse.get(CBORObject.FromObject(Constants.KEY)));
@@ -125,41 +124,38 @@ public class Util {
         System.out.println("KEY map contents: ");
 
         System.out.print("ms: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.ms)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ms)));
 
         System.out.print("clientId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.clientId)));
-
-        System.out.print("serverId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.serverId)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.id)));
 
         System.out.print("hkdf: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.hkdf)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.hkdf)));
 
         System.out.print("alg: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.alg)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.alg)));
 
         System.out.print("salt: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.salt)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.salt)));
 
         System.out.print("contextId: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.contextId)));
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.contextId)));
 
-        System.out.print("rpl: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(OSCORESecurityContextObjectParameters.rpl)));
+		// System.out.print("rpl: "); //FIXME
+		// System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.rpl)));
 
 
-        System.out.print("cs_alg: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_alg)));
+		System.out.print("ecdh_alg: ");
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_alg)));
 
-        System.out.print("cs_params: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_params)));
+		System.out.print("ecdh_params: ");
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.ecdh_params)));
 
-        System.out.print("cs_key_params: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_params)));
+		System.out.print("group_SenderID: ");
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.group_SenderID)));
 
-        System.out.print("cs_key_enc: ");
-        System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCORESecurityContextObjectParameters.cs_key_enc)));
+		System.out.print("pub_key_enc: ");
+		System.out.println(keyMap.get(CBORObject.FromObject(GroupOSCOREInputMaterialObjectParameters.pub_key_enc)));
 
         //Parse the PUB_KEYS parameter
 
@@ -189,12 +185,13 @@ public class Util {
      * 
      * @throws CoseException 
      */
-    public static GroupOSCoreCtx generateGroupOSCOREContext(GroupOSCORESecurityContextObject contextObject, CBORObject coseKeySetArray, String groupKeyPair) throws CoseException {
+	public static GroupCtx generateGroupOSCOREContext(GroupOSCOREInputMaterialObject contextObject,
+			CBORObject coseKeySetArray, String groupKeyPair) throws CoseException {
         //Defining variables to hold the information before derivation
 
         //Algorithm
         AlgorithmID algo = null;
-        CBORObject alg_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.alg);
+		CBORObject alg_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.alg);
         if(alg_param.getType() == CBORType.TextString) {
             algo = AlgorithmID.valueOf(alg_param.AsString());
         } else if(alg_param.getType() == CBORType.Number) {
@@ -203,41 +200,43 @@ public class Util {
 
         //KDF
         AlgorithmID kdf = null;
-        CBORObject kdf_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.hkdf);
+		CBORObject kdf_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.hkdf);
         if(kdf_param.getType() == CBORType.TextString) {
             kdf = AlgorithmID.valueOf(kdf_param.AsString());
         } else if(kdf_param.getType() == CBORType.Number) {
             kdf = AlgorithmID.FromCBOR(kdf_param);
         }
 
-        //Algorithm for the countersignature
-        AlgorithmID alg_countersign = null;
-        CBORObject alg_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_alg);
-        if(alg_countersign_param.getType() == CBORType.TextString) {
-            alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
-        } else if(alg_countersign_param.getType() == CBORType.Number) {
-            alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
-        }
-
-        //Parameter for the countersignature
-        Integer par_countersign = null;
-        CBORObject par_countersign_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.cs_params);
-        if(par_countersign_param.getType() == CBORType.Map) {
-            par_countersign = par_countersign_param.get(KeyKeys.OKP_Curve.AsCBOR()).AsInt32();
-            //TODO: Change like this in other places too?
-        } else {
-            System.err.println("Unknown par_countersign value!");
-        }
+		// Algorithm for the countersignature
+		AlgorithmID alg_countersign = null;
+		CBORObject alg_countersign_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.sign_alg);
+		if (alg_countersign_param.getType() == CBORType.TextString) {
+			alg_countersign = AlgorithmID.valueOf(alg_countersign_param.AsString());
+		} else if (alg_countersign_param.getType() == CBORType.Number) {
+			alg_countersign = AlgorithmID.FromCBOR(alg_countersign_param);
+		}
+		//
+		// //Parameter for the countersignature
+		// Integer par_countersign = null;
+		// CBORObject par_countersign_param =
+		// contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.cs_params);
+		// if(par_countersign_param.getType() == CBORType.Map) {
+		// par_countersign =
+		// par_countersign_param.get(KeyKeys.OKP_Curve.AsCBOR()).AsInt32();
+		// //TODO: Change like this in other places too?
+		// } else {
+		// System.err.println("Unknown par_countersign value!");
+		// }
 
         //Master secret
-        CBORObject master_secret_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.ms);
+		CBORObject master_secret_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.ms);
         byte[] master_secret = null;
         if(master_secret_param.getType() == CBORType.ByteString) {
             master_secret = master_secret_param.GetByteString();
         }
 
         //Master salt
-        CBORObject master_salt_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.salt);
+		CBORObject master_salt_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.salt);
         byte[] master_salt = null;
         if(master_salt_param.getType() == CBORType.ByteString) {
             master_salt = master_salt_param.GetByteString();
@@ -245,24 +244,25 @@ public class Util {
 
         //Sender ID
         byte[] sid = null;
-        CBORObject sid_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.clientId);
+		CBORObject sid_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.id);
         if(sid_param.getType() == CBORType.ByteString) {
             sid = sid_param.GetByteString();
         }
 
         //Group ID / Context ID
-        CBORObject group_identifier_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.contextId);
+		CBORObject group_identifier_param = contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.contextId);
         byte[] group_identifier = null;
         if(group_identifier_param.getType() == CBORType.ByteString) {
             group_identifier = group_identifier_param.GetByteString();
         }
 
-        //RPL (replay window information)
-        CBORObject rpl_param = contextObject.getParam(GroupOSCORESecurityContextObjectParameters.rpl);
+		// RPL (replay window information) //FIXME
+		// CBORObject rpl_param =
+		// contextObject.getParam(GroupOSCOREInputMaterialObjectParameters.rpl);
         int rpl = 32; //Default value
-        if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
-            rpl = rpl_param.AsInt32();
-        }
+		// if(rpl_param != null && rpl_param.getType() == CBORType.Number) {
+		// rpl = rpl_param.AsInt32();
+		// }
 
         //Set up private & public keys for sender (not from response but set by client)
         String sid_private_key_string = groupKeyPair;
@@ -271,14 +271,15 @@ public class Util {
 
         //Now derive the actual context
 
-        GroupOSCoreCtx groupOscoreCtx = null;
-        try {
-            groupOscoreCtx = new GroupOSCoreCtx(master_secret, true, algo, sid, kdf, rpl, 
-                    master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
-        } catch (OSException e) {
-            System.err.println("Failed to derive Group OSCORE Context!");
-            e.printStackTrace();
-        }
+		/*
+		 * public GroupCtx(byte[] masterSecret, byte[] masterSalt, AlgorithmID
+		 * aeadAlg, AlgorithmID hkdfAlg, byte[] idContext, AlgorithmID algSign,
+		 * byte[] gmPublicKey) {
+		 */
+
+		GroupCtx groupOscoreCtx = null;
+		groupOscoreCtx = new GroupCtx(master_secret, master_salt, algo, kdf, group_identifier, alg_countersign,
+				new byte[0]);
 
         Assert.assertNotNull(groupOscoreCtx);
 
@@ -295,7 +296,13 @@ public class Util {
 
             OneKey recipient_key = new OneKey(key_param);
 
-            groupOscoreCtx.addRecipientContext(rid, recipient_key);
+			try {
+				groupOscoreCtx.addRecipientCtx(rid, rpl, recipient_key);
+			} catch (OSException e) {
+				// TODO Auto-generated catch block
+				System.err.println("FAILED TO ADD RECIPIENT CTX!");
+				e.printStackTrace();
+			}
         }
         //Assert.assertEquals(groupOscoreCtx.getRecipientContexts().size(), 2);
         //System.out.println("Generated Group OSCORE Context:");

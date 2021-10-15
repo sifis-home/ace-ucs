@@ -44,6 +44,7 @@ import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.ContextRederivation.PHASE;
+import org.eclipse.californium.rule.CoapNetworkRule;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -66,6 +67,10 @@ import org.junit.Test;
  * 
  */
 public class ContextRederivationTest {
+
+	@ClassRule
+	public static CoapNetworkRule network = new CoapNetworkRule(CoapNetworkRule.Mode.DIRECT,
+			CoapNetworkRule.Mode.NATIVE);
 
 	private CoapServer server;
 	private Endpoint serverEndpoint;

@@ -27,12 +27,13 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.elements.util.StringUtil;
-import org.eclipse.californium.oscore.GroupOSCoreCtx;
+import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 import org.eclipse.californium.oscore.Utility;
+import org.eclipse.californium.oscore.group.GroupCtx;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -43,8 +44,8 @@ import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObject;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.prototype.support.KeyStorage;
 import se.sics.prototype.support.Util;
 
@@ -105,7 +106,7 @@ public class OscoreAsRsClient {
 		
 		//Explicitly enable the OSCORE Stack
 		if(CoapEndpoint.isDefaultCoapStackFactorySet() == false) {
-			OSCoreCoapStackFactory.useAsDefault();
+			OSCoreCoapStackFactory.useAsDefault(HashMapCtxDB.getInstance());
 		}
 		
 		//Set group to join based on the member name
@@ -162,7 +163,7 @@ public class OscoreAsRsClient {
 		printPause(memberName, "Will now post Token to Group Manager and perform group joining");
 		
 		//Post Token to GM and perform Group joining
-		GroupOSCoreCtx derivedCtx = null;
+		GroupCtx derivedCtx = null;
         try {
         	derivedCtx = postTokenAndJoin(memberName, group, publicPrivateKey, responseFromAS);
         } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException | OSException
@@ -268,7 +269,9 @@ public class OscoreAsRsClient {
 	 * @throws ConnectorException
 	 * @throws IOException
 	 */
-    public static GroupOSCoreCtx postTokenAndJoin(String memberName, String group, String publicPrivateKey, Response responseFromAS) throws IllegalStateException, InvalidCipherTextException, CoseException, AceException, OSException, ConnectorException, IOException {
+	public static GroupCtx postTokenAndJoin(String memberName, String group, String publicPrivateKey,
+			Response responseFromAS) throws IllegalStateException, InvalidCipherTextException, CoseException,
+			AceException, OSException, ConnectorException, IOException {
 
         /* Configure parameters for the join request */
 
@@ -438,8 +441,9 @@ public class OscoreAsRsClient {
         CBORObject keyMap = joinResponse.get(CBORObject.FromObject(Constants.KEY));
 
         //The following two lines are useful for generating the Group OSCORE context
-        Map<Short, CBORObject> contextParams = new HashMap<>(GroupOSCORESecurityContextObjectParameters.getParams(keyMap));
-        GroupOSCORESecurityContextObject contextObject = new GroupOSCORESecurityContextObject(contextParams); 
+		Map<Short, CBORObject> contextParams = new HashMap<>(
+				GroupOSCOREInputMaterialObjectParameters.getParams(keyMap));
+		GroupOSCOREInputMaterialObject contextObject = new GroupOSCOREInputMaterialObject(contextParams);
 
         System.out.println("Receved response from GM to Join request: " + joinResponse.toString());
 
@@ -461,7 +465,7 @@ public class OscoreAsRsClient {
         	coseKeySetArray = CBORObject.DecodeFromBytes(coseKeySetByte);
         }
         
-        GroupOSCoreCtx groupOscoreCtx = Util.generateGroupOSCOREContext(contextObject, coseKeySetArray, groupKeyPair);
+		GroupCtx groupOscoreCtx = Util.generateGroupOSCOREContext(contextObject, coseKeySetArray, groupKeyPair);
 
         System.out.println();
         //System.out.println("Generated Group OSCORE Context:");

@@ -10,10 +10,11 @@ import java.util.Map;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.oscore.*;
+import org.eclipse.californium.oscore.group.GroupCtx;
 
 import com.upokecenter.cbor.CBORObject;
 
-import se.sics.ace.oscore.GroupOSCORESecurityContextObject;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObject;
 
 public class Tester {
 
@@ -40,17 +41,18 @@ public class Tester {
 		
 		
 		//ACE
-		GroupOSCORESecurityContextObject test1 = new GroupOSCORESecurityContextObject(contextParams2);
+		GroupOSCOREInputMaterialObject test1 = new GroupOSCOREInputMaterialObject(contextParams2);
 		
 		//Group OSCORE
+		GroupCtx groupOscoreCtx = null;
 		try {
-		GroupOSCoreCtx ctx = new GroupOSCoreCtx(master_secret, true, alg, sid, kdf, value,
-				master_salt, group_identifier, alg_countersign, par_countersign, sid_private_key);
+			groupOscoreCtx = new GroupCtx(master_secret, master_salt, alg, kdf, group_identifier,
+					alg_countersign, new byte[0]);
 		} catch (Exception e) {
 			System.out.println("a");
 		}
 		
-		System.out.println("Hello");
+		System.out.println("Hello " + groupOscoreCtx.toString());
 	}
 
 }

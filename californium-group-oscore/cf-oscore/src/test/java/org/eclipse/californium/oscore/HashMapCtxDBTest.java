@@ -23,6 +23,7 @@ import static org.junit.Assert.assertTrue;
 
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.cose.AlgorithmID;
+import org.eclipse.californium.elements.util.ExpectedExceptionWrapper;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -46,6 +47,9 @@ public class HashMapCtxDBTest {
 	private final byte[] context_id = { 0x74, 0x65, 0x73, 0x74, 0x74, 0x65, 0x73, 0x74 };
 	private final byte[] context_id_2 = {  0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x10, 0x11 };
 	private final Integer seq = 42;
+
+	@Rule
+	public final ExpectedException exception = ExpectedExceptionWrapper.none();
 
 	@Before
 	public void setUp() throws Exception {

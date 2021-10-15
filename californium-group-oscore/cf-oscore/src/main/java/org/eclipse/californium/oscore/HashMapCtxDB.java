@@ -61,6 +61,23 @@ public class HashMapCtxDB implements OSCoreCtxDB {
 
 	private ArrayList<Token> allTokens;
 
+	private static volatile HashMapCtxDB singleton = null;
+
+	/**
+	 * @return the singleton instance of this context database
+	 */
+	public static HashMapCtxDB getInstance() {
+		if (singleton == null) {
+
+			synchronized (HashMapCtxDB.class) {
+				if (singleton == null) {
+					singleton = new HashMapCtxDB();
+				}
+			}
+		}
+		return singleton;
+	}
+
 	/**
 	 * Create the database
 	 */

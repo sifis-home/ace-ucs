@@ -25,6 +25,7 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.junit.Assert;
 
@@ -46,7 +47,7 @@ import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
-import se.sics.ace.oscore.GroupOSCORESecurityContextObjectParameters;
+import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
@@ -193,7 +194,7 @@ public class OscoreRsServer {
         int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
         
         //Set to use OSCORE
-        OSCoreCoapStackFactory.useAsDefault();
+		OSCoreCoapStackFactory.useAsDefault(HashMapCtxDB.getInstance());
         
  
         //Set up token repository
@@ -738,19 +739,22 @@ public class OscoreRsServer {
         	CBORObject myMap = CBORObject.NewMap();
         	
         	// Fill the 'key' parameter
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.ms, myGroup.getMasterSecret());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.clientId, senderId);
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.alg, myGroup.getAlg().AsCBOR());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.salt, myGroup.getMasterSalt());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.contextId, myGroup.getGroupId());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_alg, myGroup.getCsAlg().AsCBOR());
-        	if (myGroup.getCsParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_params, myGroup.getCsParams());
-        	if (myGroup.getCsKeyParams().size() != 0)
-        		myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_params, myGroup.getCsKeyParams());
-        	myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc, myGroup.getCsKeyEnc());
-        	
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.ms, myGroup.getMasterSecret());
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.id, senderId);
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.hkdf, myGroup.getHkdf().AsCBOR());
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.alg, myGroup.getAlg().AsCBOR());
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.salt, myGroup.getMasterSalt());
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.contextId, myGroup.getGroupId());
+			myMap.Add(GroupOSCOREInputMaterialObjectParameters.sign_alg, myGroup.getSignAlg().AsCBOR());
+			// if (myGroup.getSignAlg().size() != 0) FIXME
+			// myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_params,
+			// myGroup.getCsParams());
+			// if (myGroup.getCsKeyParams().size() != 0)
+			// myMap.Add(GroupOSCOREInputMaterialObjectParameters.cs_key_params,
+			// myGroup.getCsKeyParams());
+			// myMap.Add(GroupOSCORESecurityContextObjectParameters.cs_key_enc,
+			// myGroup.getCsKeyEnc());
+			//
         	joinResponse.Add(Constants.KEY, myMap);
         	
         	// If backward security has to be preserved:

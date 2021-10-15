@@ -38,11 +38,11 @@ import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UdpMulticastConnector;
-import org.eclipse.californium.oscore.GroupOSCoreCtx;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.InstallCryptoProviders;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.Utility;
+import org.eclipse.californium.oscore.group.GroupCtx;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -99,26 +99,28 @@ public class GroupOscoreServer {
 	
 	private static Random random;
 	
-	public static void start(GroupOSCoreCtx derivedCtx, InetAddress multicastIP) throws Exception {
+	static int replayWindow = 32;
+
+	public static void start(GroupCtx derivedCtx, InetAddress multicastIP) throws Exception {
 		//Install cryptographic providers
 		InstallCryptoProviders.installProvider();
 		
 		//If OSCORE is being used set the context information
-		GroupOSCoreCtx ctx = null;
+		GroupCtx ctx = null;
 		if(useOSCORE) {
 			ctx = derivedCtx;
-			ctx.REPLAY_CHECK = true; //Enable replay checks
+			// ctx.REPLAY_CHECK = true; //Enable replay checks
 			
 			//Add recipient contexts for the 2 clients
 			String keyClient1_base64 = KeyStorage.publicKeys.get("Client1");
 			byte[] sidClient1 = KeyStorage.clientSenderIDs.get(keyClient1_base64).getBytes();
 			OneKey keyClient1 = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(keyClient1_base64)));
-			ctx.addRecipientContext(sidClient1, keyClient1);
+			ctx.addRecipientCtx(sidClient1, replayWindow, keyClient1);
 			
 			String keyClient2_base64 = KeyStorage.publicKeys.get("Client2");
 			byte[] sidClient2 = KeyStorage.clientSenderIDs.get(keyClient2_base64).getBytes();
 			OneKey keyClient2 = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(keyClient2_base64)));
-			ctx.addRecipientContext(sidClient2, keyClient2);
+			ctx.addRecipientCtx(sidClient2, replayWindow, keyClient2);
 			
 			//Add the completed context to the context database
 			db.addContext(uriLocal, ctx);
