@@ -56,8 +56,11 @@ import java.util.logging.Logger;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 /**
@@ -71,7 +74,7 @@ import org.eclipse.californium.scandium.util.ServerNames;
  * @author Ludwig Seitz
  *
  */
-public class BksStore implements PskStore {
+public class BksStore implements AdvancedPskStore {
     
     /**
      * The logger
@@ -167,31 +170,40 @@ public class BksStore implements PskStore {
     }
     
     @Override
-    public SecretKey getKey(PskPublicInformation info) {
-        String identity = info.getPublicInfoAsString();
-        try {
-            if (!this.keystore.containsAlias(identity)) {
-                return null;
-            }
-        } catch (KeyStoreException e) {
-            LOGGER.severe("KeyStoreException: " + e.getMessage());
-            return null;
-        }
+	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+			PskPublicInformation identity,
+			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
 
-        Key key;
-        try {
-            //XXX: Note that we use the keystore password for all key passwords
-            key = this.keystore.getKey(identity, this.keystorePwd.toCharArray());
-        } catch (UnrecoverableKeyException | KeyStoreException
-                | NoSuchAlgorithmException e) {
-            LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
-            return null;
-        }
-       return (SecretKey)key;
+
+		String identityStr = identity.getPublicInfoAsString();
+		try {
+			if (!this.keystore.containsAlias(identityStr)) {
+				return null;
+			}
+		} catch (KeyStoreException e) {
+			LOGGER.severe("KeyStoreException: " + e.getMessage());
+			return null;
+		}
+
+		Key key;
+		try {
+			// XXX: Note that we use the keystore password for all key passwords
+			key = this.keystore.getKey(identityStr, this.keystorePwd.toCharArray());
+		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
+			LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
+			return null;
+		}
+
+		return new PskSecretResult(cid, identity, (SecretKey) key);
+	}
+
+
+	public SecretKey getKey(PskPublicInformation info) {
+		return requestPskSecretResult(ConnectionId.EMPTY, null, info, null, null, null, false).getSecret();
     }
           
     @Override
-    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
+	public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
         String id = inetAddress.getHostString() + ":" + inetAddress.getPort();
         String identity = this.addr2id.get(id);
         if (identity != null) {
@@ -300,17 +312,16 @@ public class BksStore implements PskStore {
         throw new KeyStoreException("Key identity can not be null");
     }
 
-    @Override
-    public SecretKey getKey(ServerNames serverName,
-            PskPublicInformation identity) {
-        //XXX SNI not implemented
-        return getKey(identity);
-    }
+	@Override
+	public boolean hasEcdhePskSupported() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 
-    @Override
-    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
-            ServerNames virtualHost) {
-        //XXX SNI not implemented 
-        return getIdentity(peerAddress);
-    }
+	@Override
+	public void setResultHandler(HandshakeResultHandler resultHandler) {
+		// TODO Auto-generated method stub
+
+	}
+
 }
