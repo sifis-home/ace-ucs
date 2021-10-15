@@ -122,15 +122,28 @@ public abstract class Message extends Attribute {
                 throw new CoseException("Message was not tagged and no default tagging option given");
 		
             case Encrypt:
+			msg = new EncryptMessage();
+			break;
+
+		case Encrypt0:
+			msg = new Encrypt0Message();
+			break;
+
             case MAC: 
-            case MAC0:                
+			msg = new MACMessage();
+			break;
+
+		case MAC0:
+			msg = new MAC0Message();
+			break;
+
             case Sign1:
+			msg = new Sign1Message();
+			break;
+
             case Sign:
-            	throw new CoseException("Message format not supported by this library");
-		
-            case Encrypt0: 
-		        msg = new Encrypt0Message();
-		        break;
+			msg = new SignMessage();
+			break;
                 
             default:
                 throw new CoseException("Message is not recognized as a COSE security Object");

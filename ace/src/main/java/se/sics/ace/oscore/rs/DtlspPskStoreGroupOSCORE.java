@@ -38,8 +38,11 @@ import java.util.logging.Logger;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORException;
@@ -65,7 +68,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Marco Tiloca
  *
  */
-public class DtlspPskStoreGroupOSCORE implements PskStore {
+public class DtlspPskStoreGroupOSCORE implements AdvancedPskStore {
     
     /**
      * The logger
@@ -89,8 +92,15 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
         this.authzInfo = authzInfo;
     }
 
-
+    
     @Override
+	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+			boolean useExtendedMasterSecret) {
+		return new PskSecretResult(cid, identity, getKey(identity));
+	}
+
+
     public SecretKey getKey(PskPublicInformation identity) {
     	
     	// This profile expects opaque bytes as "psk_identity" on the wire.
@@ -211,22 +221,22 @@ public class DtlspPskStoreGroupOSCORE implements PskStore {
     }
 
     @Override
-    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
-        // Not needed here, this PskStore is for servers only
-        return null;
-    }
-
-    @Override
-    public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
-        //XXX: No support for ServerNames extension yet
-        return getKey(identity);
-    }
-
-
-    @Override
     public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
         // XXX: No support for ServerNames extension yet
         return null;
     }
+
+
+	@Override
+	public boolean hasEcdhePskSupported() {
+		// TODO Auto-generated method stub
+		return false;
+	}
+
+	@Override
+	public void setResultHandler(HandshakeResultHandler resultHandler) {
+		// TODO Auto-generated method stub
+		
+	}
 }

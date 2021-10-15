@@ -49,7 +49,7 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -267,7 +267,6 @@ public class PlugtestClient {
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             builder.setClientAuthenticationRequired(false);  
-            builder.setRpkTrustAll();
             DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
             CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
@@ -291,10 +290,14 @@ public class PlugtestClient {
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
             builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});      
-            builder.setPskStore(new StaticPskStore("client1", client1));
-            dtlsConnector = new DTLSConnector(builder.build());
-            ceb = new CoapEndpoint.Builder();
+					CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 });
+
+			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+			pskStore.setKey("client1", client1);
+			builder.setAdvancedPskStore(pskStore);
+
+			dtlsConnector = new DTLSConnector(builder.build());
+			ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
             ceb.setNetworkConfig(NetworkConfig.getStandard());
             e = ceb.build();
@@ -317,7 +320,11 @@ public class PlugtestClient {
             System.out.println("=====Starting Test 1.3======");
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
-            builder.setPskStore(new StaticPskStore("client2", client2));
+
+			pskStore = new AdvancedMultiPskStore();
+			pskStore.setKey("client2", client2);
+			builder.setAdvancedPskStore(pskStore);
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
@@ -398,7 +405,6 @@ public class PlugtestClient {
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             builder.setClientAuthenticationRequired(true);   
-            builder.setRpkTrustAll();
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
@@ -452,8 +458,12 @@ public class PlugtestClient {
             System.out.println("=====Starting Test 1.11======");
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
-            builder.setPskStore(new StaticPskStore("client4", client4));
-            dtlsConnector = new DTLSConnector(builder.build());
+
+			pskStore = new AdvancedMultiPskStore();
+			pskStore.setKey("client4", client4);
+			builder.setAdvancedPskStore(pskStore);
+
+			dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
             ceb.setNetworkConfig(NetworkConfig.getStandard());

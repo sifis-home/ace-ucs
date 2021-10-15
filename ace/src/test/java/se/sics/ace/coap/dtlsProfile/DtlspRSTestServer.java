@@ -34,6 +34,8 @@ package se.sics.ace.coap.dtlsProfile;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -50,7 +52,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -58,6 +62,8 @@ import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -234,10 +240,16 @@ public class DtlspRSTestServer {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
+		config.setAdvancedPskStore(psk);
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
-        config.setRpkTrustAll();
+
+		ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+		certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+		AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+				new RawPublicKeyIdentity[0], certTypes);
+		config.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();

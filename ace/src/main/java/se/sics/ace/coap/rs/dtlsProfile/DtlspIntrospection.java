@@ -99,7 +99,6 @@ public class DtlspIntrospection implements IntrospectionHandler {
                 rpk.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-        builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(dtlsConnector)
@@ -140,7 +139,7 @@ public class DtlspIntrospection implements IntrospectionHandler {
                 .setAddress(new InetSocketAddress(0));
         BksStore keystore = new BksStore(
                 keystoreLocation, keystorePwd, addr2idFile);
-        builder.setPskStore(keystore);
+		builder.setAdvancedPskStore(keystore);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}); 
         builder.setSniEnabled(false);

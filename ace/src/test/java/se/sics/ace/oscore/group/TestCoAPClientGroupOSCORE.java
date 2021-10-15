@@ -45,7 +45,7 @@ import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -181,7 +181,11 @@ public class TestCoAPClientGroupOSCORE {
     public void testCoapToken() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientA", key128));
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientA", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
@@ -222,7 +226,11 @@ public class TestCoAPClientGroupOSCORE {
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientF", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
@@ -399,7 +407,11 @@ public class TestCoAPClientGroupOSCORE {
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientF", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
@@ -543,7 +555,11 @@ public class TestCoAPClientGroupOSCORE {
     	
     	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientG", key128));
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientG", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
@@ -650,7 +666,6 @@ public class TestCoAPClientGroupOSCORE {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
-        builder.setRpkTrustAll();
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 

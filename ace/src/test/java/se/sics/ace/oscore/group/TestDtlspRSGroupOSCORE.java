@@ -1017,9 +1017,9 @@ public class TestDtlspRSGroupOSCORE {
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     			    
-    			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+					if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
     			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-    			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+					else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
     			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
@@ -2950,9 +2950,9 @@ public class TestDtlspRSGroupOSCORE {
 			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 			    int signKeyCurve = 0;
 
-			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+				if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
 			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+				else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
 			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
 			    // This should never happen, due to the previous sanity checks
@@ -3584,9 +3584,8 @@ public class TestDtlspRSGroupOSCORE {
   	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-  	    config.setRpkTrustAll();
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-  	    config.setPskStore(psk);
+		config.setAdvancedPskStore(psk);
   	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
   	    config.setClientAuthenticationRequired(true);
   	    DTLSConnector connector = new DTLSConnector(config.build());

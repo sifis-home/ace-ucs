@@ -33,6 +33,8 @@ package se.sics.ace.coap.client;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.logging.Logger;
@@ -47,11 +49,11 @@ import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.InMemoryPskStore;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
-import org.eclipse.californium.scandium.dtls.rpkstore.InMemoryRpkTrustStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -112,8 +114,9 @@ public class DTLSProfileRequests {
             String keyId = new String(
                     key.get(KeyKeys.KeyId).GetByteString(),
                     Constants.charset);
-            builder.setPskStore(new StaticPskStore(
-                    keyId, key.get(KeyKeys.Octet_K).GetByteString()));
+			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+			pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
+			builder.setAdvancedPskStore(pskStore);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
@@ -178,11 +181,10 @@ public class DTLSProfileRequests {
                 = new DtlsConnectorConfig.Builder().setAddress(
                         new InetSocketAddress(0));
 
-            builder.setClientAuthenticationRequired(true);
+			builder.setClientAuthenticationRequired(true);
             builder.setSniEnabled(false);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-            builder.setRpkTrustAll();
             try {
                 builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
             } catch (CoseException e) {
@@ -190,6 +192,13 @@ public class DTLSProfileRequests {
                throw new AceException("Aborting, key invalid: " 
                        + e.getMessage());
             }
+
+			ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+			certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+			AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+					new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
+			builder.setAdvancedCertificateVerifier(verifier);
+
             c = new DTLSConnector(builder.build());
         } else {
             c = new UDPConnector();
@@ -285,7 +294,7 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-        InMemoryPskStore store = new InMemoryPskStore();
+		AdvancedMultiPskStore store = new AdvancedMultiPskStore();
         
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         
@@ -294,7 +303,7 @@ public class DTLSProfileRequests {
         PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
         store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
                 
-        builder.setPskStore(store);
+		builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
@@ -341,7 +350,7 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-        InMemoryPskStore store = new InMemoryPskStore();
+		AdvancedMultiPskStore store = new AdvancedMultiPskStore();
 
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         
@@ -350,7 +359,7 @@ public class DTLSProfileRequests {
         PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
         store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
         
-        builder.setPskStore(store);
+		builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(c).setNetworkConfig(
@@ -381,10 +390,13 @@ public class DTLSProfileRequests {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
         if (rsPublicKey != null) {
-            InMemoryRpkTrustStore store = new InMemoryRpkTrustStore(
-                    Collections.singleton(new RawPublicKeyIdentity(
-                            rsPublicKey.AsPublicKey())));
-            builder.setRpkTrustStore(store);
+
+			RawPublicKeyIdentity[] identities = new RawPublicKeyIdentity[1];
+			identities[0] = new RawPublicKeyIdentity(rsPublicKey.AsPublicKey());
+			AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+					new X509Certificate[0], identities, null);
+
+			builder.setAdvancedCertificateVerifier(verifier);
         }
         
         Connector c = new DTLSConnector(builder.build());

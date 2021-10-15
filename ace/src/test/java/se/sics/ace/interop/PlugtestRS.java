@@ -307,10 +307,9 @@ public class PlugtestRS {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
+		config.setAdvancedPskStore(psk);
         config.setIdentity(rpk.AsPrivateKey(), rpk.AsPublicKey());
         config.setClientAuthenticationRequired(true);  
-        config.setRpkTrustAll();
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
@@ -385,7 +384,7 @@ public class PlugtestRS {
      config.setSupportedCipherSuites(new CipherSuite[]{
              CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
      DtlspPskStore psk = new DtlspPskStore(ai);
-     config.setPskStore(psk);
+		config.setAdvancedPskStore(psk);
      DTLSConnector connector = new DTLSConnector(config.build());
      CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
              .setNetworkConfig(NetworkConfig.getStandard()).build();

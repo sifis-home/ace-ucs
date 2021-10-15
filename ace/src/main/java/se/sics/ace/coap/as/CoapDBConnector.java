@@ -38,8 +38,11 @@ import java.util.logging.Logger;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORObject;
@@ -57,7 +60,7 @@ import se.sics.ace.examples.SQLDBAdapter;
  * @author Ludwig Seitz
  *
  */
-public class CoapDBConnector extends SQLConnector implements PskStore {
+public class CoapDBConnector extends SQLConnector implements AdvancedPskStore {
     
     /**
      * The logger
@@ -83,10 +86,16 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
     }
 
 
-    @Override
-    public SecretKey getKey(PskPublicInformation identity) {
-        return getKey(identity.getPublicInfoAsString());
-    }
+	@Override
+	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+			boolean useExtendedMasterSecret) {
+		return new PskSecretResult(cid, identity, getKey(identity.getPublicInfoAsString()));
+	}
+
+	public SecretKey getKey(PskPublicInformation info) {
+		return getKey(info.getPublicInfoAsString());
+	}
 
     /**
      * Avoid having to refactor all my code because the CF people decided they needed to change APIs.
@@ -144,7 +153,7 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
    }
     
     @Override
-    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
+	public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
         return null;
     }
     
@@ -160,18 +169,16 @@ public class CoapDBConnector extends SQLConnector implements PskStore {
        CoapDBConnector.connector = null;
     }
 
-    @Override
-    public SecretKey getKey(ServerNames serverName,
-            PskPublicInformation identity) {
-        // XXX: We don't support the server names extension.
-        return getKey(identity);
-    }
+	@Override
+	public boolean hasEcdhePskSupported() {
+		// TODO Auto-generated method stub
+		return false;
+	}
 
-    @Override
-    public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
-            ServerNames virtualHost) {
-        // XXX: We don't support the server names extension
-        return null;
-    }
+	@Override
+	public void setResultHandler(HandshakeResultHandler resultHandler) {
+		// TODO Auto-generated method stub
+
+	}
 
 }

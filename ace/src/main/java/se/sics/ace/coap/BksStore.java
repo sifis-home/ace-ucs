@@ -199,7 +199,14 @@ public class BksStore implements AdvancedPskStore {
 
 
 	public SecretKey getKey(PskPublicInformation info) {
-		return requestPskSecretResult(ConnectionId.EMPTY, null, info, null, null, null, false).getSecret();
+		PskSecretResult result = requestPskSecretResult(ConnectionId.EMPTY, null, info, null, null, null, false);
+		
+		if(result == null) {
+			return null;
+		} else {
+			return result.getSecret();
+		}
+		
     }
           
     @Override
@@ -213,6 +220,11 @@ public class BksStore implements AdvancedPskStore {
                 
     }
     
+	public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
+		return getIdentity(inetAddress, null);
+
+	}
+
     /**
      * Add a new symmetric key to the keystore or overwrite the existing
      * one associated to this identity.
@@ -233,7 +245,7 @@ public class BksStore implements AdvancedPskStore {
             throw new KeyStoreException("Key and identity must not be null");
         }
         if (this.keystore != null) {
-            Key k = new SecretKeySpec(key, "");
+			Key k = new SecretKeySpec(key, PskSecretResult.ALGORITHM_PSK);
             //XXX: Note that we use the keystore password for all key passwords
             this.keystore.setKeyEntry(identity, k, 
                     this.keystorePwd.toCharArray(), null);

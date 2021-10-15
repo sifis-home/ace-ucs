@@ -31,8 +31,6 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
-import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,16 +38,13 @@ import java.util.Map;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
-import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -183,9 +178,11 @@ public class TestDtlsClient2AS {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);
-        builder.setPskStore(new StaticPskStore("clientA", key128));
-        //builder.setIdentity(asymmetricKey.AsPrivateKey(), 
-        //       asymmetricKey.AsPublicKey());
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientA", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
@@ -224,9 +221,11 @@ public class TestDtlsClient2AS {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);
-        builder.setPskStore(new StaticPskStore("clientA", key128));
-        //builder.setIdentity(asymmetricKey.AsPrivateKey(), 
-        //       asymmetricKey.AsPublicKey());
+
+		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+		pskStore.setKey("clientA", key128);
+		builder.setAdvancedPskStore(pskStore);
+
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
@@ -304,7 +303,6 @@ public class TestDtlsClient2AS {
         //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-        builder.setRpkTrustAll();
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
