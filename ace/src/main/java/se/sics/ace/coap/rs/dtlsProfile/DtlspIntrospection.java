@@ -139,7 +139,7 @@ public class DtlspIntrospection implements IntrospectionHandler {
                 .setAddress(new InetSocketAddress(0));
         BksStore keystore = new BksStore(
                 keystoreLocation, keystorePwd, addr2idFile);
-		builder.setAdvancedPskStore(keystore);
+        builder.setAdvancedPskStore(keystore);
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}); 
         builder.setSniEnabled(false);

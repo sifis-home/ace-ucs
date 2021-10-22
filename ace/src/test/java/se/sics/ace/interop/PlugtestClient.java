@@ -289,15 +289,14 @@ public class PlugtestClient {
             System.out.println("=====Starting Test 1.2======");
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-					CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 });
+            builder.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 });
 
-			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-			pskStore.setKey("client1", client1);
-			builder.setAdvancedPskStore(pskStore);
+            AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client1", client1);
+            builder.setAdvancedPskStore(pskStore);
 
-			dtlsConnector = new DTLSConnector(builder.build());
-			ceb = new CoapEndpoint.Builder();
+            dtlsConnector = new DTLSConnector(builder.build());
+            ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
             ceb.setNetworkConfig(NetworkConfig.getStandard());
             e = ceb.build();
@@ -321,9 +320,9 @@ public class PlugtestClient {
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
 
-			pskStore = new AdvancedMultiPskStore();
-			pskStore.setKey("client2", client2);
-			builder.setAdvancedPskStore(pskStore);
+            pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client2", client2);
+            builder.setAdvancedPskStore(pskStore);
 
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
@@ -459,11 +458,11 @@ public class PlugtestClient {
             builder = new DtlsConnectorConfig.Builder();
             builder.setAddress(new InetSocketAddress(0));
 
-			pskStore = new AdvancedMultiPskStore();
-			pskStore.setKey("client4", client4);
-			builder.setAdvancedPskStore(pskStore);
+            pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client4", client4);
+            builder.setAdvancedPskStore(pskStore);
 
-			dtlsConnector = new DTLSConnector(builder.build());
+            dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
             ceb.setNetworkConfig(NetworkConfig.getStandard());

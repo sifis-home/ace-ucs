@@ -181,9 +181,9 @@ public class TestDtlsClient2AS {
         builder.setClientOnly();
         builder.setSniEnabled(false);
 
-		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-		pskStore.setKey("clientA", key128);
-		builder.setAdvancedPskStore(pskStore);
+        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+        pskStore.setKey("clientA", key128);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -225,9 +225,9 @@ public class TestDtlsClient2AS {
         builder.setClientOnly();
         builder.setSniEnabled(false);
 
-		AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-		pskStore.setKey("clientA", key128);
-		builder.setAdvancedPskStore(pskStore);
+        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+        pskStore.setKey("clientA", key128);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});

@@ -85,17 +85,16 @@ public class CoapDBConnector extends SQLConnector implements AdvancedPskStore {
         super(dbAdapter);
     }
 
+    @Override
+    public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+            PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+            boolean useExtendedMasterSecret) {
+        return new PskSecretResult(cid, identity, getKey(identity.getPublicInfoAsString()));
+    }
 
-	@Override
-	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-			PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
-			boolean useExtendedMasterSecret) {
-		return new PskSecretResult(cid, identity, getKey(identity.getPublicInfoAsString()));
-	}
-
-	public SecretKey getKey(PskPublicInformation info) {
-		return getKey(info.getPublicInfoAsString());
-	}
+    public SecretKey getKey(PskPublicInformation info) {
+        return getKey(info.getPublicInfoAsString());
+    }
 
     /**
      * Avoid having to refactor all my code because the CF people decided they needed to change APIs.
@@ -151,9 +150,9 @@ public class CoapDBConnector extends SQLConnector implements AdvancedPskStore {
        }
        return CoapDBConnector.connector;
    }
-    
+
     @Override
-	public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
         return null;
     }
     
@@ -169,16 +168,16 @@ public class CoapDBConnector extends SQLConnector implements AdvancedPskStore {
        CoapDBConnector.connector = null;
     }
 
-	@Override
-	public boolean hasEcdhePskSupported() {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public boolean hasEcdhePskSupported() {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
-	@Override
-	public void setResultHandler(HandshakeResultHandler resultHandler) {
-		// TODO Auto-generated method stub
+    @Override
+    public void setResultHandler(HandshakeResultHandler resultHandler) {
+        // TODO Auto-generated method stub
 
-	}
+    }
 
 }

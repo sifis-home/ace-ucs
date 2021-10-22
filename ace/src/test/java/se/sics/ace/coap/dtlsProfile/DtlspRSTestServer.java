@@ -240,15 +240,15 @@ public class DtlspRSTestServer {
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DtlspPskStore psk = new DtlspPskStore(ai);
-		config.setAdvancedPskStore(psk);
+        config.setAdvancedPskStore(psk);
         config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
         config.setClientAuthenticationRequired(true);
 
-		ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-		certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-		AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
-				new RawPublicKeyIdentity[0], certTypes);
-		config.setAdvancedCertificateVerifier(verifier);
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        config.setAdvancedCertificateVerifier(verifier);
 
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)

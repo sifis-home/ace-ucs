@@ -168,62 +168,60 @@ public class BksStore implements AdvancedPskStore {
         File file = new File(addr2idFile);
         file.createNewFile();        
     }
-    
+
     @Override
-	public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
-			PskPublicInformation identity,
-			String hmacAlgorithm, SecretKey otherSecret, byte[] seed, boolean useExtendedMasterSecret) {
+    public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+            PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+            boolean useExtendedMasterSecret) {
 
+        String identityStr = identity.getPublicInfoAsString();
+        try {
+            if (!this.keystore.containsAlias(identityStr)) {
+                return null;
+            }
+        } catch (KeyStoreException e) {
+            LOGGER.severe("KeyStoreException: " + e.getMessage());
+            return null;
+        }
 
-		String identityStr = identity.getPublicInfoAsString();
-		try {
-			if (!this.keystore.containsAlias(identityStr)) {
-				return null;
-			}
-		} catch (KeyStoreException e) {
-			LOGGER.severe("KeyStoreException: " + e.getMessage());
-			return null;
-		}
+        Key key;
+        try {
+            // XXX: Note that we use the keystore password for all key passwords
+            key = this.keystore.getKey(identityStr, this.keystorePwd.toCharArray());
+        } catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
+            LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
+            return null;
+        }
 
-		Key key;
-		try {
-			// XXX: Note that we use the keystore password for all key passwords
-			key = this.keystore.getKey(identityStr, this.keystorePwd.toCharArray());
-		} catch (UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException e) {
-			LOGGER.severe(e.getClass().getName() + ": " + e.getMessage());
-			return null;
-		}
-
-		return new PskSecretResult(cid, identity, (SecretKey) key);
-	}
-
-
-	public SecretKey getKey(PskPublicInformation info) {
-		PskSecretResult result = requestPskSecretResult(ConnectionId.EMPTY, null, info, null, null, null, false);
-		
-		if(result == null) {
-			return null;
-		} else {
-			return result.getSecret();
-		}
-		
+        return new PskSecretResult(cid, identity, (SecretKey) key);
     }
-          
+
+    public SecretKey getKey(PskPublicInformation info) {
+        PskSecretResult result = requestPskSecretResult(ConnectionId.EMPTY, null, info, null, null, null, false);
+
+        if (result == null) {
+            return null;
+        } else {
+            return result.getSecret();
+        }
+
+    }
+
     @Override
-	public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress, ServerNames virtualHost) {
         String id = inetAddress.getHostString() + ":" + inetAddress.getPort();
         String identity = this.addr2id.get(id);
         if (identity != null) {
             return new PskPublicInformation(identity);
         }
         return null;
-                
-    }
-    
-	public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
-		return getIdentity(inetAddress, null);
 
-	}
+    }
+
+    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
+        return getIdentity(inetAddress, null);
+
+    }
 
     /**
      * Add a new symmetric key to the keystore or overwrite the existing
@@ -245,7 +243,7 @@ public class BksStore implements AdvancedPskStore {
             throw new KeyStoreException("Key and identity must not be null");
         }
         if (this.keystore != null) {
-			Key k = new SecretKeySpec(key, PskSecretResult.ALGORITHM_PSK);
+            Key k = new SecretKeySpec(key, PskSecretResult.ALGORITHM_PSK);
             //XXX: Note that we use the keystore password for all key passwords
             this.keystore.setKeyEntry(identity, k, 
                     this.keystorePwd.toCharArray(), null);
@@ -324,16 +322,16 @@ public class BksStore implements AdvancedPskStore {
         throw new KeyStoreException("Key identity can not be null");
     }
 
-	@Override
-	public boolean hasEcdhePskSupported() {
-		// TODO Auto-generated method stub
-		return false;
-	}
+    @Override
+    public boolean hasEcdhePskSupported() {
+        // TODO Auto-generated method stub
+        return false;
+    }
 
-	@Override
-	public void setResultHandler(HandshakeResultHandler resultHandler) {
-		// TODO Auto-generated method stub
+    @Override
+    public void setResultHandler(HandshakeResultHandler resultHandler) {
+        // TODO Auto-generated method stub
 
-	}
+    }
 
 }

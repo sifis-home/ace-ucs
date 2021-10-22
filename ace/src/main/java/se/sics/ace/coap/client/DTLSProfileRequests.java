@@ -114,9 +114,9 @@ public class DTLSProfileRequests {
             String keyId = new String(
                     key.get(KeyKeys.KeyId).GetByteString(),
                     Constants.charset);
-			AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-			pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
-			builder.setAdvancedPskStore(pskStore);
+            AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
+            builder.setAdvancedPskStore(pskStore);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
@@ -181,7 +181,7 @@ public class DTLSProfileRequests {
                 = new DtlsConnectorConfig.Builder().setAddress(
                         new InetSocketAddress(0));
 
-			builder.setClientAuthenticationRequired(true);
+            builder.setClientAuthenticationRequired(true);
             builder.setSniEnabled(false);
             builder.setSupportedCipherSuites(new CipherSuite[]{
                     CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
@@ -193,11 +193,11 @@ public class DTLSProfileRequests {
                        + e.getMessage());
             }
 
-			ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-			certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-			AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
-					new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
-			builder.setAdvancedCertificateVerifier(verifier);
+            ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+            certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+            AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                    new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
+            builder.setAdvancedCertificateVerifier(verifier);
 
             c = new DTLSConnector(builder.build());
         } else {
@@ -294,7 +294,7 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-		AdvancedMultiPskStore store = new AdvancedMultiPskStore();
+        AdvancedMultiPskStore store = new AdvancedMultiPskStore();
         
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         
@@ -303,7 +303,7 @@ public class DTLSProfileRequests {
         PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
         store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
                 
-		builder.setAdvancedPskStore(store);
+        builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder().setConnector(c)
                 .setNetworkConfig(NetworkConfig.getStandard()).build();
@@ -350,7 +350,7 @@ public class DTLSProfileRequests {
         builder.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
-		AdvancedMultiPskStore store = new AdvancedMultiPskStore();
+        AdvancedMultiPskStore store = new AdvancedMultiPskStore();
 
         LOGGER.finest("Adding key for: " + serverAddress.toString());
         
@@ -359,7 +359,7 @@ public class DTLSProfileRequests {
         PskPublicInformation pskInfo = new PskPublicInformation(identityStr, identityBytes);
         store.addKnownPeer(serverAddress, pskInfo, key.get(KeyKeys.Octet_K).GetByteString());
         
-		builder.setAdvancedPskStore(store);
+        builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
         CoapEndpoint e = new CoapEndpoint.Builder()
                 .setConnector(c).setNetworkConfig(
@@ -391,12 +391,12 @@ public class DTLSProfileRequests {
         builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
         if (rsPublicKey != null) {
 
-			RawPublicKeyIdentity[] identities = new RawPublicKeyIdentity[1];
-			identities[0] = new RawPublicKeyIdentity(rsPublicKey.AsPublicKey());
-			AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
-					new X509Certificate[0], identities, null);
+            RawPublicKeyIdentity[] identities = new RawPublicKeyIdentity[1];
+            identities[0] = new RawPublicKeyIdentity(rsPublicKey.AsPublicKey());
+            AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                    new X509Certificate[0], identities, null);
 
-			builder.setAdvancedCertificateVerifier(verifier);
+            builder.setAdvancedCertificateVerifier(verifier);
         }
         
         Connector c = new DTLSConnector(builder.build());
