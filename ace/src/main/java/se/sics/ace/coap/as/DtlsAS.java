@@ -32,6 +32,8 @@
 package se.sics.ace.coap.as;
 
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.logging.Logger;
 
@@ -41,11 +43,13 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
 
 import se.sics.ace.AceException;
 import se.sics.ace.TimeProvider;
@@ -171,6 +175,14 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
 
        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
                .setAddress(new InetSocketAddress(port));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        config.setAdvancedCertificateVerifier(verifier);
+
        if (asymmetricKey != null && 
                asymmetricKey.get(KeyKeys.KeyType) == KeyKeys.KeyType_EC2 ) {
            LOGGER.info("Starting CoapsAS with PSK and RPK");

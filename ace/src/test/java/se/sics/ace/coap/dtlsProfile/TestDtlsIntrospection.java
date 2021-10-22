@@ -38,6 +38,7 @@ import java.util.Map;
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -121,6 +122,7 @@ public class TestDtlsIntrospection {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlspIntrospection i = new DtlspIntrospection(key, "coaps://localhost/introspect");
@@ -142,6 +144,7 @@ public class TestDtlsIntrospection {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testCoapIntrospectPSK() throws Exception {
         BksStore.init( TestConfig.testFilePath + "IntrospectTestKeyStore.bks", "password",
                 TestConfig.testFilePath + "IntrospectTestAddr2id.cfg"); 

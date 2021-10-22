@@ -37,6 +37,7 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -117,6 +118,7 @@ public class TestOscoreIntrospection {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testCoapIntrospect() throws Exception {
     	
         byte[] senderId = new byte[] {0x11};

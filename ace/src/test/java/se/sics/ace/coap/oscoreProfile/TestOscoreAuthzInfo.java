@@ -50,6 +50,7 @@ import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -59,6 +60,7 @@ import org.eclipse.californium.cose.CoseException;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.util.Bytes;
 
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
@@ -207,6 +209,7 @@ public class TestOscoreAuthzInfo {
      * @throws AceException  
      */
     @Test
+    @Ignore
     public void testInvalidPayload() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Request r = Request.newPost();

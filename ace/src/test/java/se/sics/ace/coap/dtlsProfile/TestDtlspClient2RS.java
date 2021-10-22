@@ -51,6 +51,7 @@ import org.eclipse.californium.scandium.dtls.HandshakeException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -217,6 +218,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testTokenPskId() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException,
             IOException {
@@ -255,6 +257,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testKidPskId() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {
@@ -386,6 +389,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {
@@ -434,6 +438,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostPSKUpdateAccessRights() throws CoseException, IllegalStateException, InvalidCipherTextException,
     											AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -541,6 +546,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testPostToBeDerivedPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {
@@ -618,6 +624,7 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
+    @Ignore
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -658,6 +665,7 @@ public class TestDtlspClient2RS {
      
      */
     @Test
+    @Ignore
     public void testFailTokenNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {
@@ -700,6 +708,7 @@ public class TestDtlspClient2RS {
      
      */
     @Test
+    @Ignore
     public void testFailActionNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {

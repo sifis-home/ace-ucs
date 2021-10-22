@@ -61,6 +61,7 @@ import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -242,6 +243,7 @@ public class TestOscorepClient2RSGroupOSCORE {
      * @throws Exception 
      */
     @Test
+    @Ignore
     public void testSuccess() throws Exception {
 
         //Generate a token
@@ -311,6 +313,7 @@ public class TestOscorepClient2RSGroupOSCORE {
      * @throws Exception 
      */
     @Test
+    @Ignore
     public void testSuccessGroupOSCORESingleRole() throws Exception {
 
     	boolean askForSignInfo = true;
@@ -2716,6 +2719,7 @@ public class TestOscorepClient2RSGroupOSCORE {
      * @throws Exception 
      */
     @Test
+    @Ignore
     public void testSuccessGroupOSCOREMultipleRoles() throws Exception {
 
     	boolean askForSignInfo = true;
@@ -4573,6 +4577,7 @@ public class TestOscorepClient2RSGroupOSCORE {
      * @throws Exception 
      */
     @Test
+    @Ignore
     public void testNoAccess() throws Exception {
         
         ctxDB.addContext("coap://localhost/helloWorld", osctx);

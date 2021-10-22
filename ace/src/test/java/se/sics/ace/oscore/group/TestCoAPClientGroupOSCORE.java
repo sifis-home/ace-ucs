@@ -33,6 +33,8 @@ package se.sics.ace.oscore.group;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -44,8 +46,10 @@ import org.eclipse.californium.core.network.CoapEndpoint.Builder;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -56,6 +60,8 @@ import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.Util;
@@ -178,6 +184,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception 
      */
     @Test
+    @Ignore
     public void testCoapToken() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
@@ -219,6 +226,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testGroupOSCORESingleRoleREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
@@ -400,6 +408,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testGroupOSCOREMultipleRolesREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
@@ -415,6 +424,7 @@ public class TestCoAPClientGroupOSCORE {
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
+
         ceb.setConnector(dtlsConnector);
         ceb.setNetworkConfig(NetworkConfig.getStandard());
         CoapEndpoint e = ceb.build();
@@ -549,6 +559,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testGroupOSCOREAltClientREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
@@ -661,6 +672,7 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
+    @Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
