@@ -218,7 +218,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testTokenPskId() throws CoseException, IllegalStateException,
             InvalidCipherTextException, AceException, ConnectorException,
             IOException {
@@ -257,7 +256,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testKidPskId() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {
@@ -389,7 +387,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {
@@ -438,7 +435,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostPSKUpdateAccessRights() throws CoseException, IllegalStateException, InvalidCipherTextException,
     											AceException, ConnectorException, IOException {
         OneKey key = new OneKey();
@@ -546,7 +542,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testPostToBeDerivedPSK() throws CoseException, IllegalStateException, 
             InvalidCipherTextException, AceException, ConnectorException, 
             IOException {
@@ -624,7 +619,6 @@ public class TestDtlspClient2RS {
      * @throws ConnectorException 
      */
     @Test
-    @Ignore
     public void testFailPskId() throws ConnectorException, IOException {
         OneKey key = new OneKey();
         key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
@@ -665,7 +659,6 @@ public class TestDtlspClient2RS {
      
      */
     @Test
-    @Ignore
     public void testFailTokenNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {
@@ -692,7 +685,7 @@ public class TestDtlspClient2RS {
         CoapResponse r = c.get();
         Assert.assertEquals("FORBIDDEN", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());
+        Assert.assertEquals("{1: \"coaps://blah/authz-info/\", 2: h'6F746865724B6579'}", rPayload.toString());
     }
     
     /**
@@ -708,7 +701,6 @@ public class TestDtlspClient2RS {
      
      */
     @Test
-    @Ignore
     public void testFailActionNoMatch() throws IllegalStateException,
             InvalidCipherTextException, CoseException, AceException, 
             ConnectorException, IOException {
@@ -735,6 +727,6 @@ public class TestDtlspClient2RS {
         CoapResponse r = c.post("blah", MediaTypeRegistry.APPLICATION_JSON);
         Assert.assertEquals("METHOD_NOT_ALLOWED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());
+        Assert.assertEquals("{1: \"coaps://blah/authz-info/\", 2: h'796574416E6F746865724B6579'}", rPayload.toString());
     }
 }

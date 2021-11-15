@@ -276,6 +276,7 @@ public abstract class EncryptCommon extends Message {
 		switch (alg) {
 		case AES_CCM_16_64_128:
 		case AES_CCM_16_128_128:
+        case AES_CCM_16_128_256:
 			return AES_CCM_16_IV_LENGTH;
 		case AES_CCM_64_64_128:
 		case AES_CCM_64_128_128:

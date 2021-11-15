@@ -118,7 +118,6 @@ public class TestOscoreIntrospection {
      * @throws Exception
      */
     @Test
-    @Ignore
     public void testCoapIntrospect() throws Exception {
     	
         byte[] senderId = new byte[] {0x11};

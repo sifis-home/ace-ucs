@@ -43,6 +43,7 @@ import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
 import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.MapBasedEndpointContext;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.oscore.OSCoreEndpointContextInfo;
 
@@ -84,7 +85,7 @@ public class CoapReq implements Message {
     protected CoapReq(Request req) throws AceException {
         this.request = req;
         CBORObject cborPayload = null;
-        if (req.getPayload() != null) {
+        if (req.getPayload() != null && req.getPayload() != Bytes.EMPTY) {
             try {
                 cborPayload = CBORObject.DecodeFromBytes(req.getPayload());
             } catch (CBORException ex) {
@@ -121,17 +122,17 @@ public class CoapReq implements Message {
         // The OSCORE Sender ID that the client used in the request is the local OSCORE Recipient ID.
         // The returned string has format ["ContextID:" +] "SenderID", depending on the presence of the OSCORE Context ID.
         else if (ctx instanceof MapBasedEndpointContext) {
-            MapBasedEndpointContext mapCtx = (MapBasedEndpointContext)ctx;
-            
+            MapBasedEndpointContext mapCtx = (MapBasedEndpointContext) ctx;
+
 			byte[] clientSenderId = StringUtil
-					.hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
+                    .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
 			byte[] idContext = StringUtil
-					.hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
-        
+                    .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
+
             if (clientSenderId == null) {
                 return null;
             }
-            
+
             // The identity is a string with format ["A" + ":" +] "B", where A and B are
             // the base64 encoding of the ContextID (if present) and of the SenderID.
             String senderId = "";
@@ -140,10 +141,10 @@ public class CoapReq implements Message {
                 senderId += ":";
             }
             senderId += Base64.getEncoder().encodeToString(clientSenderId);
-            
+
             return senderId;
         }
-        
+
         return null;
     }
 

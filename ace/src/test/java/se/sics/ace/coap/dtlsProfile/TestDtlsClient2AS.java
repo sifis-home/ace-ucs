@@ -31,6 +31,8 @@
  *******************************************************************************/
 package se.sics.ace.coap.dtlsProfile;
 
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,8 +42,10 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -52,6 +56,8 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.as.Token;
@@ -123,10 +129,9 @@ public class TestDtlsClient2AS {
     
     // @Ignore
     /**
-     * Test connecting with RPK without authenticating the client.
-     * The Server should reject that.
+     * Test connecting with RPK without authenticating the client. The Server should reject that.
      * 
-     * @throws Exception 
+     * @throws Exception
      */
     /*
     @Test
@@ -175,14 +180,12 @@ public class TestDtlsClient2AS {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testCoapToken() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);
 
-        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-        pskStore.setKey("clientA", key128);
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -219,14 +222,12 @@ public class TestDtlsClient2AS {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testCoapTokenUpdateAccessRights() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setClientOnly();
         builder.setSniEnabled(false);
 
-        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-        pskStore.setKey("clientA", key128);
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{
@@ -298,7 +299,6 @@ public class TestDtlsClient2AS {
      * @throws Exception
      */
     @Test
-    @Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
@@ -307,6 +307,14 @@ public class TestDtlsClient2AS {
         //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();

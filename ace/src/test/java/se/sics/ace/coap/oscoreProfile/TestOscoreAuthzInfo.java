@@ -209,7 +209,6 @@ public class TestOscoreAuthzInfo {
      * @throws AceException  
      */
     @Test
-    @Ignore
     public void testInvalidPayload() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Request r = Request.newPost();

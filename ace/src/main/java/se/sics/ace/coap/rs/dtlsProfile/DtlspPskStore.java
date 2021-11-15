@@ -167,7 +167,7 @@ public class DtlspPskStore implements AdvancedPskStore {
             }
 
             if (key != null) {
-                return new SecretKeySpec(key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                return new SecretKeySpec(key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
             }
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
@@ -213,7 +213,7 @@ public class DtlspPskStore implements AdvancedPskStore {
             	 
                  key = TokenRepository.getInstance().getPoP(ctiStr);
                  return new SecretKeySpec(
-                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                        key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;

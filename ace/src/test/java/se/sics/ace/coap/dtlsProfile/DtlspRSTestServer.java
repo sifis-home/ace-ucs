@@ -236,6 +236,7 @@ public class DtlspRSTestServer {
       DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+
         config.setSupportedCipherSuites(new CipherSuite[]{
                 CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                 CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});

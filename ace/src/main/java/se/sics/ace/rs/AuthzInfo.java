@@ -186,7 +186,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             } catch (IntrospectionException e) {
                 LOGGER.info("Introspection error, "
-                         + "message processing aborted: " + e.getMessage());
+                        + "message processing aborted: " + e.getMessage());
                 if (e.getMessage().isEmpty()) {
                     return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
                 }
@@ -224,7 +224,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
-	        LOGGER.info("Message processing aborted: invalid request");
+            LOGGER.info("Message processing aborted: invalid request");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    

@@ -57,6 +57,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.MessageTag;
+import org.eclipse.californium.elements.util.Bytes;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -178,7 +179,6 @@ public class TestOscorepClient2RS {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testSuccess() throws Exception {
         //Generate a token
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -252,7 +252,6 @@ public class TestOscorepClient2RS {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testNoAccess() throws Exception {
     	
     	ctxDB.addContext("coap://localhost/helloWorld", osctx);
@@ -274,7 +273,6 @@ public class TestOscorepClient2RS {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testSuccessUpdateAccessRights() throws Exception {
         //Generate a token
         COSEparams coseP = new COSEparams(MessageTag.Encrypt0, 
@@ -369,7 +367,7 @@ public class TestOscorepClient2RS {
        CoapResponse rsRes2 = OSCOREProfileRequests.postTokenUpdate("coap://localhost/authz-info", asRes, ctxDB);
        assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
        // ... and in fact no payload is expected in the response
-       assert(rsRes2.getPayload() == null);
+        assert (rsRes2.getPayload() == null || rsRes2.getPayload() == Bytes.EMPTY);
        
        //Check that the OSCORE context created before is still present
        Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));

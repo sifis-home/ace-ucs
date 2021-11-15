@@ -197,9 +197,9 @@ public class TestOscorepRSGroupOSCORE {
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
-    	final Provider PROVIDER = new BouncyCastleProvider();
+        final Provider PROVIDER = new BouncyCastleProvider();
     	final Provider EdDSA = new EdDSASecurityProvider();
-    	Security.insertProviderAt(PROVIDER, 1);
+        Security.insertProviderAt(PROVIDER, 1);
     	Security.insertProviderAt(EdDSA, 0);
     	
         // Set the valid combinations of roles in a Joining Request

@@ -187,13 +187,11 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception 
      */
     @Test
-    @Ignore
     public void testCoapToken() throws Exception {
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
 
-        AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
-        pskStore.setKey("clientA", key128);
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
@@ -229,7 +227,6 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
-    @Ignore
     public void testGroupOSCORESingleRoleREFToken() throws Exception { 
         
     	String gid = new String("feedca570000");
@@ -670,13 +667,20 @@ public class TestCoAPClientGroupOSCORE {
      * @throws Exception
      */
     @Test
-    @Ignore
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
         builder.setAddress(new InetSocketAddress(0));
         builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         Builder ceb = new Builder();

@@ -989,7 +989,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            		//roll-back
 		            		exiSequenceNumbers.put(rsName, exiSeqNum);
 		            	}
-		                LOGGER.severe("Message processing aborted: "
+                        LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
 		                if (e.getMessage().startsWith("Malformed")) {
 		                    CBORObject map = CBORObject.NewMap();
@@ -1107,7 +1107,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            		//roll-back
 		            		exiSequenceNumbers.put(rsName, exiSeqNum);
 		            	}
-		                LOGGER.severe("Message processing aborted: "
+                        LOGGER.severe("Message processing aborted: "
 		                        + e.getMessage());
 		                return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		            }   
@@ -1148,7 +1148,7 @@ public class Token implements Endpoint, AutoCloseable {
 		            	   }
 		               }
 		               
-                       LOGGER.severe("Message processing aborted: "
+                        LOGGER.severe("Message processing aborted: "
                                + e.getMessage());
                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		           }
@@ -1184,7 +1184,7 @@ public class Token implements Endpoint, AutoCloseable {
         	   }
             }
 		    
-		    LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
@@ -1231,7 +1231,7 @@ public class Token implements Endpoint, AutoCloseable {
         	   }
             }
 		    
-		    LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
@@ -1316,7 +1316,7 @@ public class Token implements Endpoint, AutoCloseable {
             	    }
                 }
 		        
-		        LOGGER.severe("Message processing aborted: "
+                LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }
@@ -1382,7 +1382,7 @@ public class Token implements Endpoint, AutoCloseable {
             	    }
 	            }
 		        
-		        LOGGER.severe("Message processing aborted: "
+                LOGGER.severe("Message processing aborted: "
 		                + e.getMessage());
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		    }		    
@@ -1474,7 +1474,7 @@ public class Token implements Endpoint, AutoCloseable {
             	
             }
             
-		    LOGGER.severe("Message processing aborted: "
+            LOGGER.severe("Message processing aborted: "
 		            + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
