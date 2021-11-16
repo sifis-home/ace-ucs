@@ -186,7 +186,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
                 return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
             } catch (IntrospectionException e) {
                 LOGGER.info("Introspection error, "
-                        + "message processing aborted: " + e.getMessage());
+                         + "message processing aborted: " + e.getMessage());
                 if (e.getMessage().isEmpty()) {
                     return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
                 }

@@ -614,7 +614,7 @@ public class PlugtestClientGroupOSCORE {
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128_client_A);
-		builder.setAdvancedPskStore(pskStore);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
@@ -652,7 +652,7 @@ public class PlugtestClientGroupOSCORE {
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128_client_F);
-		builder.setAdvancedPskStore(pskStore);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
@@ -802,7 +802,7 @@ public class PlugtestClientGroupOSCORE {
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128_client_F);
-		builder.setAdvancedPskStore(pskStore);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
@@ -911,7 +911,7 @@ public class PlugtestClientGroupOSCORE {
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientG", key128_client_G);
-		builder.setAdvancedPskStore(pskStore);
+        builder.setAdvancedPskStore(pskStore);
 
         builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());

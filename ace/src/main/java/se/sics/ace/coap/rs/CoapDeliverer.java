@@ -150,8 +150,6 @@ public class CoapDeliverer implements MessageDeliverer {
             
         	Request req = ex.getRequest();
             try {
-                System.out.println("Req: " + req);
-                System.out.println("Req inst: " + CoapReq.getInstance(req));
 				subject = CoapReq.getInstance(req).getSenderId();
 				if (subject == null) {
 				    LOGGER.warning("Unauthenticated client tried to get access");
@@ -159,7 +157,7 @@ public class CoapDeliverer implements MessageDeliverer {
 				    return;
 				}
 			} catch (AceException e) {
-                LOGGER.severe("X Error while retrieving the client identity: " + e.getMessage());
+	            LOGGER.severe("Error while retrieving the client identity: " + e.getMessage());
 			}
         } else  {
             subject = request.getSourceContext().getPeerIdentity().getName();
