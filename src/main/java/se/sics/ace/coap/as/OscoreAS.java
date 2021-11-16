@@ -40,6 +40,7 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
@@ -92,6 +93,9 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
     private OscoreAceEndpoint token;
 
     private OscoreAceEndpoint introspect;
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+    
     /**
      * Constructor.
      * 
@@ -244,7 +248,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
             }
             
             OSCoreCtx ctx = new OSCoreCtx(key, false, null, senderId, 
-            		recipientId, null, null, null, contextId);
+            		recipientId, null, null, null, contextId, MAX_UNFRAGMENTED_SIZE);
             OscoreCtxDbSingleton.getInstance().addContext(ctx);
             
         }

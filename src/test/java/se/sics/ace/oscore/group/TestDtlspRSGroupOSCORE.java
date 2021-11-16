@@ -45,6 +45,7 @@ import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -68,7 +69,9 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -79,6 +82,8 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+
 import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
@@ -1017,9 +1022,9 @@ public class TestDtlspRSGroupOSCORE {
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     			    
-    			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+					if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
     			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-    			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+					else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
     			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
@@ -2950,9 +2955,9 @@ public class TestDtlspRSGroupOSCORE {
 			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 			    int signKeyCurve = 0;
 
-			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+				if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_EC2))
 			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+				else if (publicKey.get(KeyKeys.KeyType).equals(org.eclipse.californium.cose.KeyKeys.KeyType_OKP))
 			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
 			    // This should never happen, due to the previous sanity checks
@@ -3581,17 +3586,23 @@ public class TestDtlspRSGroupOSCORE {
   	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
+
+  	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+  	    certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+  	    AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+                new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
+  	    config.setAdvancedCertificateVerifier(verifier);
+
   	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-  	    config.setRpkTrustAll();
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-  	    config.setPskStore(psk);
+		config.setAdvancedPskStore(psk);
   	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
   	    config.setClientAuthenticationRequired(true);
   	    DTLSConnector connector = new DTLSConnector(config.build());
   	    CoapEndpoint cep = new Builder().setConnector(connector)
-               .setNetworkConfig(NetworkConfig.getStandard()).build();
+               .setConfiguration(Configuration.getStandard()).build();
   	    rs.addEndpoint(cep);
   	    //Add a CoAP (no 's') endpoint for authz-info
   	    CoapEndpoint aiep = new Builder().setInetSocketAddress(

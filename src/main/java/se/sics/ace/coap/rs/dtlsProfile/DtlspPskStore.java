@@ -38,8 +38,11 @@ import java.util.logging.Logger;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.eclipse.californium.scandium.dtls.ConnectionId;
+import org.eclipse.californium.scandium.dtls.HandshakeResultHandler;
 import org.eclipse.californium.scandium.dtls.PskPublicInformation;
-import org.eclipse.californium.scandium.dtls.pskstore.PskStore;
+import org.eclipse.californium.scandium.dtls.PskSecretResult;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedPskStore;
 import org.eclipse.californium.scandium.util.ServerNames;
 
 import com.upokecenter.cbor.CBORException;
@@ -65,7 +68,7 @@ import se.sics.ace.rs.TokenRepository;
  * @author Ludwig Seitz and Marco Tiloca
  *
  */
-public class DtlspPskStore implements PskStore {
+public class DtlspPskStore implements AdvancedPskStore {
     
     /**
      * The logger
@@ -90,80 +93,86 @@ public class DtlspPskStore implements PskStore {
     }
     
     @Override
+    public PskSecretResult requestPskSecretResult(ConnectionId cid, ServerNames serverName,
+            PskPublicInformation identity, String hmacAlgorithm, SecretKey otherSecret, byte[] seed,
+            boolean useExtendedMasterSecret) {
+        return new PskSecretResult(cid, identity, getKey(identity));
+    }
+
     public SecretKey getKey(PskPublicInformation identity) {
-    	
-    	// This profile expects opaque bytes as "psk_identity" on the wire.
-    	// If character strings were also used, an alternative method
-    	// would have to be invoked here to process it accordingly,
-    	// such as getKey(identity.getPublicInfoAsString())
-    	
+
+        // This profile expects opaque bytes as "psk_identity" on the wire.
+        // If character strings were also used, an alternative method
+        // would have to be invoked here to process it accordingly,
+        // such as getKey(identity.getPublicInfoAsString())
+
         return getKey(identity.getBytes(), identity);
-        
+
     }
    
     /**
-     * Avoid having to refactor all my code since the CF people decided 
-     * they needed to change public APIs
+     * Avoid having to refactor all my code since the CF people decided they needed to change public APIs
      * 
-     * @param identity  the identity of the key
-     * @return  the bytes of the key
+     * @param identity the identity of the key
+     * @return the bytes of the key
      */
     private SecretKey getKey(byte[] rawIdentity, PskPublicInformation originalIdentity) {
-    
+
         if (TokenRepository.getInstance() == null) {
             LOGGER.severe("TokenRepository not initialized");
             return null;
         }
-        //First try if we have that key
+        // First try if we have that key
         OneKey key = null;
         try {
-        	
-        	CBORObject identityStructure;
-        	
-        	try {
-        		identityStructure = CBORObject.DecodeFromBytes(rawIdentity);
-        	}
-        	catch (CBORException e) {
+
+            CBORObject identityStructure;
+
+            try {
+                identityStructure = CBORObject.DecodeFromBytes(rawIdentity);
+            } catch (CBORException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;
-        	}
+            }
 
-        	if (identityStructure != null && identityStructure.getType() == CBORType.Map && identityStructure.size() == 1) {
+            if (identityStructure != null && identityStructure.getType() == CBORType.Map
+                    && identityStructure.size() == 1) {
 
-        		CBORObject cnfStructure = identityStructure.get(Constants.CNF);
-        		if (cnfStructure != null && cnfStructure.getType() == CBORType.Map && cnfStructure.size() == 1) {
+                CBORObject cnfStructure = identityStructure.get(Constants.CNF);
+                if (cnfStructure != null && cnfStructure.getType() == CBORType.Map && cnfStructure.size() == 1) {
 
-        			CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
-        			if (COSEKeyStructure != null && COSEKeyStructure.getType() == CBORType.Map && COSEKeyStructure.size() == 2) {
-        		
-        				if(COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR())) == KeyKeys.KeyType_Octet &&
-        				   COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR())) != null) {
+                    CBORObject COSEKeyStructure = cnfStructure.get(Constants.COSE_KEY_CBOR);
+                    if (COSEKeyStructure != null && COSEKeyStructure.getType() == CBORType.Map
+                            && COSEKeyStructure.size() == 2) {
 
-        				    byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
-        				    
-        				    String kidString = Base64.getEncoder().encodeToString(kid);
-        					key = TokenRepository.getInstance().getKey(kidString);
-        					
-        	           	    // For correct storage in the DTLS Key Store, change the originally received
-        	           	    // key identity from the "psk_identity" on the wire to only the "kid" included in it
-        					originalIdentity.normalize(kidString);
+                        if (COSEKeyStructure
+                                .get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR())) == KeyKeys.KeyType_Octet
+                                && COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId.AsCBOR())) != null) {
 
-        				}
-        				
-        			}
-        		
-        		}
-        	
-        	}
-            
+                            byte[] kid = COSEKeyStructure.get(CBORObject.FromObject(KeyKeys.KeyId)).GetByteString();
+
+                            String kidString = Base64.getEncoder().encodeToString(kid);
+                            key = TokenRepository.getInstance().getKey(kidString);
+
+                            // For correct storage in the DTLS Key Store, change the originally received
+                            // key identity from the "psk_identity" on the wire to only the "kid" included in it
+                            originalIdentity.normalize(kidString);
+
+                        }
+
+                    }
+
+                }
+
+            }
+
             if (key != null) {
-                return new SecretKeySpec(
-                        key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                return new SecretKeySpec(key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
             }
         } catch (AceException e) {
             LOGGER.severe("Error: " + e.getMessage());
             return null;
-        }          
+        }
 
         //We don't have that key, try if the identity is an access token
         CBORObject payload = null;
@@ -204,7 +213,7 @@ public class DtlspPskStore implements PskStore {
             	 
                  key = TokenRepository.getInstance().getPoP(ctiStr);
                  return new SecretKeySpec(
-                         key.get(KeyKeys.Octet_K).GetByteString(), "AES");
+                         key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;
@@ -214,25 +223,24 @@ public class DtlspPskStore implements PskStore {
         return null;
     }
 
-    @Override
-    public PskPublicInformation getIdentity(InetSocketAddress inetAddress) {
-        // Not needed here, this PskStore is for servers only
-        return null;
-    }
-
-
-    @Override
-    public SecretKey getKey(ServerNames serverNames, PskPublicInformation identity) {
-        //XXX: No support for ServerNames extension yet
-        return getKey(identity);
-    }
-
 
     @Override
     public PskPublicInformation getIdentity(InetSocketAddress peerAddress,
             ServerNames virtualHost) {
         // XXX: No support for ServerNames extension yet
         return null;
+    }
+
+    @Override
+    public boolean hasEcdhePskSupported() {
+        // TODO Auto-generated method stub
+        return false;
+    }
+
+    @Override
+    public void setResultHandler(HandshakeResultHandler resultHandler) {
+        // TODO Auto-generated method stub
+
     }
 
 }

@@ -224,7 +224,7 @@ public class AuthzInfo implements Endpoint, AutoCloseable {
 	        CBORObject map = CBORObject.NewMap();
 	        map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
             map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
-	        LOGGER.info("Message processing aborted: invalid request");
+            LOGGER.info("Message processing aborted: invalid request");
 	        return msg.failReply(Message.FAIL_BAD_REQUEST, map);
 	    }
 	    

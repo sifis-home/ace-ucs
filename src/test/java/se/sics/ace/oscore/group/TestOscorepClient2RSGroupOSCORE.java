@@ -36,8 +36,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
+import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
+import java.security.Security;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.util.ArrayList;
@@ -48,6 +50,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
@@ -61,6 +64,7 @@ import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -70,6 +74,8 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+
+import net.i2p.crypto.eddsa.EdDSASecurityProvider;
 import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -139,13 +145,13 @@ public class TestOscorepClient2RSGroupOSCORE {
          * @throws Exception 
          */
         public void stop() throws Exception {
-            TestOscorepRSGroupOSCORE.stop();
+            	TestOscorepRSGroupOSCORE.stop();
         }
         
         @Override
         public void run() {
             try {
-            	TestOscorepRSGroupOSCORE.main(null);
+                TestOscorepRSGroupOSCORE.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {
@@ -164,6 +170,11 @@ public class TestOscorepClient2RSGroupOSCORE {
      */
     @BeforeClass
     public static void setUp() throws OSException {
+        final Provider PROVIDER = new BouncyCastleProvider();
+        final Provider EdDSA = new EdDSASecurityProvider();
+        Security.insertProviderAt(PROVIDER, 1);
+        Security.insertProviderAt(EdDSA, 0);
+
         srv = new RunTestServer();
         srv.run();
         //Initialize a fake context

@@ -38,6 +38,7 @@ import java.util.Map;
 import org.eclipse.californium.core.coap.CoAP;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;

@@ -33,8 +33,8 @@ package se.sics.ace.coap.rs.oscoreProfile;
 
 import java.util.logging.Logger;
 
-import org.eclipse.californium.cose.AlgorithmID;
-import org.eclipse.californium.cose.CoseException;
+import COSE.AlgorithmID;
+import COSE.CoseException;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
 
@@ -102,6 +102,11 @@ public class OscoreSecurityContext {
      * The replay window size
      */
     private Integer replaySize;
+    
+    /**
+     * Max unfragmented size parameter for OSCORE
+     */
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
     
     /**
      * Constructor.
@@ -262,9 +267,19 @@ public class OscoreSecurityContext {
             recipientId = this.clientId;
         }
         
-        return new OSCoreCtx(this.ms, isClient, this.alg, senderId, 
-                recipientId, this.hkdf, this.replaySize, finalSalt, 
-                this.contextId);
+        org.eclipse.californium.cose.AlgorithmID algId = null;
+        org.eclipse.californium.cose.AlgorithmID hkdfId = null;
+		try {
+			algId = org.eclipse.californium.cose.AlgorithmID.FromCBOR(this.alg.AsCBOR());
+			hkdfId = org.eclipse.californium.cose.AlgorithmID.FromCBOR(this.hkdf.AsCBOR());
+		} catch (org.eclipse.californium.cose.CoseException e) {
+			System.err.println("Failed conversion of alg or hkdf to create OSCORE Context!");
+			e.printStackTrace();
+		}
+        
+        return new OSCoreCtx(this.ms, isClient, algId, senderId, 
+                recipientId, hkdfId, this.replaySize, finalSalt, 
+                this.contextId, MAX_UNFRAGMENTED_SIZE);
     }
     
     /**
