@@ -48,6 +48,7 @@ import org.eclipse.californium.oscore.OSException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
@@ -279,6 +280,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    				// with the selected Recipient ID is actually still not present
 	        			if (db.getContext(recipientId) != null) {
 	        				// A Security Context with this Recipient ID exists!
+                            LOGGER.info("A Security Context with this Recipient ID exists!");
 	        				install = false;
 	        			}        			
 	    			}
@@ -288,7 +290,12 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	        		}
 	            	
 	    			if (install)
+	    			{
 	    				db.addContext(ctx);
+                        System.out.println("Server: Installing Security Context with Recipient ID: "
+                                + ctx.getRecipientIdString() + " ID Context: "
+                                + Utils.bytesToHex(ctx.getIdContext()) + "\r\n");
+	    			}
 	    			else {
 	    	            LOGGER.info("An OSCORE Security Context with the same Recipient ID"
 					               + " has been installed while running the OSCORE profile");

@@ -186,13 +186,13 @@ public class OSCOREProfileRequests {
         boolean found = false;
         
         // Determine an available Recipient ID to offer to the Resource Server as ID1
+        byte[] contextId = new byte[0];
         synchronized(usedRecipientIds) {
         	synchronized(db) {
         	
 	        	int maxIdValue;
 	        	
-    			byte[] contextId = new byte[0];
-    			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
+                if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
     				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
     			}
 	        	
@@ -325,7 +325,7 @@ public class OSCOREProfileRequests {
         			
 				// Double check in the database that the OSCORE Security Context
 				// with the selected Recipient ID is actually still not present
-    			if (db.getContext(recipientId) != null) {
+                if (db.getContext(recipientId, contextId) != null) {
     				// A Security Context with this Recipient ID exists!
     				install = false;
     			}        			

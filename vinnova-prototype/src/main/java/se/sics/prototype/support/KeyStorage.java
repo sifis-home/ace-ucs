@@ -72,5 +72,19 @@ public class KeyStorage {
 		memberAsKeys.put("Server5", new byte[] { 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55 });
 		memberAsKeys.put("Server6", new byte[] { 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66, 0x66 });
 	}
-	
+
+    // Map holding ACE Sender ID indexed by the member name
+    public static Map<String, byte[]> aceSenderIds;
+    static {
+        aceSenderIds = new HashMap<>();
+        aceSenderIds.put("AS", new byte[] { (byte) 0xA0 });
+        aceSenderIds.put("Client1", new byte[] { (byte) 0xA3 });
+        aceSenderIds.put("Client2", new byte[] { (byte) 0xA4 });
+        aceSenderIds.put("Server1", new byte[] { (byte) 0xA5 });
+        aceSenderIds.put("Server2", new byte[] { (byte) 0xA6 });
+        aceSenderIds.put("Server3", new byte[] { (byte) 0xA7 });
+        aceSenderIds.put("Server4", new byte[] { (byte) 0xA8 });
+        aceSenderIds.put("Server5", new byte[] { (byte) 0xA9 });
+        aceSenderIds.put("Server6", new byte[] { (byte) 0xAA });
+    }
 }

@@ -7,10 +7,13 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Scanner;
+import java.util.Set;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.eclipse.californium.core.CoapClient;
@@ -43,7 +46,6 @@ import se.sics.ace.Constants;
 import se.sics.ace.client.GetToken;
 import se.sics.ace.coap.client.OSCOREProfileRequests;
 import se.sics.ace.coap.client.OSCOREProfileRequestsGroupOSCORE;
-import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObject;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
 import se.sics.prototype.support.KeyStorage;
@@ -83,7 +85,13 @@ public class OscoreAsRsClient {
 	//Multicast IP for Group B
 	static final InetAddress groupB_multicastIP = new InetSocketAddress("224.0.1.192", 0).getAddress();
 	
-	static HashMapCtxDB db = new HashMapCtxDB();
+    static HashMapCtxDB db = new HashMapCtxDB();
+
+    // Each set of the list refers to a different size of Recipient IDs.
+    // The element with index 0 includes as elements Recipient IDs with size 1 byte.
+    private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
+
+    private static final String rootGroupMembershipResource = "ace-group";
 
 	/**
 	 * Main method for Token request followed by Group joining
@@ -111,6 +119,12 @@ public class OscoreAsRsClient {
 			OSCoreCoapStackFactory.useAsDefault(db);
 		}
 		
+        for (int i = 0; i < 4; i++) {
+            // Empty sets of assigned Sender IDs; one set for each possible Sender ID size in bytes.
+            // The set with index 0 refers to Sender IDs with size 1 byte
+            usedRecipientIds.add(new HashSet<Integer>());
+        }
+
 		//Set group to join based on the member name
 		String group = "";
 		InetAddress multicastIP = null;
@@ -207,16 +221,19 @@ public class OscoreAsRsClient {
         
         /* Set byte string scope */
         
-		String gid = new String(groupName);
-        String role1 = new String("requester");
-        String role2 = new String("responder");
+        // Map<Short, CBORObject> params = new HashMap<>();
+        // params.put(Constants.GRANT_TYPE, Token.clientCredentials);
 
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-        CBORObject cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(role1);
-        cborArrayRoles.Add(role2);
-        cborArrayScope.Add(cborArrayRoles);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(groupName);
+
+        int myRoles = 0;
+        myRoles = se.sics.ace.Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+        myRoles = se.sics.ace.Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        cborArrayEntry.Add(myRoles);
+
+        cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
 		
         /* Perform Token request */
@@ -228,16 +245,24 @@ public class OscoreAsRsClient {
                 CBORObject.FromObject("rs2"),
                 CBORObject.FromObject(byteStringScope), null);
         
-        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, 
-                clientID.getBytes(Constants.charset),
-                "AS".getBytes(Constants.charset),
+        /*
+         * OSCoreCtx ctx = new OSCoreCtx(key128, true, null, clientID.getBytes(Constants.charset),
+         * "AS".getBytes(Constants.charset), null, null, null, null);
+         */
+
+        byte[] senderId = KeyStorage.aceSenderIds.get(clientID);
+        byte[] recipientId = KeyStorage.aceSenderIds.get("AS");
+        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, senderId, recipientId,
                 null, null, null, null);
         
-        Response response = OSCOREProfileRequests.getToken(
+        Response response = OSCOREProfileRequestsGroupOSCORE.getToken(
 				tokenURI, params, ctx, db);
         
+        System.out.println("DB content: " + db.getContext(new byte[] { 0x00 }, null));
+
         /* Parse and print response */
         
+        System.out.println("Response from AS: " + response.getPayloadString());
         CBORObject res = CBORObject.DecodeFromBytes(response.getPayload());
         //Map<Short, CBORObject> map = Constants.getParams(res);
         //System.out.println(map);
@@ -253,6 +278,7 @@ public class OscoreAsRsClient {
         System.out.println("Fixed response from AS to Token request: " + res.toString());
         
         response.setPayload(res.EncodeToBytes());
+        db.purge(); // FIXME: Remove?
         return response;
 	}
 	
@@ -278,7 +304,6 @@ public class OscoreAsRsClient {
         /* Configure parameters for the join request */
 
         boolean askForSignInfo = true;
-        boolean askForPubKeyEnc = true;
         boolean askForPubKeys = true;
         boolean providePublicKey = true;
 
@@ -303,7 +328,7 @@ public class OscoreAsRsClient {
 
         String gmBaseURI = "coap://" + GM_HOST + ":" + GM_PORT + "/";
         String authzInfoURI = gmBaseURI + "authz-info";
-        String joinResourceURI = gmBaseURI + groupName;
+        String joinResourceURI = gmBaseURI + rootGroupMembershipResource + "/" + groupName;
 
         System.out.println("Performing Token post to GM followed by Join request.");
         System.out.println("GM join resource is at: " + joinResourceURI);
@@ -316,16 +341,16 @@ public class OscoreAsRsClient {
 //        Map<Short, CBORObject> params = new HashMap<>(); 
 //
         //Create a byte string scope for use later
-        String gid = new String(groupName);
-        String role1 = new String("requester");
-        String role2 = new String("responder");
-
         CBORObject cborArrayScope = CBORObject.NewArray();
-        cborArrayScope.Add(gid);
-        CBORObject cborArrayRoles = CBORObject.NewArray();
-        cborArrayRoles.Add(role1);
-        cborArrayRoles.Add(role2);
-        cborArrayScope.Add(cborArrayRoles);
+        CBORObject cborArrayEntry = CBORObject.NewArray();
+        cborArrayEntry.Add(groupName);
+
+        int myRoles = 0;
+        myRoles = se.sics.ace.Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_REQUESTER);
+        myRoles = se.sics.ace.Util.addGroupOSCORERole(myRoles, Constants.GROUP_OSCORE_RESPONDER);
+        cborArrayEntry.Add(myRoles);
+
+        cborArrayScope.Add(cborArrayEntry);
         byte[] byteStringScope = cborArrayScope.EncodeToBytes();
 
 //        params.put(Constants.SCOPE, CBORObject.FromObject(byteStringScope));
@@ -355,13 +380,14 @@ public class OscoreAsRsClient {
         CBORObject res = CBORObject.DecodeFromBytes(responseFromAS.getPayload());
         System.out.println("Performing Token request to GM. Response from AS was: " + res.toString());
 
-        Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, responseFromAS, askForSignInfo, askForPubKeyEnc);
-
+        boolean askForEcdhInfo = true;
+        Response rsRes = OSCOREProfileRequestsGroupOSCORE.postToken(authzInfoURI, responseFromAS, askForSignInfo,
+                askForEcdhInfo, db, usedRecipientIds);
         /* Check response from GM to Token post */
 
         assert(rsRes.getCode().equals(CoAP.ResponseCode.CREATED));
         //Check that the OSCORE context has been created:
-        Assert.assertNotNull(OscoreCtxDbSingleton.getInstance().getContext(joinResourceURI));
+        Assert.assertNotNull(db.getContext(joinResourceURI));
 
         CBORObject rsPayload = CBORObject.DecodeFromBytes(rsRes.getPayload());
 
@@ -370,7 +396,7 @@ public class OscoreAsRsClient {
         // Sanity checks already occurred in OSCOREProfileRequestsGroupOSCORE.postToken()
 
         // Nonce from the GM, to be signed together with a local nonce to prove PoP of the private key
-        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.RSNONCE)).GetByteString();
+        byte[] gm_sign_nonce = rsPayload.get(CBORObject.FromObject(Constants.KDCCHALLENGE)).GetByteString();
 
         @SuppressWarnings("unused")
         CBORObject signInfo = null;
@@ -381,13 +407,11 @@ public class OscoreAsRsClient {
             signInfo = rsPayload.get(CBORObject.FromObject(Constants.SIGN_INFO));
         }
 
-        if (askForPubKeyEnc) {
-            pubKeyEnc = rsPayload.get(CBORObject.FromObject(Constants.PUB_KEY_ENC));
-        }
-
         /* Now proceed to build join request to GM */
 
-        CoapClient c = OSCOREProfileRequests.getClient(new InetSocketAddress(joinResourceURI, CoAP.DEFAULT_COAP_PORT));
+        CoapClient c = OSCOREProfileRequestsGroupOSCORE
+                .getClient(new InetSocketAddress(joinResourceURI, GM_PORT),
+                db);
 
         CBORObject requestPayload = CBORObject.NewMap();
 
@@ -425,6 +449,10 @@ public class OscoreAsRsClient {
 
         }
 
+        OSCoreCtx tmp = db.getContext(gmBaseURI);
+        System.out.println("Client: Installing Security Context with Recipient ID: " + tmp.getRecipientIdString()
+                + " Sender ID: " + tmp.getSenderIdString()
+                + " ID Context: " + Utility.arrayToString(tmp.getIdContext()) + "\r\n");
         Request joinReq = new Request(Code.POST, Type.CON);
         joinReq.getOptions().setOscore(new byte[0]);
         joinReq.setPayload(requestPayload.EncodeToBytes());
@@ -437,6 +465,7 @@ public class OscoreAsRsClient {
 
         /* Parse response to Join request from GM */
 
+        System.out.println("Response from GM to Join request: " + r2.getResponseText());
         byte[] responsePayload = r2.getPayload();
         CBORObject joinResponse = CBORObject.DecodeFromBytes(responsePayload);
 
@@ -447,7 +476,7 @@ public class OscoreAsRsClient {
 				GroupOSCOREInputMaterialObjectParameters.getParams(keyMap));
 		GroupOSCOREInputMaterialObject contextObject = new GroupOSCOREInputMaterialObject(contextParams);
 
-        System.out.println("Receved response from GM to Join request: " + joinResponse.toString());
+        System.out.println("Received response from GM to Join request: " + joinResponse.toString());
 
         /* Parse the Join response in detail */
 
@@ -491,6 +520,7 @@ public class OscoreAsRsClient {
     	System.out.println("Press ENTER to continue");
     	System.out.println("===");
         try {
+            @SuppressWarnings("unused")
             int read = System.in.read(new byte[2]);
         } catch (IOException e) {
             e.printStackTrace();

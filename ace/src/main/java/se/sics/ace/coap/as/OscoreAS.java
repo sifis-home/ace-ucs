@@ -222,6 +222,7 @@ public class OscoreAS extends CoapServer implements AutoCloseable {
                         
             // The identity that this AS uses with this peer
             String identity = myIdentities.get(id);
+            System.out.println("Identity is: " + identity + " retrieving with id " + id);
             IdPair idPair = new IdPair(identity);
             if (idPair.getSenderId() == null) {
             	// This identity is malformed; proceed to the next one

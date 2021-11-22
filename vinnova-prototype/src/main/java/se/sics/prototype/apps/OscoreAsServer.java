@@ -40,10 +40,12 @@ import java.util.Set;
 
 import com.upokecenter.cbor.CBORObject;
 
+import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.cose.AlgorithmID;
 import org.eclipse.californium.cose.KeyKeys;
 import org.eclipse.californium.cose.MessageTag;
 import org.eclipse.californium.cose.OneKey;
+import org.eclipse.californium.elements.util.Bytes;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -51,7 +53,6 @@ import se.sics.ace.as.AccessTokenFactory;
 import se.sics.ace.coap.as.CoapDBConnector;
 import se.sics.ace.coap.as.OscoreAS;
 import se.sics.ace.examples.KissTime;
-import se.sics.ace.examples.SQLConnector;
 import se.sics.ace.oscore.as.GroupOSCOREJoinPDP;
 import se.sics.prototype.support.DBHelper;
 import se.sics.prototype.support.KeyStorage;
@@ -73,7 +74,30 @@ public class OscoreAsServer
 	private static CoapDBConnector db = null;
     private static OscoreAS as = null;
     private static GroupOSCOREJoinPDP pdp = null;
+
+    // The map has as key the name of a Client or Resource Server,
+    // and as value the OSCORE identity of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerNamesToIdentities = new HashMap<>();
+
+    // The map has as key the OSCORE identity of the Client or Resource Server,
+    // and as value the name of that peer with the AS.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> peerIdentitiesToNames = new HashMap<>();
+
+    // The inner map has as key the name of a Client or Resource Server, and
+    // as value the OSCORE identity that this specific AS has with that peer.
+    //
+    // The identities are strings with format ["A" + ":" +] "B", where A and B are
+    // the base64 encoding of the ContextID (if present) and of the SenderID.
+    private static Map<String, String> myIdentities = new HashMap<>();
   
+    static int port = CoAP.DEFAULT_COAP_PORT;
+
     /**
      * The OSCORE AS for testing, autostarted by tests needing this.
      *  
@@ -81,6 +105,11 @@ public class OscoreAsServer
      * @throws Exception
      */
     public static void main(String[] args) throws Exception {
+
+        byte[] idContext = null;
+        String myIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("AS"), idContext);
+        String asName = "AS";
+
         DBHelper.setUpDB();
 		db = DBHelper.getCoapDBConnector();
 
@@ -128,6 +157,10 @@ public class OscoreAsServer
         long expiration = 30000L;
         db.addRS("rs2", profiles, scopes, auds, keyTypes, tokenTypes, cose,
                 expiration, authPsk, tokenPsk, null);
+        String peerIdentity = buildOscoreIdentity(new byte[] { 0x01 }, idContext);
+        peerNamesToIdentities.put("rs2", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "rs2");
+        myIdentities.put("rs2", myIdentity);
         
         //Add rs2 as OSCORE Group Manager
         db.addOSCOREGroupManagers("rs2", auds);
@@ -136,8 +169,12 @@ public class OscoreAsServer
         profiles.add("coap_oscore");
         keyTypes.clear();
         keyTypes.add("PSK");        
-        db.addClient("clientA", profiles, null, null, 
-                keyTypes, authPsk, null);        
+        db.addClient("ClientA", profiles, null, null, 
+                keyTypes, authPsk, null);
+        peerIdentity = buildOscoreIdentity(new byte[] { 0x02 }, idContext);
+        peerNamesToIdentities.put("ClientA", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "ClientA");
+        myIdentities.put("ClientA", myIdentity);
         
         /* --- Configure clients and servers for Vinnova prototype --- */
         
@@ -152,6 +189,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Client1", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Client1"), idContext);
+        peerNamesToIdentities.put("Client1", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Client1");
+        myIdentities.put("Client1", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -165,6 +206,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Client2", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Client2"), idContext);
+        peerNamesToIdentities.put("Client2", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Client2");
+        myIdentities.put("Client2", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -178,6 +223,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server1", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server1"), idContext);
+        peerNamesToIdentities.put("Server1", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server1");
+        myIdentities.put("Server1", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -191,7 +240,12 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server2", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server2"), idContext);
+        peerNamesToIdentities.put("Server2", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server2");
+        myIdentities.put("Server2", myIdentity);
         
+
         myKey = CBORObject.NewMap();
         myKey.Add(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_Octet);
         myKey.Add(KeyKeys.Octet_K.AsCBOR(), CBORObject.FromObject(KeyStorage.memberAsKeys.get("Server3")));
@@ -203,6 +257,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server3", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server3"), idContext);
+        peerNamesToIdentities.put("Server3", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server3");
+        myIdentities.put("Server3", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -216,6 +274,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server4", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server4"), idContext);
+        peerNamesToIdentities.put("Server4", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server4");
+        myIdentities.put("Server4", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -229,6 +291,10 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server5", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server5"), idContext);
+        peerNamesToIdentities.put("Server5", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server5");
+        myIdentities.put("Server5", myIdentity);
         
         
         myKey = CBORObject.NewMap();
@@ -242,6 +308,11 @@ public class OscoreAsServer
         keyTypes.add("PSK");        
         db.addClient("Server6", profiles, null, null, 
                 keyTypes, myPsk, null); 
+        peerIdentity = buildOscoreIdentity(KeyStorage.aceSenderIds.get("Server6"), idContext);
+        peerNamesToIdentities.put("Server6", peerIdentity);
+        peerIdentitiesToNames.put(peerIdentity, "Server6");
+        myIdentities.put("Server6", myIdentity);
+
         /* --- End configure clients and servers for Vinnova prototype --- */
         
         KissTime time = new KissTime();
@@ -380,9 +451,13 @@ public class OscoreAsServer
 
         /* --- End configure clients and servers for Vinnova prototype --- */
         
-        as = new OscoreAS("AS", db, pdp, time, asymmKey);
+        // new OscoreAS(myName, db, pdp, time, asymmKey, "token", "introspect", CoAP.DEFAULT_COAP_PORT, null, false,
+        // (short) 1, true, peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
+
+        as = new OscoreAS(asName, db, pdp, time, asymmKey, "token", "introspect", port, null, false,
+                (short) 1, true, peerNamesToIdentities, peerIdentitiesToNames, myIdentities);
         as.start();
-        System.out.println("OSCORE AS Server starting on default port.");
+        System.out.println("OSCORE AS Server starting on port: " + port);
     }
     
     /**
@@ -396,4 +471,22 @@ public class OscoreAsServer
       
     }
     
+    private static String buildOscoreIdentity(byte[] senderId, byte[] contextId) {
+
+        if (senderId == null)
+            return null;
+
+        String identity = "";
+
+        if (contextId != null) {
+            identity += Base64.getEncoder().encodeToString(contextId);
+            identity += ":";
+        }
+
+        identity += Base64.getEncoder().encodeToString(senderId);
+
+        return identity;
+
+    }
+
 }

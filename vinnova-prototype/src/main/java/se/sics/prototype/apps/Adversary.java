@@ -35,7 +35,6 @@ import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.network.config.NetworkConfig.Keys;
 import org.eclipse.californium.core.network.serialization.UdpDataParser;
-import org.eclipse.californium.elements.EndpointContext;
 import org.eclipse.californium.elements.util.StringUtil;
 import org.eclipse.californium.core.network.config.NetworkConfigDefaultHandler;
 

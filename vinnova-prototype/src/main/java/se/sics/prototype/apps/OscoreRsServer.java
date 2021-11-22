@@ -27,6 +27,7 @@ import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.oscore.HashMapCtxDB;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
+import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -40,14 +41,22 @@ import org.eclipse.californium.cose.OneKey;
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
+import se.sics.ace.Util;
 import se.sics.ace.coap.rs.CoapAuthzInfo;
 import se.sics.ace.coap.rs.CoapDeliverer;
+import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.cwt.CWT;
 import se.sics.ace.cwt.CwtCryptoCtx;
 import se.sics.ace.examples.KissTime;
 import se.sics.ace.examples.LocalMessage;
 import se.sics.ace.oscore.GroupInfo;
 import se.sics.ace.oscore.GroupOSCOREInputMaterialObjectParameters;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCOREJoinResource;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceActive;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceNodes;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourceNum;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourcePolicies;
+import se.sics.ace.oscore.group.TestOscorepRSGroupOSCORE.GroupOSCORESubResourcePubKey;
 import se.sics.ace.oscore.rs.GroupOSCOREJoinValidator;
 import se.sics.ace.oscore.rs.OscoreAuthzInfoGroupOSCORE;
 import se.sics.ace.rs.AsRequestCreationHints;
@@ -78,12 +87,21 @@ public class OscoreRsServer {
 	private final static int groupIdPrefixSize = 4; 
 	
 	// TODO: When included in the referenced Californium, use californium.elements.util.Bytes rather than Integers as map keys 
-	static Map<Integer, GroupInfo> activeGroups = new HashMap<>();
+    private static Map<String, GroupInfo> activeGroups = new HashMap<>();
 	
 	//Source of randomness
 	static SecureRandom rand = new SecureRandom();
 
-	static HashMapCtxDB db = new HashMapCtxDB();
+    // FIXME: Should use new HashMapCtxDB? But singleton is used in OscoreAuthzInfoGroupOSCORE
+    static OSCoreCtxDB db = OscoreCtxDbSingleton.getInstance();
+
+    private static final String rootGroupMembershipResource = "ace-group";
+
+    // Initial part of the node name for monitors, since they do not have a Sender ID
+    private final static String prefixMonitorNames = "M";
+
+    // For non-monitor members, separator between the two components of the node name
+    private final static String nodeNameSeparator = "-";
 
     /**
      * Definition of the Hello-World Resource
@@ -174,6 +192,18 @@ public class OscoreRsServer {
     
     private static CoapDeliverer dpd = null;  
     
+    // Uncomment to set ECDSA with curve P-256 for countersignatures
+    // int signKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+    // Uncomment to set EDDSA with curve Ed25519 for countersignatures
+    static int signKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
+
+    // Uncomment to set curve P-256 for pairwise key derivation
+    // int ecdhKeyCurve = KeyKeys.EC2_P256.AsInt32();
+
+    // Uncomment to set curve X25519 for pairwise key derivation
+    static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
+
     /**
      * The CoAP OSCORE server for testing, run this before running the Junit tests.
      *  
@@ -189,12 +219,6 @@ public class OscoreRsServer {
             e.printStackTrace();
         }
 
-    	// Uncomment to set ECDSA with curve P-256 for countersignatures
-        // int countersignKeyCurve = KeyKeys.EC2_P256.AsInt32();
-        
-        // Uncomment to set EDDSA with curve Ed25519 for countersignatures
-        int countersignKeyCurve = KeyKeys.OKP_Ed25519.AsInt32();
-        
         //Set to use OSCORE
 		OSCoreCoapStackFactory.useAsDefault(db);
         
@@ -213,68 +237,114 @@ public class OscoreRsServer {
         myResource2.put("temp", actions2);
         myScopes.put("r_temp", myResource2);
         
-        // M.T.
-        // Adding the join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
-        Set<Short> actions3 = new HashSet<>();
-        actions3.add(Constants.POST);
+        // Add general resources for aaaaaa570000
+        String groupName = "aaaaaa570000";
         Map<String, Set<Short>> myResource3 = new HashMap<>();
-        myResource3.put("feedca570000", actions3);
-        myScopes.put("feedca570000_requester", myResource3);
-        myScopes.put("feedca570000_responder", myResource3);
-        myScopes.put("feedca570000_monitor", myResource3);
-        myScopes.put("feedca570000_requester_responder", myResource3);
-        myScopes.put("feedca570000_requester_monitor", myResource3);
-        
-        // M.T.
-        // Adding another join resource, as one scope for each different combinations of
-        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
-        // There will NOT be a token enabling the access to this resource.
-        Set<Short> actions4 = new HashSet<>();
-        actions4.add(Constants.POST);
-        Map<String, Set<Short>> myResource4 = new HashMap<>();
-        myResource4.put("fBBBca570000", actions4);
-        myScopes.put("fBBBca570000_requester", myResource4);
-        myScopes.put("fBBBca570000_responder", myResource4);
-        myScopes.put("fBBBca570000_monitor", myResource4);
-        myScopes.put("fBBBca570000_requester_responder", myResource4);
-        myScopes.put("fBBBca570000_requester_monitor", myResource4);
-        
-        // Rikard
-        // Adding the join resource for the first group (Group A) in the Vinnova demo.
-        Set<Short> actions5 = new HashSet<>();
-        actions5.add(Constants.POST);
-        Map<String, Set<Short>> myResource5 = new HashMap<>();
-        myResource5.put("aaaaaa570000", actions5);
-        myScopes.put("aaaaaa570000_requester", myResource5);
-        myScopes.put("aaaaaa570000_responder", myResource5);
-        myScopes.put("aaaaaa570000_monitor", myResource5);
-        myScopes.put("aaaaaa570000_requester_responder", myResource5);
-        myScopes.put("aaaaaa570000_requester_monitor", myResource5);
-        
-        // Rikard
-        // Adding the join resource for the second group (Group B) in the Vinnova demo.
-        Set<Short> actions6 = new HashSet<>();
-        actions6.add(Constants.POST);
-        Map<String, Set<Short>> myResource6 = new HashMap<>();
-        myResource6.put("bbbbbb570000", actions6);
-        myScopes.put("bbbbbb570000_requester", myResource6);
-        myScopes.put("bbbbbb570000_responder", myResource6);
-        myScopes.put("bbbbbb570000_monitor", myResource6);
-        myScopes.put("bbbbbb570000_requester_responder", myResource6);
-        myScopes.put("bbbbbb570000_requester_monitor", myResource6);
+        Set<Short> actions3 = new HashSet<>();
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResource, actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        actions3.add(Constants.POST);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/pub-key", actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/verif-data", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/num", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/policies", actions3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
+
+        // Add general resources for bbbbbb570000
+        groupName = "bbbbbb570000";
+        myResource3 = new HashMap<>();
+        actions3 = new HashSet<>();
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResource, actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        actions3.add(Constants.POST);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName, actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        actions3.add(Constants.FETCH);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/pub-key", actions3);
+        actions3 = new HashSet<>();
+        actions3.add(Constants.GET);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/verif-data", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/num", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/active", actions3);
+        myResource3.put(rootGroupMembershipResource + "/" + groupName + "/policies", actions3);
+        myScopes.put(rootGroupMembershipResource + "/" + groupName, myResource3);
+
+//        // M.T.
+//        // Adding the join resource, as one scope for each different combinations of
+//        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "feedca570000".
+//        actions3 = new HashSet<>();
+//        actions3.add(Constants.POST);
+//        myResource3 = new HashMap<>();
+//        myResource3.put("feedca570000", actions3);
+//        myScopes.put("feedca570000_requester", myResource3);
+//        myScopes.put("feedca570000_responder", myResource3);
+//        myScopes.put("feedca570000_monitor", myResource3);
+//        myScopes.put("feedca570000_requester_responder", myResource3);
+//        myScopes.put("feedca570000_requester_monitor", myResource3);
+//        
+//        // M.T.
+//        // Adding another join resource, as one scope for each different combinations of
+//        // roles admitted in the OSCORE Group, with zeroed-epoch Group ID "fBBBca570000".
+//        // There will NOT be a token enabling the access to this resource.
+//        Set<Short> actions4 = new HashSet<>();
+//        actions4.add(Constants.POST);
+//        Map<String, Set<Short>> myResource4 = new HashMap<>();
+//        myResource4.put("fBBBca570000", actions4);
+//        myScopes.put("fBBBca570000_requester", myResource4);
+//        myScopes.put("fBBBca570000_responder", myResource4);
+//        myScopes.put("fBBBca570000_monitor", myResource4);
+//        myScopes.put("fBBBca570000_requester_responder", myResource4);
+//        myScopes.put("fBBBca570000_requester_monitor", myResource4);
+//        
+//        // Rikard
+//        // Adding the join resource for the first group (Group A) in the Vinnova demo.
+//        Set<Short> actions5 = new HashSet<>();
+//        actions5.add(Constants.POST);
+//        Map<String, Set<Short>> myResource5 = new HashMap<>();
+//        myResource5.put("aaaaaa570000", actions5);
+//        myScopes.put("aaaaaa570000_requester", myResource5);
+//        myScopes.put("aaaaaa570000_responder", myResource5);
+//        myScopes.put("aaaaaa570000_monitor", myResource5);
+//        myScopes.put("aaaaaa570000_requester_responder", myResource5);
+//        myScopes.put("aaaaaa570000_requester_monitor", myResource5);
+//        
+//        // Rikard
+//        // Adding the join resource for the second group (Group B) in the Vinnova demo.
+//        Set<Short> actions6 = new HashSet<>();
+//        actions6.add(Constants.POST);
+//        Map<String, Set<Short>> myResource6 = new HashMap<>();
+//        myResource6.put("bbbbbb570000", actions6);
+//        myScopes.put("bbbbbb570000_requester", myResource6);
+//        myScopes.put("bbbbbb570000_responder", myResource6);
+//        myScopes.put("bbbbbb570000_monitor", myResource6);
+//        myScopes.put("bbbbbb570000_requester_responder", myResource6);
+//        myScopes.put("bbbbbb570000_requester_monitor", myResource6);
         
         //Create the OSCORE Group(s)
         //The original feedca570000 group and Group A and B for the Vinnova demo
-        OSCOREGroupCreation(hexStringToByteArray("feedca570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
-        OSCOREGroupCreation(hexStringToByteArray("aaaaaa570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
-        OSCOREGroupCreation(hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize)), countersignKeyCurve);
+        OSCOREGroupCreation("feedca570000", signKeyCurve, ecdhKeyCurve);
+        OSCOREGroupCreation("aaaaaa570000", signKeyCurve, ecdhKeyCurve);
+        OSCOREGroupCreation("bbbbbb570000", signKeyCurve, ecdhKeyCurve);
         
         // M.T.
         Set<String> auds = new HashSet<>();
         auds.add("rs1"); // Simple test audience
         auds.add("rs2"); // OSCORE Group Manager (This audience expects scopes as Byte Strings)
-        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes);
+        GroupOSCOREJoinValidator valid = new GroupOSCOREJoinValidator(auds, myScopes, rootGroupMembershipResource);
         
         // M.T.
         // Include this audience in the list of audiences recognized as OSCORE Group Managers 
@@ -285,9 +355,28 @@ public class OscoreRsServer {
         // The resource name is the zeroed-epoch Group ID of the OSCORE group.
         // Also adds resources for the 2 groups in the Vinnova demo
         Set<String> joinResources = new HashSet<String>();
-        joinResources.add("feedca570000");
-        joinResources.add("aaaaaa570000");
-        joinResources.add("bbbbbb570000");
+        // Include the root group-membership resource for Group OSCORE.
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource));
+
+        // For each OSCORE group, include the associated group-membership resource and its sub-resources
+        groupName = "aaaaaa570000";
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/pub-key"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/verif-data"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/num"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
+
+        groupName = "bbbbbb570000";
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/pub-key"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/gm-pub-key"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/verif-data"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/num"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/active"));
+        valid.setJoinResources(Collections.singleton(rootGroupMembershipResource + "/" + groupName + "/policies"));
+
         valid.setJoinResources(joinResources);
         
         String tokenFile = TestConfig.testFilePath + "tokens.json";
@@ -305,44 +394,34 @@ public class OscoreRsServer {
         
         //Set up the inner Authz-Info library
         //Changed this OscoreAuthzInfo->OscoreAuthzInfoGroupOSCORE
+        String rsId = "rs2";
         ai = new OscoreAuthzInfoGroupOSCORE(Collections.singletonList("AS"), 
-                  new KissTime(), null, valid, ctx,
-                  tokenFile, valid, false);
-      
-        // Provide the authz-info endpoint with the prefix size of OSCORE Group IDs
-        ai.setGroupIdPrefixSize(groupIdPrefixSize);
+                new KissTime(), null, rsId, valid, ctx, tokenFile, valid, false);
       
         // Provide the authz-info endpoint with the set of active OSCORE groups
         ai.setActiveGroups(activeGroups);
       
-        //Add a test token to authz-info
-        byte[] key128 = {'a', 'b', 'c', 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
-        Map<Short, CBORObject> params = new HashMap<>(); 
-        params.put(Constants.SCOPE, CBORObject.FromObject("r_temp"));
-        params.put(Constants.AUD, CBORObject.FromObject("rs1"));
-        params.put(Constants.CTI, CBORObject.FromObject("token1".getBytes(Constants.charset)));
-        params.put(Constants.ISS, CBORObject.FromObject("AS"));
 
-        OneKey key = new OneKey();
-        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
-      
-        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
-        CBORObject kidC = CBORObject.FromObject(kid);
-        key.add(KeyKeys.KeyId, kidC);
-        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
-
-        CBORObject cnf = CBORObject.NewMap();
-        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
-        params.put(Constants.CNF, cnf);
-        CWT token = new CWT(params);
-        CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting Token
-              //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign)); //Signing Token
-        byte[] n1 = new byte[8];
-        new SecureRandom().nextBytes(n1); 
-        payload.Add(Constants.CNONCE, n1);
-      
-        ai.processMessage(new LocalMessage(0, null, null, payload));
+//        OneKey key = new OneKey();
+//        key.add(KeyKeys.KeyType, KeyKeys.KeyType_Octet);
+//      
+//        byte[] kid  = new byte[] {0x01, 0x02, 0x03};
+//        CBORObject kidC = CBORObject.FromObject(kid);
+//        key.add(KeyKeys.KeyId, kidC);
+//        key.add(KeyKeys.Octet_K, CBORObject.FromObject(key128));
+//
+//        CBORObject cnf = CBORObject.NewMap();
+//        cnf.Add(Constants.COSE_KEY_CBOR, key.AsCBOR());
+//        params.put(Constants.CNF, cnf);
+//        CWT token = new CWT(params);
+//        CBORObject payload = CBORObject.NewMap();
+//        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx)); //Encrypting Token
+//              //payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx_sign)); //Signing Token
+//        byte[] n1 = new byte[8];
+//        new SecureRandom().nextBytes(n1); 
+//        payload.Add(Constants.CNONCE, n1);
+//      
+//        ai.processMessage(new LocalMessage(0, null, null, payload));
 
         AsRequestCreationHints archm = new AsRequestCreationHints(
                   "coaps://blah/authz-info/", null, false, false);
@@ -350,16 +429,63 @@ public class OscoreRsServer {
         Resource temp = new TempResource();
         Resource authzInfo = new CoapAuthzInfo(ai);
         // Resource manage = new ManageResource();
-        Resource join = new GroupOSCOREJoinResource("feedca570000"); // M.T.
-        Resource join2 = new GroupOSCOREJoinResource("aaaaaa570000");
-        Resource join3 = new GroupOSCOREJoinResource("bbbbbb570000");
+
+        /*
+         * For each OSCORE group, create the associated group-membership resource and its sub-resources
+         */
+        // Group-membership resource - The name of the OSCORE group is used as resource name
+        groupName = "aaaaaa570000";
+        Resource join = new GroupOSCOREJoinResource(groupName);
+        // Add the /pub-key sub-resource
+        Resource pubKeySubResource = new GroupOSCORESubResourcePubKey("pub-key");
+        join.add(pubKeySubResource);
+        // Add the /gm-pub-key sub-resource
+        Resource gmPubKeySubResource = new GroupOSCORESubResourcePubKey("gm-pub-key");
+        join.add(gmPubKeySubResource);
+        // Add the /verif-data sub-resource
+        Resource verifDataSubResource = new GroupOSCORESubResourcePubKey("verif-data");
+        join.add(verifDataSubResource);
+        // Add the /num sub-resource
+        Resource numSubResource = new GroupOSCORESubResourceNum("num");
+        join.add(numSubResource);
+        // Add the /active sub-resource
+        Resource activeSubResource = new GroupOSCORESubResourceActive("active");
+        join.add(activeSubResource);
+        // Add the /policies sub-resource
+        Resource policiesSubResource = new GroupOSCORESubResourcePolicies("policies");
+        join.add(policiesSubResource);
+        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
+        Resource nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
+        join.add(nodesSubResource);
+
+        groupName = "bbbbbb570000";
+        join = new GroupOSCOREJoinResource(groupName);
+        // Add the /pub-key sub-resource
+        pubKeySubResource = new GroupOSCORESubResourcePubKey("pub-key");
+        join.add(pubKeySubResource);
+        // Add the /gm-pub-key sub-resource
+        gmPubKeySubResource = new GroupOSCORESubResourcePubKey("gm-pub-key");
+        join.add(gmPubKeySubResource);
+        // Add the /verif-data sub-resource
+        verifDataSubResource = new GroupOSCORESubResourcePubKey("verif-data");
+        join.add(verifDataSubResource);
+        // Add the /num sub-resource
+        numSubResource = new GroupOSCORESubResourceNum("num");
+        join.add(numSubResource);
+        // Add the /active sub-resource
+        activeSubResource = new GroupOSCORESubResourceActive("active");
+        join.add(activeSubResource);
+        // Add the /policies sub-resource
+        policiesSubResource = new GroupOSCORESubResourcePolicies("policies");
+        join.add(policiesSubResource);
+        // Add the /nodes sub-resource, as root to actually accessible per-node sub-resources
+        nodesSubResource = new GroupOSCORESubResourceNodes("nodes");
+        join.add(nodesSubResource);
         
         rs = new CoapServer();
         rs.add(hello);
         rs.add(temp);
         rs.add(join);
-        rs.add(join2);
-        rs.add(join3);
         rs.add(authzInfo);
       
         rs.addEndpoint(new CoapEndpoint.Builder()
@@ -551,8 +677,8 @@ public class OscoreRsServer {
         	byte[] prefixByteStr = hexStringToByteArray(prefixStr);
         	
         	// Retrieve the entry for the target group, using the Group ID Prefix
-        	GroupInfo myGroup = activeGroups.get(Integer.valueOf(GroupInfo.bytesToInt(prefixByteStr)));
-        	
+            GroupInfo myGroup = activeGroups.get(this.getParent().getName());
+
         	// Assign a new Sender ID to the joining node.
         	// For the sake of testing, a particular Sender ID is used as known to be available.
             byte[] senderId = new byte[1];
@@ -618,38 +744,6 @@ public class OscoreRsServer {
 					exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
             		return;
 				}
-        		        		
-        		// Sanity check on the type of public key
-        		// TODO: The "Bad Request" response should actually tell the joining node the exact algorithm and parameters
-        		
-        		if (myGroup.getCsAlg().equals(AlgorithmID.ECDSA_256) ||
-        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_384) ||
-        		    myGroup.getCsAlg().equals(AlgorithmID.ECDSA_512)) {
-        			
-        			if (!publicKey.get(KeyKeys.KeyType).equals(KeyKeys.KeyType_EC2) ||
-        				!publicKey.get(KeyKeys.EC2_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.EC2_Curve.AsCBOR())))) {
-        				
-                			myGroup.deallocateSenderId(senderId);
-                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                			return;
-                		
-        			}
-        		}
-        		
-        		if (myGroup.getCsAlg().equals(AlgorithmID.EDDSA)) {
-        			
-        			if (!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR()))) ||
-           				!publicKey.get(KeyKeys.KeyType).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.KeyType.AsCBOR()))) ||
-        				!publicKey.get(KeyKeys.OKP_Curve).equals(myGroup.getCsKeyParams().get(CBORObject.FromObject(KeyKeys.OKP_Curve.AsCBOR())))) {
-
-                			myGroup.deallocateSenderId(senderId);
-
-                			exchange.respond(CoAP.ResponseCode.BAD_REQUEST, "invalid public key format");
-                			return;
-                		
-        			}
-        				
-        		}
         		
         		// Retrieve the proof-of-possession nonce and signature from the Client
         		CBORObject cnonce = joinRequest.get(CBORObject.FromObject(Constants.CNONCE));
@@ -720,7 +814,7 @@ public class OscoreRsServer {
         		publicKey.add(KeyKeys.KeyId, CBORObject.FromObject(senderId));
         		
         		// Store this client's public key
-        		if (!myGroup.storePublicKey(GroupInfo.bytesToInt(senderId), publicKey.AsCBOR())) {
+                if (!myGroup.storePublicKey(senderId, publicKey.AsCBOR())) {
         			myGroup.deallocateSenderId(senderId);
 					exchange.respond(CoAP.ResponseCode.INTERNAL_SERVER_ERROR, "error when storing the public key");
             		return;
@@ -735,7 +829,7 @@ public class OscoreRsServer {
         	
         	// Key Type Value assigned to the Group_OSCORE_Security_Context object.
         	// NOTE: '0' is a temporary value.
-        	joinResponse.Add(Constants.KTY, CBORObject.FromObject(0));
+            joinResponse.Add(Constants.GKTY, Constants.GROUP_OSCORE_INPUT_MATERIAL_OBJECT);
         	
         	// This map is filled as the Group_OSCORE_Security_Context object, as defined in draft-ace-key-groupcomm-oscore
         	CBORObject myMap = CBORObject.NewMap();
@@ -777,42 +871,69 @@ public class OscoreRsServer {
         	// derived from the 'k' parameter is not valid anymore.
         	joinResponse.Add(Constants.EXP, CBORObject.FromObject(1000000));
         	
-        	// NOTE: this is currently skipping the inclusion of the optional parameter 'group_policies'.
         	if (providePublicKeys) {
-        		
-        		CBORObject coseKeySet = CBORObject.NewArray();
-        		
-        		for (Integer i : myGroup.getUsedSenderIds()) {
-        			
-        			// Skip the entry of the just-added joining node 
-        			if (i.equals(GroupInfo.bytesToInt(senderId)))
-        				continue;
-        			
-        			CBORObject coseKeyPeer = myGroup.getPublicKey(i);
-        			coseKeySet.Add(coseKeyPeer);
-        			
-        		}
-        		
-        		if (coseKeySet.size() > 0) {
-        			
-        			byte[] coseKeySetByte = coseKeySet.EncodeToBytes();
-        			joinResponse.Add(Constants.PUB_KEYS, CBORObject.FromObject(coseKeySetByte));
-        			
-        		}
-        		
-        		// Debug:
-        		// 1) Print 'kid' as equal to the Sender ID of the key owner
-        		// 2) Print 'kty' of each public key
-        		/*
-        		for (int i = 0; i < coseKeySet.size(); i++) {
-        			byte[] kid = coseKeySet.get(i).get(KeyKeys.KeyId.AsCBOR()).GetByteString();
-        			for (int j = 0; j < kid.length; j++)
-        				System.out.printf("0x%02X", kid[j]);
-        			System.out.println("\n" + coseKeySet.get(i).get(KeyKeys.KeyType.AsCBOR()));
-        		}
-        		*/
-        		
-        	}
+                CBORObject pubKeysArray = CBORObject.NewArray();
+                CBORObject peerRoles = CBORObject.NewArray();
+                CBORObject peerIdentifiers = CBORObject.NewArray();
+                
+                Map<CBORObject, CBORObject> publicKeys = myGroup.getPublicKeys();
+                
+                for (CBORObject sid : publicKeys.keySet()) {
+                    // This should never happen; silently ignore
+                    if (publicKeys.get(sid) == null)
+                        continue;
+
+                    byte[] peerSenderId = sid.GetByteString();
+                    // Skip the public key of the just-added joining node
+                    if ((senderId != null) && Arrays.equals(senderId, peerSenderId))
+                        continue;
+                    
+                    boolean includePublicKey = false;
+                    
+                    // Public keys of all group members are requested
+                    if (getPubKeys.equals(CBORObject.Null)) {
+                        includePublicKey = true;
+                    }
+                    // Only public keys of group members with certain roles are requested
+                    else {
+                        for (int i = 0; i < getPubKeys.get(1).size(); i++) {
+                            int filterRoles = getPubKeys.get(1).get(i).AsInt32();
+                            int memberRoles = myGroup.getGroupMemberRoles(peerSenderId);
+                            // The owner of this public key does not have
+                            // all its roles indicated in this AIF integer filter
+                            if (filterRoles != (filterRoles & memberRoles)) {
+                                continue;
+                            }
+                            else {
+                                includePublicKey = true;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    if (includePublicKey) {
+                        pubKeysArray.Add(publicKeys.get(sid));
+                        peerRoles.Add(myGroup.getGroupMemberRoles(peerSenderId));
+                        peerIdentifiers.Add(peerSenderId);
+                    }
+
+                }
+
+                joinResponse.Add(Constants.PUB_KEYS, pubKeysArray);
+                joinResponse.Add(Constants.PEER_ROLES, peerRoles);
+                joinResponse.Add(Constants.PEER_IDENTIFIERS, peerIdentifiers);
+
+                // Debug:
+                // 1) Print 'kid' as equal to the Sender ID of the key owner
+                // 2) Print 'kty' of each public key
+                /*
+                 * for (int i = 0; i < coseKeySet.size(); i++) { byte[] kid =
+                 * coseKeySet.get(i).get(KeyKeys.KeyId.AsCBOR()).GetByteString(); for (int j = 0; j < kid.length; j++)
+                 * System.out.printf("0x%02X", kid[j]); System.out.println("\n" +
+                 * coseKeySet.get(i).get(KeyKeys.KeyType.AsCBOR())); }
+                 */
+
+            }
         	
         	byte[] responsePayload = joinResponse.EncodeToBytes();
         	exchange.respond(ResponseCode.CREATED, responsePayload, MediaTypeRegistry.APPLICATION_CBOR);
@@ -851,8 +972,12 @@ public class OscoreRsServer {
         
     }
     
-    private static void OSCOREGroupCreation(byte[] groupIdPrefix, int countersignKeyCurve) throws CoseException
+    private static void OSCOREGroupCreation(String groupName, int signKeyCurve, int ecdhKeyCurve) throws CoseException
     {
+        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+        final int pubKeyEnc = Constants.COSE_HEADER_PARAM_CCS;
+
+
     	// Create the OSCORE group
         byte[] masterSecret = { (byte) 0x01, (byte) 0x02, (byte) 0x03, (byte) 0x04,
                 					  (byte) 0x05, (byte) 0x06, (byte) 0x07, (byte) 0x08,
@@ -863,59 +988,156 @@ public class OscoreRsServer {
                 					  (byte) 0x23, (byte) 0x78, (byte) 0x63, (byte) 0x40 };
 
         //Use a different master secret for Vinnova demo Group B
-        if(Arrays.equals(groupIdPrefix, hexStringToByteArray("bbbbbb570000".substring(0, 2 * groupIdPrefixSize)))) {
+        if (groupName.equals("bbbbbb570000")) {
         	masterSecret = new byte[] { (byte) 0xB1, (byte) 0xB2, (byte) 0xB3, (byte) 0xB4,
 					  (byte) 0xB5, (byte) 0xB6, (byte) 0xB7, (byte) 0xB8,
 					  (byte) 0xB9, (byte) 0xBA, (byte) 0xBB, (byte) 0xBC,
 					  (byte) 0xBD, (byte) 0xBE, (byte) 0xBF, (byte) 0xB0 };
         }
-        
+
+        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch
+        // sizes
+        byte[] groupIdPrefix = new byte[] { (byte) 0xaa, (byte) 0xaa, (byte) 0xaa, (byte) 0xaa };
+        byte[] groupIdEpoch = new byte[] { (byte) 0x00, (byte) 0x00 }; // Up to 4 bytes
+        if (groupName.equals("bbbbbb570000")) {
+            groupIdPrefix = new byte[] { (byte) 0xbb, (byte) 0xbb, (byte) 0xbb, (byte) 0x57 };
+            groupIdEpoch = new byte[] { (byte) 0x00, (byte) 0x00 }; // Up to 4 bytes
+        }
+
         // Group OSCORE specific values for the AEAD algorithm and HKDF
-        final AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
-        final AlgorithmID hkdf = AlgorithmID.HKDF_HMAC_SHA_256;
+        AlgorithmID alg = AlgorithmID.AES_CCM_16_64_128;
 
-        // Group OSCORE specific values for the countersignature
-        AlgorithmID csAlg = null;
-        Map<CBORObject, CBORObject> csParamsMap = new HashMap<>();
-        Map<CBORObject, CBORObject> csKeyParamsMap = new HashMap<>();
-        
-        // ECDSA_256
-        if (countersignKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
-        	csAlg = AlgorithmID.ECDSA_256;
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_EC2);        
-        	csKeyParamsMap.put(KeyKeys.EC2_Curve.AsCBOR(), KeyKeys.EC2_P256);
-        }
-        
-        // EDDSA (Ed25519)
-        if (countersignKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
-        	csAlg = AlgorithmID.EDDSA;
-        	csParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
-        	csKeyParamsMap.put(KeyKeys.KeyType.AsCBOR(), KeyKeys.KeyType_OKP);
-        	csKeyParamsMap.put(KeyKeys.OKP_Curve.AsCBOR(), KeyKeys.OKP_Ed25519);
+        // Serialization of the COSE Key including both private and public part
+        byte[] gmKeyPairBytes = null;
+
+        // The asymmetric key pair and public key of the Group Manager (ECDSA_256)
+        if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+            gmKeyPairBytes = hexStringToByteArray(
+                    "a60102032620012158202236658ca675bb62d7b24623db0453a3b90533b7c3b221cc1c2c73c4e919d540225820770916bc4c97c3c46604f430b06170c7b3d6062633756628c31180fa3bb65a1b2358204a7b844a4c97ef91ed232aa564c9d5d373f2099647f9e9bd3fe6417a0d0f91ad");
         }
 
-        final CBORObject csParams = CBORObject.FromObject(csParamsMap);
-        final CBORObject csKeyParams = CBORObject.FromObject(csKeyParamsMap);
-        final CBORObject csKeyEnc = CBORObject.FromObject(Constants.COSE_KEY);
-        
-        final int senderIdSize = 1; // Up to 4 bytes
+        // The asymmetric key pair and public key of the Group Manager (EDDSA - Ed25519)
+        if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+            gmKeyPairBytes = hexStringToByteArray(
+                    "a5010103272006215820c6ec665e817bd064340e7c24bb93a11e8ec0735ce48790f9c458f7fa340b8ca3235820d0a2ce11b2ba614b048903b72638ef4a3b0af56e1a60c6fb6706b0c1ad8a14fb");
+        }
 
-        // Prefix (4 byte) and Epoch (2 bytes) --- All Group IDs have the same prefix size, but can have different Epoch sizes
-    	byte[] groupIdEpoch = new byte[] { (byte) 0xf0, (byte) 0x5c }; // Up to 4 bytes
-    	
-    	GroupInfo myGroup = new GroupInfo(masterSecret,
-    			                          masterSalt,
-    			                          groupIdPrefixSize,
-    			                          groupIdPrefix,
-    			                          groupIdEpoch.length,
-    			                          GroupInfo.bytesToInt(groupIdEpoch),
-    			                          senderIdSize,
-    			                          alg,
-    			                          hkdf,
-    			                          csAlg,
-    			                          csParams,
-    			                          csKeyParams,
-    			                          csKeyEnc);
+        OneKey gmKeyPair = null;
+        gmKeyPair = new OneKey(CBORObject.DecodeFromBytes(gmKeyPairBytes));
+
+        // Serialization of the public key, according to the format used in the group
+        byte[] gmPublicKey = null;
+
+        /*
+         * // Build the public key according to the format used in the group // Note: most likely, the result will NOT
+         * follow the required deterministic // encoding in byte lexicographic order, and it has to be adjusted offline
+         * switch (pubKeyEnc) { case Constants.COSE_HEADER_PARAM_CCS: // A CCS including the public key String
+         * subjectName = ""; gmPublicKey = Util.oneKeyToCCS(gmKeyPair, subjectName); break; case
+         * Constants.COSE_HEADER_PARAM_CWT: // A CWT including the public key // TODO break; case
+         * Constants.COSE_HEADER_PARAM_X5CHAIN: // A certificate including the public key // TODO break; }
+         */
+
+        AlgorithmID signEncAlg = null;
+        AlgorithmID signAlg = null;
+        CBORObject signAlgCapabilities = null;
+        CBORObject signKeyCapabilities = null;
+        CBORObject signParams = null;
+
+        AlgorithmID ecdhAlg = null;
+        CBORObject ecdhAlgCapabilities = null;
+        CBORObject ecdhKeyCapabilities = null;
+        CBORObject ecdhParams = null;
+
+        if (signKeyCurve == 0 && ecdhKeyCurve == 0) {
+            System.out.println("Both the signature key curve and the ECDH key curve are unspecified");
+            return;
+        }
+        int mode = Constants.GROUP_OSCORE_GROUP_PAIRWISE_MODE;
+        if (signKeyCurve != 0 && ecdhKeyCurve == 0)
+            mode = Constants.GROUP_OSCORE_GROUP_MODE_ONLY;
+        else if (signKeyCurve == 0 && ecdhKeyCurve != 0)
+            mode = Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY;
+
+        if (mode != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
+            signEncAlg = AlgorithmID.AES_CCM_16_64_128;
+            signAlgCapabilities = CBORObject.NewArray();
+            signKeyCapabilities = CBORObject.NewArray();
+            signParams = CBORObject.NewArray();
+
+            // ECDSA_256
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+                signAlg = AlgorithmID.ECDSA_256;
+                signAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+                signKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+                signKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+            }
+
+            // EDDSA (Ed25519)
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+                signAlg = AlgorithmID.EDDSA;
+                signAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+                signKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+                signKeyCapabilities.Add(KeyKeys.OKP_Ed25519); // Curve
+            }
+
+            signParams.Add(signAlgCapabilities);
+            signParams.Add(signKeyCapabilities);
+        }
+
+        if (mode != Constants.GROUP_OSCORE_GROUP_MODE_ONLY) {
+            alg = AlgorithmID.AES_CCM_16_64_128;
+            ecdhAlg = AlgorithmID.ECDH_SS_HKDF_256;
+            ecdhAlgCapabilities = CBORObject.NewArray();
+            ecdhKeyCapabilities = CBORObject.NewArray();
+            ecdhParams = CBORObject.NewArray();
+
+            // ECDSA_256
+            if (ecdhKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+                ecdhAlgCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+                ecdhKeyCapabilities.Add(KeyKeys.KeyType_EC2); // Key Type
+                ecdhKeyCapabilities.Add(KeyKeys.EC2_P256); // Curve
+            }
+
+            // EDDSA (Ed25519)
+            if (ecdhKeyCurve == KeyKeys.OKP_X25519.AsInt32()) {
+                ecdhAlgCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+                ecdhKeyCapabilities.Add(KeyKeys.KeyType_OKP); // Key Type
+                ecdhKeyCapabilities.Add(KeyKeys.OKP_X25519); // Curve
+            }
+
+            ecdhParams.Add(ecdhAlgCapabilities);
+            ecdhParams.Add(ecdhKeyCapabilities);
+
+        }
+
+        switch (pubKeyEnc) {
+        case Constants.COSE_HEADER_PARAM_CCS:
+            // A CCS including the public key
+            if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {
+                gmPublicKey = hexStringToByteArray(
+                        "A2026008A101A50102032620012158202236658CA675BB62D7B24623DB0453A3B90533B7C3B221CC1C2C73C4E919D540225820770916BC4C97C3C46604F430B06170C7B3D6062633756628C31180FA3BB65A1B");
+            }
+            if (signKeyCurve == KeyKeys.OKP_Ed25519.AsInt32()) {
+                gmPublicKey = hexStringToByteArray(
+                        "A2026008A101A4010103272006215820C6EC665E817BD064340E7C24BB93A11E8EC0735CE48790F9C458F7FA340B8CA3");
+            }
+            break;
+        case Constants.COSE_HEADER_PARAM_CWT:
+            // A CWT including the public key
+            // TODO
+            gmPublicKey = null;
+            break;
+        case Constants.COSE_HEADER_PARAM_X5CHAIN:
+            // A certificate including the public key
+            // TODO
+            gmPublicKey = null;
+            break;
+        }
+
+        GroupInfo myGroup = new GroupInfo(groupName, masterSecret, masterSalt, groupIdPrefixSize, groupIdPrefix,
+                groupIdEpoch.length, Util.bytesToInt(groupIdEpoch), prefixMonitorNames, nodeNameSeparator, hkdf,
+                pubKeyEnc, mode, signEncAlg, signAlg, signParams, alg, ecdhAlg, ecdhParams, null, gmKeyPair,
+                gmPublicKey);
 //        
 //    	byte[] mySid;
 //    	OneKey myKey;
@@ -979,7 +1201,7 @@ public class OscoreRsServer {
     	
     	// Add this OSCORE group to the set of active groups
     	// If the groupIdPrefix is 4 bytes in size, the map key can be a negative integer, but it is not a problem
-    	activeGroups.put(Integer.valueOf(GroupInfo.bytesToInt(groupIdPrefix)), myGroup);
+        activeGroups.put(groupName, myGroup);
     	
     }
 
@@ -1038,4 +1260,10 @@ public class OscoreRsServer {
          return success;
 
     }
+    
+    
+    // ===============================================
+    // ===============================================
+    
+    
 }

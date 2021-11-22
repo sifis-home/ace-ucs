@@ -48,6 +48,7 @@ import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.Endpoint;
 import org.eclipse.californium.elements.exception.ConnectorException;
+import org.eclipse.californium.elements.util.Bytes;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
@@ -57,6 +58,7 @@ import com.upokecenter.cbor.CBORException;
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
+import net.i2p.crypto.eddsa.Utils;
 import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Util;
@@ -192,14 +194,15 @@ public class OSCOREProfileRequestsGroupOSCORE {
         boolean found = false;
         
         // Determine an available Recipient ID to offer to the Resource Server as ID1
+        byte[] contextId = Bytes.EMPTY;
         synchronized(usedRecipientIds) {
         	synchronized(db) {
         	
 	        	int maxIdValue;
 	        	
-    			byte[] contextId = new byte[0];
     			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
     				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
+                    System.out.println("Setting ID Context: " + Utils.bytesToHex(contextId));
     			}
 	        	
 		        // Start with 1 byte as size of Recipient ID; try with up to 4 bytes in size        
@@ -223,7 +226,9 @@ public class OSCOREProfileRequestsGroupOSCORE {
 			        		if (!usedRecipientIds.get(idSize - 1).contains(j)) {
 			        			
 			        			// Double check in the database of OSCORE Security Contexts
-			        			if (db.getContext(recipientId, contextId) != null) {
+                                System.out.println("db.getContext(recipientId, contextId): "
+                                        + db.getContext(recipientId, contextId));
+                                if (db.getContext(recipientId, contextId) != null) {
 			        				
 			        				// A Security Context with this Recipient ID exists and was not tracked!
 			        				// Update the local list of used Recipient IDs, then move on to the next candidate
@@ -347,12 +352,12 @@ public class OSCOREProfileRequestsGroupOSCORE {
         synchronized(db) {
         	
         	boolean install = true;
-        	
+            System.out.println("Recipient ID: " + Utils.bytesToHex(recipientId));
 			try {
         			
 				// Double check in the database that the OSCORE Security Context
 				// with the selected Recipient ID is actually still not present
-    			if (db.getContext(recipientId) != null) {
+                if (db.getContext(recipientId, contextId) != null) {
     				// A Security Context with this Recipient ID exists!
     				install = false;
     			}        			
