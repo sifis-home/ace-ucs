@@ -32,18 +32,12 @@
 package se.sics.ace.oscore.group;
 
 import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -64,7 +58,6 @@ import org.eclipse.californium.oscore.OSException;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -115,6 +108,7 @@ public class TestOscorepClient2RSGroupOSCORE {
     // Uncomment to set curve X25519 for pairwise key derivation
     private static int ecdhKeyCurve = KeyKeys.OKP_X25519.AsInt32();
 
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
     
     /**
      * The cnf key used in these tests
@@ -181,7 +175,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         osctx = new OSCoreCtx(keyCnf, true, null, 
                 "clientA".getBytes(Constants.charset),
                 "rs1".getBytes(Constants.charset),
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
         
 		// ECDSA asymmetric keys, as serialization of COSE Keys
     	if (signKeyCurve == KeyKeys.EC2_P256.AsInt32()) {

@@ -37,7 +37,6 @@ import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSCoreCtxDB;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -60,6 +59,8 @@ public class TestOscoreIntrospection {
     static RunTestServer srv = null;
     
     private static OSCoreCtxDB ctxDB;
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 
     private static class RunTestServer implements Runnable {
 
@@ -122,7 +123,7 @@ public class TestOscoreIntrospection {
     	
         byte[] senderId = new byte[] {0x11};
         byte[] recipientId = new byte[] {0x00};
-        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, senderId, recipientId, null, null, null, null);
+        OSCoreCtx ctx = new OSCoreCtx(key128, true, null, senderId, recipientId, null, null, null, null, MAX_UNFRAGMENTED_SIZE);
                 
         OscoreIntrospection i = new OscoreIntrospection(ctx, "coap://localhost/introspect", ctxDB);
         Map<Short, CBORObject> map =  i.getParams(new byte[]{0x00});     

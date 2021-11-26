@@ -49,7 +49,6 @@ import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
-import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
 import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.elements.exception.ConnectorException;
 import org.eclipse.californium.scandium.DTLSConnector;
@@ -58,6 +57,7 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -107,8 +107,9 @@ public class DtlspIntrospection implements IntrospectionHandler {
     	
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(new InetSocketAddress(0));
-        builder.setIdentity(rpk.AsPrivateKey(), 
-                rpk.AsPublicKey());
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(rpk.AsPrivateKey(), rpk.AsPublicKey()));
+        // builder.setIdentity(rpk.AsPrivateKey(), rpk.AsPublicKey());
         // builder.setSupportedCipherSuites(new CipherSuite[]{
         //        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 

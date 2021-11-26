@@ -56,6 +56,7 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -133,7 +134,9 @@ public class DTLSProfileRequests {
             //      CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
             try {
-                builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                builder.setCertificateIdentityProvider(
+                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
                 LOGGER.severe("Failed to transform key: " + e.getMessage());
                 throw new AceException(e.getMessage());
@@ -202,7 +205,9 @@ public class DTLSProfileRequests {
             // builder.setSupportedCipherSuites(new CipherSuite[]{
             //      CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             try {
-                builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+                builder.setCertificateIdentityProvider(
+                        new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
                 LOGGER.severe("Key is invalid: " + e.getMessage());
                throw new AceException("Aborting, key invalid: " 
@@ -387,9 +392,8 @@ public class DTLSProfileRequests {
         
         builder.setAdvancedPskStore(store);
         Connector c = new DTLSConnector(builder.build());
-        CoapEndpoint e = new CoapEndpoint.Builder()
-                .setConnector(c).setNetworkConfig(
-                        NetworkConfig.getStandard()).build();
+        CoapEndpoint e = new CoapEndpoint.Builder().
+                setConfiguration(Configuration.getStandard()).setConnector(c).build();
         CoapClient client = new CoapClient(serverAddress.getHostString());
         client.setEndpoint(e);   
 
@@ -420,7 +424,9 @@ public class DTLSProfileRequests {
         // builder.setSniEnabled(false);
         // builder.setSupportedCipherSuites(new CipherSuite[]{
         //         CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-        builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
+        // builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(clientKey.AsPrivateKey(), clientKey.AsPublicKey()));
         if (rsPublicKey != null) {
 
             RawPublicKeyIdentity[] identities = new RawPublicKeyIdentity[1];

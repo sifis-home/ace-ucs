@@ -101,6 +101,8 @@ public class TestOscorepClient2RS {
     
     private static OSCoreCtxDB ctxDB;
     
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
+    
 	// Each set of the list refers to a different size of Recipient IDs.
 	// The element with index 0 includes as elements Recipient IDs with size 1 byte.
 	private static List<Set<Integer>> usedRecipientIds = new ArrayList<Set<Integer>>();
@@ -150,7 +152,7 @@ public class TestOscorepClient2RS {
         osctx = new OSCoreCtx(keyCnf, true, null, 
         		senderId,
         		recipientId,
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
         
         
         

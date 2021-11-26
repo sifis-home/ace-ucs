@@ -48,6 +48,8 @@ import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
+
 import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.OneKey;
@@ -202,8 +204,9 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
 
        config.setAdvancedPskStore(db);
        if (asymmetricKey != null) {
-           config.setIdentity(asymmetricKey.AsPrivateKey(), 
-                   asymmetricKey.AsPublicKey());
+           config.setCertificateIdentityProvider(
+                   new SingleCertificateProvider(asymmetricKey.AsPrivateKey(), asymmetricKey.AsPublicKey()));
+           // config.setIdentity(asymmetricKey.AsPrivateKey(), asymmetricKey.AsPublicKey());
        }
        // config.setClientAuthenticationRequired(true);
        // config.setSniEnabled(false);

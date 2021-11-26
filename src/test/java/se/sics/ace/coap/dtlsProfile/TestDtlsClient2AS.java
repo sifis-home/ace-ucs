@@ -33,10 +33,10 @@ package se.sics.ace.coap.dtlsProfile;
 
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.eclipse.californium.core.CoapClient;
@@ -49,10 +49,10 @@ import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
 import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
 import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
@@ -185,15 +185,21 @@ public class TestDtlsClient2AS {
      */
     @Test
     public void testCoapToken() throws Exception {
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setClientOnly();
-        builder.setSniEnabled(false);
+        
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsConfig.DtlsRole.CLIENT_ONLY);
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
+        // builder.setClientOnly();
+        // builder.setSniEnabled(false);
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
-        builder.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+        // builder.setSupportedCipherSuites(new CipherSuite[]{
+        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
@@ -308,12 +314,20 @@ public class TestDtlsClient2AS {
     @Test
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
-        builder.setClientOnly();
-        builder.setSniEnabled(false);
+        
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsConfig.DtlsRole.CLIENT_ONLY);
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
+        // builder.setClientOnly();
+        // builder.setSniEnabled(false);
         //builder.setPskStore(new StaticPskStore("rs1", key256));
-        builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
+        // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
+        // builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 
         ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
         certTypes.add(CertificateType.RAW_PUBLIC_KEY);
