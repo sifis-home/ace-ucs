@@ -393,7 +393,7 @@ public class PlugtestRS {
              new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
 
      DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setAdvancedPskStore(psk);
+     config.setAdvancedPskStore(psk);
      DTLSConnector connector = new DTLSConnector(config.build());
      CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
              .setConfiguration(Configuration.getStandard()).build();

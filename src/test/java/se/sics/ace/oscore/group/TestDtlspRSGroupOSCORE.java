@@ -3594,8 +3594,8 @@ public class TestDtlspRSGroupOSCORE {
   	    config.setAdvancedCertificateVerifier(verifier);
 
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-        config.setAdvancedPskStore(psk);
-        config.setCertificateIdentityProvider(
+  	    config.setAdvancedPskStore(psk);
+  	    config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
 
   	    DTLSConnector connector = new DTLSConnector(config.build());

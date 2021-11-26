@@ -145,7 +145,7 @@ public class TestOscorepClient2RSGroupOSCORE {
         @Override
         public void run() {
             try {
-                TestOscorepRSGroupOSCORE.main(null);
+            	TestOscorepRSGroupOSCORE.main(null);
             } catch (final Throwable t) {
                 System.err.println(t.getMessage());
                 try {

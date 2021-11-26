@@ -3595,7 +3595,7 @@ public class PlugtestRSGroupOSCORE {
         DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(new InetSocketAddress(portNumberSec));
   	    
-  	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
+        DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
         config.setAdvancedPskStore(psk);
         config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
