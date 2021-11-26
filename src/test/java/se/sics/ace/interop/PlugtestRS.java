@@ -34,6 +34,7 @@ package se.sics.ace.interop;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -51,12 +52,15 @@ import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
@@ -300,20 +304,22 @@ public class PlugtestRS {
 
         dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
         DtlsConnectorConfig.Builder config 
-        = new DtlsConnectorConfig.Builder().setAddress(
+        = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                 new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
-        config.setIdentity(rpk.AsPrivateKey(), rpk.AsPublicKey());
-        config.setClientAuthenticationRequired(true);  
-        config.setRpkTrustAll();
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(rpk.AsPrivateKey(), rpk.AsPublicKey()));
+ 
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(
@@ -379,16 +385,18 @@ public class PlugtestRS {
 
      dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
+     Configuration dtlsConfig = Configuration.getStandard();
+     dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+     
      DtlsConnectorConfig.Builder config 
-     = new DtlsConnectorConfig.Builder().setAddress(
+     = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
              new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-     config.setSupportedCipherSuites(new CipherSuite[]{
-             CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
      DtlspPskStore psk = new DtlspPskStore(ai);
-     config.setPskStore(psk);
+     config.setAdvancedPskStore(psk);
      DTLSConnector connector = new DTLSConnector(config.build());
      CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
-             .setNetworkConfig(NetworkConfig.getStandard()).build();
+             .setConfiguration(Configuration.getStandard()).build();
      rs.addEndpoint(cep);
      //Add a CoAP (no 's') endpoint for authz-info
      CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(

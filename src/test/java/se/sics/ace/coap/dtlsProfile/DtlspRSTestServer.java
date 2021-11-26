@@ -34,6 +34,9 @@ package se.sics.ace.coap.dtlsProfile;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.HashMap;
@@ -45,12 +48,15 @@ import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -58,6 +64,10 @@ import COSE.AlgorithmID;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -226,21 +236,28 @@ public class DtlspRSTestServer {
 
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
+      Configuration dtlsConfig = Configuration.getStandard();
+      dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+      dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
       
-      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+      DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
-        config.setSupportedCipherSuites(new CipherSuite[]{
-                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-                CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
         DtlspPskStore psk = new DtlspPskStore(ai);
-        config.setPskStore(psk);
-        config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        config.setClientAuthenticationRequired(true);
-        config.setRpkTrustAll();
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        config.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector connector = new DTLSConnector(config.build());
         CoapEndpoint cep = new CoapEndpoint.Builder().setConnector(connector)
-                .setNetworkConfig(NetworkConfig.getStandard()).build();
+                .setConfiguration(Configuration.getStandard()).build();
         rs.addEndpoint(cep);
         //Add a CoAP (no 's') endpoint for authz-info
         CoapEndpoint aiep = new CoapEndpoint.Builder().setInetSocketAddress(

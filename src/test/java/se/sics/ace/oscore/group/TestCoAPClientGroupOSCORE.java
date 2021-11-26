@@ -31,8 +31,10 @@
  *******************************************************************************/
 package se.sics.ace.oscore.group;
 
-import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -41,21 +43,26 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedSinglePskStore;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
-import org.junit.Ignore;
 import org.junit.Test;
 
 import com.upokecenter.cbor.CBORObject;
 import com.upokecenter.cbor.CBORType;
 
 import COSE.OneKey;
+import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.Configuration;
+
 import se.sics.ace.Constants;
 import se.sics.ace.ReferenceToken;
 import se.sics.ace.Util;
@@ -144,7 +151,7 @@ public class TestCoAPClientGroupOSCORE {
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/introspect");
         client.setEndpoint(e);
@@ -179,14 +186,19 @@ public class TestCoAPClientGroupOSCORE {
      */
     @Test
     public void testCoapToken() throws Exception {
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientA", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
+        builder.setAdvancedPskStore(pskStore);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/token");
         client.setEndpoint(e);
@@ -220,14 +232,19 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
+        builder.setAdvancedPskStore(pskStore);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/token");
         client.setEndpoint(e);
@@ -397,14 +414,20 @@ public class TestCoAPClientGroupOSCORE {
     	String gid = new String("feedca570000");
         String gid2 = new String("feedca570001");
     	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientF", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
+        builder.setAdvancedPskStore(pskStore);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
+
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/token");
         client.setEndpoint(e);
@@ -541,14 +564,19 @@ public class TestCoAPClientGroupOSCORE {
         
     	String gid = new String("feedca570000");
     	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+    	
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
-        builder.setPskStore(new StaticPskStore("clientG", key128));
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
+
+        AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientG", key128);
+        builder.setAdvancedPskStore(pskStore);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/token");
         client.setEndpoint(e);
@@ -647,16 +675,27 @@ public class TestCoAPClientGroupOSCORE {
     @Test
     public void testCoapIntrospect() throws Exception {
         OneKey key = new OneKey(CBORObject.DecodeFromBytes(Base64.getDecoder().decode(aKey)));
-        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+        
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+        
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
-        builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
-        builder.setRpkTrustAll();
-        builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
+        builder.setCertificateIdentityProvider(
+                new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
+
+        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+        certTypes.add(CertificateType.X_509);
+        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+        builder.setAdvancedCertificateVerifier(verifier);
+
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
 
         Builder ceb = new Builder();
         ceb.setConnector(dtlsConnector);
-        ceb.setNetworkConfig(NetworkConfig.getStandard());
+        ceb.setConfiguration(Configuration.getStandard());
         CoapEndpoint e = ceb.build();
         CoapClient client = new CoapClient("coaps://localhost/introspect");
         client.setEndpoint(e);

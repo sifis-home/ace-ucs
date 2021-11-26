@@ -40,6 +40,7 @@ import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
+import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -63,13 +64,18 @@ import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Response;
 import org.eclipse.californium.core.network.CoapEndpoint;
 import org.eclipse.californium.core.network.CoapEndpoint.Builder;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.core.server.resources.Resource;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.scandium.DTLSConnector;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
+import org.eclipse.californium.scandium.dtls.CertificateType;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
+import org.eclipse.californium.scandium.dtls.x509.AsyncNewAdvancedCertificateVerifier;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 import org.junit.Assert;
 
 import com.upokecenter.cbor.CBORObject;
@@ -1041,9 +1047,9 @@ public class PlugtestRSGroupOSCORE {
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 
     			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-    			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+        			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
     			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-    			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+        			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
     			    if (signKeyCurve == 0) {
@@ -2950,9 +2956,9 @@ public class PlugtestRSGroupOSCORE {
 			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 			    int signKeyCurve = 0;
 
-			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+				if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
 			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+				else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
 			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
 			    // This should never happen, due to the previous sanity checks
@@ -3581,21 +3587,29 @@ public class PlugtestRSGroupOSCORE {
   	    rs.add(authzInfo);
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
+  	    
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
-  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder()
+        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(new InetSocketAddress(portNumberSec));
   	    
-  	    config.setSupportedCipherSuites(new CipherSuite[]{
-               CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-               CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
-  	    config.setRpkTrustAll();
-  	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-  	    config.setPskStore(psk);
-  	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-  	    config.setClientAuthenticationRequired(true);
+   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
+   	    config.setAdvancedPskStore(psk);
+   	    config.setCertificateIdentityProvider(
+                new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
+
+   	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+   	    certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+   	    certTypes.add(CertificateType.X_509);
+   	    AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+                new RawPublicKeyIdentity[0], certTypes);
+   	    config.setAdvancedCertificateVerifier(verifier);
+
   	    DTLSConnector connector = new DTLSConnector(config.build());
   	    CoapEndpoint cep = new Builder().setConnector(connector)
-               .setNetworkConfig(NetworkConfig.getStandard()).build();
+               .setConfiguration(Configuration.getStandard()).build();
   	    rs.addEndpoint(cep);
   	    
   	    //Add a CoAP (no 's') endpoint for authz-info

@@ -33,6 +33,7 @@ package se.sics.ace.interop;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -42,14 +43,17 @@ import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.core.network.config.NetworkConfig;
 import org.eclipse.californium.elements.Connector;
 import org.eclipse.californium.elements.UDPConnector;
 import org.eclipse.californium.scandium.DTLSConnector;
 import org.eclipse.californium.elements.auth.RawPublicKeyIdentity;
+import org.eclipse.californium.elements.config.CertificateAuthenticationMode;
+import org.eclipse.californium.elements.config.Configuration;
+import org.eclipse.californium.scandium.config.DtlsConfig;
 import org.eclipse.californium.scandium.config.DtlsConnectorConfig;
 import org.eclipse.californium.scandium.dtls.cipher.CipherSuite;
-import org.eclipse.californium.scandium.dtls.pskstore.StaticPskStore;
+import org.eclipse.californium.scandium.dtls.pskstore.AdvancedMultiPskStore;
+import org.eclipse.californium.scandium.dtls.x509.SingleCertificateProvider;
 
 import com.upokecenter.cbor.CBORObject;
 
@@ -261,17 +265,19 @@ public class PlugtestClient {
         case 1 :  //AS /token tests
             uri = uri + "/token";
             System.out.println("=====Starting Test 1.1======");
-            DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder();
+            
+            Configuration dtlsConfig = Configuration.getStandard();
+            dtlsConfig.set(DtlsConfig.DTLS_ROLE, DtlsConfig.DtlsRole.CLIENT_ONLY);
+            dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NONE);
+            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+            
+            DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            builder.setClientOnly();
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-            builder.setClientAuthenticationRequired(false);  
-            builder.setRpkTrustAll();
+
             DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
             CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
-            ceb.setNetworkConfig(NetworkConfig.getStandard());
+            ceb.setConfiguration(Configuration.getStandard());
             CoapEndpoint e = ceb.build();
             CoapClient client = new CoapClient(uri);
             client.setEndpoint(e);   
@@ -288,15 +294,21 @@ public class PlugtestClient {
             }
           
             System.out.println("=====Starting Test 1.2======");
-            builder = new DtlsConnectorConfig.Builder();
+            
+            dtlsConfig = Configuration.getStandard();
+            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        
+            builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});      
-            builder.setPskStore(new StaticPskStore("client1", client1));
+
+            AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client1", client1);
+            builder.setAdvancedPskStore(pskStore);
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
-            ceb.setNetworkConfig(NetworkConfig.getStandard());
+            ceb.setConfiguration(Configuration.getStandard());
             e = ceb.build();
             client = new CoapClient(uri);
             client.setEndpoint(e);
@@ -315,13 +327,20 @@ public class PlugtestClient {
             System.out.println("=====End Test 1.2======"); 
             
             System.out.println("=====Starting Test 1.3======");
-            builder = new DtlsConnectorConfig.Builder();
+            
+            dtlsConfig = Configuration.getStandard();
+            
+            builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            builder.setPskStore(new StaticPskStore("client2", client2));
+
+            pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client2", client2);
+            builder.setAdvancedPskStore(pskStore);
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
-            ceb.setNetworkConfig(NetworkConfig.getStandard());
+            ceb.setConfiguration(Configuration.getStandard());
             e = ceb.build();
             client = new CoapClient(uri);
             client.setEndpoint(e);
@@ -391,18 +410,20 @@ public class PlugtestClient {
             System.out.println("=====End Test 1.7======"); 
             
             System.out.println("=====Starting Test 1.8======");
-            builder = new DtlsConnectorConfig.Builder();
+            
+            dtlsConfig = Configuration.getStandard();
+            dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+            dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
+            
+            builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            builder.setIdentity(rpk.AsPrivateKey(), 
-                    rpk.AsPublicKey());
-            builder.setSupportedCipherSuites(new CipherSuite[]{
-                    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-            builder.setClientAuthenticationRequired(true);   
-            builder.setRpkTrustAll();
+            builder.setCertificateIdentityProvider(
+                    new SingleCertificateProvider(rpk.AsPrivateKey(), rpk.AsPublicKey()));
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
-            ceb.setNetworkConfig(NetworkConfig.getStandard());
+            ceb.setConfiguration(Configuration.getStandard());
             e = ceb.build();
             client = new CoapClient(uri);
             client.setEndpoint(e);
@@ -450,13 +471,20 @@ public class PlugtestClient {
             System.out.println("=====End Test 1.10======");
             
             System.out.println("=====Starting Test 1.11======");
-            builder = new DtlsConnectorConfig.Builder();
+            
+            dtlsConfig = Configuration.getStandard();
+            
+            builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            builder.setPskStore(new StaticPskStore("client4", client4));
+
+            pskStore = new AdvancedMultiPskStore();
+            pskStore.setKey("client4", client4);
+            builder.setAdvancedPskStore(pskStore);
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
-            ceb.setNetworkConfig(NetworkConfig.getStandard());
+            ceb.setConfiguration(Configuration.getStandard());
             e = ceb.build();
             client = new CoapClient(uri);
             client.setEndpoint(e);
@@ -488,9 +516,9 @@ public class PlugtestClient {
             
         case 2: //Tests against RS1
             System.out.println("=====Starting Test 2.1======");
-            Connector c = new UDPConnector();
+            Connector c = new UDPConnector(new InetSocketAddress(0), Configuration.getStandard());
             e = new CoapEndpoint.Builder().setConnector(c)
-                    .setNetworkConfig(NetworkConfig.getStandard()).build();
+                    .setConfiguration(Configuration.getStandard()).build();
             uri = uri.replace("coaps:", "coap:");
             uri = uri + "/ace/helloWorld"; 
             client = new CoapClient(uri);
