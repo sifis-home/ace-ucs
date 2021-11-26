@@ -198,9 +198,9 @@ public class TestOscorepRSGroupOSCORE {
      */
     public static void main(String[] args) throws Exception {
         final Provider PROVIDER = new BouncyCastleProvider();
-    	final Provider EdDSA = new EdDSASecurityProvider();
+        final Provider EdDSA = new EdDSASecurityProvider();
         Security.insertProviderAt(PROVIDER, 1);
-    	Security.insertProviderAt(EdDSA, 0);
+        Security.insertProviderAt(EdDSA, 0);
     	
         // Set the valid combinations of roles in a Joining Request
         // Combinations are expressed with the AIF specific data model AIF-OSCORE-GROUPCOMM

@@ -3587,11 +3587,11 @@ public class TestDtlspRSGroupOSCORE {
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
 
-        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
+  	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+  	    certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+  	    AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(
                 new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
-        config.setAdvancedCertificateVerifier(verifier);
+  	    config.setAdvancedCertificateVerifier(verifier);
 
   	    config.setSupportedCipherSuites(new CipherSuite[]{
                CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,

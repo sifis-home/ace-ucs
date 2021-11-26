@@ -210,7 +210,7 @@ public class DtlspPskStoreGroupOSCORE implements AdvancedPskStore {
             	
                  key = TokenRepository.getInstance().getPoP(ctiStr);
                  return new SecretKeySpec(
-                        key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
+                         key.get(KeyKeys.Octet_K).GetByteString(), "PSK");
             } catch (AceException e) {
                 LOGGER.severe("Error: " + e.getMessage());
                 return null;

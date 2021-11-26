@@ -367,7 +367,7 @@ public class TestOscorepClient2RS {
        CoapResponse rsRes2 = OSCOREProfileRequests.postTokenUpdate("coap://localhost/authz-info", asRes, ctxDB);
        assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
        // ... and in fact no payload is expected in the response
-        assert (rsRes2.getPayload() == null || rsRes2.getPayload() == Bytes.EMPTY);
+       assert (rsRes2.getPayload() == null || rsRes2.getPayload() == Bytes.EMPTY);
        
        //Check that the OSCORE context created before is still present
        Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));

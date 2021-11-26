@@ -3596,12 +3596,12 @@ public class PlugtestRSGroupOSCORE {
   	    config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
   	    config.setClientAuthenticationRequired(true);
 
-        ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
-        certTypes.add(CertificateType.RAW_PUBLIC_KEY);
-        certTypes.add(CertificateType.X_509);
-        AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
+   	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
+   	    certTypes.add(CertificateType.RAW_PUBLIC_KEY);
+   	    certTypes.add(CertificateType.X_509);
+   	    AsyncNewAdvancedCertificateVerifier verifier = new AsyncNewAdvancedCertificateVerifier(new X509Certificate[0],
                 new RawPublicKeyIdentity[0], certTypes);
-        config.setAdvancedCertificateVerifier(verifier);
+   	    config.setAdvancedCertificateVerifier(verifier);
 
   	    DTLSConnector connector = new DTLSConnector(config.build());
   	    CoapEndpoint cep = new Builder().setConnector(connector)
