@@ -124,9 +124,9 @@ public class CoapReq implements Message {
         else if (ctx instanceof MapBasedEndpointContext) {
             MapBasedEndpointContext mapCtx = (MapBasedEndpointContext) ctx;
 
-			byte[] clientSenderId = StringUtil
+            byte[] clientSenderId = StringUtil
                     .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_RECIPIENT_ID));
-			byte[] idContext = StringUtil
+            byte[] idContext = StringUtil
                     .hex2ByteArray((String) mapCtx.get(OSCoreEndpointContextInfo.OSCORE_CONTEXT_ID));
 
             if (clientSenderId == null) {

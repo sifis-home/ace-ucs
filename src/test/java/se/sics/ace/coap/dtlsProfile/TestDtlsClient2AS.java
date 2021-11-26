@@ -229,9 +229,9 @@ public class TestDtlsClient2AS {
      */
     @Test
     public void testCoapTokenUpdateAccessRights() throws Exception {
-    	Configuration dtlsConfig = Configuration.getStandard();
-    	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
-    	dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);

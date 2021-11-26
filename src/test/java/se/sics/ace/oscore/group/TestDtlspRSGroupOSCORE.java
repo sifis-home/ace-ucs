@@ -1019,10 +1019,10 @@ public class TestDtlspRSGroupOSCORE {
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
     			    
-					if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-    			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-					else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-    			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+    			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+        			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+    			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+        			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
     			    if (signKeyCurve == 0) {
@@ -3594,8 +3594,8 @@ public class TestDtlspRSGroupOSCORE {
   	    config.setAdvancedCertificateVerifier(verifier);
 
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-		config.setAdvancedPskStore(psk);
-		config.setCertificateIdentityProvider(
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
 
   	    DTLSConnector connector = new DTLSConnector(config.build());

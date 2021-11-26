@@ -52,13 +52,13 @@ public class CoAPEndpointToResourceDirectory {
 		
 	private static DefinitionsProvider DEFAULTS = new DefinitionsProvider() {
 
-        @Override
-        public void applyDefinitions(Configuration config) {
-            config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
-            config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
-            config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
-            
-        }
+		@Override
+		public void applyDefinitions(Configuration config) {
+			config.set(CoapConfig.MAX_RESOURCE_BODY_SIZE, DEFAULT_MAX_RESOURCE_SIZE);
+			config.set(CoapConfig.MAX_MESSAGE_SIZE, DEFAULT_BLOCK_SIZE);
+			config.set(CoapConfig.PREFERRED_BLOCK_SIZE, DEFAULT_BLOCK_SIZE);
+
+		}
 	};
 
 	private static final String resourceDirectoryURI = "coap://rd.coap.amsuess.com";

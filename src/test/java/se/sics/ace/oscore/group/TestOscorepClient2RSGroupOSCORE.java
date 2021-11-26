@@ -139,7 +139,7 @@ public class TestOscorepClient2RSGroupOSCORE {
          * @throws Exception 
          */
         public void stop() throws Exception {
-            	TestOscorepRSGroupOSCORE.stop();
+            TestOscorepRSGroupOSCORE.stop();
         }
         
         @Override

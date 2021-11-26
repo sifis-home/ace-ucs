@@ -235,7 +235,7 @@ public class TestCoAPClientGroupOSCORE {
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
@@ -417,7 +417,7 @@ public class TestCoAPClientGroupOSCORE {
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientF", key128);
@@ -567,7 +567,7 @@ public class TestCoAPClientGroupOSCORE {
         Configuration dtlsConfig = Configuration.getStandard();
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
     	
-    	DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
+        DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
         builder.setAddress(new InetSocketAddress(0));
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientG", key128);

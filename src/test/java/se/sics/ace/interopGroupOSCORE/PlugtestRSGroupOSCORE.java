@@ -1046,10 +1046,10 @@ public class PlugtestRSGroupOSCORE {
     			// The group mode is used. The PoP evidence is a signature
     			if (targetedGroup.getMode() != Constants.GROUP_OSCORE_PAIRWISE_MODE_ONLY) {
 
-					if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
-    			        signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
-					else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
-    			        signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
+    			    if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_EC2))
+        			    signKeyCurve = publicKey.get(KeyKeys.EC2_Curve).AsInt32();
+    			    else if (publicKey.get(KeyKeys.KeyType).equals(COSE.KeyKeys.KeyType_OKP))
+        			    signKeyCurve = publicKey.get(KeyKeys.OKP_Curve).AsInt32();
 
     			    // This should never happen, due to the previous sanity checks
     			    if (signKeyCurve == 0) {
@@ -3588,16 +3588,16 @@ public class PlugtestRSGroupOSCORE {
       
   	    dpd = new CoapDeliverer(rs.getRoot(), null, asi); 
   	    
-  	    Configuration dtlsConfig = Configuration.getStandard();
-  	    dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
-  	    dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
+        Configuration dtlsConfig = Configuration.getStandard();
+        dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
+        dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
 
-  	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
+        DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(new InetSocketAddress(portNumberSec));
   	    
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
-		config.setAdvancedPskStore(psk);
-		config.setCertificateIdentityProvider(
+        config.setAdvancedPskStore(psk);
+        config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
 
    	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();

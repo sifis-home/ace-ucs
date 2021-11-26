@@ -306,10 +306,9 @@ public class Introspect implements Endpoint, AutoCloseable {
         if (token.getType().equals(CBORType.Array)) {
             try {
                 // Get the RS id (audience) from the COSE KID header.
-				COSE.Message coseRaw = COSE.Message
-						.DecodeFromBytes(
+                COSE.Message coseRaw = COSE.Message.DecodeFromBytes(
                         token.EncodeToBytes());
-                CBORObject kid = coseRaw.findAttribute(HeaderKeys.KID.AsCBOR());
+                CBORObject kid = coseRaw.findAttribute(HeaderKeys.KID);
                 Set<String> aud = new HashSet<>();
                 if(kid == null) {
                     if (senderId == null) {
