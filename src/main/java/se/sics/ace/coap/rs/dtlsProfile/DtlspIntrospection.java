@@ -109,9 +109,6 @@ public class DtlspIntrospection implements IntrospectionHandler {
                 .setAddress(new InetSocketAddress(0));
         builder.setCertificateIdentityProvider(
                 new SingleCertificateProvider(rpk.AsPrivateKey(), rpk.AsPublicKey()));
-        // builder.setIdentity(rpk.AsPrivateKey(), rpk.AsPublicKey());
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 
         ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
         certTypes.add(CertificateType.RAW_PUBLIC_KEY);
@@ -166,9 +163,6 @@ public class DtlspIntrospection implements IntrospectionHandler {
         BksStore keystore = new BksStore(
                 keystoreLocation, keystorePwd, addr2idFile);
         builder.setAdvancedPskStore(keystore);
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8}); 
-        // builder.setSniEnabled(false);
 
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         

@@ -121,8 +121,6 @@ public class DTLSProfileRequests {
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
 
-        // builder.setClientAuthenticationRequired(true);
-        // builder.setSniEnabled(false);
         if (type.equals(KeyKeys.KeyType_Octet)) {
             String keyId = new String(
                     key.get(KeyKeys.KeyId).GetByteString(),
@@ -130,19 +128,14 @@ public class DTLSProfileRequests {
             AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
             pskStore.setKey(keyId, key.get(KeyKeys.Octet_K).GetByteString());
             builder.setAdvancedPskStore(pskStore);
-            // builder.setSupportedCipherSuites(new CipherSuite[]{
-            //      CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         } else if (type.equals(KeyKeys.KeyType_EC2) || type.equals(KeyKeys.KeyType_OKP)){
             try {
-                // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
                 builder.setCertificateIdentityProvider(
                         new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
                 LOGGER.severe("Failed to transform key: " + e.getMessage());
                 throw new AceException(e.getMessage());
             }
-            // builder.setSupportedCipherSuites(new CipherSuite[]{
-            //    CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
         } else {
             LOGGER.severe("Unknwon key type used for getting a token");
             throw new AceException("Unknown key type");
@@ -200,12 +193,7 @@ public class DTLSProfileRequests {
                 = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                         new InetSocketAddress(0));
 
-            // builder.setClientAuthenticationRequired(true);
-            // builder.setSniEnabled(false);
-            // builder.setSupportedCipherSuites(new CipherSuite[]{
-            //      CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
             try {
-                // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
                 builder.setCertificateIdentityProvider(
                         new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
             } catch (CoseException e) {
@@ -315,10 +303,6 @@ public class DTLSProfileRequests {
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
-        // builder.setClientAuthenticationRequired(true);
-        // builder.setSniEnabled(false);
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         AdvancedMultiPskStore store = new AdvancedMultiPskStore();
         
@@ -376,10 +360,6 @@ public class DTLSProfileRequests {
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                 new InetSocketAddress(0));
-        // builder.setClientAuthenticationRequired(true);
-        // builder.setSniEnabled(false);
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         
         AdvancedMultiPskStore store = new AdvancedMultiPskStore();
 
@@ -420,11 +400,7 @@ public class DTLSProfileRequests {
         DtlsConnectorConfig.Builder builder 
             = new DtlsConnectorConfig.Builder(dtlsConfig).setAddress(
                     new InetSocketAddress(0));
-        // builder.setClientAuthenticationRequired(true);
-        // builder.setSniEnabled(false);
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //         CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-        // builder.setIdentity(clientKey.AsPrivateKey(), clientKey.AsPublicKey());
+
         builder.setCertificateIdentityProvider(
                 new SingleCertificateProvider(clientKey.AsPrivateKey(), clientKey.AsPublicKey()));
         if (rsPublicKey != null) {

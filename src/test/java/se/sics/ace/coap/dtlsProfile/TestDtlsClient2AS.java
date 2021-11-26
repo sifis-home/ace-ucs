@@ -192,14 +192,10 @@ public class TestDtlsClient2AS {
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
-        // builder.setClientOnly();
-        // builder.setSniEnabled(false);
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
-        // builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
@@ -237,14 +233,10 @@ public class TestDtlsClient2AS {
     	dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION,  false);
     	dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Collections.singletonList(CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
-        // builder.setClientOnly();
-        // builder.setSniEnabled(false);
 
         AdvancedSinglePskStore pskStore = new AdvancedSinglePskStore("clientA", key128);
         builder.setAdvancedPskStore(pskStore);
 
-        //builder.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
         CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
         ceb.setConnector(dtlsConnector);
@@ -321,13 +313,8 @@ public class TestDtlsClient2AS {
         dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8));
         
         DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
-        // builder.setClientOnly();
-        // builder.setSniEnabled(false);
-        //builder.setPskStore(new StaticPskStore("rs1", key256));
         builder.setCertificateIdentityProvider(
                 new SingleCertificateProvider(key.AsPrivateKey(), key.AsPublicKey()));
-        // builder.setIdentity(key.AsPrivateKey(), key.AsPublicKey());
-        // builder.setSupportedCipherSuites(new CipherSuite[]{CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
 
         ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
         certTypes.add(CertificateType.RAW_PUBLIC_KEY);

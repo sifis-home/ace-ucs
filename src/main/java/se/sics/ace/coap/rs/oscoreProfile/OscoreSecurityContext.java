@@ -269,18 +269,18 @@ public class OscoreSecurityContext {
         
         org.eclipse.californium.cose.AlgorithmID algId = null;
         org.eclipse.californium.cose.AlgorithmID hkdfId = null;
-		try {
+        try {
             if(this.alg != null) {
                 algId = org.eclipse.californium.cose.AlgorithmID.FromCBOR(this.alg.AsCBOR());
-		    }
+            }
             
             if(this.hkdf != null) {
                 hkdfId = org.eclipse.californium.cose.AlgorithmID.FromCBOR(this.hkdf.AsCBOR());
             }
-		} catch (org.eclipse.californium.cose.CoseException e) {
-			System.err.println("Failed conversion of alg or hkdf to create OSCORE Context!");
-			e.printStackTrace();
-		}
+        } catch (org.eclipse.californium.cose.CoseException e) {
+            System.err.println("Failed conversion of alg or hkdf to create OSCORE Context!");
+            e.printStackTrace();
+        }
         
         return new OSCoreCtx(this.ms, isClient, algId, senderId, 
                 recipientId, hkdfId, this.replaySize, finalSalt, 

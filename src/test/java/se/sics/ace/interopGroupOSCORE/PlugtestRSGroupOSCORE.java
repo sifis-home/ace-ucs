@@ -3595,15 +3595,10 @@ public class PlugtestRSGroupOSCORE {
   	    DtlsConnectorConfig.Builder config = new DtlsConnectorConfig.Builder(dtlsConfig)
                 .setAddress(new InetSocketAddress(portNumberSec));
   	    
-  	    // config.setSupportedCipherSuites(new CipherSuite[]{
-        //       CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-        //       CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
 		config.setAdvancedPskStore(psk);
 		config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
-		// config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-  	    // config.setClientAuthenticationRequired(true);
 
    	    ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
    	    certTypes.add(CertificateType.RAW_PUBLIC_KEY);

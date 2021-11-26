@@ -237,7 +237,6 @@ public class DtlspRSTestServer {
       dpd = new CoapDeliverer(rs.getRoot(), null, archm); 
 
       Configuration dtlsConfig = Configuration.getStandard();
-      // dtlsConfig.set(DtlsConfig.DTLS_USE_SERVER_NAME_INDICATION, false);
       dtlsConfig.set(DtlsConfig.DTLS_CLIENT_AUTHENTICATION_MODE, CertificateAuthenticationMode.NEEDED);
       dtlsConfig.set(DtlsConfig.DTLS_CIPHER_SUITES, Arrays.asList(CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8, CipherSuite.TLS_PSK_WITH_AES_128_CCM_8));
       
@@ -245,15 +244,10 @@ public class DtlspRSTestServer {
               .setAddress(
                       new InetSocketAddress(CoAP.DEFAULT_COAP_SECURE_PORT));
 
-        // config.setSupportedCipherSuites(new CipherSuite[]{
-        //        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-        //        CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
         DtlspPskStore psk = new DtlspPskStore(ai);
         config.setAdvancedPskStore(psk);
         config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
-        // config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-        // config.setClientAuthenticationRequired(true);
 
         ArrayList<CertificateType> certTypes = new ArrayList<CertificateType>();
         certTypes.add(CertificateType.RAW_PUBLIC_KEY);

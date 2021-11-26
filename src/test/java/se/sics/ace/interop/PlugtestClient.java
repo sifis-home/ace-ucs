@@ -273,10 +273,7 @@ public class PlugtestClient {
             
             DtlsConnectorConfig.Builder builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            // builder.setClientOnly();
-            // builder.setSupportedCipherSuites(new CipherSuite[]{
-            //        CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-            // builder.setClientAuthenticationRequired(false);  
+
             DTLSConnector dtlsConnector = new DTLSConnector(builder.build());
             CoapEndpoint.Builder ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);
@@ -303,7 +300,6 @@ public class PlugtestClient {
         
             builder = new DtlsConnectorConfig.Builder(dtlsConfig);
             builder.setAddress(new InetSocketAddress(0));
-            // builder.setSupportedCipherSuites(new CipherSuite[] { CipherSuite.TLS_PSK_WITH_AES_128_CCM_8 });
 
             AdvancedMultiPskStore pskStore = new AdvancedMultiPskStore();
             pskStore.setKey("client1", client1);
@@ -423,10 +419,7 @@ public class PlugtestClient {
             builder.setAddress(new InetSocketAddress(0));
             builder.setCertificateIdentityProvider(
                     new SingleCertificateProvider(rpk.AsPrivateKey(), rpk.AsPublicKey()));
-            // builder.setIdentity(rpk.AsPrivateKey(), rpk.AsPublicKey());
-            // builder.setSupportedCipherSuites(new CipherSuite[]{
-            //         CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8});
-            // builder.setClientAuthenticationRequired(true);   
+
             dtlsConnector = new DTLSConnector(builder.build());
             ceb = new CoapEndpoint.Builder();
             ceb.setConnector(dtlsConnector);

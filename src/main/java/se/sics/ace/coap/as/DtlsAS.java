@@ -206,10 +206,7 @@ public class DtlsAS extends CoapServer implements AutoCloseable {
        if (asymmetricKey != null) {
            config.setCertificateIdentityProvider(
                    new SingleCertificateProvider(asymmetricKey.AsPrivateKey(), asymmetricKey.AsPublicKey()));
-           // config.setIdentity(asymmetricKey.AsPrivateKey(), asymmetricKey.AsPublicKey());
        }
-       // config.setClientAuthenticationRequired(true);
-       // config.setSniEnabled(false);
        DTLSConnector connector = new DTLSConnector(config.build());
        
        addEndpoint(new CoapEndpoint.Builder()

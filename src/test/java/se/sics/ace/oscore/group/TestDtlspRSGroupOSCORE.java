@@ -3593,15 +3593,11 @@ public class TestDtlspRSGroupOSCORE {
                 new X509Certificate[0], new RawPublicKeyIdentity[0], certTypes);
   	    config.setAdvancedCertificateVerifier(verifier);
 
-  	    // config.setSupportedCipherSuites(new CipherSuite[]{
-        //       CipherSuite.TLS_ECDHE_ECDSA_WITH_AES_128_CCM_8,
-        //       CipherSuite.TLS_PSK_WITH_AES_128_CCM_8});
   	    DtlspPskStoreGroupOSCORE psk = new DtlspPskStoreGroupOSCORE(ai);
 		config.setAdvancedPskStore(psk);
 		config.setCertificateIdentityProvider(
                 new SingleCertificateProvider(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey()));
-		// config.setIdentity(asymmetric.AsPrivateKey(), asymmetric.AsPublicKey());
-  	    // config.setClientAuthenticationRequired(true);
+
   	    DTLSConnector connector = new DTLSConnector(config.build());
   	    CoapEndpoint cep = new Builder().setConnector(connector)
                .setConfiguration(Configuration.getStandard()).build();
