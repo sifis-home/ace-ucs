@@ -40,7 +40,6 @@ import java.util.logging.Logger;
 import org.eclipse.californium.core.CoapServer;
 import org.eclipse.californium.core.coap.CoAP;
 import org.eclipse.californium.core.network.CoapEndpoint;
-import org.eclipse.californium.elements.config.Configuration;
 import org.eclipse.californium.oscore.OSCoreCoapStackFactory;
 import org.eclipse.californium.oscore.OSCoreCtx;
 import org.eclipse.californium.oscore.OSException;
@@ -49,7 +48,6 @@ import org.eclipse.californium.scandium.dtls.PskPublicInformation;
 import COSE.OneKey;
 
 import se.sics.ace.AceException;
-import se.sics.ace.Constants;
 import se.sics.ace.TimeProvider;
 import se.sics.ace.as.Introspect;
 import se.sics.ace.as.PDP;
