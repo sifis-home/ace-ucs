@@ -34,16 +34,11 @@ package se.sics.ace.oscore.group;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.Provider;
 import java.security.PublicKey;
 import java.security.SecureRandom;
 import java.security.Security;
-import java.security.Signature;
-import java.security.SignatureException;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -11913,7 +11908,7 @@ public class TestDtlspClientGroupOSCORE {
         CoapResponse r = c.get();
         Assert.assertEquals("FORBIDDEN", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+        Assert.assertEquals("{1: \"coaps://blah/authz-info/\", 2: h'6F746865724B6579'}", rPayload.toString());
     }
     
     
@@ -11955,7 +11950,7 @@ public class TestDtlspClientGroupOSCORE {
         CoapResponse r = c.post("blah", MediaTypeRegistry.APPLICATION_JSON);
         Assert.assertEquals("METHOD_NOT_ALLOWED", r.getCode().name());
         CBORObject rPayload = CBORObject.DecodeFromBytes(r.getPayload());
-        Assert.assertEquals("{2: h'796574416E6F746865724B6579', 1: \"coaps://blah/authz-info/\"}", rPayload.toString());    
+        Assert.assertEquals("{1: \"coaps://blah/authz-info/\", 2: h'796574416E6F746865724B6579'}", rPayload.toString());
     }
     
 }

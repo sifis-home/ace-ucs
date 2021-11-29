@@ -56,6 +56,7 @@ import com.upokecenter.cbor.CBORObject;
 
 import COSE.AlgorithmID;
 import COSE.MessageTag;
+import org.eclipse.californium.elements.util.Bytes;
 
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -98,6 +99,8 @@ public class TestOscorepClient2RS {
     private static OSCoreCtx osctx;
     
     private static OSCoreCtxDB ctxDB;
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
     
 	// Each set of the list refers to a different size of Recipient IDs.
 	// The element with index 0 includes as elements Recipient IDs with size 1 byte.
@@ -148,7 +151,7 @@ public class TestOscorepClient2RS {
         osctx = new OSCoreCtx(keyCnf, true, null, 
         		senderId,
         		recipientId,
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
         
         
         
@@ -365,7 +368,7 @@ public class TestOscorepClient2RS {
        CoapResponse rsRes2 = OSCOREProfileRequests.postTokenUpdate("coap://localhost/authz-info", asRes, ctxDB);
        assert(rsRes2.getCode() == CoAP.ResponseCode.CREATED);
        // ... and in fact no payload is expected in the response
-       assert(rsRes2.getPayload() == null);
+       assert (rsRes2.getPayload() == null || rsRes2.getPayload() == Bytes.EMPTY);
        
        //Check that the OSCORE context created before is still present
        Assert.assertNotNull(ctxDB.getContext("coap://localhost/helloWorld"));

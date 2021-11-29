@@ -59,7 +59,6 @@ import COSE.CoseException;
 import COSE.KeyKeys;
 import COSE.MessageTag;
 import COSE.OneKey;
-
 import se.sics.ace.AceException;
 import se.sics.ace.COSEparams;
 import se.sics.ace.Constants;
@@ -98,6 +97,8 @@ public class TestOscoreAuthzInfo {
     private static AuthzInfo ai = null;
     private static Introspect i; 
     private static KissPDP pdp = null;
+    
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
     
     /**
      * Set up tests.
@@ -948,7 +949,7 @@ public class TestOscoreAuthzInfo {
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = db.getContext(id2);
-        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
         
@@ -996,7 +997,7 @@ public class TestOscoreAuthzInfo {
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         osctx = db.getContext(id2);
-        osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
+        osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
         
@@ -1085,7 +1086,7 @@ public class TestOscoreAuthzInfo {
         CBORObject authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());
         byte[] id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         OSCoreCtx osctx = dbOSCORE.getContext(id2);
-        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
+        OSCoreCtx osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
 
@@ -1132,7 +1133,7 @@ public class TestOscoreAuthzInfo {
         authzInfoResponse = CBORObject.DecodeFromBytes(response.getRawPayload());        
         id2 = authzInfoResponse.get(Constants.ID2).GetByteString();
         osctx = dbOSCORE.getContext(id2);
-        osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext);
+        osctx2 = new OSCoreCtx(key128a, true, null, id1, id2, null, null, null, kidContext, MAX_UNFRAGMENTED_SIZE);
         
         assert(osctx.equals(osctx2));
         

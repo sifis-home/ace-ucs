@@ -57,6 +57,7 @@ import se.sics.ace.coap.client.OSCOREProfileRequests;
  */
 public class TestOscorepClient2AS {
     
+    private final static int MAX_UNFRAGMENTED_SIZE = 4096;
 	
     /**
      * The Master Secret of the AS <-> C OSCORE Security Context
@@ -107,7 +108,7 @@ public class TestOscorepClient2AS {
     	ctx = new OSCoreCtx(key128, true, null, 
     			new byte[] {0x01},
     			new byte[] {0x00},
-                null, null, null, null);
+                null, null, null, null, MAX_UNFRAGMENTED_SIZE);
         
         ctxDB = new org.eclipse.californium.oscore.HashMapCtxDB();
         

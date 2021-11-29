@@ -43,6 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Executor;
 
 import org.bouncycastle.crypto.InvalidCipherTextException;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
@@ -468,8 +469,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x01});
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());  
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
@@ -517,8 +517,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x02});
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
@@ -605,8 +604,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x03});
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
@@ -654,8 +652,7 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         req.setSourceContext(srcCtx);
         
         req.setToken(new byte[]{0x04});
-        Exchange iex = new Exchange(req, Origin.REMOTE, null);
-        iex.setRequest(req);   
+        Exchange iex = new Exchange(req, null, Origin.REMOTE, new TestSynchroneExecutor());
         CoapEndpoint cep = new Builder().build();
         cep.start();
         iex.setEndpoint(cep);
@@ -687,5 +684,30 @@ public class TestDtlspAuthzInfoGroupOSCORE {
         ai.close();
         ai2.close();
         new File(TestConfig.testFilePath + "tokens.json").delete();
+    }
+    
+    /**
+     * Synchronous Executor.
+     * 
+     * Executes command synchronous to simplify unit tests.
+     * 
+     * @since 3.0 (replaces SyncSerialExecutor)
+     */
+    private class TestSynchroneExecutor implements Executor {
+        /**
+         * Synchronous executor.
+         * 
+         * For unit tests.
+         */
+        private TestSynchroneExecutor() {
+        }
+
+        /**
+         * Execute the job synchronous.
+         */
+        @Override
+        public void execute(final Runnable command) {
+            command.run();
+        }
     }
 }
