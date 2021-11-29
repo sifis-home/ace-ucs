@@ -760,7 +760,7 @@ public class Token implements Endpoint, AutoCloseable {
 		                CBORObject.FromObject(allowedScopes));
 		        break;
 		    case Constants.CNF:
-		    	CBORObject cnf = msg.getParameter(Constants.CNF);
+		    	CBORObject cnf = msg.getParameter(Constants.REQ_CNF);
 		        if (cnf == null) { //The client wants to use PSK
 		            keyType = "PSK"; //save for later
 		            
