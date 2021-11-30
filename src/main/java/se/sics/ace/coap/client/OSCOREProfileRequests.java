@@ -182,6 +182,7 @@ public class OSCOREProfileRequests {
         payload.Add(Constants.NONCE1, n1);
         
         byte[] recipientId = null;
+		byte[] contextId = new byte[0];
         int recipientIdAsInt = -1;
         boolean found = false;
         
@@ -191,7 +192,6 @@ public class OSCOREProfileRequests {
         	
 	        	int maxIdValue;
 	        	
-    			byte[] contextId = new byte[0];
     			if (cnf.get(Constants.OSCORE_Input_Material).ContainsKey(Constants.OS_CONTEXTID)) {
     				contextId = cnf.get(Constants.OSCORE_Input_Material).get(Constants.OS_CONTEXTID).GetByteString();
     			}
@@ -325,7 +325,7 @@ public class OSCOREProfileRequests {
         			
 				// Double check in the database that the OSCORE Security Context
 				// with the selected Recipient ID is actually still not present
-    			if (db.getContext(recipientId) != null) {
+    			if (db.getContext(recipientId, contextId) != null) {
     				// A Security Context with this Recipient ID exists!
     				install = false;
     			}        			
