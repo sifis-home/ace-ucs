@@ -38,6 +38,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.coap.Token;
 import org.eclipse.californium.elements.DtlsEndpointContext;
@@ -210,4 +211,12 @@ public class CoapReq implements Message {
     public Token getToken() {
         return this.request.getToken();
     }
+    
+    /**
+     * @return  the OptionSet associated with this message
+     */
+    public OptionSet getOptions() {
+    	return this.request.getOptions();
+    }
+    
 }

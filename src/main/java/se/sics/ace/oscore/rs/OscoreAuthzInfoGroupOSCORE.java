@@ -52,6 +52,7 @@ import se.sics.ace.AceException;
 import se.sics.ace.Constants;
 import se.sics.ace.Message;
 import se.sics.ace.TimeProvider;
+import se.sics.ace.coap.CoapReq;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreCtxDbSingleton;
 import se.sics.ace.coap.rs.oscoreProfile.OscoreSecurityContext;
 import se.sics.ace.cwt.CwtCryptoCtx;
@@ -136,6 +137,17 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	    boolean provideSignInfo = false;
 	    boolean provideEcdhInfo = false;
 	    boolean invalid = false;
+	    
+		if (msg instanceof CoapReq) {
+			// Check that the content-format is application/ace+cbor
+			if (((CoapReq) msg).getOptions().getContentFormat() != Constants.APPLICATION_ACE_CBOR) {
+				LOGGER.info("Invalid content-format");
+				CBORObject map = CBORObject.NewMap();
+				map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+				map.Add(Constants.ERROR_DESCRIPTION, "Invalid content-format");
+				return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+			}
+		}
 	    
         try {
             cbor = CBORObject.DecodeFromBytes(msg.getRawPayload());

@@ -211,7 +211,8 @@ public class TestOscoreAuthzInfo {
     public void testInvalidPayload() throws IllegalStateException, 
             InvalidCipherTextException, CoseException, AceException {
         Request r = Request.newPost();
-        CoapReq request = CoapReq.getInstance(r);        
+        CoapReq request = CoapReq.getInstance(r);
+        request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
@@ -234,7 +235,8 @@ public class TestOscoreAuthzInfo {
         Request r = Request.newPost();
         CBORObject foo = CBORObject.FromObject("bar");
         r.setPayload(foo.EncodeToBytes());
-        CoapReq request = CoapReq.getInstance(r);        
+        CoapReq request = CoapReq.getInstance(r);
+        request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
@@ -263,7 +265,8 @@ public class TestOscoreAuthzInfo {
         byte[] id1  = new byte[] {0x00};
         foo.Add(Constants.ID1, id1);
         r.setPayload(foo.EncodeToBytes());
-        CoapReq request = CoapReq.getInstance(r);        
+        CoapReq request = CoapReq.getInstance(r);
+        request.getOptions().setContentFormat(Constants.APPLICATION_ACE_CBOR);
         Message response = ai.processMessage(request);
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();

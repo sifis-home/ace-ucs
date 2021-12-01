@@ -35,6 +35,7 @@ import java.util.logging.Logger;
 
 import org.eclipse.californium.core.CoapResource;
 import org.eclipse.californium.core.coap.CoAP.ResponseCode;
+import org.eclipse.californium.core.coap.OptionSet;
 import org.eclipse.californium.core.coap.Request;
 import org.eclipse.californium.core.server.resources.CoapExchange;
 import org.eclipse.californium.elements.EndpointContext;
@@ -50,7 +51,7 @@ import se.sics.ace.rs.AuthzInfo;
 /**
  * A CoAP resource implementing the authz-info endpoint at the RS.
  * 
- * @author Ludwig Seitz
+ * @author Ludwig Seitz and Marco Tiloca
  *
  */
 public class CoapAuthzInfo extends CoapResource {
@@ -88,6 +89,13 @@ public class CoapAuthzInfo extends CoapResource {
         // into the request to process at the underlying authz-info library
         EndpointContext ctx = exchange.advanced().getRequest().getSourceContext();
         req.setSourceContext(ctx);
+        
+        // Re-include the CoAP options from the received request.
+        //
+        // When then OSCORE profile is used, this enables the RS
+        // to check that the content-format application/ace+cbor is used.
+        OptionSet options = exchange.advanced().getRequest().getOptions();
+        req.setOptions(options);
         
         try {
             CoapReq msg = CoapReq.getInstance(req);
