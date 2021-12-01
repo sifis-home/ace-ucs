@@ -1148,15 +1148,13 @@ public class Token implements Endpoint, AutoCloseable {
 		            	   }
 		               }
 		               
-                       LOGGER.severe("Message processing aborted: "
-                               + e.getMessage());
+                       LOGGER.severe("Message processing aborted: " + e.getMessage());
                        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		           }
 		        }
 		        break;
 		    default :
-		       LOGGER.severe("Unknown claim type in /token "
-		               + "endpoint configuration: " + c);
+		       LOGGER.severe("Unknown claim type in /token endpoint configuration: " + c);
 		       return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);   
 		    }
 		}
@@ -1341,10 +1339,8 @@ public class Token implements Endpoint, AutoCloseable {
 	            }
 		        
 		        CBORObject map = CBORObject.NewMap();
-		        map.Add(Constants.ERROR, 
-		                "No common security context found for audience");
-		        LOGGER.log(Level.INFO, "Message processing aborted: "
-		                + "No common security context found for audience");
+		        map.Add(Constants.ERROR, "No common security context found for audience");
+		        LOGGER.log(Level.INFO, "Message processing aborted: No common security context found for audience");
 		        return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, map);
 		    }
 		    CWT cwt = (CWT)token;
@@ -1359,10 +1355,8 @@ public class Token implements Endpoint, AutoCloseable {
 		        uHeaders.put(HeaderKeys.KID, requestedAud);
 		    }
 		    try {
-		        rsInfo.Add(Constants.ACCESS_TOKEN, 
-		                cwt.encode(ctx, null, uHeaders).EncodeToBytes());
-		    } catch (IllegalStateException | InvalidCipherTextException
-		            | CoseException | AceException e) {
+		        rsInfo.Add(Constants.ACCESS_TOKEN, cwt.encode(ctx, null, uHeaders).EncodeToBytes());
+		    } catch (IllegalStateException | InvalidCipherTextException | CoseException | AceException e) {
 		    	if (!includeExi) {
 		    		this.cti--; //roll-back
 		    	}
@@ -1391,6 +1385,27 @@ public class Token implements Endpoint, AutoCloseable {
 		}
 
 		try {
+			
+			// If the claim set includes EXI but not EXP, then extend the claim set to be stored as follows:
+			//
+			// 1. Add an EXP claim, computed as current time plus the EXI value.
+			//    This allows to purge the token if expired, even though it was created without the EXP claim.
+			//
+			// 2. Add an internal "sentinel claim" to signal the presence of the artificially added EXP claim.
+			//    In case of introspection, this allows the Authorization Server to return the Access Token
+			//    like it was originally issued, i.e., without the EXI claim if this was artificially added.
+			if (claims.get(Constants.EXP) == null && claims.get(Constants.EXI) != null) {
+				Long now = this.time.getCurrentTime();
+				Long exp = now + claims.get(Constants.EXI).AsInt64();
+				
+				claims.put(Constants.EXP, CBORObject.FromObject(exp));
+				
+				// The "sentinel claim" has CBOR abbreviation 0, which is reserved.
+				// A value smaller than -65536 ("private use") would be more appropriate, but it would
+				// not be representable through the integer short type already used for the claim set. 
+				claims.put((short)0, CBORObject.True);
+			}
+			
 		    this.db.addToken(ctiStr, claims);
 		    this.db.addCti2Client(ctiStr, id);
 		    if (!includeExi) {
@@ -1474,8 +1489,7 @@ public class Token implements Endpoint, AutoCloseable {
             	
             }
             
-		    LOGGER.severe("Message processing aborted: "
-		            + e.getMessage());
+		    LOGGER.severe("Message processing aborted: " + e.getMessage());
 		    return msg.failReply(Message.FAIL_INTERNAL_SERVER_ERROR, null);
 		}
 		LOGGER.log(Level.INFO, "Returning token: " + ctiStr);
