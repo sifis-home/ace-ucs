@@ -938,7 +938,7 @@ public class TestOscoreAuthzInfo {
 
         CBORObject payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        byte[] n1 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
@@ -988,7 +988,7 @@ public class TestOscoreAuthzInfo {
 	    	       
         payload = CBORObject.NewMap();
         payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        n1 = new byte[]{0x04, 0x05, 0x06}; // Offer a new nonce N1
+        n1 = new byte[]{0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // Offer a new nonce N1
         id1 = new byte[]{0x03}; // Offer a new ID1 for the server to use as its own Sender ID
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
