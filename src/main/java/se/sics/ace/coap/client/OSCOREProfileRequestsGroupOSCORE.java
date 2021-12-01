@@ -175,7 +175,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);
@@ -418,7 +418,7 @@ public class OSCOREProfileRequestsGroupOSCORE {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
         if (askForSignInfo)
         	payload.Add(Constants.SIGN_INFO, CBORObject.Null);

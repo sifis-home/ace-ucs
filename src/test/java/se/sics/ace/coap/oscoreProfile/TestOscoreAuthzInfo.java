@@ -271,8 +271,7 @@ public class TestOscoreAuthzInfo {
         assert(response.getMessageCode() == Message.FAIL_BAD_REQUEST); 
         CBORObject map = CBORObject.NewMap();
         map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-        map.Add(Constants.ERROR_DESCRIPTION, 
-              "Missing mandatory parameter 'access_token'");
+        map.Add(Constants.ERROR_DESCRIPTION, "Missing mandatory parameter 'access_token'");
         Assert.assertArrayEquals(map.EncodeToBytes(), response.getRawPayload());
     }
     
@@ -341,7 +340,7 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         payload.Add(Constants.NONCE1, "blah");
         LocalMessage request = new LocalMessage(0, null, null, payload);
                 
@@ -390,7 +389,7 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         payload.Add(Constants.NONCE1, null);
         LocalMessage request = new LocalMessage(0, null, null, payload);
                 
@@ -433,8 +432,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -478,8 +478,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -525,8 +526,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -573,8 +575,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -621,8 +624,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -669,8 +673,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -720,8 +725,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -771,8 +777,9 @@ public class TestOscoreAuthzInfo {
 
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -822,8 +829,9 @@ public class TestOscoreAuthzInfo {
 
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         payload.Add(Constants.NONCE1, n1);
         byte[] id1  = new byte[] {0x00};
         payload.Add(Constants.ID1, id1);
@@ -872,8 +880,9 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = new byte[8];
+        new SecureRandom().nextBytes(n1);
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
@@ -937,7 +946,7 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         byte[] n1 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
@@ -987,7 +996,7 @@ public class TestOscoreAuthzInfo {
 	    // Then try again the same accesses as above.
 	    	       
         payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         n1 = new byte[]{0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // Offer a new nonce N1
         id1 = new byte[]{0x03}; // Offer a new ID1 for the server to use as its own Sender ID
         payload.Add(Constants.NONCE1, n1);
@@ -1074,8 +1083,8 @@ public class TestOscoreAuthzInfo {
         CwtCryptoCtx ctx = CwtCryptoCtx.encrypt0(key128, coseP.getAlg().AsCBOR());
 
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        byte[] n1 = {0x01, 0x02, 0x03};
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        byte[] n1 = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08};
         byte[] id1 = {0x00};
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
@@ -1123,8 +1132,8 @@ public class TestOscoreAuthzInfo {
 	    // Then try again the same accesses as above.
 	    	       
         payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
-        n1 = new byte[]{0x04, 0x05, 0x06}; // Offer a new nonce N1
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
+        n1 = new byte[]{0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01}; // Offer a new nonce N1
         id1 = new byte[]{0x03}; // Offer a new ID1 for the server to use as its own Sender ID
         payload.Add(Constants.NONCE1, n1);
         payload.Add(Constants.ID1, id1);
@@ -1185,7 +1194,7 @@ public class TestOscoreAuthzInfo {
         // Include only the Token now. If Id1 and Nonce1 were
         // included here too, the RS would silently ignore them
         payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx));
+        payload.Add(Constants.ACCESS_TOKEN, token.encode(ctx).EncodeToBytes());
         
         // Posting the Token through an unprotected request.
         // This fails since such a Token needs to include the

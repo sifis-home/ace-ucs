@@ -175,7 +175,7 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
         byte[] n1 = new byte[8];
         new SecureRandom().nextBytes(n1);
@@ -390,7 +390,7 @@ public class OSCOREProfileRequests {
         }
         
         CBORObject payload = CBORObject.NewMap();
-        payload.Add(Constants.ACCESS_TOKEN, token);
+        payload.Add(Constants.ACCESS_TOKEN, token.EncodeToBytes());
         
     	CoapResponse resp = null;
 

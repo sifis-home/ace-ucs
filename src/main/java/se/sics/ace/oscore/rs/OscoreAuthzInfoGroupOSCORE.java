@@ -199,16 +199,30 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
 	        }
         }
         
-        
         token = cbor.get(CBORObject.FromObject(Constants.ACCESS_TOKEN));
         if (token == null) {
-            LOGGER.info("Missing mandatory paramter 'access_token'");
+            LOGGER.info("Missing parameter 'access_token'");
             CBORObject map = CBORObject.NewMap();
             map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
-            map.Add(Constants.ERROR_DESCRIPTION, 
-                    "Missing mandatory parameter 'access_token'");
+            map.Add(Constants.ERROR_DESCRIPTION, "Missing mandatory parameter 'access_token'");
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
+        if (!token.getType().equals(CBORType.ByteString)) {
+            LOGGER.info("Invalid parameter type for 'access_token', it must be a byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION, "Unknown token format");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }
+
+        CBORObject tokenAsCbor = CBORObject.DecodeFromBytes(token.GetByteString());
+        if (!tokenAsCbor.getType().equals(CBORType.ByteString) && !tokenAsCbor.getType().equals(CBORType.Array)) {
+            LOGGER.info("Invalid parameter type for 'access_token', must be present and byte-string");
+            CBORObject map = CBORObject.NewMap();
+            map.Add(Constants.ERROR, Constants.INVALID_REQUEST);
+            map.Add(Constants.ERROR_DESCRIPTION,"Failed deserialization of parameter 'access_token'");
+            return msg.failReply(Message.FAIL_BAD_REQUEST, map);
+        }        
         
         if (cbor.ContainsKey(CBORObject.FromObject(Constants.SIGN_INFO))) {
     		if (cbor.get(CBORObject.FromObject(Constants.SIGN_INFO)).equals(CBORObject.Null)) {
@@ -233,7 +247,7 @@ public class OscoreAuthzInfoGroupOSCORE extends AuthzInfo {
             return msg.failReply(Message.FAIL_BAD_REQUEST, map);
         }
         
-        Message reply = super.processToken(token, msg);
+        Message reply = super.processToken(tokenAsCbor, msg);
         if (reply.getMessageCode() != Message.CREATED) {
             return reply;
         }
